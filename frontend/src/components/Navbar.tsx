@@ -4,19 +4,32 @@ import Logo from "../img/NestupLogoText.png";
 import userIcon from "../img/user.svg"; // Ensure you have the correct path
 import menu from "../img/menu.svg"; // Ensure you have the correct path
 
+const navLinks = [
+  { name: "Our Process"},
+  { name: "Contact us"},
+];
+
 export function Navbar() {
   return (
-    <nav className="flex w-full items-center justify-between px-5 py-1.5 h-[7vh] bg-gray-100">
-      <div className="flex items-center h-full lg:container lg:mx-auto">
-        <Image src={Logo} alt="Logo" layout="intrinsic" objectFit="contain" className="relative w-auto max-h-full" />
-      </div>
-      <div className="flex items-center gap-x-5">
-        <div className="flex items-center gap-x-2">
-          <Image src={userIcon} alt="User Profile" layout="intrinsic" objectFit="contain" className="max-h-full" />
-          <span className="hidden font-medium text-[#36485c] lg:block">Sign in</span>
+    <nav className="flex w-full items-center justify-between px-2 py-1 h-[7vh] bg-gray-100">
+      <div className="flex items-center h-full">
+        <Image src={Logo} alt="Logo" className="relative w-auto max-h-full object-contain hover:cursor-pointer" />
+        <div className="hidden lg:flex pl-[74px] gap-x-[56px]">
+          {navLinks.map((item, index) => (
+            <p className="hidden lg:block font-medium text-bw-dark hover:text-theme-color hover:cursor-pointer"key = {index}>{item.name}</p>
+          ))}
         </div>
-        <div>
-          <Image src={menu} alt="Menu" layout="intrinsic" objectFit="contain" className="max-h-full" />
+      </div>
+      <div className="flex items-center gap-x-5 h-full">
+        <div className="flex items-center gap-x-2 h-full">
+          <span className="font-medium text-bw-dark hover:text-theme-color hover:cursor-pointer pr-[30px]">Book a Site Visit</span>
+          <div className="relative h-full min-w-8">
+            <Image src={userIcon} alt="User Profile" layout="fill" objectFit="contain" />
+          </div>
+          <span className="hidden lg:block font-medium text-bw-dark hover:text-theme-color hover:cursor-pointer">Sign in</span>
+        </div>
+        <div className="relative h-full min-w-8">
+          <Image src={menu} alt="Menu" layout="fill" objectFit="contain" />
         </div>
       </div>
     </nav>
