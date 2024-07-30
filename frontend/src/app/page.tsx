@@ -4,7 +4,7 @@ import { AboutSection } from "@/components/AboutSection";
 
 export default function Home() {
   return (
-    <div className="index">
+    <div className="w-screen">
       <HomeSection />
       <ProcessSection />
       <AboutSection />

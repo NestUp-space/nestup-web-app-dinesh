@@ -1,8 +1,8 @@
 import React from "react";
 import Image from "next/image";
-import Logo from "../img/NestupLogoText.png";
-import userIcon from "../img/user.svg"; // Ensure you have the correct path
-import menu from "../img/menu.svg"; // Ensure you have the correct path
+import Logo from "../../public/img/NestupLogoText.png";
+import userIcon from "../../public/img/user.svg"; // Ensure you have the correct path
+import menu from "../../public/img/menu.svg"; // Ensure you have the correct path
 
 const navLinks = [
   { name: "Our Process"},
@@ -11,7 +11,7 @@ const navLinks = [
 
 export function Navbar() {
   return (
-    <nav className="flex w-full items-center justify-between px-2 py-1 h-[7vh] bg-gray-100">
+    <nav className="flex w-full items-center justify-between px-2 py-1 h-[7vh] bg-gray-800">
       <div className="flex items-center h-full">
         <Image src={Logo} alt="Logo" className="relative w-auto max-h-full object-contain hover:cursor-pointer" />
         <div className="hidden lg:flex pl-[74px] gap-x-[56px]">
