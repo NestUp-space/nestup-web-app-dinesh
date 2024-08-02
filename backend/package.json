@@ -1,0 +1,30 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc && tsc-alias",
+    "build:watch": "tsc -w",
+    "dev": "ts-node-dev -r --transpile-only -r tsconfig-paths/register src/server.ts",
+    "serve": "node dist/server.js",
+    "serve:watch": "nodemon dist/server.js",
+    "start": "npm run build && npm run serve"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/livebuy-tech/user-management-service"
+  },
+  "prisma": {
+    "schema": "src/database/prisma/schema.prisma"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}
