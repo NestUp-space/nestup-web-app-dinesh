@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "CommonJS",
+    "outDir": "dist/",
+    "sourceMap": false,
+    "esModuleInterop": true,
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["./*"],
+      "@src/*": ["./*"],
+      "@cache": ["./cache"],
+      "@controllers/*": ["./controllers/*"],
+      "@config": ["./config"],
+      "@config/*": ["./config/*"],
+      "@core/*": ["./core/*"],
+      "@helpers/*": ["./helpers/*"],
+      "@services/*": ["./services/*"],
+      "@database/*": ["./database/*"],
+      "@types/*": ["./types/*"],
+      "@appRequest": ["./types/app-request.ts"],
+      "@constants": ["./constants"],
+      "@constants/*": ["./constants/*"],
+      "@logger": ["./core/Logger.ts"],
+      "@prisma-db": ["./database/prisma"],
+      "@utils/*": ["./utils/*"],
+      "@validators/*": ["./validators/*"]
+    }
+  },
+  "exclude": ["node_modules"]
+}

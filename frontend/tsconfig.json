@@ -18,9 +18,12 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@img/*": ["./public/img/*"],
+      "@/components/*": ["./src/components/*"]
+
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/components/Navlink.jsx", "src/components/Navbar.tsx"],
   "exclude": ["node_modules"]
 }

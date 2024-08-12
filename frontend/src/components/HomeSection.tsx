@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { CTAButton } from "./CTAButton";
 
 export function HomeSection() {
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     function printLetterByLetter(
       destination: string,
@@ -14,7 +16,12 @@ export function HomeSection() {
       let i = 0;
       const destinationElement = document.getElementById(destination);
 
-      const interval = setInterval(() => {
+      // Ensure the element is cleared before starting
+      if (destinationElement) {
+        destinationElement.innerHTML = "";
+      }
+
+      intervalRef.current = setInterval(() => {
         if (destinationElement) {
           // Append one character at a time
           if (message.charAt(i) === "\n") {
@@ -24,7 +31,7 @@ export function HomeSection() {
           }
           i++;
           if (i >= message.length) {
-            clearInterval(interval);
+            clearInterval(intervalRef.current!);
             if (callback && typeof callback === "function") {
               callback();
             }
@@ -45,8 +52,13 @@ export function HomeSection() {
       }
     });
 
-
-  }, []);
+    // Return a cleanup function to clear intervals when component unmounts
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []); // Empty dependency array ensures this effect runs only once
 
   return (
     <section className="h-180vh md:h-90vh" id="home">

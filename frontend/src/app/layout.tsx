@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import { Navbar } from "@/components/Navbar";
-import "../styles/globals.css";
+import type { Metadata } from "next"
+import { Inter } from "next/font/google"
+import "../styles/globals.css"
+import TransitionProvider from "../components/transitionProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -17,14 +17,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <div className="fixed top-0 left-0 right-0 z-50">
-        <Navbar/>
-        </div>  
-        <div className="container px-auto mt-[7vh] min-h-[93vh]">
-          {children}
-        </div>  
-      </body>
-    </html>
+    <body className={inter.className}>
+      <TransitionProvider>{children}</TransitionProvider>
+    </body>
+  </html>
   );
 }

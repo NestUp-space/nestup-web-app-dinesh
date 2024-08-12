@@ -13,18 +13,63 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/livebuy-tech/user-management-service"
+    "url": "https://github.com/S8352/Nestup-Web-App/tree/main/backend"
   },
   "prisma": {
     "schema": "src/database/prisma/schema.prisma"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Surya Teja G",
+  "license": "Apache-2.0",
   "description": "",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.515.0",
+    "@aws-sdk/s3-request-presigner": "^3.521.0",
+    "@prisma/client": "^5.10.2",
+    "axios": "^1.6.5",
+    "bcrypt": "^5.1.1",
     "body-parser": "^1.20.2",
+    "compression": "^1.7.4",
+    "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "joi": "^17.13.3",
+    "jsonwebtoken": "^9.0.2",
+    "lodash": "^4.17.21",
+    "moment": "^2.30.1",
+    "multer": "^1.4.5-lts.1",
+    "redis": "^4.6.12",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/compression": "^1.7.5",
+    "@types/cookie-parser": "^1.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.11",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/lodash": "^4.14.202",
+    "@types/morgan": "^1.9.9",
+    "@types/multer": "^1.4.11",
+    "@types/node": "^20.11.30",
+    "@types/request": "^2.48.12",
+    "@typescript-eslint/eslint-plugin": "^6.17.0",
+    "@typescript-eslint/parser": "^6.17.0",
+    "bun-types": "latest",
+    "colors": "^1.4.0",
+    "dotenv": "^16.4.5",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.3",
+    "prettier": "^3.1.1",
+    "prisma": "^5.10.2",
+    "supertest": "^6.3.3",
+    "ts-jest": "^29.1.1",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "tsc-alias": "^1.8.8",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.3.3"
   }
 }
