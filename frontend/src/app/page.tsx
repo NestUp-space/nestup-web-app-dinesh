@@ -7,7 +7,6 @@ export default function Home() {
     <div className="w-screen">
       <HomeSection />
       <ProcessSection />
-
     </div>
   );
 }

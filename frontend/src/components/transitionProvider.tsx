@@ -36,11 +36,15 @@ const TransitionProvider: React.FC<TransitionProviderProps> = ({ children }) => 
           initial={{ height: "140vh" }}
           animate={{ height: "0vh", transition: { delay: 0.5 } }}
         />
-        <div className="h-24 fixed bg-white">
+        <div className="h-24 top-0 fixed bg-white z-50">
           <Navbar />
         </div>
-        {children}
-        <Footer/>
+        <div className="mt-24">
+          {children}
+        </div>
+        <div>
+          <Footer/>
+        </div>
       </div>
     </AnimatePresence>
   );

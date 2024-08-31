@@ -2,6 +2,8 @@
 
 import React, { useEffect, useRef } from "react";
 import { CTAButton } from "./CTAButton";
+import Image from "next/image";
+import bgImg from "@img/homeBg.jpeg";
 
 export function HomeSection() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -63,26 +65,37 @@ export function HomeSection() {
   return (
     <section className="h-90vh" id="home">
       <div className="flex flex-col">
-        <div className="flex items-center justify-center h-dvh w-screen md:w-50% left-0 overflow-hidden bg-lightest-bg">
-          <div className="h-3/4 flex flex-col items-center justify-around">
-            <div className="text-center">
-              <h1 className="text-6xl text-theme-color text-bold">Build smarter with Modular</h1>
-              <br/>
-              <h2>Faster, Better, and Cost Effective</h2>
-            </div>
-            <h2 className= "text-center" id="pitch"></h2>
-            <div className="CTA click">
+        <div className=" h-160">
+          <Image
+            src={bgImg}
+            alt="Backgound Imagge"
+            className="absolute inset-0 object-cover w-full h-dvh opacity-75"
+          />
+          <div className="absolute flex items-center justify-center h-dvh w-screen left-0 overflow-hidden bg-white opacity-30">
+
+          </div>
+          <div className="relative flex items-center justify-center h-dvh w-screen left-0 overflow-hidden ">
+            <div className="h-3/4 flex flex-col items-center justify-around">
+              <div className="text-center">
+                <h1 className="text-6xl text-theme-color text-bold drop-shadow-3xl">Build smarter with Modular</h1>
+                <br/>
+                <h2>Faster, Better, and Cost Effective</h2>
+              </div>
+              <h2 className= "text-center" id="pitch"></h2>
+              <div className="CTA click">
               <a href="#contactus">
                 <CTAButton text="Book a Site Visit" />
               </a>
               <a href="tel:+918885563262">
                 <CTAButton text="Call us" />
               </a>
+              </div>
             </div>
           </div>
         </div>
-        <div className="h-dvh w-screen md:w-50% flex flex-col justify-center items-center px-10">
-          <div className="my-auto">
+        
+        <div className="w-screen flex flex-col justify-center items-center p-10">
+          <div className="my-auto flex flex-col gap-3 bg-lightest-bg p-10 mx-10 rounded-3xl">
             <h2 className="text-theme-color font-bold text-3xl">
               Building smarter with Modular
             </h2>
@@ -92,7 +105,7 @@ export function HomeSection() {
               key problems for homeowners, designers, architects, and all of us:
             </p>
             <br/>
-            <ul>
+            <ul className="flex flex-col gap-3">
               <li>
                 <span className="text-theme-color font-bold">
                   Get in Faster:

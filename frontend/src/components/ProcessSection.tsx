@@ -30,25 +30,25 @@ const processItems = [
 
 export function ProcessSection() {
   return (
-    <section className="min-h-screen" id="process">
-      <div className="block h-[7vh]">
+    <section className=" my-20 bg-theme-dark w-screen p-40" id="process">
+      <div className="text-theme-color font-bold text-3xl my-10">
         <h1>How it works</h1>
       </div>
-      <div className="flex-col">
+      <div className="flex-col ">
         {processItems.map((item, index) => (
           <div key={index} className="grid grid-cols-5 gap-6 m-3">
             <div className="col-span-1">
               <Image
-                className="p-3 border-2 border-theme-color rounded-lg"
+                className="p-3 border-2 border-theme-color bg-white rounded-lg"
                 src={item.imgSrc}
                 alt={item.imgAlt}
                 width={150} // specify a width
                 height={150} // specify a height
               />
             </div>
-            <div className="col-span-4">
+            <div className="flex col-span-4 bg-white items-center p-8">
               <p>
-                <span className="bold-text">{item.title}:</span> {item.text}
+                <span className="text-theme-color font-bold">{item.title}:</span> {item.text}
               </p>
             </div>
           </div>

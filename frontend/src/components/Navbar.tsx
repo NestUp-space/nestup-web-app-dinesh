@@ -7,14 +7,9 @@ import { motion } from "framer-motion";
 import Logo from "@img/NestupLogoText.svg";
 
 import NavLink from "./Navlink";
+import {links} from "@constants/navLinks"; 
 
-const links = [
-  { url: "/", title: "Home" },
-  { url: "/process", title: "How it works" },
-  { url: "/portfolio", title: "Our Works" },
-  { url: "/blog", title: "Our blog" },
-  { url: "/contact", title: "Contact Us" },
-];
+
 
 const Navbar = () => {
   const [MenuOpen, setMenuOpen] = useState(false);
@@ -69,7 +64,7 @@ const Navbar = () => {
   };
 
   return (
-    <div className="h-full w-screen flex items-center justify-evenly px-4 sm:px-8 md:px-12 lg:px-20 xl:px-48">
+    <div className="h-24 w-screen flex items-center justify-evenly px-4 sm:px-8 md:px-12 lg:px-20 xl:px-48">
       
        {/* LOGO */}
        <div className="flex justify-left w-24">
