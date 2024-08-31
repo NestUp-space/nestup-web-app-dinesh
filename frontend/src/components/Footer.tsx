@@ -22,7 +22,7 @@ export function Footer() {
       <div className="flex flex-row rounded-3xl bg-white m-10">
         <div className="w-1/2 p-5 flex flex-col items-center gap-3">
           <p className="text-sm text-theme-dark">TIRED OF MISTAKES?</p>
-          <p className="text-3xl text-theme-color">Let's build your dream project!</p>
+          <p className="text-3xl text-theme-color">Let&#39;s build your dream project!</p>
           <Link href="/contact" className="flex justify-center rounded-md h-10 min-w-32 bg-theme-color text-white ">
             <button>Book a Site Visit</button>
           </Link>

@@ -131,7 +131,7 @@ export function HomeSection() {
                 <span className="text-theme-color font-bold">
                   Design Your Way:
                 </span>{" "}
-                Don't be stuck with a boring box! Modular designs can be
+                Don&#39;t be stuck with a boring box! Modular designs can be
                 customised in all sorts of ways, so homeowners can create homes
                 that suit their vision and what people are looking for.
               </li>
