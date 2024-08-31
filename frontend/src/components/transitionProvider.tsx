@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import Navbar from "../components/Navbar";
 import { usePathname } from "next/navigation";
 import React, { ReactNode } from "react";
+import { Footer } from "./Footer";
 
 interface TransitionProviderProps {
   children: ReactNode;
@@ -35,10 +36,11 @@ const TransitionProvider: React.FC<TransitionProviderProps> = ({ children }) => 
           initial={{ height: "140vh" }}
           animate={{ height: "0vh", transition: { delay: 0.5 } }}
         />
-        <div className="h-24">
+        <div className="h-24 fixed bg-white">
           <Navbar />
         </div>
-        <div className="h-[calc(100vh-6rem)]">{children}</div>
+        {children}
+        <Footer/>
       </div>
     </AnimatePresence>
   );

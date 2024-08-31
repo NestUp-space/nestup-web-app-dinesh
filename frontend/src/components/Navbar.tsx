@@ -5,17 +5,15 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 
 import Logo from "@img/NestupLogoText.svg";
-import userIcon from "@img/user.svg";
-import menu from "@img/menu.svg";
-
-import instaLogo from "@img/icons8-instagram.svg";
 
 import NavLink from "./Navlink";
 
 const links = [
   { url: "/", title: "Home" },
-  { url: "/experience", title: "Experience" },
-  { url: "/contact", title: "Contact" },
+  { url: "/process", title: "How it works" },
+  { url: "/portfolio", title: "Our Works" },
+  { url: "/blog", title: "Our blog" },
+  { url: "/contact", title: "Contact Us" },
 ];
 
 const Navbar = () => {
@@ -71,46 +69,44 @@ const Navbar = () => {
   };
 
   return (
-    <div className="h-full w-screen flex items-center justify-between px-4 sm:px-8 md:px-12 lg:px-20 xl:px-48">
+    <div className="h-full w-screen flex items-center justify-evenly px-4 sm:px-8 md:px-12 lg:px-20 xl:px-48">
       
-      {/* Large Screen Menu */}
-      <div className="hidden md:flex gap-3 w-1/3 justify-start">
-        {links.map((link) => (
-          <NavLink link={link} key={link.title} />
-        ))}
-      </div>
-      {/* LOGO */}
-
-      <div className=" lg:flex md:w-1/3 justify-center">
+       {/* LOGO */}
+       <div className="flex justify-left w-24">
         <Link href="/" className="flex rounded-md h-12 ">
           <Image
             src={Logo}
             alt="logo"
-            className="relative w-auto max-h-full object-contain hover:cursor-pointer"
+            className=" object-contain hover:cursor-pointer"
           />
         </Link>
       </div>
       
-      {/* Social Links */}
-      <div className="hidden md:flex gap-4 w-1/3 justify-end items-center">
-        <Link href="https://www.instagram.com/nestup.space/" target="_blank">
-          <Image src={instaLogo} alt="instagram logo" height={40} width={40} />
-        </Link>
-        <div className="flex items-center gap-x-5 h-full">
+      {/* Large Screen Menu */}
+      <div className="hidden lg:flex gap-3 justify-start">
+        {links.map((link) => (
+          <NavLink link={link} key={link.title} />
+        ))}
+      </div>
+      
+      {/* buttons */}
+      <div className=" flex gap-4 justify-end items-center">
         <div className="flex items-center gap-x-2 h-full">
-          <span className="font-medium text-bw-dark hover:text-theme-color hover:cursor-pointer pr-[30px]">
-            Book a Site Visit
-          </span>
-          <span className="hidden lg:block font-medium text-bw-dark hover:text-theme-color hover:cursor-pointer">
+          <Link href="/contact">
+            <span className="font-medium text-bw-dark hover:text-theme-color hover:cursor-pointer pr-[30px]">
+              Book a Site Visit
+            </span>
+          </Link>
+          
+          <span className=" block font-medium text-bw-dark hover:text-theme-color hover:cursor-pointer">
             Sign in
           </span>
         </div>
       </div>
-      </div>
       
 
       {/* Small and Medium Screen Menu */}
-      <div className="md:hidden z-40">
+      <div className="lg:hidden z-40">
         <button
           className="w-10 h-8 flex flex-col justify-between z-50 relative"
           onClick={() => setMenuOpen(!MenuOpen)}

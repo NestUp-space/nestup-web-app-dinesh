@@ -40,15 +40,15 @@ export function HomeSection() {
       }, speed);
     }
 
-    const message = "Faster,\nBetter,\nand\nCost\nEffective";
+    const message = "From Site measurement to Installation\nin 14 working days\nat ₹320 per sqft";
 
-    printLetterByLetter("pitch", message, 100, () => {
+    printLetterByLetter("pitch", message, 50, () => {
       const ctaElements = document.getElementsByClassName("CTA");
       for (let j = 0; j < ctaElements.length; j++) {
         const element = ctaElements[j] as HTMLElement; // Cast to HTMLElement
         setTimeout(() => {
           element.style.visibility = "visible";
-        }, j * 300);
+        }, j * 500);
       }
     });
 
@@ -61,31 +61,24 @@ export function HomeSection() {
   }, []); // Empty dependency array ensures this effect runs only once
 
   return (
-    <section className="h-180vh md:h-90vh" id="home">
-      <div className="flex flex-col md:flex-row">
-        <div className="h-dvh w-screen md:w-50% left-0 flex-col justify-center overflow-hidden bg-theme-color">
-          <h1 id="pitch"></h1>
-          <div className="promise">
-            <h1 className="CTA">
-              From <span className="promise-highlight">Site measurement</span>
-            </h1>
-            <h1 className="CTA">
-              to <span className="promise-highlight">Installation</span>
-            </h1>
-            <h1 className="CTA">
-              in <span className="promise-highlight">14</span> working days
-            </h1>
-            <h1 className="CTA">
-              at <span className="promise-highlight">₹320</span> per sqft
-            </h1>
-          </div>
-          <div className="CTA click">
-            <a href="#contactus">
-              <CTAButton text="Schedule a Visit" />
-            </a>
-            <a href="tel:+918885563262">
-              <CTAButton text="Call us" />
-            </a>
+    <section className="h-90vh" id="home">
+      <div className="flex flex-col">
+        <div className="flex items-center justify-center h-dvh w-screen md:w-50% left-0 overflow-hidden bg-lightest-bg">
+          <div className="h-3/4 flex flex-col items-center justify-around">
+            <div className="text-center">
+              <h1 className="text-6xl text-theme-color text-bold">Build smarter with Modular</h1>
+              <br/>
+              <h2>Faster, Better, and Cost Effective</h2>
+            </div>
+            <h2 className= "text-center" id="pitch"></h2>
+            <div className="CTA click">
+              <a href="#contactus">
+                <CTAButton text="Book a Site Visit" />
+              </a>
+              <a href="tel:+918885563262">
+                <CTAButton text="Call us" />
+              </a>
+            </div>
           </div>
         </div>
         <div className="h-dvh w-screen md:w-50% flex flex-col justify-center items-center px-10">
@@ -93,12 +86,12 @@ export function HomeSection() {
             <h2 className="text-theme-color font-bold text-3xl">
               Building smarter with Modular
             </h2>
-            <h3>Why modular construction is the future for India</h3>
+            <h3>Why modular construction is the future?</h3>
             <p>
               The fast rise of modular construction is no surprise. It solves
               key problems for homeowners, designers, architects, and all of us:
             </p>
-            <br />
+            <br/>
             <ul>
               <li>
                 <span className="text-theme-color font-bold">
