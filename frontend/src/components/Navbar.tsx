@@ -8,7 +8,7 @@ import Logo from "@img/NestupLogoText.svg";
 
 import NavLink from "./Navlink";
 import {links} from "@constants/navLinks"; 
-
+import { CTAButton } from "./CTAButton";
 
 
 const Navbar = () => {
@@ -86,20 +86,13 @@ const Navbar = () => {
       
       {/* buttons */}
       <div className=" flex gap-4 justify-end items-center">
-        <div className="flex items-center gap-x-2 h-full">
-          <Link href="/contact">
-            <span className="font-medium text-bw-dark hover:text-theme-color hover:cursor-pointer pr-[30px]">
-              Book a Site Visit
-            </span>
-          </Link>
-          
-          <span className=" block font-medium text-bw-dark hover:text-theme-color hover:cursor-pointer">
-            Sign in
-          </span>
+        <div className="flex items-cente h-full">
+          <a href="#contactus">
+            <CTAButton text="Book a Site Visit" />
+          </a>
         </div>
       </div>
       
-
       {/* Small and Medium Screen Menu */}
       <div className="lg:hidden z-40">
         <button

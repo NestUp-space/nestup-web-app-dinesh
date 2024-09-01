@@ -4,4 +4,5 @@ export const links = [
   { url: "/portfolio", title: "Our Works" },
   { url: "/blog", title: "Our blog" },
   { url: "/contact", title: "Contact Us" },
+  { url: "/signin", title: "Sign In" },
 ];
