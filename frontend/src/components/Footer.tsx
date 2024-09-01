@@ -19,15 +19,15 @@ const links = [
 export function Footer() {
   return (
     <div className="h-auto bg-theme-dark bottom-0 p-1">
-      <div className="flex flex-row rounded-3xl bg-white m-10">
-        <div className="w-1/2 p-5 flex flex-col items-center gap-3">
+      <div className="flex flex-col items-center justify-center md:flex-row m-10">
+        <div className="w-full md:w-1/2 p-5 flex flex-col items-center text-center gap-3 rounded-3xl bg-white m-3">
           <p className="text-sm text-theme-dark">TIRED OF MISTAKES?</p>
           <p className="text-3xl text-theme-color">Let&#39;s build your dream project!</p>
           <Link href="/contact" className="flex justify-center rounded-md h-10 min-w-32 bg-theme-color text-white ">
             <button>Book a Site Visit</button>
           </Link>
         </div>
-        <div className="w-1/2 p-5 flex flex-col items-center gap-3">
+        <div className="w-full md:w-1/2 p-5 flex flex-col items-center text-center gap-3 rounded-3xl bg-white m-3">
           <p className="text-sm text-theme-dark">GETTING CURIOUS?</p>
           <p className="text-3xl text-theme-color">See how it works!</p>
           <p>Take a look how we make it happen</p>
@@ -36,7 +36,7 @@ export function Footer() {
           </Link>
         </div>
       </div>
-      <div className="p-10 flex">
+      <div className="p-10 flex flex-col md:flex-row">
         <div>
           {/* LOGO */}
           <div className=" w-24 justify-center bg-white px-2">
@@ -69,17 +69,16 @@ export function Footer() {
             <p>© 2024 Nestup.space All rights reserved.</p>
           </div>
         </div>
-        <div className="h-full w-screen flex items-center justify-evenly px-4 sm:px-8 md:px-12 lg:px-20 xl:px-48">
-          
+        <div className=" text-white h-full w-screen flex items-center justify-evenly px-4 sm:px-8 md:px-12 lg:px-20 xl:px-48">
           {/* Large Screen Menu */}
-          <div className="flex flex-col gap-3 w-1/3 justify-start text-white ">
+          <div className="flex flex-col gap-3 w-1/3 justify-start ">
             {links.map((link) => (
               <NavLink link={link} key={link.title} />
             ))}
           </div>
         
           {/* Social Links */}
-          <div className="flex flex-col gap-3 w-1/3 justify-start text-white">
+          <div className="flex flex-col gap-3 w-1/3 justify-start">
             <Link href="/" >
               <span className="font-medium text-bw-dark hover:text-theme-color hover:cursor-pointer ">
                 Book a Site Visit

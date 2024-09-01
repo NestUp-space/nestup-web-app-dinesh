@@ -30,7 +30,7 @@ const processItems = [
 
 export function ProcessSection() {
   return (
-    <section className=" my-20 bg-theme-dark w-screen p-40" id="process">
+    <section className=" my-20 bg-theme-dark w-screen p-10 md:p-20 lg:p-40" id="process">
       <div className="text-theme-color font-bold text-3xl my-10">
         <h1>How it works</h1>
       </div>
