@@ -50,7 +50,7 @@ export function HomeSection() {
         const element = ctaElements[j] as HTMLElement; // Cast to HTMLElement
         setTimeout(() => {
           element.style.visibility = "visible";
-        }, j * 500);
+        }, j * 100);
       }
     });
 
@@ -94,8 +94,8 @@ export function HomeSection() {
           </div>
         </div>
         
-        <div className="w-screen flex flex-col justify-center items-center p-10">
-          <div className="my-auto flex flex-col gap-3 bg-lightest-bg p-10 mx-10 rounded-3xl">
+        <div className="w-screen flex flex-col justify-center items-center p-5 md:p-10">
+          <div className="my-auto flex flex-col gap-3 bg-lightest-bg p-5 md:p-10 rounded-3xl">
             <h2 className="text-theme-color font-bold text-3xl">
               Building smarter with Modular
             </h2>

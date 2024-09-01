@@ -2,6 +2,7 @@
 
 
 import { useRef } from "react";
+import { ProcessSection } from "@/components/ProcessSection";
 
 
 const Process = () => {
@@ -17,7 +18,7 @@ const Process = () => {
           <div className="flex flex-col gap-5 justify-center">
             <h1 className="text-2xl font-bold">Process</h1>
           </div>
-  
+          <ProcessSection/>
         </div>
         
       </div>

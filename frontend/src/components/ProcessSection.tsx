@@ -30,7 +30,7 @@ const processItems = [
 
 export function ProcessSection() {
   return (
-    <section className=" my-20 bg-theme-dark w-screen p-10 md:p-20 lg:p-40" id="process">
+    <section className=" bg-theme-dark w-screen p-10 md:p-20 lg:p-40" id="process">
       <div className="text-theme-color font-bold text-3xl my-10">
         <h1>How it works</h1>
       </div>
@@ -39,14 +39,14 @@ export function ProcessSection() {
           <div key={index} className="grid grid-cols-5 gap-6 m-3">
             <div className="col-span-1">
               <Image
-                className="p-3 border-2 border-theme-color bg-white rounded-lg"
+                className="p-1 md:p-3 border-1 border-theme-color bg-white rounded-lg"
                 src={item.imgSrc}
                 alt={item.imgAlt}
                 width={150} // specify a width
                 height={150} // specify a height
               />
             </div>
-            <div className="flex col-span-4 bg-white items-center p-8">
+            <div className="flex col-span-4 bg-white items-center p-8 rounded-lg">
               <p>
                 <span className="text-theme-color font-bold">{item.title}:</span> {item.text}
               </p>

@@ -66,10 +66,9 @@ export function Footer() {
                 </Link>
               </div>
             </div>
-            <p>© 2024 Nestup.space All rights reserved.</p>
           </div>
         </div>
-        <div className=" text-white h-full w-screen flex items-center justify-evenly px-4 sm:px-8 md:px-12 lg:px-20 xl:px-48">
+        <div className=" text-white h-full w-screen flex items-center justify-start gap-10 lg:px-20 xl:px-48">
           {/* Large Screen Menu */}
           <div className="flex flex-col gap-3 w-1/3 justify-start ">
             {links.map((link) => (
@@ -93,7 +92,7 @@ export function Footer() {
           </div>
         </div>
       </div>
-      
+      <p className="text-white px-10">© 2024 Nestup.space All rights reserved.</p>
     </div>
   );
 };
