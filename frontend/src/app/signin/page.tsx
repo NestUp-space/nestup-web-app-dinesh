@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation"; // Use next/navigation instead of next/router
+import { CTAButton } from "@/components/CTAButton";
 
 const SignInSignUp = () => {
   const emailRef = useRef<HTMLInputElement>(null);
@@ -59,7 +60,7 @@ const SignInSignUp = () => {
   return (
     <div className="flex justify-center items-center h-screen">
       <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-center mb-4">
+        <h2 className="text-2xl text- text-theme-color font-bold text-center mb-4">
           {isSignUp ? "Sign Up" : "Sign In"}
         </h2>
         <form onSubmit={handleFormSubmit}>
@@ -98,18 +99,13 @@ const SignInSignUp = () => {
             </div>
           )}
           <div className="text-center">
-            <button
-              type="submit"
-              className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
-            >
-              {isSignUp ? "Sign Up" : "Sign In"}
-            </button>
+            <CTAButton type = "submit" text={isSignUp ? "Sign Up" : "Sign In"} />
           </div>
         </form>
         <div className="text-center mt-4">
           <button
             onClick={() => setIsSignUp(!isSignUp)}
-            className="text-blue-500 hover:underline"
+            className="text-theme-color hover:underline"
           >
             {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
           </button>
