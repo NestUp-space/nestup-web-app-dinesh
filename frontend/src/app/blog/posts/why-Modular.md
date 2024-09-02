@@ -2,6 +2,7 @@
 title: 'Modular Factory: A Cost-Effective Solution for Interior Design'
 category: "Why Modular?"
 date: '31-08-2024'
+cover: '@img/*blog/homeBg.jpeg'
 ---
 
 ## Modular Factory: A Cost-Effective Solution for Interior Design

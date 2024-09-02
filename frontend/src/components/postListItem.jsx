@@ -13,6 +13,7 @@ const PostItemList = ({ category, posts }) => {
             key={id}
             className="text-neutral-900 hover:text-neutral-950 transition duration-150"
           >
+            {post.cover}
             {post.title}
           </Link>
         ))}

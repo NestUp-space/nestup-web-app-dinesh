@@ -1,4 +1,4 @@
-import Link from 'next/link';
+
 import { getCategorisedPosts } from '@lib/posts';
 import PostItemList from '@/components/postListItem';
 
