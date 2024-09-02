@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation"; // Use next/navigation instead of next/router
-import { CTAButton } from "@/components/CTAButton";
+import { CTAButton } from "@components/CTAButton";
 
 const SignInSignUp = () => {
   const emailRef = useRef<HTMLInputElement>(null);

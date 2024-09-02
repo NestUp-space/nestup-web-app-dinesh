@@ -1,5 +1,5 @@
-import { HomeSection } from "@/components/HomeSection";
-import { ProcessSection } from "@/components/ProcessSection";
+import { HomeSection } from "@components/HomeSection";
+import { ProcessSection } from "@components/ProcessSection";
 
 
 export default function Home() {

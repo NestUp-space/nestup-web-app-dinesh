@@ -1,29 +1,30 @@
+import Container from "@components/container";
+import { HeroPost } from "@components/hero-post";
+import { Intro } from "@components/intro";
+import { MoreStories } from "@components/more-stories";
+import { getAllPosts } from "@lib/api";
 
-import { getCategorisedPosts } from '@lib/posts';
-import PostItemList from '@/components/postListItem';
+export default function Index() {
+  const allPosts = getAllPosts();
 
-// This function can be async if needed to fetch data
-export default function Blog() {
-  // Fetch the data directly in the component
-  const allPostsData = getCategorisedPosts();
+  const heroPost = allPosts[0];
+
+  const morePosts = allPosts.slice(1);
 
   return (
-    <div className="p-8">
-      <section className="mx-auto w-11/12 md:w-1/2 mt-20 flex flex-col gap-16 mb-20">
-        <header className="font-cormorantGaramond font-light text-6xl text-neutral-900 text-center">
-          <h2>Blog</h2>
-        </header>
-        <section className="md:grid md:grid-cols-2 flex flex-col gap-10">
-          {allPostsData && // Corrected posts to allPostsData
-            Object.keys(allPostsData).map((category) => (
-              <PostItemList 
-                key={category} // Corrected key positioning
-                category={category} 
-                posts={allPostsData[category]}
-              />
-            ))}
-        </section>
-      </section>
-    </div>
+    <main>
+      <Container>
+        <Intro />
+        <HeroPost
+          title={heroPost.title}
+          coverImage={heroPost.coverImage}
+          date={heroPost.date}
+          author={heroPost.author}
+          slug={heroPost.slug}
+          excerpt={heroPost.excerpt}
+        />
+        {morePosts.length > 0 && <MoreStories posts={morePosts} />}
+      </Container>
+    </main>
   );
 }

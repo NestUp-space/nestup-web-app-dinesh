@@ -2,8 +2,8 @@
 
 
 import { useRef } from "react";
-import { ProcessSection } from "@/components/ProcessSection";
-import FAQ from "@/components/Faq";
+import { ProcessSection } from "@components/ProcessSection";
+import FAQ from "@components/Faq";
 
 const Process = () => {
 
