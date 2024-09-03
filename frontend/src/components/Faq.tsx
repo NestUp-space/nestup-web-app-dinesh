@@ -27,7 +27,7 @@ const FAQ = () => {
           {faqData.map((faq, index) => (
             <div
               key={index}
-              className="bg-white rounded-lg shadow-md mb-4 overflow-hidden"
+              className="bg-white rounded-sm shadow-md mb-4 overflow-hidden"
             >
               <div
                 className="faq-question cursor-pointer flex justify-between items-center p-4 border-b border-gray-300"

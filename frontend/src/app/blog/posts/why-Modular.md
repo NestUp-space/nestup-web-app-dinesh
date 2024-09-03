@@ -5,7 +5,7 @@ coverImage: "/assets/blog/dynamic-routing/cover.jpg"
 date: "2024-08-30T05:35:07.322Z"
 author:
   name: Surya Teja
-  picture: "/assets/blog/authors/jj.jpeg"
+  picture: "/assets/blog/authors/surya.svg"
 ogImage:
   url: "/assets/blog/dynamic-routing/cover.jpg"
 ---

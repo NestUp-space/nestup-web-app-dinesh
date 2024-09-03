@@ -1,6 +1,6 @@
 import Container from "@components/container";
 import { HeroPost } from "@components/hero-post";
-import { Intro } from "@components/intro";
+import Header from "@components/header";
 import { MoreStories } from "@components/more-stories";
 import { getAllPosts } from "@lib/api";
 
@@ -14,7 +14,7 @@ export default function Index() {
   return (
     <main>
       <Container>
-        <Intro />
+        <Header />
         <HeroPost
           title={heroPost.title}
           coverImage={heroPost.coverImage}

@@ -5,7 +5,7 @@ coverImage: "/assets/blog/hello-world/cover.jpg"
 date: "2024-09-01T05:35:07.322Z"
 author:
   name: Vamsi Pratap
-  picture: "/assets/blog/authors/tim.jpeg"
+  picture: "/assets/blog/authors/vamsi.jpeg"
 ogImage:
   url: "/assets/blog/hello-world/cover.jpg"
 ---
