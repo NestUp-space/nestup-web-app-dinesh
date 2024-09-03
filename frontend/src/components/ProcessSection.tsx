@@ -32,7 +32,7 @@ export function ProcessSection() {
   return (
     <section className= "w-screen p-5 md:px-20 lg:px-40 " id="process">
       <div className="text-theme-color text-3xl md:text-5xl font-bold tracking-tight md:tracking-tighter leading-tight mb-20 mt-8 flex items-center">
-        <h1>How it works</h1>
+        <h1>How we work</h1>
       </div>
       <div className="flex-col ">
         {processItems.map((item, index) => (

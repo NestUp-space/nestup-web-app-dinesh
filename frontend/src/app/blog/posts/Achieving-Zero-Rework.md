@@ -1,5 +1,5 @@
 ---
-title: "Achieving Zero Rework in Interior Design : Start with Site Measurements"
+title: "Achieving Zero Rework in Interior Design: Start with Site Measurements"
 excerpt: "By prioritizing one crucial change in our work process, we have significantly minimized rework and achieved precision in our designs. In this blog post, I will explore the power of starting with accurate site measurements and considering site realities during the design phase."
 coverImage: "/assets/blog/hello-world/cover.jpg"
 date: "2024-09-01T05:35:07.322Z"

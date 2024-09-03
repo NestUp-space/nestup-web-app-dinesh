@@ -22,7 +22,7 @@ export function Footer() {
         </div>
         <div className="h-56 w-full md:w-1/2 p-5 flex flex-col items-center text-center gap-3 rounded-3xl m-3">
           <p className="text-sm text-theme-dark">GETTING CURIOUS?</p>
-          <p className="text-3xl lg:text-4xl font-bold text-theme-color">See how it works!</p>
+          <p className="text-3xl lg:text-4xl font-bold text-theme-color">See how we work!</p>
           <Link href="/process" className="flex justify-center rounded-md h-16 min-w-32 ">
             <CTAButton text="Know more" />
           </Link>
