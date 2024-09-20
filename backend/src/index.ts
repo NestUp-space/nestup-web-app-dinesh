@@ -1,19 +1,25 @@
-import { env } from "@/common/utils/envConfig";
-import { app, logger } from "@/server";
+import express from 'express';
+import dotenv from 'dotenv';
+import prisma from './config/db';
+import authRoutes from './routes/auth.routes';
+import projectRoutes from './routes/project.routes';
+import fileRoutes from './routes/file.routes';
 
-const server = app.listen(env.PORT, () => {
-  const { NODE_ENV, HOST, PORT } = env;
-  logger.info(`Server (${NODE_ENV}) running on port http://${HOST}:${PORT}`);
-});
+// Load environment variables
+dotenv.config();
 
-const onCloseSignal = () => {
-  logger.info("sigint received, shutting down");
-  server.close(() => {
-    logger.info("server closed");
-    process.exit();
-  });
-  setTimeout(() => process.exit(1), 10000).unref(); // Force shutdown after 10s
-};
+// Initialize Express app
+const app = express();
 
-process.on("SIGINT", onCloseSignal);
-process.on("SIGTERM", onCloseSignal);
+// Middleware to parse JSON requests
+app.use(express.json());
+
+
+// Routes
+app.use('/auth', authRoutes);
+app.use('/projects', projectRoutes);
+app.use('/files', fileRoutes);
+
+// Start the server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
