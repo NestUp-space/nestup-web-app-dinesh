@@ -3,5 +3,5 @@ export const links = [
   { url: "/process", title: "How we work" },
   { url: "/blog", title: "Blog" },
   { url: "/contact", title: "Contact Us" },
-  { url: "/signin", title: "Sign In" },
+  { url: "/login", title: "Login" },
 ];

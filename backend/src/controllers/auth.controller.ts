@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { registerUser, loginUser } from '../services/auth.service';  // Remove resetPassword from import
+import { registerUser, loginUser } from '../services/auth.service';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -18,6 +18,7 @@ export const login = async (req: Request, res: Response) => {
     res.status(400).json({ message: (error as Error).message });
   }
 };
+
 
 // Local resetPassword declaration to avoid conflicts
 export const resetPassword = async (req: Request, res: Response) => {

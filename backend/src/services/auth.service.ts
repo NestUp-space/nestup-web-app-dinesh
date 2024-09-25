@@ -4,11 +4,13 @@ import prisma from '../config/db';  // Prisma client
 
 export const registerUser = async (data: any) => {
   const hashedPassword = await bcrypt.hash(data.password, 10);
+  const role = data.role || 'client';  // Default role is 'client'
+
   const user = await prisma.user.create({
     data: {
       email: data.email,
-      password: hashedPassword,  // Prisma expects `password` not `password_hash`
-      role: data.role,
+      password: hashedPassword,
+      role,
     },
   });
   return user;
@@ -23,9 +25,10 @@ export const loginUser = async (data: any) => {
     throw new Error('Invalid credentials');
   }
 
-  const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET!, { expiresIn: '1h' });
-  return token;
+  const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+  return { token, role: user.role };  // Return both token and role for the frontend
 };
+
 
 export const resetPassword = async (email: string) => {
   // Implement reset password logic here

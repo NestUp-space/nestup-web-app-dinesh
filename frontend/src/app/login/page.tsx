@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CTAButton } from "@components/CTAButton";
 
-const SignInSignUp = () => {
+const LoginRegister = () => {
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const confirmPasswordRef = useRef<HTMLInputElement>(null);
@@ -12,12 +12,15 @@ const SignInSignUp = () => {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [confirmPasswordError, setConfirmPasswordError] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isRegister, setIsRegister] = useState(false);
+  const [serverError, setServerError] = useState(""); // To show server error feedback
+  const [successMessage, setSuccessMessage] = useState(""); // To show success feedback
 
   const router = useRouter();
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setServerError(""); // Reset error before submitting
 
     const email = emailRef.current?.value || "";
     const password = passwordRef.current?.value || "";
@@ -37,7 +40,7 @@ const SignInSignUp = () => {
       setPasswordError("");
     }
 
-    if (isSignUp) {
+    if (isRegister) {
       const confirmPassword = confirmPasswordRef.current?.value || "";
       if (password !== confirmPassword) {
         setConfirmPasswordError("Passwords do not match.");
@@ -45,21 +48,48 @@ const SignInSignUp = () => {
       } else {
         setConfirmPasswordError("");
       }
-      // Perform sign-up logic here
-      // Example: await signUpUser(email, password);
-    } else {
-      // Perform sign-in logic here
-      // Example: await signInUser(email, password);
-    }
 
-    router.push("/dashboard");
+      // Register the user
+      const response = await fetch("http://localhost:8080/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password, role: "client" }), // Default role is client
+      });
+
+      if (response.ok) {
+        setSuccessMessage("Registration successful!"); // Show success message
+        router.push("/dashboard");
+      } else {
+        const errorData = await response.json();
+        setServerError(`Registration failed: ${errorData.message}`);
+      }
+    } else {
+      // Log in the user
+      const response = await fetch("http://localhost:8080/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (response.ok) {
+        setSuccessMessage("Login successful!"); // Show success message
+        router.push("/dashboard");
+      } else {
+        const errorData = await response.json();
+        setServerError(`Login failed: ${errorData.message}`);
+      }
+    }
   };
 
   return (
     <div className="flex justify-center items-center h-screen bg-gray-100">
       <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-md">
         <h2 className="text-2xl text-theme-primary font-bold text-center mb-4">
-          {isSignUp ? "Sign Up" : "Sign In"}
+          {isRegister ? "Register" : "Login"}
         </h2>
         <form onSubmit={handleFormSubmit}>
           <div className="mb-4">
@@ -82,7 +112,7 @@ const SignInSignUp = () => {
             />
             {passwordError && <p className="text-theme-error">{passwordError}</p>}
           </div>
-          {isSignUp && (
+          {isRegister && (
             <div className="mb-4">
               <label className="block text-theme-secondary font-bold mb-2">
                 Confirm Password
@@ -96,16 +126,18 @@ const SignInSignUp = () => {
               {confirmPasswordError && <p className="text-theme-error">{confirmPasswordError}</p>}
             </div>
           )}
+          {serverError && <p className="text-theme-error">{serverError}</p>} {/* Server error feedback */}
+          {successMessage && <p className="text-theme-success">{successMessage}</p>} {/* Success feedback */}
           <div className="text-center">
-            <CTAButton type="submit" text={isSignUp ? "Sign Up" : "Sign In"} />
+            <CTAButton type="submit" text={isRegister ? "Register" : "Login"} />
           </div>
         </form>
         <div className="text-center mt-4">
           <button
-            onClick={() => setIsSignUp(!isSignUp)}
+            onClick={() => setIsRegister(!isRegister)}
             className="text-theme-primary hover:underline"
           >
-            {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
+            {isRegister ? "Already have an account? Login" : "Don't have an account? Register"}
           </button>
         </div>
       </div>
@@ -113,4 +145,4 @@ const SignInSignUp = () => {
   );
 };
 
-export default SignInSignUp;
+export default LoginRegister;
