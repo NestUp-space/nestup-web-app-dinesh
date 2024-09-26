@@ -5,7 +5,7 @@ interface PaginationProps {
   page: number;
   limit: number;
   onPageChange: (page: number) => void;
-  onLimitChange: (limit: number) => void; // If you want to allow changing page size
+  onLimitChange: (limit: number) => void;
 }
 
 const Pagination: React.FC<PaginationProps> = ({ totalCount, page, limit, onPageChange, onLimitChange }) => {

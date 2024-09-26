@@ -4,7 +4,10 @@ import { getUserById } from '../services/auth.service';
 
 // Extend Request type to include user
 interface CustomRequest extends Request {
-  user?: any;  // Define the type of user according to your application
+  user?: {
+    id: number;
+    role: string;
+  };
 }
 
 export const isAuthenticated = async (req: CustomRequest, res: Response, next: NextFunction) => {
@@ -15,14 +18,17 @@ export const isAuthenticated = async (req: CustomRequest, res: Response, next: N
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!);
-    const user = await getUserById((decoded as any).id);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const user = await getUserById(decoded.id);
     
     if (!user) {
       return res.status(401).json({ message: 'Invalid token' });
     }
 
-    req.user = user;
+    req.user = {
+      id: user.id,
+      role: user.role,
+    };
     next();
   } catch (error) {
     return res.status(401).json({ message: 'Authentication failed' });

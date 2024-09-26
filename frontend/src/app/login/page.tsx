@@ -13,14 +13,14 @@ const LoginRegister = () => {
   const [passwordError, setPasswordError] = useState("");
   const [confirmPasswordError, setConfirmPasswordError] = useState("");
   const [isRegister, setIsRegister] = useState(false);
-  const [serverError, setServerError] = useState(""); // To show server error feedback
-  const [successMessage, setSuccessMessage] = useState(""); // To show success feedback
+  const [serverError, setServerError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   const router = useRouter();
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setServerError(""); // Reset error before submitting
+    setServerError("");
 
     const email = emailRef.current?.value || "";
     const password = passwordRef.current?.value || "";
@@ -49,24 +49,22 @@ const LoginRegister = () => {
         setConfirmPasswordError("");
       }
 
-      // Register the user
       const response = await fetch("http://localhost:8080/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password, role: "client" }), // Default role is client
+        body: JSON.stringify({ email, password, role: "client" }),
       });
 
       if (response.ok) {
-        setSuccessMessage("Registration successful!"); // Show success message
+        setSuccessMessage("Registration successful!");
         router.push("/dashboard");
       } else {
         const errorData = await response.json();
         setServerError(`Registration failed: ${errorData.message}`);
       }
     } else {
-      // Log in the user
       const response = await fetch("http://localhost:8080/auth/login", {
         method: "POST",
         headers: {
@@ -76,7 +74,9 @@ const LoginRegister = () => {
       });
 
       if (response.ok) {
-        setSuccessMessage("Login successful!"); // Show success message
+        const { token } = await response.json(); // Extract token from response
+        localStorage.setItem("token", token); // Store token in local storage
+        setSuccessMessage("Login successful!");
         router.push("/dashboard");
       } else {
         const errorData = await response.json();
@@ -126,8 +126,8 @@ const LoginRegister = () => {
               {confirmPasswordError && <p className="text-theme-error">{confirmPasswordError}</p>}
             </div>
           )}
-          {serverError && <p className="text-theme-error">{serverError}</p>} {/* Server error feedback */}
-          {successMessage && <p className="text-theme-success">{successMessage}</p>} {/* Success feedback */}
+          {serverError && <p className="text-theme-error">{serverError}</p>}
+          {successMessage && <p className="text-theme-success">{successMessage}</p>}
           <div className="text-center">
             <CTAButton type="submit" text={isRegister ? "Register" : "Login"} />
           </div>
