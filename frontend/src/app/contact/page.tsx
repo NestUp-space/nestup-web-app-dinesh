@@ -1,4 +1,5 @@
 "use client"
+import { Footer } from "@/components/Footer";
 
 const Contact = () => {
 
@@ -18,6 +19,7 @@ const Contact = () => {
           </div>
         </div>
       </section>
+      <Footer/>
     </div>
   );
 };

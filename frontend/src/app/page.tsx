@@ -1,5 +1,6 @@
 import { HomeSection } from "@components/HomeSection";
 import { ProcessSection } from "@components/ProcessSection";
+import { Footer } from "@/components/Footer";
 
 
 export default function Home() {
@@ -7,6 +8,7 @@ export default function Home() {
     <div className="w-screen">
       <HomeSection />
       <ProcessSection />
+      <Footer/>
     </div>
   );
 }

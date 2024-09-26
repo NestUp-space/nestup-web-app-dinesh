@@ -65,7 +65,7 @@ const Navbar = () => {
 
   return (
     <div className="h-24 w-screen flex items-center justify-evenly px-4 sm:px-8 md:px-12 lg:px-20 xl:px-48">
-      
+  
        {/* LOGO */}
        <div className="flex justify-left w-24">
         <Link href="/" className="flex rounded-md h-12 ">
@@ -96,23 +96,23 @@ const Navbar = () => {
       {/* Small and Medium Screen Menu */}
       <div className="lg:hidden z-40">
         <button
-          className="w-10 h-8 flex flex-col justify-between z-50 relative"
+          className="w-8 h-6 flex flex-col justify-between z-50 relative"
           onClick={() => setMenuOpen(!MenuOpen)}
         >
           <motion.div
             variants={topVariants}
             animate={MenuOpen ? "opened" : "closed"}
-            className="w-10 h-1 bg-black rounded origin-left"
+            className="w-8 h-0.5 bg-black rounded origin-left"
           ></motion.div>
           <motion.div
             variants={centerVariants}
             animate={MenuOpen ? "opened" : "closed"}
-            className="w-10 h-1 bg-black rounded "
+            className="w-8 h-0.5 bg-black rounded "
           ></motion.div>
           <motion.div
             variants={bottomVariants}
             animate={MenuOpen ? "opened" : "closed"}
-            className="w-10 h-1 bg-black rounded origin-left"
+            className="w-8 h-0.5 bg-black rounded origin-left"
           ></motion.div>
         </button>
         {MenuOpen && (
@@ -121,11 +121,16 @@ const Navbar = () => {
               variants={listVariants}
               initial="closed"
               animate="opened"
+              exit="closed"  // Adds smooth transition when menu is closing
               className="absolute top-0 left-0 w-screen h-screen bg-theme-dark text-white flex flex-col items-center justify-center gap-8 text-4xl "
             >
               {links.map((link) => (
                 <motion.div variants={listItemVariants} key={link.title}>
-                  <Link className="" href={link.url}>
+                  <Link 
+                  className="" 
+                  href={link.url}
+                  onClick={() => setMenuOpen(false)} 
+                  >
                     {link.title}
                   </Link>
                 </motion.div>

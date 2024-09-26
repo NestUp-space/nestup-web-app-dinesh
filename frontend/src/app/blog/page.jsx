@@ -1,8 +1,9 @@
 import Container from "@components/container";
 import { HeroPost } from "@components/hero-post";
-import Header from "@components/header";
+import BlogHeader from "@components/blogHeader";
 import { MoreStories } from "@components/more-stories";
 import { getAllPosts } from "@lib/api";
+import { Footer } from "@/components/Footer";
 
 export default function Index() {
   const allPosts = getAllPosts();
@@ -14,7 +15,7 @@ export default function Index() {
   return (
     <main>
       <Container>
-        <Header />
+        <BlogHeader />
         <HeroPost
           title={heroPost.title}
           coverImage={heroPost.coverImage}
@@ -25,6 +26,7 @@ export default function Index() {
         />
         {morePosts.length > 0 && <MoreStories posts={morePosts} />}
       </Container>
+      <Footer/>
     </main>
   );
 }
