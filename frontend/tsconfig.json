@@ -1,10 +1,6 @@
 {
   "compilerOptions": {
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -14,7 +10,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve", // Updated to ensure JSX is handled correctly
+    "jsx": "react-jsx",  // Updated to ensure JSX is handled correctly
     "incremental": true,
     "plugins": [
       {
@@ -22,32 +18,20 @@
       }
     ],
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@img/*": [
-        "./public/img/*"
-      ],
-      "@components/*": [
-        "./src/components/*"
-      ],
-      "@lib/*": [
-        "./lib/*"
-      ],
-      "@constants/*": [
-        "./constants/*"
-      ]
+      "@/*": ["./src/*"],
+      "@img/*": ["./public/img/*"],
+      "@components/*": ["./src/components/*"],
+      "@lib/*": ["./lib/*"],
+      "@constants/*": ["./constants/*"]
     }
   },
   "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    "src/components/Navlink.jsx",
+    "next-env.d.ts", 
+    "**/*.ts", 
+    "**/*.tsx", 
+    ".next/types/**/*.ts", 
+    "src/components/Navlink.jsx", 
     "src/components/Navbar.tsx"
   ],
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules"]
 }

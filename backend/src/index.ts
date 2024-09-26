@@ -2,7 +2,9 @@ import express from 'express';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import projectRoutes from './routes/project.routes';
+import userRoutes from './routes/user.routes';
 import fileRoutes from './routes/file.routes';
+
 import cors from 'cors';
 
 // Load environment variables
@@ -24,6 +26,7 @@ app.use(express.json());
 app.use('/auth', authRoutes);
 app.use('/projects', projectRoutes);
 app.use('/files', fileRoutes);
+app.use('/users', userRoutes); // User route
 
 // Start the server
 const PORT = process.env.PORT || 5000;

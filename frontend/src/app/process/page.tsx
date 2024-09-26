@@ -5,13 +5,17 @@ import { useRef } from "react";
 import { ProcessSection } from "@components/ProcessSection";
 import FAQ from "@components/Faq";
 import { Footer } from "@/components/Footer";
+import Navbar from "@/components/Navbar";
 const Process = () => {
 
   const containerRef = useRef();
 
   return ( 
     <div className="">
-      <div className="" >
+      <div className="h-24 top-0 fixed bg-white z-50">
+         <Navbar />
+      </div>
+      <div className="mt-24" >
         {/* text*/}
         <div className=" gap-0 flex flex-col md:gap-0 lg:gap-8 lg:pr-0 xl:gap-16 w-screen lg:w-2/3 xl:1/2">
           {/* Bio*/}

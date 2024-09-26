@@ -1,11 +1,15 @@
 "use client"
 import { Footer } from "@/components/Footer";
+import Navbar from "@/components/Navbar";
 
 const Contact = () => {
 
   return ( 
     <div className="h-full">
-      <section className="index-section" id="contact">
+      <div className="h-24 top-0 fixed bg-white z-50">
+         <Navbar />
+      </div>
+      <section className="index-section mt-24" id="contact">
         <div className="sectionheader">
           <h1>About Us</h1>
         </div>
