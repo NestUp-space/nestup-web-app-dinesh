@@ -4,7 +4,7 @@
 import { useRef } from "react";
 import { ProcessSection } from "@components/ProcessSection";
 import FAQ from "@components/Faq";
-
+import { Footer } from "@/components/Footer";
 const Process = () => {
 
   const containerRef = useRef();
@@ -19,6 +19,9 @@ const Process = () => {
           <FAQ/>
         </div>
         
+      </div>
+      <div>
+        <Footer/>
       </div>
     </div>
   );
