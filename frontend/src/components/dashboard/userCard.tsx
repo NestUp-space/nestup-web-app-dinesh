@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';  // Import Button from the correct location
-import { useRouter } from 'next/router';
+'use client'; // Ensure this component is client-side
+
+import React, { useState, useEffect } from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/dashboard/card';
+import { Button } from '@/components/dashboard/button';
 
 interface UserCardProps {
   user: {
@@ -13,13 +14,14 @@ interface UserCardProps {
 
 const UserCard: React.FC<UserCardProps> = ({ user }) => {
   const [expanded, setExpanded] = useState(false);
-  const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Ensure the component is mounted before using the router
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleExpand = () => setExpanded(!expanded);
-
-  const redirectToUserDetail = () => {
-    router.push(`/users/${user.id}`);
-  };
 
   return (
     <Card className="mb-4">
@@ -29,7 +31,6 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
       {expanded ? (
         <CardContent>
           <p>Status: {user.isActive ? 'Active' : 'Inactive'}</p>
-          <Button onClick={redirectToUserDetail}>View Details</Button>
         </CardContent>
       ) : (
         <Button onClick={handleExpand}>Expand</Button>

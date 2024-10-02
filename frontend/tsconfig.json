@@ -31,6 +31,9 @@
       "@components/*": [
         "./src/components/*"
       ],
+      "@context/*": [
+        "./src/context/*"
+      ],
       "@lib/*": [
         "./lib/*"
       ],
@@ -44,7 +47,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "src/components/Navlink.jsx",
+    "src/components/landing-page/Navlink.jsx",
     "src/components/Navbar.tsx"
   ],
   "exclude": [

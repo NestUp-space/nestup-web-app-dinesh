@@ -1,6 +1,6 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/dashboard/tabs';
 import { File, PlusCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/dashboard/button';
 
 export default async function ProductsPage({
   searchParams
@@ -12,6 +12,7 @@ export default async function ProductsPage({
 
   return (
     <Tabs defaultValue="all">
+      <h1>Projects</h1>
       <div className="flex items-center">
         <TabsList>
           <TabsTrigger value="all">All</TabsTrigger>
@@ -22,22 +23,16 @@ export default async function ProductsPage({
           </TabsTrigger>
         </TabsList>
         <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" variant="outline" className="h-8 gap-1">
-            <File className="h-3.5 w-3.5" />
-            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-              Export
-            </span>
-          </Button>
           <Button size="sm" className="h-8 gap-1">
             <PlusCircle className="h-3.5 w-3.5" />
             <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-              Add Product
+              Add Project
             </span>
           </Button>
         </div>
       </div>
       <TabsContent value="all">
-        <p> content</p>
+        <p> List of Projects</p>
       </TabsContent>
     </Tabs>
   );

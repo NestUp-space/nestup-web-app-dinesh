@@ -1,10 +1,10 @@
-import Container from "@components/container";
-import { HeroPost } from "@components/hero-post";
-import BlogHeader from "@components/blogHeader";
-import { MoreStories } from "@components/more-stories";
+import Container from "@components/landing-page/container";
+import { HeroPost } from "@components/landing-page/hero-post";
+import BlogHeader from "@components/landing-page/blogHeader";
+import { MoreStories } from "@components/landing-page/more-stories";
 import { getAllPosts } from "@lib/api";
-import { Footer } from "@/components/Footer";
-import Navbar from "@/components/Navbar";
+import { Footer } from "@/components/landing-page/Footer";
+import Navbar from "@/components/landing-page/Navbar";
 
 export default function Index() {
   const allPosts = getAllPosts();

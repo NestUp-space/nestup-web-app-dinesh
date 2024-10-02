@@ -8,7 +8,7 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator
-} from '@/components/ui/breadcrumb';
+} from '@/components/dashboard/breadcrumb';
 
 export function DashboardBreadcrumb() {
   const path = usePathname();
@@ -37,7 +37,7 @@ export function DashboardBreadcrumb() {
   });
 
   return (
-    <Breadcrumb className="hidden md:flex">
+    <Breadcrumb className="hidden sm:flex">
       <BreadcrumbList>{breadcrumbItems}</BreadcrumbList>
     </Breadcrumb>
   );

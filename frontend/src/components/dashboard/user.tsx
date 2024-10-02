@@ -1,5 +1,6 @@
-import { Button } from '@/components/ui/button';
-import { auth } from '@lib/auth';
+"use client";
+
+import { Button } from '@/components/dashboard/button';
 import Image from 'next/image';
 import Logo from "@img/NestupLogoOnly.svg";
 import {
@@ -9,13 +10,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
+} from '@/components/dashboard/dropdown-menu';
 import Link from 'next/link';
-import { signOut } from './authActions'; // Import the server action from a separate file
+import { useUser } from "@/context/UserContext"; // Import the context
 
-export async function User() {
-  let session = await auth();
-  let user = session?.user;
+export function User() {
+  const { user } = useUser();
 
   return (
     <DropdownMenu>
@@ -33,7 +33,7 @@ export async function User() {
           className="overflow-hidden rounded-full"/>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className='bg-slate-100'>
         <DropdownMenuLabel>My Account</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem>Settings</DropdownMenuItem>
@@ -41,9 +41,7 @@ export async function User() {
         <DropdownMenuSeparator />
         {user ? (
           <DropdownMenuItem>
-            <form
-              action={signOut} // Call the server action from the imported file
-            >
+            <form>
               <button type="submit">Sign Out</button>
             </form>
           </DropdownMenuItem>

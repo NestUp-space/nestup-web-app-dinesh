@@ -2,10 +2,10 @@
 
 
 import { useRef } from "react";
-import { ProcessSection } from "@components/ProcessSection";
-import FAQ from "@components/Faq";
-import { Footer } from "@/components/Footer";
-import Navbar from "@/components/Navbar";
+import { ProcessSection } from "@components/landing-page/ProcessSection";
+import FAQ from "@components/landing-page/Faq";
+import { Footer } from "@/components/landing-page/Footer";
+import Navbar from "@/components/landing-page/Navbar";
 const Process = () => {
 
   const containerRef = useRef();

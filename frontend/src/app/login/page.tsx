@@ -2,12 +2,14 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CTAButton } from "@components/CTAButton";
+import { CTAButton } from "@components/landing-page/CTAButton";
+import { useUser } from "@/context/UserContext";
 
 const LoginRegister = () => {
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const confirmPasswordRef = useRef<HTMLInputElement>(null);
+  const { setUser } = useUser();
 
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -49,7 +51,7 @@ const LoginRegister = () => {
         setConfirmPasswordError("");
       }
 
-      const response = await fetch("http://localhost:8080/auth/register", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -65,7 +67,7 @@ const LoginRegister = () => {
         setServerError(`Registration failed: ${errorData.message}`);
       }
     } else {
-      const response = await fetch("http://localhost:8080/auth/login", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -74,8 +76,10 @@ const LoginRegister = () => {
       });
 
       if (response.ok) {
-        const { token } = await response.json(); // Extract token from response
-        localStorage.setItem("token", token); // Store token in local storage
+        const { token } = await response.json(); 
+        localStorage.setItem("token", token.token); // Save token as a string
+        console.log("Token fetched:", token);
+
         setSuccessMessage("Login successful!");
         router.push("/dashboard");
       } else {

@@ -13,5 +13,6 @@ router.get('/', adminMiddleware, UserController.getUsers);
 router.post('/', adminMiddleware, UserController.createUser);
 router.patch('/:id/toggle', adminMiddleware, UserController.toggleUserActiveStatus);
 router.get('/:id', adminMiddleware, UserController.getUserById);
+router.get('/profile', adminMiddleware, UserController.getUserById);
 
 export default router;

@@ -1,12 +1,13 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import Pagination from '@/components/ui/pagination';
-import UserCard from '@/components/ui/userCard';
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/dashboard/card";
+import { Button } from "@/components/dashboard/button";
+import Pagination from "@/components/dashboard/pagination";
+import UserCard from "@/components/dashboard/userCard";
+import Link from "next/link";
 
+// Define the User type
 interface User {
   id: number;
   email: string;
@@ -15,38 +16,31 @@ interface User {
 
 const UsersPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
-  const [newUserEmail, setNewUserEmail] = useState('');
-  const [newUserPassword, setNewUserPassword] = useState('');
-  const [showCreateForm, setShowCreateForm] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [createdUser, setCreatedUser] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalUsers, setTotalUsers] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  // Function to fetch users
   const fetchUsers = async () => {
-    const token = localStorage.getItem('token'); // Retrieve the token from localStorage
-
-    if (!token) {
-      setError('Unauthorized. Please log in.');
-      return;
-    }
-
     try {
-      const response = await fetch(`http://localhost:8080/users?page=${currentPage}&pageSize=${pageSize}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`, // Include the token in Authorization header
-        },
-      });
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error("No token found. Please log in.");
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/users?page=${currentPage}&pageSize=${pageSize}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Unauthorized. Please log in.');
-        } else {
-          throw new Error('Failed to fetch users');
-        }
+        throw new Error("Failed to fetch users");
       }
 
       const data = await response.json();
@@ -54,52 +48,13 @@ const UsersPage: React.FC = () => {
       setTotalUsers(data.total);
       setError(null);
     } catch (err) {
-      console.error(err);
-      setError('Could not load users. Please try again later.');
+      setError("Could not load users. Please try again later.");
     }
   };
 
   useEffect(() => {
     fetchUsers();
   }, [currentPage, pageSize]);
-
-  const handleCreateUser = async () => {
-    const token = localStorage.getItem('token'); // Retrieve the token for user creation
-
-    if (!token) {
-      setError('Unauthorized. Please log in.');
-      return;
-    }
-
-    try {
-      const response = await fetch('http://localhost:8080/users', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`, // Include token in header
-        },
-        body: JSON.stringify({
-          email: newUserEmail,
-          password: newUserPassword,
-        }),
-      });
-
-      if (response.ok) {
-        const newUser = await response.json();
-        setNewUserEmail('');
-        setNewUserPassword('');
-        setCreatedUser(newUser);
-        setSuccessMessage('User created successfully!');
-        setShowCreateForm(false);
-        fetchUsers();
-      } else {
-        setError('Failed to create user. Please try again.');
-      }
-    } catch (err) {
-      setError('Failed to create user. Please try again.');
-      console.error(err);
-    }
-  };
 
   return (
     <Card className="p-6">
@@ -113,32 +68,11 @@ const UsersPage: React.FC = () => {
             <p>{successMessage}</p>
           </div>
         )}
-
-        <Button onClick={() => setShowCreateForm((prev) => !prev)} className="mb-4">
-          {showCreateForm ? 'Cancel' : 'Create User'}
+        <Button className="mb-4">
+          <Link href="/dashboard/users/create-user">
+            Create User
+          </Link>
         </Button>
-
-        {showCreateForm && (
-          <div className="mb-4">
-            <Input
-              type="email"
-              placeholder="Email"
-              value={newUserEmail}
-              onChange={(e) => setNewUserEmail(e.target.value)}
-              className="mb-2"
-            />
-            <Input
-              type="password"
-              placeholder="Password"
-              value={newUserPassword}
-              onChange={(e) => setNewUserPassword(e.target.value)}
-              className="mb-2"
-            />
-            <Button onClick={handleCreateUser} className="mt-2">Create User</Button>
-          </div>
-        )}
-
-        {error && <p className="text-red-600">{error}</p>}
 
         <h3 className="text-lg font-semibold mt-4">All Users</h3>
         {users.length > 0 ? (
