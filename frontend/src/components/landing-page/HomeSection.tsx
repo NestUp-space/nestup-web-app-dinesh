@@ -95,42 +95,36 @@ export function HomeSection() {
       <div className="w-screen flex flex-col justify-center items-center">
         <div className="my-auto flex flex-col gap-3 p-5 md:p-10 lg:p-20 rounded-3xl">
           <h2 className="text-theme-color text-3xl md:text-5xl font-bold tracking-tight md:tracking-tighter leading-tight mb-20 mt-8 flex items-center">
-          Why modular construction is the future?
+          Why Modular Furniture is the Future?
           </h2>
           <p>
-            The fast rise of modular construction is no surprise. It solves
-            key problems for homeowners, designers, architects, and all of us:
+          The rapid rise of modular furniture is no surprise—it offers innovative solutions to common challenges faced by homeowners, designers, and architects alike:
           </p>
           <br/>
           <ul className=" md:text-xl flex flex-col gap-3">
             <li>
               <span className="text-theme-color font-bold">
-                Get in Faster:
+                Faster Move-In Times:
               </span>{" "}
-              Modular homes get built up to 30% quicker, meaning you can move
-              in and enjoy your new place sooner.
+              Modular furniture is built up to 30% faster than traditional carpentry, allowing homeowners to move in and start enjoying their space much sooner.
             </li>
             <li>
               <span className="text-theme-color font-bold">
-                Save on Costs:
+                Superior Finish:
               </span>{" "}
-              Prefabricated units and less manpower on-site lead to big
-              savings compared to the usual way we build things.
+              Factory-made modular furniture boasts smoother finishes, precise cuts, and minimal defects like bubbles or surface imperfections. This ensures a sleek, high-quality finish that enhances the overall look of any home.
             </li>
             <li>
               <span className="text-theme-color font-bold">
-                Eco-Friendly Building:
+                Effortless Execution:
               </span>{" "}
-              Modular construction uses materials responsibly and minimises
-              waste, making it kinder on the environment.
+              With modular furniture, the entire process is streamlined. Automated machinery ensures accuracy, reducing issues related to material procurement and installation. This makes the project smoother from start to finish.
             </li>
             <li>
               <span className="text-theme-color font-bold">
-                Design Your Way:
+              Personalized Design:
               </span>{" "}
-              Don&#39;t be stuck with a boring box! Modular designs can be
-              customised in all sorts of ways, so homeowners can create homes
-              that suit their vision and what people are looking for.
+              Gone are the days of one-size-fits-all furniture. Modular designs offer extensive customization options, allowing designers to create personalized pieces that align with both their vision and the homeowner's desires.
             </li>
           </ul>
         </div>
