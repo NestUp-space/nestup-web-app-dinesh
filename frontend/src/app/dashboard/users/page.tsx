@@ -53,8 +53,8 @@ const UsersPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, [currentPage, pageSize]);
+    fetchUsers(); // Call the function inside the effect
+  }, [currentPage, pageSize, fetchUsers]);
 
   return (
     <Card className="p-6">

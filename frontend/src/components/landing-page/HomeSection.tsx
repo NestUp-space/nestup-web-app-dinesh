@@ -124,7 +124,7 @@ export function HomeSection() {
               <span className="text-theme-color font-bold">
               Personalized Design:
               </span>{" "}
-              Gone are the days of one-size-fits-all furniture. Modular designs offer extensive customization options, allowing designers to create personalized pieces that align with both their vision and the homeowner's desires.
+              Gone are the days of one-size-fits-all furniture. Modular designs offer extensive customization options, allowing designers to create personalized pieces that align with both their vision and the homeowner&apos;s desires.
             </li>
           </ul>
         </div>
