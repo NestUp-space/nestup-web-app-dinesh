@@ -9,7 +9,6 @@ const LoginRegister = () => {
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const confirmPasswordRef = useRef<HTMLInputElement>(null);
-  const { setUser } = useUser();
 
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");

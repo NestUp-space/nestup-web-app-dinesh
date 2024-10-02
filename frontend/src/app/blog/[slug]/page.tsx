@@ -3,10 +3,10 @@ import { notFound } from "next/navigation";
 import { getAllPosts, getPostBySlug } from "@lib/api";
 
 import markdownToHtml from "@lib/markdownToHtml";
-import Container from "@components/container";
-import Header from "@components/header";
-import { PostBody } from "@components/post-body";
-import { PostHeader } from "@components/post-header";
+import Container from "@components/landing-page/container";
+import BlogHeader from "@components/landing-page/blogHeader";
+import { PostBody } from "@components/landing-page/post-body";
+import { PostHeader } from "@components/landing-page/post-header";
 
 export default async function Post({ params }: Params) {
   const post = getPostBySlug(params.slug);
@@ -20,7 +20,7 @@ export default async function Post({ params }: Params) {
   return (
     <main>
       <Container>
-        <Header />
+        <BlogHeader />
         <article className="mb-32">
           <PostHeader
             title={post.title}

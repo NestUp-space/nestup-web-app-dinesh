@@ -18,7 +18,7 @@ export default function Index() {
       <div className="h-24 top-0 fixed bg-white z-50">
          <Navbar />
       </div>
-      <Container className="mt-24">
+      <Container>
         <BlogHeader />
         <HeroPost
           title={heroPost.title}
