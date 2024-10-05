@@ -92,7 +92,7 @@ export function HomeSection() {
         </div>
       </div>
       
-      <div className="w-screen flex flex-col justify-center items-center">
+      {/* <div className="w-screen flex flex-col justify-center items-center">
         <div className="my-auto flex flex-col gap-3 p-5 md:p-10 lg:p-20 rounded-3xl">
           <h2 className="text-theme-color text-3xl md:text-5xl font-bold tracking-tight md:tracking-tighter leading-tight mb-20 mt-8 flex items-center">
           Why Modular Furniture is the Future?
@@ -128,7 +128,7 @@ export function HomeSection() {
             </li>
           </ul>
         </div>
-      </div>
+      </div> */}
     </section>
   );
 }
