@@ -81,8 +81,8 @@ export function HomeSection() {
             </div>
             <h2 className= "h-28 text-center text-xl lg:text-2xl leading-tight " id="pitch"></h2>
             <div className="CTA click">
-            <a href="#contactus">
-              <CTAButton text="Book a Site Visit" />
+            <a href="/book-visit">
+              <CTAButton text="Book a Free Site Visit" />
             </a>
             <a href="tel:+918885563262">
               <CTAButton text="Call us" />

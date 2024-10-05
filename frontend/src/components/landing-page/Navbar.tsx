@@ -87,8 +87,8 @@ const Navbar = () => {
       {/* buttons */}
       <div className=" flex gap-4 justify-end items-center">
         <div className="flex items-cente h-full">
-          <a href="#contactus">
-            <CTAButton text="Book a Site Visit" />
+          <a href="/book-visit">
+            <CTAButton text="Book a Free Site Visit" />
           </a>
         </div>
       </div>

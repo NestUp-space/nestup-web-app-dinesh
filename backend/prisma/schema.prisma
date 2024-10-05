@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -14,38 +8,187 @@ generator client {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  role      String   // This will hold the role (e.g., "super-admin", "admin", "user")
-  isActive  Boolean  @default(true)
-  projects  Project[]
+  id                  Int                      @id @default(autoincrement())
+  name                String
+  email               String                   @unique
+  password            String
+  profilePicUrl       String?
+  phoneNumber         String                   @unique
+  verified            Boolean                  @default(false)
+  isActive            Boolean                  @default(true)
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  roleId              Int
+  role                UserRole                 @relation(fields: [roleId], references: [id])
+  teamId              Int?
+  team                Team?                    @relation("TeamMembers", fields: [teamId], references: [id])
+  managedTeam         Team?                    @relation("TeamManager")
+  tasksUpdated        Task[]                   @relation("TaskUpdatedBy")
+  filesUploaded       File[]                   @relation("FilesUploaded")
+  actions             UserAction[]
+  comments            Comment[]
+  assignedTeams       EngineerTeamMapping[]
+  engineerProjects    Project[]                @relation("EngineerProjects")
+  createdProjects     Project[]                @relation("UserCreatedProjects")
+  updatedProjects     Project[]                @relation("UserUpdatedProjects")
+  clientProjects      ClientProjectMapping[]
+  oldEngineerProjects EngineerProjectMapping[] @relation("OldEngineerProjects")
+  newEngineerProjects EngineerProjectMapping[] @relation("NewEngineerProjects")
+  clientMarketplace   ClientMarketplace?
+}
+
+model Team {
+  id        Int                   @id @default(autoincrement())
+  name      String
+  managerId Int                   @unique
+  manager   User                  @relation("TeamManager", fields: [managerId], references: [id])
+  members   User[]                @relation("TeamMembers")
+  engineers EngineerTeamMapping[]
 }
 
 model Project {
-  id          Int      @id @default(autoincrement())
-  name        String
-  createdById Int
-  clientId    Int
-  createdBy   User     @relation(fields: [createdById], references: [id])
-  tasks       Task[]
+  id            Int       @id @default(autoincrement())
+  name          String
+  location      String
+  sqft          Int
+  statusId      Int
+  status        Status    @relation(fields: [statusId], references: [id])
+  clientId      Int
+  engineerId    Int
+  createdById   Int
+  updatedById   Int
+  estimatedTime DateTime
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  vbCount       Int
+
+  client           ClientProjectMapping[]
+  engineer         User                     @relation("EngineerProjects", fields: [engineerId], references: [id])
+  createdBy        User                     @relation("UserCreatedProjects", fields: [createdById], references: [id])
+  updatedBy        User                     @relation("UserUpdatedProjects", fields: [updatedById], references: [id])
+  tasks            Task[]
+  comments         Comment[]
+  engineerMappings EngineerProjectMapping[]
+  userActions      UserAction[]
 }
 
 model Task {
-  id        Int      @id @default(autoincrement())
-  projectId Int
-  name      String
-  status    String   @default("Pending")
-  project   Project  @relation(fields: [projectId], references: [id])
-  files     File[]   // Add this line to define the relationship with File
+  id          Int          @id @default(autoincrement())
+  projectId   Int
+  name        String
+  statusId    Int
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  updatedById Int?
+  startedAt   DateTime?
+  completedAt DateTime?
+  project     Project      @relation(fields: [projectId], references: [id])
+  status      Status       @relation(fields: [statusId], references: [id])
+  updatedBy   User?        @relation("TaskUpdatedBy", fields: [updatedById], references: [id])
+  files       File[]
+  comments    Comment[]
+  userActions UserAction[]
 }
 
 model File {
-  id         Int      @id @default(autoincrement())
-  taskId     Int
-  fileUrl    String
-  uploadedBy Int
-  task       Task     @relation(fields: [taskId], references: [id])
+  id             Int      @id @default(autoincrement())
+  taskId         Int
+  fileUrl        String
+  uploadedBy     Int
+  uploadedAt     DateTime @default(now())
+  task           Task     @relation(fields: [taskId], references: [id])
+  uploadedByUser User     @relation("FilesUploaded", fields: [uploadedBy], references: [id])
 }
 
+model ClientProjectMapping {
+  id        Int     @id @default(autoincrement())
+  clientId  Int
+  projectId Int
+  client    User    @relation(fields: [clientId], references: [id])
+  project   Project @relation(fields: [projectId], references: [id])
+}
 
+model UserAction {
+  id            Int      @id @default(autoincrement())
+  updatedBy     Int
+  projectId     Int
+  taskId        Int
+  updatedAt     DateTime @default(now())
+  comment       String
+  updatedByUser User     @relation(fields: [updatedBy], references: [id])
+  project       Project  @relation(fields: [projectId], references: [id])
+  task          Task     @relation(fields: [taskId], references: [id])
+}
+
+model UserRole {
+  id           Int                     @id @default(autoincrement())
+  role         String
+  roleType     String
+  users        User[]
+  roleMappings RolePermissionMapping[]
+}
+
+model UserPermission {
+  id           Int                     @id @default(autoincrement())
+  permission   String
+  roleMappings RolePermissionMapping[]
+}
+
+model RolePermissionMapping {
+  id           Int            @id @default(autoincrement())
+  roleId       Int
+  permissionId Int
+  role         UserRole       @relation(fields: [roleId], references: [id])
+  permission   UserPermission @relation(fields: [permissionId], references: [id])
+}
+
+model Status {
+  id       Int       @id @default(autoincrement())
+  status   String
+  projects Project[]
+  tasks    Task[]
+}
+
+model EngineerProjectMapping {
+  id            Int      @id @default(autoincrement())
+  oldEngineerId Int
+  newEngineerId Int
+  projectId     Int
+  handoverAt    DateTime @default(now())
+  oldEngineer   User     @relation("OldEngineerProjects", fields: [oldEngineerId], references: [id])
+  newEngineer   User     @relation("NewEngineerProjects", fields: [newEngineerId], references: [id])
+  project       Project  @relation(fields: [projectId], references: [id])
+}
+
+model EngineerTeamMapping {
+  id         Int  @id @default(autoincrement())
+  engineerId Int
+  teamId     Int
+  engineer   User @relation(fields: [engineerId], references: [id])
+  team       Team @relation(fields: [teamId], references: [id])
+}
+
+model Comment {
+  id            Int      @id @default(autoincrement())
+  commentText   String
+  isInternal    Boolean
+  createdAt     DateTime @default(now())
+  createdBy     Int
+  projectId     Int?
+  taskId        Int?
+  createdByUser User     @relation(fields: [createdBy], references: [id])
+  project       Project? @relation(fields: [projectId], references: [id])
+  task          Task?    @relation(fields: [taskId], references: [id])
+}
+
+model ClientMarketplace {
+  id           Int     @id @default(autoincrement())
+  clientId     Int     @unique
+  isVisible    Boolean @default(false)
+  portfolioUrl String
+  projectsNum  Int
+  location     String
+  client       User    @relation(fields: [clientId], references: [id])
+}

@@ -15,7 +15,6 @@ import Link from 'next/link';
 import { useUser } from "@/context/UserContext"; // Import the context
 
 export function User() {
-  const { user } = useUser();
 
   return (
     <DropdownMenu>
@@ -39,17 +38,11 @@ export function User() {
         <DropdownMenuItem>Settings</DropdownMenuItem>
         <DropdownMenuItem>Support</DropdownMenuItem>
         <DropdownMenuSeparator />
-        {user ? (
-          <DropdownMenuItem>
-            <form>
-              <button type="submit">Sign Out</button>
-            </form>
-          </DropdownMenuItem>
-        ) : (
-          <DropdownMenuItem>
-            <Link href="/login">Sign In</Link>
-          </DropdownMenuItem>
-        )}
+        <DropdownMenuItem>
+          <form>
+            <button type="submit">Sign Out</button>
+          </form>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

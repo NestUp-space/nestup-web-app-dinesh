@@ -16,8 +16,8 @@ export function Footer() {
         <div className="h-56 w-full md:w-1/2 p-5 flex flex-col items-center text-center gap-3 rounded-3xl m-3">
           <p className="text-sm text-theme-dark">TIRED OF MISTAKES?</p>
           <p className="text-3xl lg:text-4xl font-bold text-theme-color">Let&#39;s build your dream project!</p>
-          <Link href="/contact" className="flex justify-center rounded-md h-16 min-w-32 ">
-            <CTAButton text="Book a Site Visit" />
+          <Link href="/book-visit" className="flex justify-center rounded-md h-16 min-w-32 ">
+            <CTAButton text="Book a Free Site Visit" />
           </Link>
         </div>
         <div className="h-56 w-full md:w-1/2 p-5 flex flex-col items-center text-center gap-3 rounded-3xl m-3">
@@ -78,7 +78,7 @@ export function Footer() {
               </Link>
               <Link href="/" >
                 <span className="text-bw-dark hover:text-theme-color hover:cursor-pointer ">
-                  Book a Site Visit
+                  Book a Free Site Visit
                 </span>
               </Link>
               <Link href="/" >
