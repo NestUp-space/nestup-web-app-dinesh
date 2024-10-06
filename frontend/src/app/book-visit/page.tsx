@@ -1,7 +1,7 @@
 "use client"
 import { Footer } from "@/components/landing-page/Footer";
 import Navbar from "@/components/landing-page/Navbar";
-import DesignerQuestionnaire from "@/components/landing-page/DesignerQuestionnaire";
+import BookSiteVisit from "@/components/landing-page/BookSiteVisit";
 
 const DesignerPage = () => {
   const handleSubmit = (formData: any) => {
@@ -12,7 +12,7 @@ const DesignerPage = () => {
   return (
     <div>
       <Navbar/>
-      <DesignerQuestionnaire onSubmit={handleSubmit} />
+      <BookSiteVisit onSubmit={handleSubmit} />
       <Footer/>
     </div>
   );

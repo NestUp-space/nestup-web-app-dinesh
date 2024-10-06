@@ -8,7 +8,7 @@ interface DesignerQuestionnaireProps {
   onSubmit: (formData: any) => void;
 }
 
-const TOTAL_PAGES = 5;
+const TOTAL_PAGES = 6;
 
 const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit }) => {
   const [formData, setFormData] = useState({
@@ -40,7 +40,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
     panelWork: "",
     drawWidthInfo: "",
     designWorkDimensions: "",
-    slidingDoorFrameRequired: "",
+    slidingDoorFramerequired: "",
     tvCrockeryBaseFixingMethod: "",
     hydraulicLiftUpType: "",
     topPanelType: "",
@@ -49,7 +49,6 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
     tvCrockeryShoeRackTopMaterial: "",
     tandemSizes: "",
     name: "",
-    email: "",
     phone: "",
   });
 
@@ -78,10 +77,9 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
   };
 
   const validateContactDetails = () => {
-    const { email, phone } = formData;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const { phone } = formData;
     const phoneRegex = /^\d{10}$/;
-    return emailRegex.test(email) && phoneRegex.test(phone);
+    return phoneRegex.test(phone);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -157,6 +155,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="projectName"
                   value={formData.projectName}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 />
               </div>
@@ -167,6 +166,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="projectAddress"
                   value={formData.projectAddress}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 />
               </div>
@@ -177,6 +177,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="projectLocation"
                   value={formData.projectLocation}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 />
               </div>
@@ -192,6 +193,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="plywoodThickness"
                   value={formData.plywoodThickness}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 >
                   <option value="">Select</option>
@@ -207,6 +209,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="blockBoardThickness"
                   value={formData.blockBoardThickness}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 >
                   <option value="">Select</option>
@@ -223,6 +226,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="edgeBandingThicknessInner"
                   value={formData.edgeBandingThicknessInner}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 />
               </div>
@@ -233,6 +237,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="edgeBandingThicknessColor"
                   value={formData.edgeBandingThicknessColor}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 />
               </div>
@@ -242,6 +247,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="backPanelThickness"
                   value={formData.backPanelThickness}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 >
                   <option value="">Select</option>
@@ -264,6 +270,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="laminateCodes"
                   value={formData.laminateCodes}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 />
               </div>
@@ -274,6 +281,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="handleType"
                   value={formData.handleType}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 />
               </div>
@@ -284,6 +292,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="profileLights"
                   value={formData.profileLights}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 />
               </div>
@@ -294,6 +303,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="profileDoorBoxColor"
                   value={formData.profileDoorBoxColor}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 />
               </div>
@@ -304,6 +314,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="basketTypeAndSizes"
                   value={formData.basketTypeAndSizes}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 />
                 <button
@@ -327,6 +338,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="magicCornerDoorSize"
                   value={formData.magicCornerDoorSize}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 />
               </div>
@@ -337,6 +349,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="skirtingSize"
                   value={formData.skirtingSize}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 />
               </div>
@@ -347,6 +360,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="innerLayout"
                   value={formData.innerLayout}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 />
               </div>
@@ -357,6 +371,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="switchboardPlacement"
                   value={formData.switchboardPlacement}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 />
               </div>
@@ -367,6 +382,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="falseCeilingStatus"
                   value={formData.falseCeilingStatus}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 />
               </div>
@@ -378,12 +394,13 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
             <h2>Contact Information</h2>
             <p>so that you can login and view the saved details later</p>
               <div>
-                <label className="block text-theme-secondary font-bold mb-2">Email</label>
+                <label className="block text-theme-secondary font-bold mb-2">Name</label>
                 <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
+                  type="name"
+                  name="name"
+                  value={formData.name}
                   onChange={handleChange}
+                  required
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 />
               </div>
@@ -394,6 +411,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
+                  required
                   maxLength={10}
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 />
@@ -401,27 +419,31 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
             </>
           )}
 
-          <div className="flex justify-between">
-            <button
-              type="button"
-              className="bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-700"
-              onClick={handlePrevious}
-              disabled={page === 1}
-            >
-              Previous
-            </button>
+           {/* Navigation buttons */}
+           <div className="flex justify-between items-center">
+              {/* Previous Button */}
+              {page > 1 ? (
+                <CTAButton type="button" text="Previous" onClick={handlePrevious} />
+              ) : (
+                <div></div> // Placeholder to keep space between buttons even if Previous isn't rendered
+              )}
 
-            {page !== TOTAL_PAGES ? (
-              <button
-                type="submit"
-                className="bg-theme-color text-white py-2 px-4 rounded hover:bg-theme-dark"
-              >
-                Next
-              </button>
-            ) : (
-              <CTAButton text="Submit" />
-            )}
-          </div>
+              {/* Next and Skip Buttons */}
+              <div className="flex space-x-4">
+                {/* Skip Button for pages 3 and 4 */}
+                {page === 2 ||page === 3 || page === 4 ? (
+                  <CTAButton
+                    type="button"
+                    text="Skip"
+                    onClick={handleSkip}
+                    className="bg-gray-300 text-gray-600 hover:bg-gray-400" // Lighter, less prominent styling for Skip
+                  />
+                ) : null}
+
+                {/* Next or Submit Button */}
+                <CTAButton type="submit" text={page === TOTAL_PAGES ? "Submit" : "Next"} />
+              </div>
+            </div>
         </form>
       </div>
     </div>
