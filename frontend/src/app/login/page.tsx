@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CTAButton } from "@components/landing-page/CTAButton";
-import { useUser } from "@/context/UserContext";
 
 const LoginRegister = () => {
   const emailRef = useRef<HTMLInputElement>(null);
