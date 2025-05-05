@@ -7,6 +7,8 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// store the details of the users, same table for internal and external users
+
 model User {
   id                  Int                      @id @default(autoincrement())
   name                String
@@ -37,6 +39,7 @@ model User {
   clientMarketplace   ClientMarketplace?
 }
 
+// track the team details of the internal employees
 model Team {
   id        Int                   @id @default(autoincrement())
   name      String
@@ -45,6 +48,8 @@ model Team {
   members   User[]                @relation("TeamMembers")
   engineers EngineerTeamMapping[]
 }
+
+// store the details of the project 
 
 model Project {
   id            Int       @id @default(autoincrement())
@@ -64,7 +69,6 @@ model Project {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   vbCount       Int
-
   client           ClientProjectMapping[]
   engineer         User                     @relation("EngineerProjects", fields: [engineerId], references: [id])
   createdBy        User                     @relation("UserCreatedProjects", fields: [createdById], references: [id])
@@ -103,6 +107,8 @@ model File {
   uploadedByUser User     @relation("FilesUploaded", fields: [uploadedBy], references: [id])
 }
 
+// map the projects to the clients
+
 model ClientProjectMapping {
   id        Int     @id @default(autoincrement())
   clientId  Int
@@ -110,6 +116,8 @@ model ClientProjectMapping {
   client    User    @relation(fields: [clientId], references: [id])
   project   Project @relation(fields: [projectId], references: [id])
 }
+
+//track the actions that the user is taking
 
 model UserAction {
   id            Int      @id @default(autoincrement())

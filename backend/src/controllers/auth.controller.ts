@@ -1,32 +1,109 @@
 import { Request, Response } from 'express';
-import { registerUser, loginUser } from '../services/auth.service';
+import { StatusCodes } from 'http-status-codes';
+import { z } from 'zod'; // Import Zod
+import { registerUser, loginUser, resetPassword as resetPasswordService } from '../services/auth.service'; // Import resetPassword service
+import { ServiceResponse } from '@/common/models/serviceResponse'; // Import ServiceResponse if needed for type checking, though often inferred
+
+// --- Zod Schemas for Input Validation ---
+const RegisterBodySchema = z.object({
+  name: z.string().min(1, { message: 'Name is required' }),
+  email: z.string().email({ message: 'Invalid email address' }),
+  phoneNumber: z.string().regex(/^\d{10}$/, { message: 'Phone number must be 10 digits' }), // Basic 10-digit validation
+  password: z.string().min(8, { message: 'Password must be at least 8 characters long' }),
+  roleName: z.string().optional(), // Keep optional if applicable
+});
+
+const LoginBodySchema = z.object({
+  email: z.string().email({ message: 'Invalid email address' }),
+  password: z.string().min(1, { message: 'Password is required' }),
+});
+
+const EmailBodySchema = z.object({
+  email: z.string().email({ message: 'Invalid email address' }),
+});
+// --- End Zod Schemas ---
 
 export const register = async (req: Request, res: Response) => {
-  try {
-    const user = await registerUser(req.body);
-    res.status(201).json({ user });
-  } catch (error) {
-    res.status(400).json({ message: (error as Error).message });
+  // Validate request body
+  const validationResult = RegisterBodySchema.safeParse(req.body);
+  if (!validationResult.success) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      message: 'Validation failed',
+      errors: validationResult.error.errors, // Provide detailed validation errors
+    });
+  }
+
+  // Proceed with validated data
+  const serviceResponse = await registerUser(validationResult.data);
+
+  if (serviceResponse.success) {
+    // Successfully registered
+    res.status(serviceResponse.statusCode).json({
+      success: true,
+      message: serviceResponse.message,
+      user: serviceResponse.responseObject, // Contains user data without password
+    });
+  } else {
+    // Registration failed
+    res.status(serviceResponse.statusCode).json({
+      success: false,
+      message: serviceResponse.message,
+    });
   }
 };
 
 export const login = async (req: Request, res: Response) => {
-  try {
-    const token = await loginUser(req.body);
-    res.status(200).json({ token });
-  } catch (error) {
-    res.status(400).json({ message: (error as Error).message });
+  // Validate request body
+  const validationResult = LoginBodySchema.safeParse(req.body);
+  if (!validationResult.success) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      message: 'Validation failed',
+      errors: validationResult.error.errors,
+    });
+  }
+
+  // Proceed with validated data
+  const serviceResponse = await loginUser(validationResult.data);
+
+  // Check if serviceResponse is not null before accessing properties
+  if (serviceResponse && serviceResponse.success && serviceResponse.responseObject) {
+    // Successfully logged in
+    res.status(serviceResponse.statusCode).json({
+      success: true,
+      message: serviceResponse.message,
+      token: serviceResponse.responseObject.token,
+      user: serviceResponse.responseObject.user, // Contains user data without password
+    });
+  } else {
+    // Login failed
+    res.status(serviceResponse.statusCode).json({
+      success: false,
+      message: serviceResponse.message || 'Login failed', // Provide default message if needed
+    });
   }
 };
 
-
-// Local resetPassword declaration to avoid conflicts
-export const resetPassword = async (req: Request, res: Response) => {
-  try {
-    const { email } = req.body;
-    await resetPassword(email, res);  // Pass both email and res to avoid the argument error
-    res.status(200).json({ message: 'Password reset link sent to email' });
-  } catch (error) {
-    res.status(400).json({ message: (error as Error).message });
+// Renamed to avoid conflict with the imported service function
+export const handlePasswordResetRequest = async (req: Request, res: Response) => {
+  // Validate request body
+  const validationResult = EmailBodySchema.safeParse(req.body);
+  if (!validationResult.success) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      message: 'Validation failed',
+      errors: validationResult.error.errors,
+    });
   }
+
+  const serviceResponse = await resetPasswordService(validationResult.data.email); // Call the imported service function with validated email
+
+  // Send response based on service outcome
+  res.status(serviceResponse.statusCode).json({
+    success: serviceResponse.success,
+    message: serviceResponse.message,
+  });
 };
+
+// TODO: Add controller function for handling the actual password reset (e.g., verifying token and updating password)
