@@ -1,13 +1,18 @@
-import type { ErrorRequestHandler, RequestHandler } from "express";
-import { StatusCodes } from "http-status-codes";
+import { ErrorRequestHandler, RequestHandler } from 'express';
+import { StatusCodes } from 'http-status-codes';
+import { AppError } from '../errors/customErrors';
 
-const unexpectedRequest: RequestHandler = (_req, res) => {
+const handleUnexpectedRequest: RequestHandler = (_req, res) => {
   res.sendStatus(StatusCodes.NOT_FOUND);
 };
 
-const addErrorToRequestLog: ErrorRequestHandler = (err, _req, res, next) => {
-  res.locals.err = err;
-  next(err);
+const handleAppError: ErrorRequestHandler = (err, _req, res, _next) => {
+  if (err instanceof AppError) {
+    const { statusCode, message, errors } = err;
+    res.status(statusCode).json({ message, errors });
+  } else {
+    res.sendStatus(StatusCodes.INTERNAL_SERVER_ERROR);
+  }
 };
 
-export default () => [unexpectedRequest, addErrorToRequestLog];
+export default () => [handleUnexpectedRequest, handleAppError];

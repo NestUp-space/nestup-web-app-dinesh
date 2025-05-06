@@ -1,15 +1,19 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { createOrUpdateUser, createDraftProject } from '@/services/siteVisit.service';
 import { StatusCodes } from 'http-status-codes';
+import { BookSiteVisitInput } from '@/validations/siteVisit.validation';
+import { BadRequestError, NotFoundError } from '../common/errors/customErrors';
 
-export const bookSiteVisit = async (req: Request, res: Response): Promise<void> => {
+export const bookSiteVisit = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { name, phone, projectName, projectAddress, projectLocation, preferredSlot } = req.body;
+    const { name, phone, projectName, projectAddress, projectLocation, preferredSlot } = req.body as BookSiteVisitInput;
 
-    // Create or update user
     const user = await createOrUpdateUser(name, phone);
 
-    // Create draft project
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
     const project = await createDraftProject(
       user.id,
       projectName,
@@ -17,6 +21,10 @@ export const bookSiteVisit = async (req: Request, res: Response): Promise<void> 
       projectLocation,
       new Date(preferredSlot)
     );
+
+    if (!project) {
+      throw new BadRequestError('Failed to create draft project');
+    }
 
     res.status(StatusCodes.CREATED).json({
       success: true,
@@ -32,10 +40,15 @@ export const bookSiteVisit = async (req: Request, res: Response): Promise<void> 
     });
   } catch (error: unknown) {
     console.error('Error booking site visit:', error);
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: 'Failed to book site visit',
-      error: error instanceof Error ? error.message : 'Unknown error occurred'
-    });
+    if (error instanceof BadRequestError || error instanceof NotFoundError) {
+      res.status(error.statusCode).json({ success: false, message: error.message });
+    } else {
+      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: 'Failed to book site visit',
+        error: error instanceof Error ? error.message : 'An unexpected error occurred'
+      });
+    }
+    next(error);
   }
 };

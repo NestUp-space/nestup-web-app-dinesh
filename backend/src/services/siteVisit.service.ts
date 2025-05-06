@@ -1,26 +1,37 @@
-import { PrismaClient, User, Project } from '@prisma/client';
+import { User, Project, Prisma } from '@prisma/client';
+import bcrypt from 'bcrypt';
+import { userRepository } from '@/repositories/user.repository';
+import { projectRepository } from '@/repositories/project.repository';
 
-const prisma = new PrismaClient();
+const SALT_ROUNDS = 10; // Standard salt rounds for bcrypt
 
 export const createOrUpdateUser = async (name: string, phone: string): Promise<User> => {
-  const existingUser = await prisma.user.findUnique({
-    where: { phoneNumber: phone }
-  });
+  const existingUser = await userRepository.findByPhoneNumber(phone);
 
   if (existingUser) {
     return existingUser;
   }
 
-  return prisma.user.create({
-    data: {
-      name,
-      phoneNumber: phone,
-      email: `${phone}@placeholder.com`, // Placeholder email
-      password: 'placeholder', // Placeholder password
-      verified: false,
-      roleId: 1, // Assuming 1 is the roleId for clients
-    }
-  });
+  const tempPassword = Math.random().toString(36).slice(-10);
+  const hashedPassword = await bcrypt.hash(tempPassword, SALT_ROUNDS);
+
+  const clientRoleId = 1; // Assuming 1 is the client role. TODO: Use an enum or config
+  const placeholderEmail = `${phone.replace(/[^0-9]/g, '')}@placeholder.nestup.com`; // Create a unique placeholder email
+
+  // Provide all required fields as per the updated schema
+  const userData: Prisma.UserUncheckedCreateInput = {
+    name,
+    phoneNumber: phone,
+    email: placeholderEmail, // Provide placeholder email
+    password: hashedPassword,
+    verified: false,
+    roleId: clientRoleId,
+    // isActive defaults to true in schema
+    // profilePicUrl is optional
+    // teamId is optional
+  };
+
+  return userRepository.create(userData);
 };
 
 export const createDraftProject = async (
@@ -30,19 +41,28 @@ export const createDraftProject = async (
   location: string,
   preferredSlot: Date
 ): Promise<Project> => {
-  return prisma.project.create({
-    data: {
-      name,
-      address,
-      location,
-      sqft: 0, // Default value
-      statusId: 1, // Assuming 1 is the statusId for draft projects
-      clientId: userId,
-      engineerId: 1, // Placeholder engineerId
-      createdById: userId,
-      updatedById: userId,
-      estimatedTime: preferredSlot,
-      vbCount: 0, // Default value
-    }
-  });
+  const draftStatusId = 1; // Assuming 1 is the draft status. TODO: Use an enum or config
+  // For engineerId, we need a valid User ID.
+  // As a temporary workaround, we'll use the 'userId' (client's ID).
+  // This is semantically incorrect for a real engineer but satisfies the non-optional FK.
+  // TODO: Replace with actual engineer assignment logic or a default/unassigned engineer ID.
+  const placeholderEngineerId = userId;
+
+  // Provide all required fields as per the updated schema
+  const projectData: Prisma.ProjectUncheckedCreateInput = {
+    name,
+    address,
+    location,
+    sqft: 0,
+    statusId: draftStatusId,
+    clientId: userId,
+    engineerId: placeholderEngineerId, // Provide placeholder engineerId
+    createdById: userId,
+    updatedById: userId,
+    estimatedTime: preferredSlot,
+    vbCount: 0,
+    // startedAt and completedAt are optional
+  };
+
+  return projectRepository.create(projectData);
 };
