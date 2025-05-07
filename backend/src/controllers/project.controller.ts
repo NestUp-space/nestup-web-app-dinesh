@@ -1,43 +1,83 @@
 import { Request, Response } from 'express';
-import { createProjectService, getProjectsService, updateProjectService, deleteProjectService, createTaskService, getTasksService, updateTaskService, deleteTaskService, updateTaskStatusService } from '../services/project.service';
+import { StatusCodes } from 'http-status-codes';
+import { 
+  createProjectService, 
+  getProjectsService, 
+  getProjectByIdService, // Import new service
+  updateProjectService, 
+  deleteProjectService, 
+  createTaskService, 
+  getTasksService, 
+  updateTaskService, 
+  deleteTaskService, 
+  updateTaskStatusService 
+} from '../services/project.service';
+import taskTemplate from '../constants/taskTemplate.json';
 
 // Extend Request type to include user
 interface AuthenticatedRequest extends Request {
-  user?: { id: number };
+  user?: { id: number; role: string };
 }
 
 export const createProject = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { name, address, location, sqft, estimatedTime, vbCount, statusId, engineerId, clientId } = req.body;
-
-    if (!name || !address || !location || !sqft || !estimatedTime || !statusId || !engineerId || !clientId) {
-      return res.status(400).json({ message: 'Missing required fields' });
+    if (!req.user) {
+      return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
     }
 
-    const project = await createProjectService(req.body);
-    // Add standard tasks to the project
-    const standardTasks = [
-      { stage: 'Site measurements', name: 'Details of project (form shared)', uploadedBy: 'Client', viewPermission: 'All', actionRequired: 'Site visit is booked based on this the form' },
-      { stage: 'Site measurements', name: 'Site Visit', uploadedBy: 'BIM Engineer', viewPermission: 'All', actionRequired: 'BIM engineer to upload site measurements' },
-      { stage: 'Site measurements', name: 'Design inputs', uploadedBy: 'Client', viewPermission: 'BIM engineer', actionRequired: 'To be validated by BIM engineer' },
-      { stage: 'Design', name: 'Site photos', uploadedBy: 'Client', viewPermission: 'All', actionRequired: 'To be validated by BIM engineer' },
-      { stage: 'Approval', name: 'Production document', uploadedBy: 'BIM engineer', viewPermission: 'All', actionRequired: 'To be approved by client' },
-      { stage: 'Approval', name: 'Performa invoice', uploadedBy: 'BIM engineer', viewPermission: 'All', actionRequired: 'Payment to be made by the customer - Client' },
-      { stage: 'Pre-Production', name: 'Material estimation', uploadedBy: 'BIM engineer', viewPermission: 'All', actionRequired: 'Client to send the material' },
-      { stage: 'Production', name: 'Input QA', uploadedBy: 'BIM engineer', viewPermission: 'Production Engineer, BIM engineer', actionRequired: 'Production associate to verify and Receive the material and update the status' },
-      { stage: 'Production', name: 'Pressing list', uploadedBy: 'BIM engineer', viewPermission: 'Production Engineer, BIM engineer', actionRequired: 'Production associate to verify and Receive the material and update the status' },
-      { stage: 'Production', name: 'G code and cutting list', uploadedBy: 'BIM engineer', viewPermission: 'Production Engineer, BIM engineer', actionRequired: 'Production associate use this for CNC programming' },
-      { stage: 'Production', name: 'Output QA', uploadedBy: 'BIM engineer', viewPermission: 'Production Engineer, BIM engineer', actionRequired: 'Production associate uses this to verify the status' },
-      { stage: 'Production', name: 'Installation Guide', uploadedBy: 'BIM engineer', viewPermission: 'All', actionRequired: 'Installation team and client should be able to access this file' },
-    ];
+    if (req.user.role === 'client') {
+      return res.status(StatusCodes.FORBIDDEN).json({ message: 'Client users are not allowed to create projects' });
+    }
 
-    for (const task of standardTasks) {
+    // Extract values from request body
+    const { name, projectDescription, description, engineerId, clientId } = req.body;
+    
+    // Use projectDescription or description (whichever is provided)
+    const projectDesc = projectDescription || description;
+    
+    // Set default values for required fields that might be missing from frontend
+    const address = req.body.address || 'N/A';
+    const location = req.body.location || 'N/A';
+    
+    // Convert numeric values to integers
+    const sqft = parseInt(req.body.sqft, 10) || 0;
+    const estimatedTime = req.body.estimatedTime || new Date();
+    const statusId = parseInt(req.body.statusId, 10) || 1; // Assuming 1 is a valid status ID
+    const vbCount = parseInt(req.body.vbCount, 10) || 0;
+    
+    // Convert IDs to integers
+    const engineerIdInt = parseInt(engineerId, 10);
+    const clientIdInt = parseInt(clientId, 10);
+    
+    // Get the user ID for createdById and updatedById
+    const createdById = req.user.id;
+
+    if (!name) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Project name is required' });
+    }
+
+    const project = await createProjectService({
+      name,
+      description: projectDesc || null,
+      address: address || 'N/A',
+      location: location || 'N/A',
+      sqft: sqft || 0,
+      estimatedTime: estimatedTime || new Date(),
+      vbCount: vbCount || 0,
+      statusId: statusId || 1,
+      engineerId: engineerIdInt || null,
+      clientId: clientIdInt || null,
+      createdById
+    });
+
+    // Add tasks from the template to the project
+    for (const task of taskTemplate) {
       await createTaskService(project.id, task);
     }
 
-    res.status(201).json({ project, message: 'Project created with standard tasks' });
+    res.status(StatusCodes.CREATED).json({ project, message: 'Project created with tasks from template' });
   } catch (error) {
-    res.status(400).json({ message: (error as Error).message });
+    res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
   }
 };
 
@@ -46,10 +86,66 @@ export const getProjects = async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    const projects = await getProjectsService(req.user.id);  // Use req.user.id
-    res.status(200).json({ projects });
+
+    const userId = req.user.id;
+    const userRole = req.user.role; // Assuming role is like 'client', 'admin', 'engineer'
+
+    let projects;
+
+    if (userRole === 'client') {
+      // Updated logic: Fetch projects where the user is mapped as a client
+      // This requires the getProjectsService to handle this specific filtering
+      // For now, the service uses createdById if userId is passed.
+      // This part might need further refinement in getProjectsService if client-specific view is different.
+      projects = await getProjectsService(userId); 
+    } else {
+      // For admin, engineer, etc., fetch all projects or based on other criteria
+      projects = await getProjectsService(); // Fetches all projects
+    }
+    
+    // Transform the client data to be directly accessible
+    const transformedProjects = projects.map(project => {
+      const clientData = project.client.length > 0 ? project.client[0].client : null;
+      return {
+        ...project,
+        client: clientData, // Replace the array with the direct client object or null
+      };
+    });
+
+    res.status(StatusCodes.OK).json({ projects: transformedProjects });
   } catch (error) {
-    res.status(400).json({ message: (error as Error).message });
+    res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
+  }
+};
+
+export const getProjectById = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+    }
+    const projectId = parseInt(req.params.projectId, 10);
+    if (isNaN(projectId)) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID' });
+    }
+
+    const project = await getProjectByIdService(projectId);
+
+    if (!project) {
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Project not found' });
+    }
+    
+    // Transform client data for consistency
+    const clientData = project.client.length > 0 ? project.client[0].client : null;
+    const transformedProject = {
+      ...project,
+      client: clientData,
+    };
+
+    // Optional: Add authorization check here if needed (e.g., client can only see their own projects)
+
+    res.status(StatusCodes.OK).json({ project: transformedProject });
+  } catch (error) {
+    res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
   }
 };
 

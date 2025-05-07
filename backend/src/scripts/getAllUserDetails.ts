@@ -6,8 +6,10 @@ async function getAllUserDetails() {
   try {
     const users = await prisma.user.findMany({
       select: {
+        id: true,
         email: true,
-        password: true, // Note: Storing and retrieving plain text passwords is a security risk.
+        password: true,
+        name: true,
         role: {
           select: {
             role: true,
@@ -16,16 +18,13 @@ async function getAllUserDetails() {
       },
     });
 
-    if (users.length === 0) {
-      console.log('No users found in the database.');
-      return;
-    }
-
-    console.log('User Details:');
     users.forEach((user) => {
-      console.log(
-        `- Email: ${user.email}, Password: ${user.password}, Role: ${user.role.role}`
-      );
+      console.log(`User ID: ${user.id}`);
+      console.log(`  Name: ${user.name}`);
+      console.log(`  Email: ${user.email}`);
+      console.log(`  Password: ${user.password}`);
+      console.log(`  Role: ${user.role?.role}`);
+      console.log('---');
     });
   } catch (error) {
     console.error('Error fetching user details:', error);

@@ -10,9 +10,10 @@ interface UserCardProps {
     email: string;
     isActive: boolean;
   };
+  onClick?: () => void;
 }
 
-const UserCard: React.FC<UserCardProps> = ({ user }) => {
+const UserCard: React.FC<UserCardProps> = ({ user, onClick }) => {
   const [expanded, setExpanded] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -24,7 +25,7 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
   const handleExpand = () => setExpanded(!expanded);
 
   return (
-    <Card className="mb-4">
+    <Card className="mb-4" onClick={onClick} style={{ cursor: 'pointer' }}>
       <CardHeader>
         <CardTitle>{user.email}</CardTitle>
       </CardHeader>

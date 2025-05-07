@@ -6,6 +6,9 @@ import { Button } from "@/components/dashboard/button";
 import Pagination from "@/components/dashboard/pagination";
 import UserCard from "@/components/dashboard/userCard";
 import Link from "next/link";
+import { useRouter } from 'next/navigation';
+import { useUser } from '@/context/UserContext';
+import { isAdmin, hasPermission } from '@/lib/authUtils';
 
 // Define the User type
 interface User {
@@ -15,12 +18,22 @@ interface User {
 }
 
 const UsersPage: React.FC = () => {
+  const router = useRouter();
+  const { user, isLoading } = useUser();
   const [users, setUsers] = useState<User[]>([]);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalUsers, setTotalUsers] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<string>('');
+
+  useEffect(() => {
+    console.log("User role:", user?.role, "Is admin:", user?.role ? hasPermission(user?.role.roleType, 'admin') : false);
+    if (!isLoading && user?.role && !hasPermission(user?.role.roleType, 'admin')) {
+      router.push('/dashboard');
+    }
+  }, [user, isLoading, router]);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -30,8 +43,13 @@ const UsersPage: React.FC = () => {
         throw new Error("No token found. Please log in.");
       }
 
+      let url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users?page=${currentPage}&pageSize=${pageSize}`;
+      if (selectedRole) {
+        url += `&roleName=${selectedRole}`;
+      }
+
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/users?page=${currentPage}&pageSize=${pageSize}`,
+        url,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -44,17 +62,21 @@ const UsersPage: React.FC = () => {
       }
 
       const data = await response.json();
-      setUsers(data.users);
-      setTotalUsers(data.total);
+      setUsers(data.data.users);
+      setTotalUsers(data.data.total);
       setError(null);
     } catch (err) {
       setError("Could not load users. Please try again later.");
     }
-  }, [currentPage, pageSize]); // fetchUsers is now stable due to useCallback
+  }, [currentPage, pageSize, selectedRole]);
 
   useEffect(() => {
-    fetchUsers(); // Call the function inside the effect
-  }, [fetchUsers]); // Now only depends on the memoized fetchUsers
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const handleRoleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedRole(event.target.value);
+  };
 
   return (
     <Card className="p-6">
@@ -68,18 +90,33 @@ const UsersPage: React.FC = () => {
             <p>{successMessage}</p>
           </div>
         )}
-        <Button className="mb-4">
-          <Link href="/dashboard/users/create-user">
+        <Link href="/dashboard/users/create-user">
+          <Button variant="createUser" className="mb-4">
             Create User
-          </Link>
-        </Button>
+          </Button>
+        </Link>
+
+        {/* Role Filter Dropdown */}
+        <div className="mb-4">
+          <label htmlFor="role" className="block text-sm font-medium text-gray-700">Filter by Role:</label>
+          <select
+            id="role"
+            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+            value={selectedRole}
+            onChange={handleRoleChange}
+          >
+            <option value="">All Roles</option>
+            <option value="client">Client</option>
+            <option value="engineer">Engineer</option>
+          </select>
+        </div>
 
         <h3 className="text-lg font-semibold mt-4">All Users</h3>
         {users.length > 0 ? (
           <div className="grid gap-4">
             {users.map((user) => (
               <div key={user.id}>
-                <UserCard user={user} />
+                <UserCard user={user} onClick={() => router.push(`/dashboard/users/${user.id}`)} />
               </div>
             ))}
           </div>

@@ -1,0 +1,94 @@
+[
+  {
+    "stage": "Site measurements",
+    "taskName": "Details of project (form shared)",
+    "uploadedBy": "Client",
+    "viewPermission": "All",
+    "actionRequired": "Site visit is booked based on this the form"
+  },
+  {
+    "stage": "Site measurements",
+    "taskName": "Site Visit",
+    "uploadedBy": "BIM Engineer",
+    "viewPermission": "All",
+    "actionRequired": "BIM engineer to upload site measurements"
+  },
+  {
+    "stage": "Site measurements",
+    "taskName": "Design inputs",
+    "uploadedBy": "Client",
+    "viewPermission": "BIM engineer",
+    "actionRequired": "To be validated by BIM engineer"
+  },
+  {
+    "stage": "Design",
+    "taskName": "Site photos",
+    "uploadedBy": "Client",
+    "viewPermission": "All",
+    "actionRequired": "To be validated by BIM engineer"
+  },
+  {
+    "stage": "Design",
+    "taskName": "Create Designs",
+    "uploadedBy": null,
+    "viewPermission": null,
+    "actionRequired": "BIM team creates the designs"
+  },
+  {
+    "stage": "Approval",
+    "taskName": "Production document",
+    "uploadedBy": "BIM engineer",
+    "viewPermission": "All",
+    "actionRequired": "To be approved by client",
+    "fileTypes": ["PDF", "SKP"]
+  },
+  {
+    "stage": "Approval",
+    "taskName": "Performa invoice",
+    "uploadedBy": "BIM engineer",
+    "viewPermission": "All",
+    "actionRequired": "Two types of Proforma Invoices (MW - Modular Work, FFTL - Fixtures Fevicol Transport and Logistics). Payment to be made by the customer - Client"
+  },
+  {
+    "stage": "Pre-Production",
+    "taskName": "Material estimation",
+    "uploadedBy": "BIM engineer",
+    "viewPermission": "All",
+    "actionRequired": "Client to send the material • upload cuttist"
+  },
+  {
+    "stage": "Production",
+    "taskName": "Input QA",
+    "uploadedBy": "BIM engineer",
+    "viewPermission": "Production Engineer, BIM engineer",
+    "actionRequired": "Production associate to verify and Receive the material and update the status"
+  },
+  {
+    "stage": "Production",
+    "taskName": "Pressing list",
+    "uploadedBy": "BIM engineer",
+    "viewPermission": "Production Engineer, BIM engineer",
+    "actionRequired": "Production associate to verify and Receive the material and update the status"
+  },
+  {
+    "stage": "Production",
+    "taskName": "G code and cutting list",
+    "uploadedBy": "BIM engineer",
+    "viewPermission": "Production Engineer, BIM engineer",
+    "actionRequired": "Production associate use this for CNC programming"
+  },
+  {
+    "stage": "Production",
+    "taskName": "Output QA",
+    "uploadedBy": "BIM engineer",
+    "viewPermission": "Production Engineer, BIM engineer",
+    "actionRequired": "production associate uses this to verify the status (Problem: the client contests that the material is not received, how to  prove to the client that the material is out )"
+  },
+  {
+    "stage": "Production",
+    "taskName": "Installation Guide",
+    "uploadedBy": "BIM engineer",
+    "viewPermission": "All",
+    "actionRequired": "installation team and client should be able to access this file"
+  }
+]

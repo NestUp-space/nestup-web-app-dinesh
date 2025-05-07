@@ -2,59 +2,82 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import Logo from "@img/NestupLogoOnly.svg";
-import { NavItem } from './nav-item'; // Assuming nav-item is in the same directory
-import { Home, Users2, LineChart, Settings } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip'; // Assuming tooltip is in the same directory
+import { NavItem } from './nav-item';
+import { Home, Users, LineChart, Settings, LogOut, HelpCircle, User as UserIcon } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
 import { useUser } from '@/context/UserContext';
-import { isAdmin } from '@/lib/authUtils';
+import { isAdmin, hasPermission } from '@/lib/authUtils';
+import { useRouter } from 'next/navigation';
+import React, { useEffect } from 'react';
+
+import LogoText from "@img/NestupLogoText.svg";
 
 export function DesktopNav() {
   const { user, isLoading } = useUser();
+  const router = useRouter();
 
-  // Optionally, show a loading state or return null while loading
-  // For a nav bar, usually, we might want to show a minimal version or nothing for the protected items
-  // if (isLoading) {
-  //   return null; // Or a loading spinner, or a basic nav without protected items
-  // }
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    router.push('/login');
+  };
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
-      <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">
-        <div className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base">
-          <Link href="/dashboard" className="flex rounded-md h-12">
-            <Image src={Logo} alt="logo" className="object-contain hover:cursor-pointer" />
-          </Link>
-          <span className="sr-only">Nestup</span>
+    <aside className="fixed inset-y-0 left-0 z-10 hidden w-48 flex-col border-r bg-background sm:flex">
+      <div className="flex flex-col items-center gap-4 px-4 py-5">
+        <div className="group flex h-9 w-full items-center justify-between">
+          <Image src={LogoText} alt="Nestup Logo" className="h-6" />
         </div>
 
         <NavItem href="/dashboard" label="Dashboard">
-          <Home className="h-5 w-5" />
+          <Home className="h-5 w-5 mr-2" />
+          Dashboard
         </NavItem>
 
-        {!isLoading && isAdmin(user?.role) && (
+        {!isLoading && user?.role && hasPermission(user?.role.roleType, 'admin') && (
           <NavItem href="/dashboard/users" label="Users">
-            <Users2 className="h-5 w-5" />
+            <Users className="h-5 w-5 mr-2" />
+            Users
           </NavItem>
         )}
 
         <NavItem href="#" label="Analytics">
-          <LineChart className="h-5 w-5" />
+          <LineChart className="h-5 w-5 mr-2" />
+          Analytics
         </NavItem>
-      </nav>
-      <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Link
-              href="#"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
-            >
-              <Settings className="h-5 w-5" />
-            </Link>
-          </TooltipTrigger>
-          <TooltipContent side="right">Settings</TooltipContent>
-        </Tooltip>
-      </nav>
+
+        <NavItem href="#" label="Support">
+          <HelpCircle className="h-5 w-5 mr-2" />
+          Support
+        </NavItem>
+
+        <NavItem href="#" label="Settings">
+          <Settings className="h-5 w-5 mr-2" />
+          Settings
+        </NavItem>
+      </div>
+
+      <div className="mt-auto flex flex-col items-center gap-2 px-4 py-5">
+        <div className="border-t w-full border-border my-2" />
+        <div className="flex items-center gap-2">
+          <UserIcon className="h-4 w-4 text-muted-foreground" />
+          <div className="text-sm text-muted-foreground">
+            {user?.name}
+          </div>
+        </div>
+        <div className="text-xs text-muted-foreground ml-6">
+          {user?.role ? user?.role.roleType : 'Role'}
+        </div>
+        <div className="text-xs text-muted-foreground ml-6">
+          {user?.email}
+        </div>
+        <button
+          onClick={handleLogout}
+          className="flex items-center justify-start gap-2 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          Log Out
+        </button>
+      </div>
     </aside>
   );
 }

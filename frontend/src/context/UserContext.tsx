@@ -18,7 +18,11 @@ interface User {
   name: string;
   phoneNumber?: string;
   profilePicture?: string;
-  role?: string;
+  role?: {
+    id: number;
+    role: string;
+    roleType: string;
+  };
 }
 
 const UserContext = createContext<UserContextProps | undefined>(undefined);

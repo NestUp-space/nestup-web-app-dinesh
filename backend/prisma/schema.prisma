@@ -54,23 +54,24 @@ model Team {
 model Project {
   id            Int       @id @default(autoincrement())
   name          String
-  address       String
-  location      String
-  sqft          Int
-  statusId      Int
-  status        Status    @relation(fields: [statusId], references: [id])
-  clientId      Int
-  engineerId    Int // Reverted to non-optional
+  description   String?
+  address       String?   @default("N/A")
+  location      String?   @default("N/A")
+  sqft          Int?      @default(0)
+  statusId      Int?      @default(1)
+  status        Status?   @relation(fields: [statusId], references: [id])
+  clientId      Int?
+  engineerId    Int?
   createdById   Int
   updatedById   Int
-  estimatedTime DateTime
+  estimatedTime DateTime? @default(now())
   startedAt     DateTime?
   completedAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  vbCount       Int
+  vbCount       Int       @default(0)
   client           ClientProjectMapping[]
-  engineer         User                     @relation("EngineerProjects", fields: [engineerId], references: [id]) // Relation is now non-optional
+  engineer         User?                    @relation("EngineerProjects", fields: [engineerId], references: [id])
   createdBy        User                     @relation("UserCreatedProjects", fields: [createdById], references: [id])
   updatedBy        User                     @relation("UserUpdatedProjects", fields: [updatedById], references: [id])
   tasks            Task[]

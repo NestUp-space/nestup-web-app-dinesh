@@ -17,7 +17,7 @@ export class UserService {
   static async createUser({ email, password, name, phoneNumber, roleId = 1 }: CreateUserProps) {
     // Hash password before storing
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+
     return prisma.user.create({
       data: {
         email,
@@ -63,12 +63,23 @@ export class UserService {
     });
   }
 
-  static async getUsers(page: number, pageSize: number) {
+  static async getUsers(page: number, pageSize: number, roleName?: string) {
     const skip = (page - 1) * pageSize;
-    const total = await prisma.user.count();
+    let whereClause = {};
+
+    if (roleName) {
+      whereClause = {
+        role: {
+          roleType: roleName,
+        },
+      };
+    }
+
+    const total = await prisma.user.count({ where: whereClause });
     const users = await prisma.user.findMany({
       skip,
       take: pageSize,
+      where: whereClause,
       select: {
         id: true,
         email: true,
@@ -122,7 +133,7 @@ export class UserService {
       },
     });
   }
-  
+
   static async getUserByEmail(email: string) {
     return prisma.user.findUnique({
       where: { email },
@@ -140,7 +151,7 @@ export class UserService {
       },
     });
   }
-  
+
   static async getCurrentUserProfile(userId: number): Promise<ServiceResponse<any>> {
     try {
       const user = await prisma.user.findUnique({
@@ -174,5 +185,27 @@ export class UserService {
       console.error('Error fetching user profile:', error);
       return ServiceResponse.failure('Failed to fetch user profile', null, StatusCodes.INTERNAL_SERVER_ERROR);
     }
+  }
+
+  static async getUsersByRole(roleName: string) {
+    return prisma.user.findMany({
+      where: {
+        role: {
+          role: roleName,
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phoneNumber: true,
+        isActive: true,
+        verified: true,
+        createdAt: true,
+        updatedAt: true,
+        role: true,
+        // Exclude password for security
+      },
+    });
   }
 }

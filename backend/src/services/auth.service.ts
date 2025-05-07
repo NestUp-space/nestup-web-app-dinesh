@@ -113,7 +113,7 @@ export const loginUser = async (data: LoginUserData): Promise<ServiceResponse<{ 
     id: user.id,
     email: user.email,
     name: user.name,
-    role: user.role.role, // Use the role name from the included relation
+    role: user.role.roleType, // Use the roleType for consistent role checking
   };
 
   const token = jwt.sign(payload, jwtSecret, { expiresIn: '1h' }); // Consider longer expiry or refresh tokens

@@ -10,7 +10,7 @@ const RegisterBodySchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
   phoneNumber: z.string().regex(/^\d{10}$/, { message: 'Phone number must be 10 digits' }), // Basic 10-digit validation
   password: z.string().min(8, { message: 'Password must be at least 8 characters long' }),
-  roleName: z.string().optional(), // Keep optional if applicable
+  roleName: z.string().default('client'), // Set default role to "client"
 });
 
 const LoginBodySchema = z.object({

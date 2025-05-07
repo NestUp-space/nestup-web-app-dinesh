@@ -32,12 +32,17 @@ export class UserController {
 
   static async getUsers(req: Request, res: Response) {
     try {
-      const page = parseInt(req.query.page as string) || 1; // Parse page number
-      const pageSize = parseInt(req.query.pageSize as string) || 10; // Parse page size
-      const users = await UserService.getUsers(page, pageSize);
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = parseInt(req.query.pageSize as string) || 10;
+      const roleName = req.query.roleName as string | undefined;
+
+      const { users, total } = await UserService.getUsers(page, pageSize, roleName);
       res.status(StatusCodes.OK).json({
         success: true,
-        data: users
+        data: {
+          users,
+          total
+        }
       });
     } catch (err) {
       console.error('Error fetching users:', err);
@@ -84,12 +89,12 @@ export class UserController {
       const userId = parseInt(req.params.id);
       const { newPassword } = req.body;
 
-      // Only superadmin can update passwords
+      // Only superadmin and admin can update passwords
       const requestingUser = (req as CustomRequest).user;
-      if (requestingUser?.role !== 'superadmin') {
+      if (requestingUser?.role !== 'superadmin' && requestingUser?.role !== 'admin') {
         return res.status(StatusCodes.FORBIDDEN).json({
           success: false,
-          message: 'Only superadmin can update passwords'
+          message: 'Only superadmin and admin can update passwords'
         });
       }
 
@@ -158,6 +163,30 @@ export class UserController {
       res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: 'Failed to fetch user profile',
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
+    }
+  }
+
+  static async getUsersByRole(req: Request, res: Response) {
+    try {
+      const roleName = req.query.roleName as string;
+      if (!roleName) {
+        return res.status(StatusCodes.BAD_REQUEST).json({
+          success: false,
+          message: 'Role name is required'
+        });
+      }
+      const users = await UserService.getUsersByRole(roleName);
+      res.status(StatusCodes.OK).json({
+        success: true,
+        data: users
+      });
+    } catch (err) {
+      console.error('Error fetching users by role:', err);
+      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: 'Unable to fetch users by role',
         error: err instanceof Error ? err.message : 'Unknown error'
       });
     }
