@@ -1,0 +1,87 @@
+{
+  "modelType": "Simple Box",
+  "runtimeInputs": {
+    "boxHeight": null,
+    "boxWidth": null,
+    "boxDepth": null,
+    "leftAdjacency": "Expose",
+    "rightAdjacency": "Expose",
+    "outerMaterialCode": null,
+    "innerMaterialCode": null,
+    "backMaterialCode": null,
+    "door": {
+      "hasDoor": false,
+      "exposedSide": null
+    },
+    "numberOfShelves": 0
+  },
+  "planks": [
+    {
+      "plankId": "B1P1_Back",
+      "name": "Back Plank",
+      "width": null,
+      "height": null,
+      "materialCode": null,
+      "grainDirection": null
+    },
+    {
+      "plankId": "B1P1_Left",
+      "name": "Left Plank",
+      "width": null,
+      "height": null,
+      "materialCode": null,
+      "grainDirection": null
+    },
+    {
+      "plankId": "B1P1_Right",
+      "name": "Right Plank",
+      "width": null,
+      "height": null,
+      "materialCode": null,
+      "grainDirection": null
+    },
+    {
+      "plankId": "B1P1_Top",
+      "name": "Top Plank",
+      "width": null,
+      "height": null,
+      "materialCode": null,
+      "grainDirection": null
+    },
+    {
+      "plankId": "B1P1_Bottom",
+      "name": "Bottom Plank",
+      "width": null,
+      "height": null,
+      "materialCode": null,
+      "grainDirection": null
+    }
+  ],
+  "siteEngineerInstructions": [
+    "When there is a dummy, the site engineer should leave 30 mm for dummy should enter the remaining distance as the width and not consider the width of the dummy in the box width.",
+    "The clearance left for dummy left on the site is 30 mm but When cutting the dummy on the sheet, it has to be of 75mm width and height should be the height of the box."
+  ],
+  "sampleOnsiteInputs": {
+    "materialCode_inner18": {
+      "innerLaminate": "grey texture",
+      "outerLaminate": "grey texture",
+      "plyThickness_mm": 16,
+      "overallMaterialThickness_mm": 18,
+      "plyType": "HDHMR"
+    },
+    "materialCode_back10": {
+      "innerLaminate": "grey texture",
+      "outerLaminate": "grey texture",
+      "plyThickness_mm": 8,
+      "overallMaterialThickness_mm": 10,
+      "plyType": "HDHMR"
+    },
+    "materialCode_9853_18": {
+      "innerLaminate": "grey texture",
+      "outerLaminate": "9853",
+      "plyThickness_mm": 18,
+      "overallMaterialThickness_mm": 20,
+      "plyType": "Blockboard"
+    }
+  }
+}

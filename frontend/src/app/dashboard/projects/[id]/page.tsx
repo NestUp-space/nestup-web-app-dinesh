@@ -141,7 +141,7 @@ export default function ProjectDetailPage() {
       <div>
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold text-gray-700">Project Timeline & Tasks</h2>
-          <Button size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Add Task</Button>
+          
         </div>
         {project.tasks && project.tasks.length > 0 ? (
           <div className="space-y-6">
@@ -164,7 +164,7 @@ export default function ProjectDetailPage() {
                 {/* Add more task details or actions here */}
                  <div className="mt-3 flex space-x-2">
                     <Button variant="outline" size="sm"><Eye className="mr-1 h-3 w-3" /> View</Button>
-                    <Button variant="outline" size="sm"><Edit3 className="mr-1 h-3 w-3" /> Edit</Button>
+                    <Button variant="outline" size="sm"><Edit3 className="mr-1 h-3 w-3" /> Update</Button>
                  </div>
               </div>
             ))}

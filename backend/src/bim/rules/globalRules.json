@@ -1,0 +1,63 @@
+{
+  "materialDetails": {
+    "defaultInnerLaminateThickness_mm": 1,
+    "defaultOuterLaminateThickness_mm": 1,
+    "defaultEdgeBandingInnerThickness_mm": 1,
+    "defaultEdgeBandingExposedThickness_mm": 2
+  },
+  "adjacencyRules": {
+    "exposedSide": {
+      "description": "Rules for when a side of a box is exposed.",
+      "sidePanelExtension": "extends_till_back",
+      "backPanelInsertion": "extra_groove_on_inner_side",
+      "outerFinish": "outer_laminate",
+      "edgeBanding": "exposed_2mm"
+    },
+    "boxSide": {
+      "description": "Rules for when a side of a box is adjacent to another box.",
+      "backPanelExtension": "extends_into_side",
+      "sidePanelGroove": "none",
+      "fastening": "screws",
+      "screwHoleDiameter_mm": 5
+    },
+    "wallSide": {
+      "description": "Rules for when a side of a box is adjacent to a wall.",
+      "logic": "same_as_box_side_with_dummy",
+      "dummyPanelRequired": true,
+      "dummyWidthOnSheet_mm": 75,
+      "dummyClearanceOnSite_mm": 30
+    }
+  },
+  "edgeBandingRules": {
+    "exposedOrOuterLaminate": {
+      "thickness_mm": 2,
+      "description": "Used on all sides if the panel is exposed or has outer laminate."
+    },
+    "notExposedOrInnerLaminate": {
+      "thickness_mm": 1,
+      "description": "Used if the panel is not exposed or has inner laminate."
+    },
+    "slidingDoorException": {
+      "thickness_mm": 2,
+      "description": "Outer edges of sliding doors use 2mm edge banding."
+    }
+  },
+  "fittingRules": {
+    "vbFittings": {
+      "sidePanelHoleDiameter_mm": 5,
+      "adjacentPanelHoleDiameter_mm": 20,
+      "description": "VB fittings are used for fastening two planks. Hole on side panel is centered on top/bottom planks."
+    },
+    "screwFittings": {
+      "holeDiameter_mm": 5,
+      "description": "Screws are used for fastening. Screw hole is centered on the thickness of the adjacent plank."
+    }
+  },
+  "doorRules": {
+    "clearance_mm": 1,
+    "description": "1mm clearance is left on all sides of the door."
+  },
+  "generalPlankRules": {
+    "shelfMaterial": "same_as_inner_material_code"
+  }
+}

@@ -1,21 +1,34 @@
 import prisma from '../config/db';  // Prisma client
 
 export const createProjectService = async (data: any) => {
+  const projectInput: any = { // More flexible input type for construction
+    name: data.name,
+    description: data.description ?? null,
+    estimatedTime: data.estimatedTime ? new Date(data.estimatedTime) : new Date(),
+    vbCount: data.vbCount || 0,
+    statusId: data.statusId || 1, // Default status
+    createdById: parseInt(data.createdById),
+    updatedById: parseInt(data.createdById), // Initially same as createdBy
+    engineerId: data.engineerId ? parseInt(data.engineerId) : undefined,
+    clientId: data.clientId ? parseInt(data.clientId) : undefined, // Corrected based on previous errors
+  };
+
+  // For fields with @default in schema, only set them if explicitly provided,
+  // otherwise Prisma will use the default.
+  if (data.address !== undefined) {
+    projectInput.address = data.address;
+  }
+  if (data.location !== undefined) {
+    projectInput.location = data.location;
+  }
+  if (data.sqft !== undefined) {
+    projectInput.sqft = data.sqft;
+  }
+  // Note: description is String? without @default, so `?? null` is appropriate.
+  // engineerId and clientId are Int? without @default, so `? parseInt(...) : undefined` is appropriate.
+
   const project = await prisma.project.create({
-    data: {
-      name: data.name,
-      description: data.description,
-      address: data.address,
-      location: data.location,
-      sqft: data.sqft,
-      estimatedTime: data.estimatedTime,
-      vbCount: data.vbCount || 0,
-      status: { connect: { id: data.statusId } },
-      engineer: { connect: { id: data.engineerId } },
-      clientId: data.clientId || null,
-      createdBy: { connect: { id: data.createdById } },
-      updatedBy: { connect: { id: data.createdById } },
-    },
+    data: projectInput,
   });
   return project;
 };
@@ -23,41 +36,30 @@ export const createProjectService = async (data: any) => {
 export const getProjectsService = async (userId?: number) => {
   const whereClause: any = {};
   if (userId) {
-    // If userId is provided, we need to check if this user is a client
-    // and filter projects based on ClientProjectMapping
-    // For now, let's assume if userId is provided, it's for filtering by createdById
-    // This logic might need refinement based on how client-specific projects are fetched
+    // This logic might need refinement based on actual roles and access patterns
     whereClause.createdById = userId; 
-    // Or, if it's a client, you might filter by:
+    // Example for client-specific view if ClientProjectMapping is primary:
     // whereClause.client = { some: { clientId: userId } };
   }
 
   return await prisma.project.findMany({
     where: whereClause,
     include: {
-      status: true, // Include status details
-      engineer: { // Include engineer details
-        select: { id: true, name: true, email: true }
-      },
-      client: { // Include client details through ClientProjectMapping
+      status: true, 
+      engineer: { select: { id: true, name: true, email: true } },
+      client: { // Fetches ClientProjectMapping records
         select: {
-          client: {
+          client: { // Access the related User record for the client
             select: { id: true, name: true, email: true }
           }
         }
       },
-      tasks: { // Include tasks and sort them
-        orderBy: {
-          createdAt: 'asc', // or 'desc' depending on desired order
-        },
-        include: {
-          status: true // Include status for each task
-        }
+      tasks: { 
+        orderBy: { createdAt: 'asc' },
+        include: { status: true }
       },
     },
-    orderBy: {
-      createdAt: 'desc' // Sort projects by creation date
-    }
+    orderBy: { createdAt: 'desc' }
   });
 };
 
@@ -66,26 +68,16 @@ export const getProjectByIdService = async (projectId: number) => {
     where: { id: projectId },
     include: {
       status: true,
-      engineer: {
-        select: { id: true, name: true, email: true }
-      },
-      client: {
-        select: {
-          client: {
-            select: { id: true, name: true, email: true }
-          }
-        }
+      engineer: { select: { id: true, name: true, email: true } },
+      client: { 
+        select: { 
+          client: { select: { id: true, name: true, email: true } }
+        } 
       },
       tasks: {
-        orderBy: {
-          createdAt: 'asc',
-        },
-        include: {
-          status: true,
-          // Add other relations for tasks if needed, e.g., files, comments
-        }
+        orderBy: { createdAt: 'asc' },
+        include: { status: true }
       },
-      // Include other relations for the project if needed
     },
   });
 };
@@ -93,7 +85,7 @@ export const getProjectByIdService = async (projectId: number) => {
 export const updateProjectService = async (projectId: number, data: any) => {
   return await prisma.project.update({
     where: { id: projectId },
-    data,
+    data, // Ensure 'data' only contains fields present in the Project model
   });
 };
 
@@ -104,18 +96,11 @@ export const deleteProjectService = async (projectId: number) => {
 };
 
 export const createTaskService = async (projectId: number, templateData: any) => {
-  // Map template data to the Task model structure
   const taskData = {
-    name: templateData.taskName, // Map taskName to name
+    name: templateData.taskName, 
     projectId: projectId,
-    statusId: templateData.statusId || 1, // Default to statusId 1 (e.g., 'Pending') if not provided
-    // Add other fields from templateData if they exist in the Task model and are needed
-    // For now, we only map 'name' and ensure 'projectId' and 'statusId' are set.
-    // Fields like 'stage', 'uploadedBy', 'viewPermission', 'actionRequired' from the template
-    // are not directly part of the Task model as per the current schema.
-    // If these need to be stored, the Task model or related models would need to be updated.
+    statusId: templateData.statusId || 1, // Default to statusId 1 (e.g., 'Pending')
   };
-
   return await prisma.task.create({
     data: taskData,
   });
@@ -124,13 +109,15 @@ export const createTaskService = async (projectId: number, templateData: any) =>
 export const getTasksService = async (projectId: number) => {
   return await prisma.task.findMany({
     where: { projectId },
+    include: { status: true }, // Include task status
+    orderBy: { createdAt: 'asc' },
   });
 };
 
 export const updateTaskService = async (taskId: number, data: any) => {
   return await prisma.task.update({
     where: { id: taskId },
-    data,
+    data, // Ensure 'data' only contains fields present in the Task model
   });
 };
 
@@ -140,11 +127,18 @@ export const deleteTaskService = async (taskId: number) => {
   });
 };
 
-export const updateTaskStatusService = async (taskId: number, statusId: number) => {
-  const task = await prisma.task.update({
+export const updateTaskStatusService = async (taskId: number, newStatusId: number) => {
+  // Ensure newStatusId is a number; the parameter is already typed as number.
+  const updatedTask = await prisma.task.update({
     where: { id: taskId },
-    data: { status: { connect: { id: statusId } } }, // Use nested connect for status
+    data: { 
+      statusId: newStatusId, // Directly update the scalar foreign key
+      // Or, if you prefer connect syntax (both achieve similar results for scalar FKs):
+      // status: { connect: { id: newStatusId } } 
+    },
+    include: {
+      status: true // Include the updated status details in the response
+    }
   });
-
-  return task;
+  return updatedTask;
 };

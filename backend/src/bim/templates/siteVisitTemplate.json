@@ -1,0 +1,21 @@
+{
+  "taskType": "siteVisitTask",
+  "action": "edit",
+  "trigger": "userClick",
+  "description": "Template for initiating the BIM process when a user edits a site visit task.",
+  "initialState": {
+    "status": "pending_bim_inputs",
+    "currentStep": "site_measurements",
+    "modelSelection": null
+  },
+  "dataRequirements": [
+    "projectDetails",
+    "clientDetails",
+    "materialIdList"
+  ],
+  "nextSteps": [
+    "Collect site measurements.",
+    "Select or define BIM model.",
+    "Proceed with 3D design and plank list creation."
+  ]
+}
