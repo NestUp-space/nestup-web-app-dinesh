@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { createOrUpdateUser, createDraftProject } from '@/services/siteVisit.service';
+import { createOrUpdateUser, createDraftProject } from '../services/siteVisit.service';
 import { StatusCodes } from 'http-status-codes';
-import { BookSiteVisitInput } from '@/validations/siteVisit.validation';
+import { BookSiteVisitInput } from '../validations/siteVisit.validation';
 import { BadRequestError, NotFoundError } from '../common/errors/customErrors';
 
 export const bookSiteVisit = async (req: Request, res: Response, next: NextFunction): Promise<void> => {

@@ -71,6 +71,9 @@ const ProjectsPage = () => {
             <li key={project.id}>
               <h3>{project.name}</h3>
               <p>{project.description}</p>
+              <button onClick={() => window.location.href = `/dashboard/projects/${project.id}/tasks`}>
+                Manage Tasks
+              </button>
             </li>
           ))}
         </ul>

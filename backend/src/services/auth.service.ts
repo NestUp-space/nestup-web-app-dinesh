@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import prisma from '../config/db';
 import { PrismaClient, User, UserRole } from '@prisma/client'; // Import User type
 import { StatusCodes } from 'http-status-codes';
-import { ServiceResponse } from '@/common/models/serviceResponse'; // Assuming you have this for structured responses
+import { ServiceResponse } from '../common/models/serviceResponse'; // Updated to use relative path
 
 // Define expected input structure for clarity
 interface RegisterUserData {
@@ -130,7 +130,6 @@ export const resetPassword = async (email: string): Promise<ServiceResponse<null
   // TODO: Implement token generation, email sending (e.g., using AWS SES), and storing the token securely.
   return ServiceResponse.failure('Password reset not implemented yet', null, StatusCodes.NOT_IMPLEMENTED);
 };
-
 
 export const getUserById = async (id: number): Promise<ServiceResponse<(Omit<User, 'password'> & { role: UserRole }) | null>> => {
   try {

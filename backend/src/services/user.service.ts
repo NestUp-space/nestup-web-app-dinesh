@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
-import { ServiceResponse } from '@/common/models/serviceResponse';
+import { ServiceResponse } from '../common/models/serviceResponse';
 import { StatusCodes } from 'http-status-codes';
 
 const prisma = new PrismaClient();

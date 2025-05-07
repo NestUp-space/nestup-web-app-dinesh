@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import * as api from '../../../lib/api';
 
 const CreateUser = () => {
   const [formData, setFormData] = useState({
@@ -8,6 +8,7 @@ const CreateUser = () => {
     phoneNumber: '',
     password: '',
     roleId: '',
+    isActive: true, // Default to true as per schema
   });
   const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
   const [newRoleData, setNewRoleData] = useState({
@@ -23,23 +24,34 @@ const CreateUser = () => {
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value, type } = e.target;
+    if (type === 'checkbox') {
+      setFormData({ ...formData, [name]: (e.target as HTMLInputElement).checked });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post('/api/users', formData);
-      setSuccessMessage('User created successfully!');
-      setErrorMessage('');
-      setFormData({
-        name: '',
-        email: '',
-        phoneNumber: '',
-        password: '',
-        roleId: '',
-      });
-      fetchRoles();
+      const response = await api.post('/api/users', formData);
+      if (response.success) {
+        setSuccessMessage('User created successfully!');
+        setErrorMessage('');
+        setFormData({
+          name: '',
+          email: '',
+          phoneNumber: '',
+          password: '',
+          roleId: '',
+          isActive: true,
+        });
+        fetchRoles();
+      } else {
+        setErrorMessage(response.message || 'Failed to create user.');
+        setSuccessMessage('');
+      }
     } catch (error) {
       setErrorMessage('Failed to create user.');
       setSuccessMessage('');
@@ -49,29 +61,40 @@ const CreateUser = () => {
   const handleCreateRole = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post('/api/roles', newRoleData);
-      setSuccessMessage('Role created successfully!');
-      setErrorMessage('');
-      setNewRoleData({
-        name: '',
-        permissions: {
-          users: false,
-          projects: false,
-          tasks: false,
-        }
-      });
-      setShowNewRoleForm(false);
-      fetchRoles();
+      const response = await api.post('/api/roles', newRoleData);
+      if (response.success) {
+        setSuccessMessage('Role created successfully!');
+        setErrorMessage('');
+        setNewRoleData({
+          name: '',
+          permissions: {
+            users: false,
+            projects: false,
+            tasks: false,
+          }
+        });
+        setShowNewRoleForm(false);
+        fetchRoles();
+      } else {
+        setErrorMessage(response.message || 'Failed to create role.');
+        setSuccessMessage('');
+      }
     } catch (error) {
       setErrorMessage('Failed to create role.');
       setSuccessMessage('');
     }
   };
 
+  interface RolesResponse {
+    roles: { id: string; name: string }[];
+  }
+
   const fetchRoles = async () => {
     try {
-      const response = await axios.get('/api/roles');
-      setRoles(response.data.roles);
+      const response = await api.get<RolesResponse>('/api/roles');
+      if (response.success && response.data) {
+        setRoles(response.data.roles || []);
+      }
     } catch (error) {
       console.error('Failed to fetch roles:', error);
     }
@@ -88,20 +111,20 @@ const CreateUser = () => {
       {errorMessage && <p style={{ color: 'red' }}>{errorMessage}</p>}
       <form onSubmit={handleSubmit}>
         <div>
-          <label>Name:</label>
-          <input type="text" name="name" value={formData.name} onChange={handleChange} required />
-        </div>
-        <div>
           <label>Email:</label>
           <input type="email" name="email" value={formData.email} onChange={handleChange} required />
         </div>
         <div>
-          <label>Phone Number:</label>
-          <input type="text" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} required />
-        </div>
-        <div>
           <label>Password:</label>
           <input type="password" name="password" value={formData.password} onChange={handleChange} required />
+        </div>
+        <div>
+          <label>Name:</label>
+          <input type="text" name="name" value={formData.name} onChange={handleChange} required />
+        </div>
+        <div>
+          <label>Phone Number:</label>
+          <input type="text" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} required />
         </div>
         <div>
           <label>Role:</label>
@@ -119,6 +142,17 @@ const CreateUser = () => {
           <button type="button" onClick={() => setShowNewRoleForm(!showNewRoleForm)}>
             {showNewRoleForm ? 'Cancel' : 'Create New Role'}
           </button>
+        </div>
+        <div>
+          <label>
+            Active:
+            <input
+              type="checkbox"
+              name="isActive"
+              checked={formData.isActive}
+              onChange={handleChange}
+            />
+          </label>
         </div>
         <button type="submit">Create User</button>
       </form>

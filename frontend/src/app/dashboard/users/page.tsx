@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/dashboard/card";
 import { Button } from "@/components/dashboard/button";
 import Pagination from "@/components/dashboard/pagination";
@@ -22,7 +22,7 @@ const UsersPage: React.FC = () => {
   const [totalUsers, setTotalUsers] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const token = localStorage.getItem("token");
 
@@ -50,11 +50,11 @@ const UsersPage: React.FC = () => {
     } catch (err) {
       setError("Could not load users. Please try again later.");
     }
-  };
+  }, [currentPage, pageSize]); // fetchUsers is now stable due to useCallback
 
   useEffect(() => {
     fetchUsers(); // Call the function inside the effect
-  }, [currentPage, pageSize, fetchUsers]);
+  }, [fetchUsers]); // Now only depends on the memoized fetchUsers
 
   return (
     <Card className="p-6">

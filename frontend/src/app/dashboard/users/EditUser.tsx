@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import * as api from '../../../lib/api';
 
 interface EditUserProps {
   user: {
@@ -30,10 +30,15 @@ const EditUser = ({ user, onUpdate, currentUserRole = '' }: EditUserProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.put(`/api/users/${user.id}`, formData);
-      setSuccessMessage('User updated successfully!');
-      setErrorMessage('');
-      onUpdate();
+      const response = await api.put(`/api/users/${user.id}`, formData);
+      if (response.success) {
+        setSuccessMessage('User updated successfully!');
+        setErrorMessage('');
+        onUpdate();
+      } else {
+        setErrorMessage(response.message || 'Failed to update user.');
+        setSuccessMessage('');
+      }
     } catch (error) {
       setErrorMessage('Failed to update user.');
       setSuccessMessage('');
@@ -48,10 +53,15 @@ const EditUser = ({ user, onUpdate, currentUserRole = '' }: EditUserProps) => {
     }
     
     try {
-      await axios.patch(`/api/users/${user.id}/update-password`, { newPassword });
-      setSuccessMessage('Password updated successfully!');
-      setErrorMessage('');
-      setNewPassword('');
+      const response = await api.post(`/api/users/${user.id}/update-password`, { newPassword });
+      if (response.success) {
+        setSuccessMessage('Password updated successfully!');
+        setErrorMessage('');
+        setNewPassword('');
+      } else {
+        setErrorMessage(response.message || 'Failed to update password.');
+        setSuccessMessage('');
+      }
     } catch (error) {
       setErrorMessage('Failed to update password.');
       setSuccessMessage('');
@@ -79,7 +89,7 @@ const EditUser = ({ user, onUpdate, currentUserRole = '' }: EditUserProps) => {
         <button type="submit">Update User</button>
       </form>
 
-      {currentUserRole === 'superadmin' && (
+      {currentUserRole === 'super admin' && (
         <div>
           <h3>Update Password</h3>
           <form onSubmit={handlePasswordUpdate}>

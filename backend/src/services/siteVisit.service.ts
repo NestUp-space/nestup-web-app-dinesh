@@ -1,7 +1,7 @@
 import { User, Project, Prisma } from '@prisma/client';
 import bcrypt from 'bcrypt';
-import { userRepository } from '@/repositories/user.repository';
-import { projectRepository } from '@/repositories/project.repository';
+import { userRepository } from '../repositories/user.repository';
+import { projectRepository } from '../repositories/project.repository';
 
 const SALT_ROUNDS = 10; // Standard salt rounds for bcrypt
 
