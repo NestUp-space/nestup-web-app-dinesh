@@ -45,6 +45,18 @@ export class UserService {
       return ServiceResponse.failure("An error occurred while finding user.", null, StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
+
+  // Creates a new user
+  async create(data: Partial<User>): Promise<ServiceResponse<User | null>> {
+    try {
+      const newUser = await this.userRepository.createAsync(data);
+      return ServiceResponse.success<User>("User created successfully", newUser, StatusCodes.CREATED);
+    } catch (ex) {
+      const errorMessage = `Error creating user: ${(ex as Error).message}`;
+      logger.error(errorMessage);
+      return ServiceResponse.failure("An error occurred while creating user.", null, StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+  }
 }
 
 export const userService = new UserService();

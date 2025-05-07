@@ -19,16 +19,17 @@ export const isAuthenticated = async (req: CustomRequest, res: Response, next: N
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-    const user = await getUserById(decoded.id);
-    
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid token' });
-    }
+const userResponse = await getUserById(decoded.id);
 
-    req.user = {
-      id: user.id,
-      role: user.role,
-    };
+if (!userResponse || !userResponse.success || !userResponse.responseObject) {
+  return res.status(401).json({ message: 'Invalid token' });
+}
+
+req.user = {
+  id: userResponse.responseObject.id,
+  role: userResponse.responseObject.role.role, // Extract the role name
+};
+    console.log('Authenticated user role:', req.user?.role); // Debugging log
     next();
   } catch (error) {
     return res.status(401).json({ message: 'Authentication failed' });

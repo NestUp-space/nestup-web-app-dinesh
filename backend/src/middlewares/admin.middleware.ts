@@ -7,7 +7,8 @@ interface CustomRequest extends Request {
 }
 
 export const adminMiddleware = (req: CustomRequest, res: Response, next: NextFunction) => {
-  if (req.user && req.user.role === 'admin') {
+  console.log('User role:', req.user?.role); // Debugging log
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'super admin')) {
     next();
   } else {
     res.status(403).json({ error: 'Forbidden' });

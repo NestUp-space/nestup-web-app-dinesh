@@ -1,16 +1,24 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { getUserProfile } from "@/lib/api/auth";
+import { isAuthenticated } from "@/lib/api";
 
 interface UserContextProps {
   user: User | null;
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
+  login: (userData: User, token: string) => void;
+  logout: () => void;
+  isLoading: boolean;
 }
 
 interface User {
   id: string;
   email: string;
-  profilePicture: string;
+  name: string;
+  phoneNumber?: string;
+  profilePicture?: string;
+  role?: string;
 }
 
 const UserContext = createContext<UserContextProps | undefined>(undefined);
@@ -25,25 +33,43 @@ export const useUser = () => {
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Load user on initial mount
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      // Fetch user details from API using token
-      fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/user/profile`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-        .then((res) => res.json())
-        .then((data) => setUser(data))
-        .catch((err) => console.error("Failed to fetch user profile", err));
-    }
+    const loadUser = async () => {
+      if (isAuthenticated()) {
+        try {
+          const userData = await getUserProfile();
+          if (userData && userData.success) {
+            setUser(userData.user);
+          }
+        } catch (error) {
+          console.error("Failed to load user:", error);
+          // Clear invalid token
+          localStorage.removeItem("token");
+        }
+      }
+      setIsLoading(false);
+    };
+
+    loadUser();
   }, []);
 
+  // Login function to set user and token
+  const login = (userData: User, token: string) => {
+    localStorage.setItem("token", token);
+    setUser(userData);
+  };
+
+  // Logout function to clear user and token
+  const logout = () => {
+    localStorage.removeItem("token");
+    setUser(null);
+  };
+
   return (
-    <UserContext.Provider value={{ user, setUser }}>
+    <UserContext.Provider value={{ user, setUser, login, logout, isLoading }}>
       {children}
     </UserContext.Provider>
   );

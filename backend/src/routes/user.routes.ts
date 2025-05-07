@@ -8,11 +8,13 @@ const router = express.Router();
 // Apply authentication to all routes
 router.use(isAuthenticated);
 
-// Routes
+// User profile route - accessible to all authenticated users
+router.get('/profile', UserController.getCurrentUserProfile);
+
+// Admin-only routes
 router.get('/', adminMiddleware, UserController.getUsers);
 router.post('/', adminMiddleware, UserController.createUser);
 router.patch('/:id/toggle', adminMiddleware, UserController.toggleUserActiveStatus);
 router.get('/:id', adminMiddleware, UserController.getUserById);
-router.get('/profile', adminMiddleware, UserController.getUserById);
 
 export default router;

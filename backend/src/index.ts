@@ -15,18 +15,31 @@ dotenv.config();
 // Initialize Express app
 const app = express();
 
+// CORS configuration
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(pino());
 
 // Routes
-app.use('/auth', authRoutes);
-app.use('/projects', projectRoutes);
-app.use('/files', fileRoutes);
-app.use('/users', userRoutes);
-app.use('/site-visit', siteVisitRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/files', fileRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/site-visit', siteVisitRoutes);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // Start the server
 const PORT = process.env.PORT || 5000;

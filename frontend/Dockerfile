@@ -12,8 +12,9 @@ RUN npm ci
 # Copy the rest of the application code
 COPY . .
 
-# Generate Prisma client
-RUN npx prisma generate
+# Set build-time environment variables
+ARG NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 
 # Build the application
 RUN npm run build
@@ -33,13 +34,13 @@ COPY package*.json ./
 RUN npm ci --only=production
 
 # Copy the built application from the builder stage
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
 
 # Expose the port the app will run on
-EXPOSE 5000
+EXPOSE 3000
 
 # Command to run the application
-CMD ["node", "dist/index.js"]
+CMD ["npm", "start"]

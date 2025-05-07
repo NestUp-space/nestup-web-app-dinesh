@@ -132,20 +132,20 @@ export const resetPassword = async (email: string): Promise<ServiceResponse<null
 };
 
 
-export const getUserById = async (id: number): Promise<ServiceResponse<Omit<User, 'password'> | null>> => {
+export const getUserById = async (id: number): Promise<ServiceResponse<(Omit<User, 'password'> & { role: UserRole }) | null>> => {
   try {
     const user = await prisma.user.findUnique({
       where: { id },
-      include: { role: true }, // Include role details if needed elsewhere
+      include: { role: true }, // Ensure role details are included
     });
 
     if (!user) {
       return ServiceResponse.failure('User not found', null, StatusCodes.NOT_FOUND);
     }
 
-    // Exclude password
     const { password, ...userWithoutPassword } = user;
-    return ServiceResponse.success('User found', userWithoutPassword, StatusCodes.OK);
+
+    return ServiceResponse.success('User fetched successfully', userWithoutPassword, StatusCodes.OK);
 
   } catch (error) {
     console.error(`Error fetching user by ID ${id}:`, error);

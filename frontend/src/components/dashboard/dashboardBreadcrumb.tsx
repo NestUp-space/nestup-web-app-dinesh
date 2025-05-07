@@ -19,20 +19,22 @@ export function DashboardBreadcrumb() {
     const formattedSegment = segment.charAt(0).toUpperCase() + segment.slice(1);
 
     return (
-      <BreadcrumbItem key={breadcrumbPath}>
-        {index !== pathArray.length - 1 ? (
-          <>
-            <BreadcrumbLink asChild>
-              <Link href={breadcrumbPath}>
-                {formattedSegment.replace(/([A-Z])/g, ' $1')}
-              </Link>
-            </BreadcrumbLink>
-            <BreadcrumbSeparator />
-          </>
-        ) : (
-          <BreadcrumbPage>{formattedSegment.replace(/([A-Z])/g, ' $1')}</BreadcrumbPage>
-        )}
-      </BreadcrumbItem>
+      <>
+<>
+  <BreadcrumbItem key={breadcrumbPath}>
+    {index !== pathArray.length - 1 ? (
+      <BreadcrumbLink asChild>
+        <Link href={breadcrumbPath}>
+          {formattedSegment.replace(/([A-Z])/g, ' $1')}
+        </Link>
+      </BreadcrumbLink>
+    ) : (
+      <BreadcrumbPage>{formattedSegment.replace(/([A-Z])/g, ' $1')}</BreadcrumbPage>
+    )}
+  </BreadcrumbItem>
+  {index !== pathArray.length - 1 && <BreadcrumbSeparator />}
+</>
+      </>
     );
   });
 

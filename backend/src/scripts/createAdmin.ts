@@ -1,28 +1,32 @@
+import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
-import prisma from '../config/db';  // Make sure this path is correct based on your setup
 
-const createAdmin = async () => {
-  const email = 'suryanestup@gmail.com';
-  const password = 'Password@123';
-  const role = 'admin'; // Set role to super-admin
+const prisma = new PrismaClient();
 
-  // Hash the password
-  const hashedPassword = await bcrypt.hash(password, 10);
-
+async function main() {
   try {
-    const user = await prisma.user.create({
-      data: {
-        email,
+    const hashedPassword = await bcrypt.hash('superadminpassword', 10);
+
+    const superAdmin = await prisma.user.upsert({
+      where: { email: 'superadmin@example.com' },
+      update: {},
+      create: {
+        name: 'Super Admin',
+        email: 'superadmin@example.com',
         password: hashedPassword,
-        role,
+        phoneNumber: '1234567890',
+        roleId: 1, // Assuming roleId 1 is for 'super admin'
+        verified: true,
+        isActive: true,
       },
     });
-    console.log('Admin created:', user);
+
+    console.log('Super admin user created or already exists:', superAdmin);
   } catch (error) {
-    console.error('Error creating Admin:', error);
+    console.error('Error creating super admin user:', error);
   } finally {
     await prisma.$disconnect();
   }
-};
+}
 
-createAdmin();
+main();
