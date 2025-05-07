@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import EditUser from './EditUser';
+import { useUser } from '../../../context/UserContext';
 
 interface User {
   id: number;
@@ -16,6 +17,7 @@ const ListUsers = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { user: currentUser } = useUser();
 
   const fetchUsers = async () => {
     try {
@@ -83,7 +85,11 @@ const ListUsers = () => {
       </table>
       {editingUser && (
         <div>
-          <EditUser user={editingUser} onUpdate={handleUpdate} />
+          <EditUser 
+            user={editingUser} 
+            onUpdate={handleUpdate} 
+            currentUserRole={currentUser?.role}
+          />
         </div>
       )}
     </div>

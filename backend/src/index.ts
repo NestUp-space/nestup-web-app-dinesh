@@ -8,6 +8,7 @@ import projectRoutes from '@/routes/project.routes';
 import userRoutes from '@/routes/user.routes';
 import fileRoutes from '@/routes/file.routes';
 import siteVisitRoutes from '@/routes/site-visit.routes';
+import roleRoutes from '@/routes/role.routes';
 
 // Load environment variables
 dotenv.config();
@@ -35,6 +36,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/site-visit', siteVisitRoutes);
+app.use('/api/roles', roleRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

@@ -7,20 +7,23 @@ interface EditUserProps {
     name: string;
     email: string;
     phoneNumber: string;
+    role?: string;
   };
   onUpdate: () => void;
+  currentUserRole?: string;
 }
 
-const EditUser = ({ user, onUpdate }: EditUserProps) => {
+const EditUser = ({ user, onUpdate, currentUserRole = '' }: EditUserProps) => {
   const [formData, setFormData] = useState({
     name: user.name,
     email: user.email,
     phoneNumber: user.phoneNumber,
   });
+  const [newPassword, setNewPassword] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -33,6 +36,24 @@ const EditUser = ({ user, onUpdate }: EditUserProps) => {
       onUpdate();
     } catch (error) {
       setErrorMessage('Failed to update user.');
+      setSuccessMessage('');
+    }
+  };
+
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword) {
+      setErrorMessage('Password cannot be empty');
+      return;
+    }
+    
+    try {
+      await axios.patch(`/api/users/${user.id}/update-password`, { newPassword });
+      setSuccessMessage('Password updated successfully!');
+      setErrorMessage('');
+      setNewPassword('');
+    } catch (error) {
+      setErrorMessage('Failed to update password.');
       setSuccessMessage('');
     }
   };
@@ -57,6 +78,24 @@ const EditUser = ({ user, onUpdate }: EditUserProps) => {
         </div>
         <button type="submit">Update User</button>
       </form>
+
+      {currentUserRole === 'superadmin' && (
+        <div>
+          <h3>Update Password</h3>
+          <form onSubmit={handlePasswordUpdate}>
+            <div>
+              <label>New Password:</label>
+              <input 
+                type="password" 
+                value={newPassword} 
+                onChange={(e) => setNewPassword(e.target.value)} 
+                required 
+              />
+            </div>
+            <button type="submit">Update Password</button>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

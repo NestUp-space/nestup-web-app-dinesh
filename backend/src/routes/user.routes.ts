@@ -14,7 +14,8 @@ router.get('/profile', UserController.getCurrentUserProfile);
 // Admin-only routes
 router.get('/', adminMiddleware, UserController.getUsers);
 router.post('/', adminMiddleware, UserController.createUser);
-router.patch('/:id/toggle', adminMiddleware, UserController.toggleUserActiveStatus);
+router.patch('/:id/toggle-active', adminMiddleware, UserController.toggleUserActiveStatus);
+router.patch('/:id/update-password', adminMiddleware, UserController.updateUserPassword);
 router.get('/:id', adminMiddleware, UserController.getUserById);
 
 export default router;
