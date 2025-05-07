@@ -53,6 +53,16 @@ export class UserController {
     try {
       const userId = parseInt(req.params.id);
       const { isActive } = req.body;
+
+      // Prevent disabling the superadmin
+      const user = await UserService.getUserById(userId);
+      if (!user || user.role.roleType !== 'superadmin') {
+        return res.status(StatusCodes.FORBIDDEN).json({
+          success: false,
+          message: 'Superadmin cannot be disabled'
+        });
+      }
+
       const updatedUser = await UserService.toggleUserActiveStatus(userId, isActive);
       res.status(StatusCodes.OK).json({
         success: true,
@@ -64,6 +74,36 @@ export class UserController {
       res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: 'Unable to update user status',
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
+    }
+  }
+
+  static async updateUserPassword(req: Request, res: Response) {
+    try {
+      const userId = parseInt(req.params.id);
+      const { newPassword } = req.body;
+
+      // Only superadmin can update passwords
+      const requestingUser = (req as CustomRequest).user;
+      if (requestingUser?.role !== 'superadmin') {
+        return res.status(StatusCodes.FORBIDDEN).json({
+          success: false,
+          message: 'Only superadmin can update passwords'
+        });
+      }
+
+      const updatedUser = await UserService.updateUserPassword(userId, newPassword);
+      res.status(StatusCodes.OK).json({
+        success: true,
+        message: 'Password updated successfully',
+        user: updatedUser
+      });
+    } catch (err) {
+      console.error('Error updating user password:', err);
+      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: 'Unable to update password',
         error: err instanceof Error ? err.message : 'Unknown error'
       });
     }

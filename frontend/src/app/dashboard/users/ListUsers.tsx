@@ -7,6 +7,8 @@ interface User {
   name: string;
   email: string;
   phoneNumber: string;
+  role: string; // Add role property
+  isActive: boolean; // Add isActive property
 }
 
 const ListUsers = () => {
@@ -31,12 +33,12 @@ const ListUsers = () => {
     fetchUsers();
   };
 
-  const handleDelete = async (userId: number) => {
+  const handleToggleActiveStatus = async (userId: number, isActive: boolean) => {
     try {
-      await axios.delete(`/api/users/${userId}`);
+      await axios.patch(`/api/users/${userId}/toggle-active`, { isActive });
       fetchUsers();
     } catch (err) {
-      setError('Failed to delete user');
+      setError('Failed to update user status');
     }
   };
 
@@ -67,7 +69,13 @@ const ListUsers = () => {
               <td>{user.phoneNumber}</td>
               <td>
                 <button onClick={() => setEditingUser(user)}>Edit</button>
-                <button onClick={() => handleDelete(user.id)}>Delete</button>
+                {user.role === 'superadmin' ? (
+                  <button disabled>Cannot Disable</button>
+                ) : (
+                  <button onClick={() => handleToggleActiveStatus(user.id, !user.isActive)}>
+                    {user.isActive ? 'Disable' : 'Enable'}
+                  </button>
+                )}
               </td>
             </tr>
           ))}

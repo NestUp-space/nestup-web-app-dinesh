@@ -41,6 +41,28 @@ export class UserService {
     });
   }
 
+  static async updateUserPassword(userId: number, newPassword: string) {
+    // Hash the new password before updating
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    return prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phoneNumber: true,
+        isActive: true,
+        verified: true,
+        createdAt: true,
+        updatedAt: true,
+        role: true,
+        // Exclude password for security
+      },
+    });
+  }
+
   static async getUsers(page: number, pageSize: number) {
     const skip = (page - 1) * pageSize;
     const total = await prisma.user.count();

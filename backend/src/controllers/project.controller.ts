@@ -15,7 +15,27 @@ export const createProject = async (req: AuthenticatedRequest, res: Response) =>
     }
 
     const project = await createProjectService(req.body);
-    res.status(201).json({ project });
+    // Add standard tasks to the project
+    const standardTasks = [
+      { stage: 'Site measurements', name: 'Details of project (form shared)', uploadedBy: 'Client', viewPermission: 'All', actionRequired: 'Site visit is booked based on this the form' },
+      { stage: 'Site measurements', name: 'Site Visit', uploadedBy: 'BIM Engineer', viewPermission: 'All', actionRequired: 'BIM engineer to upload site measurements' },
+      { stage: 'Site measurements', name: 'Design inputs', uploadedBy: 'Client', viewPermission: 'BIM engineer', actionRequired: 'To be validated by BIM engineer' },
+      { stage: 'Design', name: 'Site photos', uploadedBy: 'Client', viewPermission: 'All', actionRequired: 'To be validated by BIM engineer' },
+      { stage: 'Approval', name: 'Production document', uploadedBy: 'BIM engineer', viewPermission: 'All', actionRequired: 'To be approved by client' },
+      { stage: 'Approval', name: 'Performa invoice', uploadedBy: 'BIM engineer', viewPermission: 'All', actionRequired: 'Payment to be made by the customer - Client' },
+      { stage: 'Pre-Production', name: 'Material estimation', uploadedBy: 'BIM engineer', viewPermission: 'All', actionRequired: 'Client to send the material' },
+      { stage: 'Production', name: 'Input QA', uploadedBy: 'BIM engineer', viewPermission: 'Production Engineer, BIM engineer', actionRequired: 'Production associate to verify and Receive the material and update the status' },
+      { stage: 'Production', name: 'Pressing list', uploadedBy: 'BIM engineer', viewPermission: 'Production Engineer, BIM engineer', actionRequired: 'Production associate to verify and Receive the material and update the status' },
+      { stage: 'Production', name: 'G code and cutting list', uploadedBy: 'BIM engineer', viewPermission: 'Production Engineer, BIM engineer', actionRequired: 'Production associate use this for CNC programming' },
+      { stage: 'Production', name: 'Output QA', uploadedBy: 'BIM engineer', viewPermission: 'Production Engineer, BIM engineer', actionRequired: 'Production associate uses this to verify the status' },
+      { stage: 'Production', name: 'Installation Guide', uploadedBy: 'BIM engineer', viewPermission: 'All', actionRequired: 'Installation team and client should be able to access this file' },
+    ];
+
+    for (const task of standardTasks) {
+      await createTaskService(project.id, task);
+    }
+
+    res.status(201).json({ project, message: 'Project created with standard tasks' });
   } catch (error) {
     res.status(400).json({ message: (error as Error).message });
   }
