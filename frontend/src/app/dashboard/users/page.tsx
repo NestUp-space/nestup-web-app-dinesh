@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { isAdmin, hasPermission } from '@/lib/authUtils';
+import Breadcrumbs from '@/components/dashboard/Breadcrumbs';
 
 // Define the User type
 interface User {
@@ -79,8 +80,10 @@ const UsersPage: React.FC = () => {
   };
 
   return (
-    <Card className="p-6">
-      <CardHeader>
+    <>
+      <Breadcrumbs />
+      <Card className="p-6">
+        <CardHeader>
         <CardTitle className="text-xl font-bold">User Management</CardTitle>
         <CardDescription>View, create, and manage users.</CardDescription>
       </CardHeader>
@@ -132,7 +135,8 @@ const UsersPage: React.FC = () => {
           onLimitChange={setPageSize}
         />
       </CardContent>
-    </Card>
+      </Card>
+    </>
   );
 };
 

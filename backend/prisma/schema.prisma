@@ -84,7 +84,10 @@ model Task {
   id          Int          @id @default(autoincrement())
   projectId   Int
   name        String
+  stage       String? // New field for task stage
   statusId    Int
+  uploaderRole String? // New field: role expected to upload/initiate
+  viewerRoles String? // New field: JSON string or comma-separated roles for view permissions
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   updatedById Int?
@@ -96,6 +99,24 @@ model Task {
   files       File[]
   comments    Comment[]
   userActions UserAction[]
+  subtasks    Subtask[] // Relation to Subtasks
+}
+
+model Subtask {
+  id          Int      @id @default(autoincrement())
+  name           String
+  description    String?
+  actionRequired String?  // New field
+  type           String?  // New field (e.g., 'information', 'file_upload', 'approval')
+  metadataJson   String?  // New field for JSON metadata
+  completed      Boolean  @default(false)
+  taskId         Int
+  task           Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  // Optional: fields like 'order' if subtasks need specific ordering within a task
+  // Optional: 'assignedToId' if subtasks can be assigned to specific users
+  // Optional: 'dueDate'
 }
 
 model File {

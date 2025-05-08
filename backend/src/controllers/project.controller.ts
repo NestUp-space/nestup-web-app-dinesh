@@ -10,13 +10,20 @@ import {
   getTasksService, 
   updateTaskService, 
   deleteTaskService, 
-  updateTaskStatusService 
+  updateTaskStatusService,
+  // Subtask services
+  createSubtaskService,
+  getSubtasksByTaskIdService,
+  updateSubtaskService,
+  deleteSubtaskService
 } from '../services/project.service';
 import taskTemplate from '../constants/taskTemplate.json';
 
 // Extend Request type to include user
+// Assuming role might be a simple string or an object.
+// For service compatibility, we'll ensure role.name is passed.
 interface AuthenticatedRequest extends Request {
-  user?: { id: number; role: string };
+  user?: { id: number; role: string | { name: string; /* other role props */ } };
 }
 
 export const createProject = async (req: AuthenticatedRequest, res: Response) => {
@@ -70,12 +77,9 @@ export const createProject = async (req: AuthenticatedRequest, res: Response) =>
       createdById
     });
 
-    // Add tasks from the template to the project
-    for (const task of taskTemplate) {
-      await createTaskService(project.id, task);
-    }
+    // Note: Task and subtask creation is now handled in createProjectService
 
-    res.status(StatusCodes.CREATED).json({ project, message: 'Project created with tasks from template' });
+    res.status(StatusCodes.CREATED).json({ project, message: 'Project created with tasks and subtasks from template' });
   } catch (error) {
     res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
   }
@@ -84,24 +88,19 @@ export const createProject = async (req: AuthenticatedRequest, res: Response) =>
 export const getProjects = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
-      return res.status(403).json({ message: 'Unauthorized' });
+      return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
     }
 
-    const userId = req.user.id;
-    const userRole = req.user.role; // Assuming role is like 'client', 'admin', 'engineer'
+    // Prepare user object for service layer
+    // The service expects role: { name: string }
+    const serviceUser = {
+      id: req.user.id,
+      role: { 
+        name: typeof req.user.role === 'string' ? req.user.role : req.user.role.name 
+      }
+    };
 
-    let projects;
-
-    if (userRole === 'client') {
-      // Updated logic: Fetch projects where the user is mapped as a client
-      // This requires the getProjectsService to handle this specific filtering
-      // For now, the service uses createdById if userId is passed.
-      // This part might need further refinement in getProjectsService if client-specific view is different.
-      projects = await getProjectsService(userId); 
-    } else {
-      // For admin, engineer, etc., fetch all projects or based on other criteria
-      projects = await getProjectsService(); // Fetches all projects
-    }
+    const projects = await getProjectsService(serviceUser);
     
     // Transform the client data to be directly accessible
     const transformedProjects = projects.map(project => {
@@ -128,10 +127,19 @@ export const getProjectById = async (req: AuthenticatedRequest, res: Response) =
       return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID' });
     }
 
-    const project = await getProjectByIdService(projectId);
+    // Prepare user object for service layer
+    const serviceUser = {
+      id: req.user.id,
+      role: { 
+        name: typeof req.user.role === 'string' ? req.user.role : req.user.role.name 
+      }
+    };
+
+    const project = await getProjectByIdService(projectId, serviceUser);
 
     if (!project) {
-      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Project not found' });
+      // Service layer now handles permission checks and returns null if not found or not permitted
+      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Project not found or access denied' });
     }
     
     // Transform client data for consistency
@@ -206,8 +214,85 @@ export const deleteTask = async (req: Request, res: Response) => {
 export const updateTaskStatus = async (req: Request, res: Response) => {
   try {
     await updateTaskStatusService(Number(req.params.taskId), req.body.status);  // Ensure taskId is a number
-    res.status(200).json({ message: 'Task status updated successfully' });
+    res.status(StatusCodes.OK).json({ message: 'Task status updated successfully' });
   } catch (error) {
-    res.status(400).json({ message: (error as Error).message });
+    res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
+  }
+};
+
+// Subtask Controllers
+
+export const createSubtask = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    // TODO: Add permission checks if necessary (e.g., only project members can add subtasks)
+    const taskId = parseInt(req.params.taskId, 10);
+    const { name, description } = req.body;
+
+    if (isNaN(taskId)) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task ID.' });
+    }
+    if (!name) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Subtask name is required.' });
+    }
+
+    const subtask = await createSubtaskService(taskId, { name, description });
+    res.status(StatusCodes.CREATED).json({ subtask, message: 'Subtask created successfully.' });
+  } catch (error) {
+    res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
+  }
+};
+
+export const getSubtasksForTask = async (req: Request, res: Response) => {
+  try {
+    const taskId = parseInt(req.params.taskId, 10);
+    if (isNaN(taskId)) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task ID.' });
+    }
+
+    const subtasks = await getSubtasksByTaskIdService(taskId);
+    res.status(StatusCodes.OK).json({ subtasks });
+  } catch (error) {
+    res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
+  }
+};
+
+export const updateSubtask = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    // TODO: Add permission checks
+    const subtaskId = parseInt(req.params.subtaskId, 10);
+    const { name, description, completed } = req.body;
+
+    if (isNaN(subtaskId)) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid subtask ID.' });
+    }
+
+    // Ensure at least one updatable field is provided
+    if (name === undefined && description === undefined && completed === undefined) {
+        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'No update data provided.' });
+    }
+
+    const subtask = await updateSubtaskService(subtaskId, { name, description, completed });
+    res.status(StatusCodes.OK).json({ subtask, message: 'Subtask updated successfully.' });
+  } catch (error) {
+    // Handle specific error from service (e.g., parent task completion blocked)
+    if ((error as Error).message.includes('Cannot mark task as completed')) {
+        return res.status(StatusCodes.CONFLICT).json({ message: (error as Error).message });
+    }
+    res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
+  }
+};
+
+export const deleteSubtask = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    // TODO: Add permission checks
+    const subtaskId = parseInt(req.params.subtaskId, 10);
+    if (isNaN(subtaskId)) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid subtask ID.' });
+    }
+
+    await deleteSubtaskService(subtaskId);
+    res.status(StatusCodes.OK).json({ message: 'Subtask deleted successfully.' });
+  } catch (error) {
+    res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
   }
 };

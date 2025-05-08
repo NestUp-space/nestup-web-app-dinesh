@@ -25,7 +25,7 @@ export function DesktopNav() {
     <aside className="fixed inset-y-0 left-0 z-10 hidden w-48 flex-col border-r bg-background sm:flex">
       <div className="flex flex-col items-center gap-4 px-4 py-5">
         <div className="group flex h-9 w-full items-center justify-between">
-          <Image src={LogoText} alt="Nestup Logo" className="h-6" />
+          <Image src={LogoText} alt="Nestup Logo" className="h-10" />
         </div>
 
         <NavItem href="/dashboard" label="Dashboard">
