@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useUser } from '@/context/UserContext';
 
 interface Project {
   id: number;
@@ -34,7 +35,7 @@ const ProjectsPage = () => {
   const [clientsList, setClientsList] = useState<User[]>([]);
   const [engineersList, setEngineersList] = useState<User[]>([]);
   const [formError, setFormError] = useState('');
-
+  const { user } = useUser();
 
   const fetchProjects = async () => {
     try {
@@ -87,6 +88,12 @@ const ProjectsPage = () => {
       return;
     }
 
+    // Check if user is available
+    if (!user) {
+      setFormError("User information not available. Please log in again.");
+      return;
+    }
+
     const projectData = {
       name: newProjectName,
       description: newProjectDescription,
@@ -97,6 +104,7 @@ const ProjectsPage = () => {
       vbCount: newProjectVbCount ? parseInt(newProjectVbCount, 10) : undefined,
       clientId: selectedClientId ? parseInt(selectedClientId, 10) : undefined,
       engineerId: selectedEngineerId ? parseInt(selectedEngineerId, 10) : undefined,
+      createdById: user.id, // Add the user ID as createdById
       // statusId will be defaulted by backend if not provided
     };
 

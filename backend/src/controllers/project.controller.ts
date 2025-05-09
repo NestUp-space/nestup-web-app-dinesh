@@ -67,23 +67,42 @@ export const createProject = async (req: AuthenticatedRequest, res: Response) =>
       return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Project name is required' });
     }
 
-    const project = await createProjectService({
-      name,
-      description: projectDesc || null,
-      address: address || 'N/A',
-      location: location || 'N/A',
-      sqft: sqft || 0,
-      estimatedTime: estimatedTime || new Date(),
-      vbCount: vbCount || 0,
-      statusId: statusId || 1,
-      engineerId: finalEngineerId,
-      clientId: finalClientId,
-      createdById
-    });
+    try {
+      console.log('About to call createProjectService with data:', {
+        name,
+        description: projectDesc || null,
+        address: address || 'N/A',
+        location: location || 'N/A',
+        sqft: sqft || 0,
+        estimatedTime: estimatedTime || new Date(),
+        vbCount: vbCount || 0,
+        statusId: statusId || 1,
+        engineerId: finalEngineerId,
+        clientId: finalClientId,
+        createdById
+      });
 
-    // Note: Task and subtask creation is now handled in createProjectService
+      const project = await createProjectService({
+        name,
+        description: projectDesc || null,
+        address: address || 'N/A',
+        location: location || 'N/A',
+        sqft: sqft || 0,
+        estimatedTime: estimatedTime || new Date(),
+        vbCount: vbCount || 0,
+        statusId: statusId || 1,
+        engineerId: finalEngineerId,
+        clientId: finalClientId,
+        createdById
+      });
 
-    res.status(StatusCodes.CREATED).json({ project, message: 'Project created with tasks and subtasks from template' });
+      // Note: Task and subtask creation is now handled in createProjectService
+
+      res.status(StatusCodes.CREATED).json({ project, message: 'Project created with tasks and subtasks from template' });
+    } catch (serviceError) {
+      console.error('Error in createProjectService:', serviceError);
+      throw serviceError; // Re-throw to be caught by the outer catch block
+    }
   } catch (error) {
     const err = error as Error;
     console.error('Error in createProject controller:', err); // Also log it on the backend

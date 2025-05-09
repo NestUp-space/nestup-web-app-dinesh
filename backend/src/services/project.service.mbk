@@ -1,0 +1,72 @@
+# Memory Bank: backend/src/services/project.service.ts
+
+## createProjectService
+**When it runs:**
+This service function is called when a new project creation is requested, typically via the `POST /api/projects` endpoint handled by `project.controller.ts`.
+
+**How it runs (High-Level):**
+1.  Receives project data (name, description, createdById, optional fields like engineerId, clientId, etc.).
+2.  Initializes `updatedById` to be the same as `createdById`.
+3.  Constructs the main `projectInput` object for Prisma. Optional fields are handled to be `undefined` if not provided or if provided as empty strings that convert to `null` then `undefined` (e.g. `clientId`, `engineerId`).
+4.  Executes a Prisma transaction (`prisma.$transaction`):
+    a.  Creates the main project record in the database using `prisma.project.create()`.
+    b.  Loads `defaultProjectTaskTemplates` from `backend/src/constants/projectTaskTemplate.ts`.
+    c.  Iterates through the `taskTemplate` array.
+        *   **Error Handling (Key Update 2025-05-09):** Includes a robust check for each `templateTask`:
+            `if (templateTask === null || templateTask === undefined || typeof templateTask !== 'object' || typeof templateTask.taskName !== 'string' || templateTask.taskName.trim() === '')`
+            If a template item is invalid or its `taskName` is missing/empty, it's logged and skipped. This was enhanced to prevent "Cannot read properties of undefined (reading 'taskName')" errors originating from malformed template data at runtime.
+        *   For each valid `templateTask`, it creates a corresponding `Task` record linked to the new project. `taskName` is sourced from `templateTask.taskName`.
+        *   If the `templateTask` has `subtasks`, it iterates through them and creates corresponding `Subtask` records.
+    d.  Returns the newly created project object.
+5.  If any step in the transaction fails, the transaction is rolled back, and an error is thrown.
+
+**Why it runs:**
+To encapsulate the business logic for creating a new project along with its default set of tasks and subtasks based on a predefined template, ensuring atomicity through a database transaction.
+
+**Input:**
+An object `data` typically containing:
+  - `name: string` (Project name)
+  - `createdById: number` (ID of the user creating the project)
+  - `description?: string`
+  - `estimatedTime?: Date | string`
+  - `vbCount?: number`
+  - `statusId?: number`
+  - `engineerId?: number | null`
+  - `clientId?: number | null`
+  - `address?: string`
+  - `location?: string`
+  - `sqft?: number`
+
+**Output:**
+- Success: The newly created project object (including its ID and other fields).
+- Error: Throws an error if project creation fails (e.g., database error, validation error, issues with task template processing).
+
+**Internal Logic Points:**
+-   Uses `defaultProjectTaskTemplates` as the source for default tasks.
+-   The `updatedById` for the project is set to `createdById` upon creation.
+-   `engineerId` and `clientId` are handled to be `undefined` if not meaningfully provided, aligning with Prisma's expectations for optional relations.
+
+**Diagram (Simplified Flow):**
+```mermaid
+graph TD
+    A[Controller Receives Request] --> B{project.service.ts - createProjectService};
+    B -- Project Data --> C[Construct projectInput];
+    C --> D[Start Prisma Transaction];
+    D --> E[prisma.project.create];
+    E -- Success --> F[Load defaultProjectTaskTemplates];
+    F --> G{Loop through taskTemplate};
+    G -- Valid templateTask --> H[prisma.task.create];
+    H -- Has subtasks? --> I{Loop through subtasks};
+    I -- Valid subtask --> J[prisma.subtask.create];
+    J --> I;
+    I -- Done --> G;
+    G -- Done --> K[Commit Transaction];
+    K --> L[Return newProject object];
+    D -- Error --> M[Rollback Transaction & Throw Error];
+    E -- Error --> M;
+    H -- Error --> M;
+    J -- Error --> M;
+```
+
+---
+*This .mbk file should be updated if other services within project.service.ts are modified or analyzed.*

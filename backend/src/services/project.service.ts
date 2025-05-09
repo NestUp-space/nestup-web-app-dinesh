@@ -1,7 +1,7 @@
 import prisma from '../config/db';  // Prisma client
 // import * as fs from 'fs'; // No longer needed for JSON loading
 // import * as path from 'path'; // No longer needed for JSON loading
-import { defaultProjectTaskTemplates } from '../constants/projectTaskTemplate'; // Import the new TS template
+import { getDefaultProjectTaskTemplates } from '../constants/projectTaskTemplate'; // Import the function to get templates
 import { TaskTemplate } from '../types/projectTemplate.types'; // Import the types for the template
 
 // Removed TaskTemplateSubtask and TaskTemplateItem interfaces as they are now in projectTemplate.types.ts
@@ -10,9 +10,33 @@ import { TaskTemplate } from '../types/projectTemplate.types'; // Import the typ
 
 export const createProjectService = async (data: any) => {
   try {
-    // Use the imported TypeScript template directly
-    const taskTemplate: TaskTemplate[] = defaultProjectTaskTemplates; 
-    console.log(`Using task template with ${taskTemplate.length} tasks.`); // Updated log
+    console.log('createProjectService called with data:', JSON.stringify(data, null, 2));
+    
+    // Use a try-catch block to handle any issues with getting the template
+    let taskTemplate: TaskTemplate[] = [];
+    console.log('!!! SERVICE: BEFORE calling getDefaultProjectTaskTemplates !!!');
+    try {
+      taskTemplate = getDefaultProjectTaskTemplates();
+      console.log('!!! SERVICE: AFTER calling getDefaultProjectTaskTemplates !!!');
+      console.log(`!!! SERVICE: Using task template. Length: ${taskTemplate ? taskTemplate.length : 'UNDEFINED'}. IsArray: ${Array.isArray(taskTemplate)}`);
+      if (taskTemplate && Array.isArray(taskTemplate)) {
+        console.log('!!! SERVICE: Task template content (first 500 chars):', JSON.stringify(taskTemplate, null, 2).substring(0, 500));
+      } else {
+        console.error('!!! SERVICE: taskTemplate is NULL, UNDEFINED, or NOT AN ARRAY after call !!!');
+      }
+    } catch (templateError) {
+      console.error('!!! SERVICE: CRITICAL ERROR getting task template !!!', templateError);
+      // Use a fallback template if there's an error
+      taskTemplate = [{
+        stage: "Fallback Stage",
+        taskName: "Fallback Default Task",
+        statusId: 1,
+        uploaderRole: "Admin",
+        viewerRoles: ["All"],
+        subtasks: [{ name: "Fallback Default Subtask" }]
+      }];
+      console.log('!!! SERVICE: Using FALLBACK task template. Length:', taskTemplate.length);
+    }
 
     const projectInput: any = { // More flexible input type for construction
       name: data.name,
@@ -51,14 +75,21 @@ export const createProjectService = async (data: any) => {
 
       // Create tasks and subtasks
       if (Array.isArray(taskTemplate) && taskTemplate.length > 0) {
-        console.log(`Creating ${taskTemplate.length} default tasks...`);
-        console.log('Full taskTemplate loaded:', JSON.stringify(taskTemplate, null, 2)); // Log the whole template
+        console.log(`!!! SERVICE: Attempting to create ${taskTemplate.length} default tasks...`);
+        // console.log('!!! SERVICE: Full taskTemplate loaded before loop:', JSON.stringify(taskTemplate, null, 2)); 
         
         for (const templateTask of taskTemplate) {
-          console.log('Processing templateTask:', JSON.stringify(templateTask, null, 2)); // Log each item
-          if (!templateTask || typeof templateTask.taskName === 'undefined') {
-            console.warn('Invalid task template, skipping:', templateTask);
-            continue;
+          console.log('!!! SERVICE: LOOP START - Processing templateTask (first 200 chars):', JSON.stringify(templateTask, null, 2).substring(0,200)); 
+          
+          // Extremely verbose check for taskName before accessing it
+          if (templateTask && typeof templateTask === 'object' && 'taskName' in templateTask && typeof templateTask.taskName === 'string' && templateTask.taskName.trim() !== '') {
+            console.log('!!! SERVICE: templateTask.taskName is VALID:', templateTask.taskName);
+          } else {
+            console.error('!!! SERVICE: CRITICAL - templateTask.taskName IS INVALID OR MISSING !!!');
+            console.error('!!! SERVICE: Failing templateTask object:', JSON.stringify(templateTask, null, 2));
+            // Potentially throw an error here or skip, but the original error implies it's trying to read it
+            // For now, let it proceed to hit the original error if this check doesn't catch it,
+            // but this log should tell us if taskName is the problem.
           }
 
           // Create task
@@ -238,25 +269,31 @@ export const deleteProjectService = async (projectId: number) => {
 };
 
 export const createTaskService = async (projectId: number, templateTaskData: any) => {
+  console.log('createTaskService called with templateTaskData:', JSON.stringify(templateTaskData, null, 2));
+  
   // Add a robust check for templateTaskData and essential properties
   if (!templateTaskData) {
     console.error('templateTaskData is undefined or null in createTaskService');
     throw new Error('Task template data is undefined or null');
   }
   
-  if (typeof templateTaskData.taskName === 'undefined') {
-    console.error('templateTaskData missing taskName property:', JSON.stringify(templateTaskData, null, 2));
-    throw new Error(`Task template data is missing required 'taskName' property`);
+  // Safely check for taskName property
+  if (!templateTaskData || typeof templateTaskData !== 'object' || typeof templateTaskData.taskName !== 'string') {
+    console.error('templateTaskData missing or invalid taskName property:', JSON.stringify(templateTaskData, null, 2));
+    throw new Error(`Task template data is missing or has invalid 'taskName' property`);
   }
   
+  // Safely check for subtasks property
   if (!templateTaskData.subtasks) {
     console.error('templateTaskData missing subtasks property:', JSON.stringify(templateTaskData, null, 2));
-    throw new Error(`Task template data is missing required 'subtasks' property`);
+    // Create an empty array instead of throwing an error
+    templateTaskData.subtasks = [];
   }
   
   if (!Array.isArray(templateTaskData.subtasks)) {
     console.error('templateTaskData.subtasks is not an array:', JSON.stringify(templateTaskData, null, 2));
-    throw new Error(`Task template data 'subtasks' property must be an array`);
+    // Convert to array if not already an array
+    templateTaskData.subtasks = [templateTaskData.subtasks].filter(Boolean);
   }
 
   try {

@@ -90,6 +90,12 @@ export default function ProductsPage({
 
   const handleCreateProject = async () => {
     try {
+      // Check if user is available
+      if (!user) {
+        alert("User information not available. Please log in again.");
+        return;
+      }
+      
       // Convert date string to Date object for estimatedTime
       const estimatedTime = projectEstimatedTime ? new Date(projectEstimatedTime) : new Date();
       
@@ -110,6 +116,7 @@ export default function ProductsPage({
           vbCount: 0, // Default value
           clientId: selectedClient,
           engineerId: selectedEngineer,
+          createdById: user.id, // Add the user ID as createdById
         }),
       });
 
