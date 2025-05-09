@@ -1,0 +1,24 @@
+# API Documentation Module (`backend/src/api-docs`)
+
+## Purpose
+
+This module is responsible for generating and serving API documentation, likely using Swagger/OpenAPI specifications.
+
+## Main Components
+
+- `openAPIDocumentGenerator.ts`: Logic for generating the OpenAPI specification document.
+- `openAPIResponseBuilders.ts`: Utility functions or classes for building standardized OpenAPI responses.
+- `openAPIRouter.ts`: Express router to serve the Swagger UI and the OpenAPI specification.
+- `__tests__/`: Contains tests for the API documentation generation or serving logic.
+
+## Key Functionalities (to be detailed)
+
+- Dynamic generation of OpenAPI (Swagger) documentation from code (e.g., using JSDoc annotations, Zod schemas via `@asteasolutions/zod-to-openapi`).
+- Serving the Swagger UI for interactive API exploration.
+- Defining reusable response schemas for API documentation.
+
+## Interactions (to be detailed)
+
+- How `openAPIRouter.ts` is integrated into `server.ts` or `index.ts`.
+- How `openAPIDocumentGenerator.ts` discovers and processes route definitions and schemas from other modules (e.g., `routes`, `dtos`, `controllers`).
+- Dependencies on libraries like `swagger-ui-express` and `@asteasolutions/zod-to-openapi`.

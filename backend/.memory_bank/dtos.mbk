@@ -1,0 +1,23 @@
+# DTOs (Data Transfer Objects) Module (`backend/src/dtos`)
+
+## Purpose
+
+This module defines Data Transfer Objects, which are simple objects used to transfer data between layers, particularly for request and response payloads. They often include validation schemas (e.g., using Zod) to ensure data integrity.
+
+## Main Components
+
+- `project.dto.ts`: Contains DTOs related to project entities (e.g., `CreateProjectDto`, `UpdateProjectDto`).
+- (Other DTO files for different entities like `user.dto.ts`, `auth.dto.ts`, etc., would typically reside here).
+
+## Key Functionalities (to be detailed for each DTO)
+
+- Defining the shape and types of data for request bodies, query parameters, or response objects.
+- Specifying validation rules for data fields (e.g., required, string length, email format) using a library like Zod.
+- Facilitating type safety and clear contracts between the client/API layer and the service layer.
+
+## Interactions (to be detailed for each DTO)
+
+- How DTOs are used in controllers for validating incoming request data.
+- How DTOs might be used by services to define expected input or output structures.
+- How Zod schemas within DTOs are potentially used by `api-docs` module to generate OpenAPI specifications.
+- Relationship with Prisma models: DTOs might be subsets or supersets of Prisma model types, or transformations of them.

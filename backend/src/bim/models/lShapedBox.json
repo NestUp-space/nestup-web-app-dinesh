@@ -1,0 +1,127 @@
+{
+  "modelType": "L-Shaped Box",
+  "description": "An L-shaped box consisting of a main box with a secondary box attached to its right side. Ideal for corner units, complex storage solutions, and specialized cabinetry.",
+  "screenshotUrl": "/img/models/l-shaped-box.png",
+  "runtimeInputs": {
+    "mainBoxHeight": null,
+    "mainBoxWidth": null,
+    "mainBoxDepth": null,
+    "secondaryBoxHeight": null,
+    "secondaryBoxWidth": null,
+    "secondaryBoxDepth": null,
+    "leftAdjacency": "Expose",
+    "rightAdjacency": "Expose",
+    "backAdjacency": "Expose",
+    "outerMaterialCode": null,
+    "innerMaterialCode": null,
+    "backMaterialCode": null,
+    "door": {
+      "hasDoor": false,
+      "exposedSide": null
+    },
+    "numberOfShelves": 0
+  },
+  "planks": [
+    {
+      "plankId": "B1P1_MainBack",
+      "name": "Main Back Plank",
+      "width": null,
+      "height": null,
+      "materialCode": null,
+      "grainDirection": null
+    },
+    {
+      "plankId": "B1P1_SecondaryBack",
+      "name": "Secondary Back Plank",
+      "width": null,
+      "height": null,
+      "materialCode": null,
+      "grainDirection": null
+    },
+    {
+      "plankId": "B1P1_LeftOuter",
+      "name": "Left Outer Plank",
+      "width": null,
+      "height": null,
+      "materialCode": null,
+      "grainDirection": null
+    },
+    {
+      "plankId": "B1P1_RightOuter",
+      "name": "Right Outer Plank",
+      "width": null,
+      "height": null,
+      "materialCode": null,
+      "grainDirection": null
+    },
+    {
+      "plankId": "B1P1_LeftInner",
+      "name": "Left Inner Plank",
+      "width": null,
+      "height": null,
+      "materialCode": null,
+      "grainDirection": null
+    },
+    {
+      "plankId": "B1P1_MainTop",
+      "name": "Main Top Plank",
+      "width": null,
+      "height": null,
+      "materialCode": null,
+      "grainDirection": null
+    },
+    {
+      "plankId": "B1P1_MainBottom",
+      "name": "Main Bottom Plank",
+      "width": null,
+      "height": null,
+      "materialCode": null,
+      "grainDirection": null
+    },
+    {
+      "plankId": "B1P1_SecondaryTop",
+      "name": "Secondary Top Plank",
+      "width": null,
+      "height": null,
+      "materialCode": null,
+      "grainDirection": null
+    },
+    {
+      "plankId": "B1P1_SecondaryBottom",
+      "name": "Secondary Bottom Plank",
+      "width": null,
+      "height": null,
+      "materialCode": null,
+      "grainDirection": null
+    }
+  ],
+  "siteEngineerInstructions": [
+    "The L-shaped box consists of a main box and a secondary box attached to the right side of the main box.",
+    "The secondary box shares the right side of the main box as its left side.",
+    "When there is a dummy, the site engineer should leave 30 mm for dummy should enter the remaining distance as the width and not consider the width of the dummy in the box width.",
+    "The clearance left for dummy left on the site is 30 mm but When cutting the dummy on the sheet, it has to be of 75mm width and height should be the height of the box."
+  ],
+  "sampleOnsiteInputs": {
+    "materialCode_inner18": {
+      "innerLaminate": "grey texture",
+      "outerLaminate": "grey texture",
+      "plyThickness_mm": 16,
+      "overallMaterialThickness_mm": 18,
+      "plyType": "HDHMR"
+    },
+    "materialCode_back10": {
+      "innerLaminate": "grey texture",
+      "outerLaminate": "grey texture",
+      "plyThickness_mm": 8,
+      "overallMaterialThickness_mm": 10,
+      "plyType": "HDHMR"
+    },
+    "materialCode_9853_18": {
+      "innerLaminate": "grey texture",
+      "outerLaminate": "9853",
+      "plyThickness_mm": 18,
+      "overallMaterialThickness_mm": 20,
+      "plyType": "Blockboard"
+    }
+  }
+}

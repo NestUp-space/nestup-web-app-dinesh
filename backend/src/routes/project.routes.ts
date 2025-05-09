@@ -1,50 +1,31 @@
 import { Router } from 'express';
 import { 
-  createProject, 
-  getProjects, 
-  getProjectById, // Added
-  updateProject, 
-  deleteProject, 
-  createTask, 
-  getTasks, 
-  updateTask, 
-  deleteTask, 
-  updateTaskStatus,
-  // Subtask controllers
-  createSubtask,
-  getSubtasksForTask,
-  updateSubtask,
-  deleteSubtask
-} from '../controllers/project.controller';
+  projectController,
+  taskController,
+  subtaskController
+} from '../controllers/project';
 import { isAuthenticated } from '../middlewares/auth.middleware';
 
 const router = Router();
 
 // Project routes
-router.post('/', isAuthenticated, createProject);
-router.get('/', isAuthenticated, getProjects);
-router.get('/:projectId', isAuthenticated, getProjectById); // Added route for getProjectById
-router.put('/:projectId', isAuthenticated, updateProject);
-router.delete('/:projectId', isAuthenticated, deleteProject);
+router.post('/', isAuthenticated, projectController.createProject.bind(projectController));
+router.get('/', isAuthenticated, projectController.getProjects.bind(projectController));
+router.get('/:projectId', isAuthenticated, projectController.getProjectById.bind(projectController));
+router.put('/:projectId', isAuthenticated, projectController.updateProject.bind(projectController));
+router.delete('/:projectId', isAuthenticated, projectController.deleteProject.bind(projectController));
 
 // Task routes
-router.post('/:projectId/tasks', isAuthenticated, createTask);
-router.get('/:projectId/tasks', isAuthenticated, getTasks);
-router.put('/tasks/:taskId', isAuthenticated, updateTask);
-router.delete('/tasks/:taskId', isAuthenticated, deleteTask);
-router.put('/tasks/:taskId/status', isAuthenticated, updateTaskStatus); // Changed /task to /tasks for consistency
+router.post('/:projectId/tasks', isAuthenticated, taskController.createTask.bind(taskController));
+router.get('/:projectId/tasks', isAuthenticated, taskController.getTasks.bind(taskController));
+router.put('/tasks/:taskId', isAuthenticated, taskController.updateTask.bind(taskController));
+router.delete('/tasks/:taskId', isAuthenticated, taskController.deleteTask.bind(taskController));
+router.put('/tasks/:taskId/status', isAuthenticated, taskController.updateTaskStatus.bind(taskController));
 
 // Subtask routes
-// POST /api/projects/tasks/:taskId/subtasks - Create a subtask for a specific task
-router.post('/tasks/:taskId/subtasks', isAuthenticated, createSubtask);
-
-// GET /api/projects/tasks/:taskId/subtasks - Get all subtasks for a specific task
-router.get('/tasks/:taskId/subtasks', isAuthenticated, getSubtasksForTask);
-
-// PUT /api/projects/subtasks/:subtaskId - Update a specific subtask
-router.put('/subtasks/:subtaskId', isAuthenticated, updateSubtask);
-
-// DELETE /api/projects/subtasks/:subtaskId - Delete a specific subtask
-router.delete('/subtasks/:subtaskId', isAuthenticated, deleteSubtask);
+router.post('/tasks/:taskId/subtasks', isAuthenticated, subtaskController.createSubtask.bind(subtaskController));
+router.get('/tasks/:taskId/subtasks', isAuthenticated, subtaskController.getSubtasksForTask.bind(subtaskController));
+router.put('/subtasks/:subtaskId', isAuthenticated, subtaskController.updateSubtask.bind(subtaskController));
+router.delete('/subtasks/:subtaskId', isAuthenticated, subtaskController.deleteSubtask.bind(subtaskController));
 
 export default router;

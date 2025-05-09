@@ -17,7 +17,7 @@ import {
   updateSubtaskService,
   deleteSubtaskService
 } from '../services/project.service';
-import taskTemplate from '../constants/taskTemplate.json';
+
 
 // Extend Request type to include user
 // Assuming role might be a simple string or an object.
@@ -27,6 +27,7 @@ interface AuthenticatedRequest extends Request {
 }
 
 export const createProject = async (req: AuthenticatedRequest, res: Response) => {
+  console.log('Entering createProject controller with body:', JSON.stringify(req.body, null, 2));
   try {
     if (!req.user) {
       return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
@@ -52,9 +53,12 @@ export const createProject = async (req: AuthenticatedRequest, res: Response) =>
     const statusId = parseInt(req.body.statusId, 10) || 1; // Assuming 1 is a valid status ID
     const vbCount = parseInt(req.body.vbCount, 10) || 0;
     
-    // Convert IDs to integers
-    const engineerIdInt = parseInt(engineerId, 10);
-    const clientIdInt = parseInt(clientId, 10);
+    // Convert IDs to integers and handle NaN values
+    const parsedEngineerId = parseInt(engineerId, 10);
+    const finalEngineerId = !isNaN(parsedEngineerId) ? parsedEngineerId : null;
+
+    const parsedClientId = parseInt(clientId, 10);
+    const finalClientId = !isNaN(parsedClientId) ? parsedClientId : null;
     
     // Get the user ID for createdById and updatedById
     const createdById = req.user.id;
@@ -72,8 +76,8 @@ export const createProject = async (req: AuthenticatedRequest, res: Response) =>
       estimatedTime: estimatedTime || new Date(),
       vbCount: vbCount || 0,
       statusId: statusId || 1,
-      engineerId: engineerIdInt || null,
-      clientId: clientIdInt || null,
+      engineerId: finalEngineerId,
+      clientId: finalClientId,
       createdById
     });
 
@@ -81,7 +85,14 @@ export const createProject = async (req: AuthenticatedRequest, res: Response) =>
 
     res.status(StatusCodes.CREATED).json({ project, message: 'Project created with tasks and subtasks from template' });
   } catch (error) {
-    res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
+    const err = error as Error;
+    console.error('Error in createProject controller:', err); // Also log it on the backend
+    res.status(StatusCodes.BAD_REQUEST).json({ 
+      message: err.message, 
+      name: err.name, 
+      stack: err.stack, 
+      details: JSON.stringify(err, Object.getOwnPropertyNames(err)) // Attempt to serialize more details
+    });
   }
 };
 
@@ -151,6 +162,7 @@ export const getProjectById = async (req: AuthenticatedRequest, res: Response) =
 
     // Optional: Add authorization check here if needed (e.g., client can only see their own projects)
 
+    console.log('Backend controller getProjectById, project data being sent:', JSON.stringify(transformedProject, null, 2));
     res.status(StatusCodes.OK).json({ project: transformedProject });
   } catch (error) {
     res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });

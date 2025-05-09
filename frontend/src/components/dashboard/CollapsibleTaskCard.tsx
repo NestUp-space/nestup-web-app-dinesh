@@ -2,41 +2,21 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/dashboard/button';
-import { Eye, Edit3, ChevronDown, ChevronUp, CheckCircle, Circle, PlusCircle as PlusCircleIcon, Trash2 as TrashIcon, UploadCloud, Info, UserCheck } from 'lucide-react'; // Added more icons
-
-interface Subtask {
-  id: number;
-  name: string;
-  description?: string;
-  actionRequired?: string; // New
-  type?: string;           // New
-  metadataJson?: string;   // New
-  completed: boolean;
-  createdAt: string;
-  updatedAt: string;
-  taskId: number;
-}
-
-interface Task {
-  id: number;
-  name: string;
-  stage?: string;          // New
-  uploaderRole?: string;   // New
-  viewerRoles?: string;    // New (comma-separated string or JSON string)
-  status: { id: number; status: string };
-  createdAt: string;
-  updatedAt: string;
-  subtasks?: Subtask[];
-}
+import { Eye, Edit3, ChevronDown, ChevronUp, CheckCircle, Circle, PlusCircle as PlusCircleIcon, Trash2 as TrashIcon, UploadCloud, Info, UserCheck, Download, Package } from 'lucide-react';
+import BimTaskContent from './BimTaskContent';
+import ModelSelector from './ModelSelector';
+import MaterialManagement from './MaterialManagement';
+import { Task, Subtask, Project } from '@/types';
 
 interface CollapsibleTaskCardProps {
   task: Task;
   formatDate: (dateString?: string) => string;
+  project?: Project; // Changed from projectId to project
   // onUpdateTask: (taskId: number, data: Partial<Task>) => void; // For editing task name/details
   // onDeleteTask: (taskId: number) => void;
 }
 
-const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatDate }) => {
+const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatDate, project }) => { // Changed projectId to project
   const [isOpen, setIsOpen] = useState(false);
   const [currentSubtasks, setCurrentSubtasks] = useState<Subtask[]>(task.subtasks || []);
   const [newSubtaskName, setNewSubtaskName] = useState('');
@@ -183,16 +163,57 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
                             {subtask.type === 'file_upload' && <UploadCloud size={14} className="mr-1" />}
                             {subtask.type === 'information' && <Info size={14} className="mr-1" />}
                             {subtask.type === 'approval' && <UserCheck size={14} className="mr-1" />}
+                            {subtask.type === 'payment_confirmation' && <Download size={14} className="mr-1" />}
                             {/* Add more icons for other types */}
                             <span>Type: {subtask.type}</span>
                           </div>
                         )}
-                        {/* TODO: Render UI based on subtask.type and subtask.metadataJson */}
-                         {/* Example: if type is file_upload, show an upload button */}
-                         {subtask.type === 'file_upload' && (
-                             <Button variant="outline" size="sm" className="mt-2 text-xs h-7 px-2"> {/* Changed size to sm, adjusted padding/height */}
-                                 <UploadCloud size={14} className="mr-1" /> Upload File
-                             </Button>
+                        {/* Render UI based on subtask type and name */}
+                        {subtask.type === 'file_upload' && (
+                            <Button variant="outline" size="sm" className="mt-2 text-xs h-7 px-2">
+                                <UploadCloud size={14} className="mr-1" /> Upload File
+                            </Button>
+                        )}
+                        
+                        {/* BIM engineer to upload site measurements subtask */}
+                        {subtask.name === "BIM engineer to upload site measurements" && project && (
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            {/* Material Management Component */}
+                            <div className="mb-4">
+                              <h6 className="text-xs font-semibold text-gray-600 mb-2">Manage Materials for Site Measurements:</h6>
+                              <MaterialManagement projectId={project.id} />
+                            </div>
+
+                            {/* Box Configuration / Model Selector Component */}
+                            <div>
+                              <h6 className="text-xs font-semibold text-gray-600 mb-2">Configure Box/Model for Site Measurements:</h6>
+                              <ModelSelector subtask={subtask} project={project} />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Display Materials List for specific subtask */}
+                        {subtask.name === "Collection of material details." && project?.materials && (
+                           <div className="mt-3 pt-2 border-t border-gray-200">
+                             <h5 className="text-sm font-semibold text-gray-600 mb-2 flex items-center">
+                               <Package size={14} className="mr-1.5" /> Project Materials:
+                             </h5>
+                             {project.materials.length > 0 ? (
+                               <ul className="list-disc list-inside space-y-1 text-xs text-gray-500 pl-4">
+                                 {project.materials.map(material => (
+                                   <li key={material.id}>
+                                     {material.name} (ID: {material.id})
+                                   </li>
+                                 ))}
+                               </ul>
+                             ) : (
+                               <p className="text-xs text-gray-400 italic pl-4">No materials added to this project yet.</p>
+                             )}
+                           </div>
+                         )}
+                         {/* Add ModelSelector component for 'Collect Model and dimensions.' subtask */}
+                         {subtask.name === "Collect Model and dimensions." && project && (
+                           <ModelSelector subtask={subtask} project={project} />
                          )}
                       </div>
                     </div>
@@ -206,6 +227,16 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
           ) : (
             <p className="text-sm text-gray-500">No specific actions or subtasks defined for this step.</p>
           )}
+
+          {/* BIM Task Content */}
+          {project?.id && task.name && ( // Use project.id and ensure project exists
+            <BimTaskContent
+              taskId={task.id}
+              projectId={project.id} // Pass project.id
+              taskName={task.name}
+            />
+          )}
+
           <form onSubmit={handleAddSubtask} className="mt-4 flex items-center space-x-2">
             <input
               type="text"
@@ -218,6 +249,8 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
               <PlusCircleIcon size={16} className="mr-1" /> Add
             </Button>
           </form>
+          
+          
         </div>
       )}
     </div>

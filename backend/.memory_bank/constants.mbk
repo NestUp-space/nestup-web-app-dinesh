@@ -1,0 +1,21 @@
+# Constants Module (`backend/src/constants`)
+
+## Purpose
+
+This module defines application-wide constants, such as default values, fixed strings, or enumerations that are used in multiple places. This helps avoid magic strings/numbers and improves maintainability.
+
+## Main Components
+
+- `projectTaskTemplate.ts`: Defines templates or default structures for project tasks.
+- (Other constant files might exist or be added here)
+
+## Key Functionalities (to be detailed)
+
+- Providing a centralized location for constant values.
+- Defining default task structures or templates for projects.
+- Potentially defining enum-like objects for statuses, types, etc., if not handled by Prisma enums.
+
+## Interactions (to be detailed)
+
+- How these constants are imported and used by various services, controllers, or utility functions.
+- For example, `projectTaskTemplate.ts` might be used by `project.service.ts` when creating new projects or tasks.

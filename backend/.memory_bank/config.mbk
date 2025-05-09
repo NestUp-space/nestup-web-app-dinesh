@@ -1,0 +1,23 @@
+# Configuration Module (`backend/src/config`)
+
+## Purpose
+
+This module is responsible for managing application configurations, such as database connections and environment variables.
+
+## Main Components
+
+- `db.ts`: Initializes and exports the Prisma client instance for database interactions.
+- `env.ts`: Loads, validates (potentially using a library like `envalid`, though `dotenv` is directly used here), and exports environment variables.
+
+## Key Functionalities (to be detailed)
+
+- Establishing and managing the database connection (via Prisma).
+- Loading environment variables from a `.env` file.
+- Providing typed access to environment variables throughout the application.
+- Potentially, validation of critical environment variables at startup.
+
+## Interactions (to be detailed)
+
+- How `db.ts` is used by repositories and services to access the database.
+- How `env.ts` (or its exported variables) are consumed by other modules requiring configuration values (e.g., JWT secret in `auth.service.ts`, CORS origin in `server.ts`).
+- The role of `dotenv` in loading configurations.

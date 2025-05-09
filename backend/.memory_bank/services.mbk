@@ -1,0 +1,34 @@
+# Services Module (`backend/src/services`)
+
+## Purpose
+
+This module contains the core business logic of the application. Services orchestrate operations, process data, interact with repositories for data persistence, and may call other services. They are responsible for implementing the application's use cases.
+
+## Main Components
+
+- `auth.service.ts`: Handles business logic for user registration, login, password management, etc.
+- `bim.service.ts`: Contains business logic for BIM-related operations.
+- `file.service.ts`: Manages business logic for file uploads, downloads, and storage (e.g., interacting with AWS S3).
+- `material.service.ts`: Business logic for managing project materials.
+- `project.service.ts`: Core business logic for project management (creating, updating, fetching projects, tasks, subtasks).
+- `siteVisit.service.ts`: Business logic related to site visits.
+- `siteVisitBox.service.ts`: Business logic for managing site visit box configurations.
+- `user.service.ts`: Business logic for user management (fetching user details, updating profiles, etc.).
+- `project/`: A subdirectory, possibly for more granular project-related services or to break down a large `project.service.ts`. (e.g. `project.task.service.ts`)
+
+## Key Functionalities (to be detailed for each service)
+
+- Implementing specific use cases (e.g., "register a new user", "create a project", "upload a file").
+- Performing data validation and transformation beyond basic DTO validation.
+- Interacting with one or more repositories to fetch or persist data.
+- Calling other services to combine functionalities.
+- Implementing complex business rules and workflows.
+- Returning structured responses (often using `ServiceResponse`) to controllers.
+
+## Interactions (to be detailed for each service)
+
+- How each service is instantiated and used by controllers.
+- Which repositories each service depends on.
+- Dependencies on other services.
+- How services handle transactions if operations span multiple data changes.
+- Use of utility functions, constants, or external service clients (e.g., S3 client).

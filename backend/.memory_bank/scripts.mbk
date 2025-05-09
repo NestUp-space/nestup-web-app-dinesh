@@ -1,0 +1,36 @@
+# Scripts Module (`backend/src/scripts`)
+
+## Purpose
+
+This module contains standalone scripts for various administrative, maintenance, or utility tasks related to the application. These are typically run from the command line and are not part of the main application's request-response cycle.
+
+## Main Components
+
+- `checkRoles.ts`: Script to check or manage user roles.
+- `checkUserPassword.ts`: Script to verify a user's password.
+- `countUsers.ts`: Script to count users in the database.
+- `createAdmin.ts`: Script to create an administrative user.
+- `createSuperAdminRole.ts`: Script to create a super admin role.
+- `getAllUserDetails.ts`: Script to fetch details for all users.
+- `getAuthToken.ts`: Script to generate an authentication token for a user.
+- `populateRolesAndPermissions.ts`: Script to seed the database with initial roles and permissions.
+- `registerTestUser.ts`: Script to register a test user.
+- `seedStatus.ts`: Script to seed initial status values into the database.
+- `testGetUsersByRoleEndpoint.ts`: Script to test the "get users by role" API endpoint.
+- `testGetUsersEndpoint.ts`: Script to test the "get users" API endpoint.
+- `testLogin.ts`: Script to test the login functionality.
+
+## Key Functionalities (to be detailed for each script)
+
+- Database seeding (e.g., initial roles, statuses).
+- User management tasks (e.g., creating admins, checking passwords).
+- Data querying and reporting (e.g., counting users, getting all user details).
+- Testing specific functionalities or API endpoints from the command line.
+- Utility tasks like generating auth tokens for testing or administrative purposes.
+
+## Interactions (to be detailed for each script)
+
+- How these scripts are executed (e.g., using `tsx` or `node` directly, or via `npm run` scripts defined in `package.json`).
+- Direct database interaction using Prisma Client.
+- Some scripts might make HTTP requests to the application's own API endpoints for testing purposes (e.g., `testGetUsersEndpoint.ts`).
+- Dependencies on environment variables or configuration.

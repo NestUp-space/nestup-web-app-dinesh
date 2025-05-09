@@ -1,0 +1,30 @@
+# BIM Module (`backend/src/bim`)
+
+## Purpose
+
+This module handles functionalities related to Building Information Modeling (BIM). This could involve processing BIM data, generating models or reports, or integrating with BIM software/platforms.
+
+## Main Components
+
+- `controllers/`: BIM-specific controllers.
+- `generators/`: Code for generating BIM-related outputs (e.g., models, files).
+- `models/`: Data models specific to BIM.
+- `routes/`: API routes for BIM functionalities.
+- `rules/`: Business rules or validation logic for BIM data.
+- `services/`: Business logic services for BIM operations.
+- `templates/`: Templates used for BIM data generation or presentation.
+- `types/`: TypeScript type definitions for BIM data structures.
+- `utils/`: Utility functions specific to BIM tasks.
+
+## Key Functionalities (to be detailed)
+
+- BIM data parsing and processing.
+- Generation of BIM models or data files.
+- Integration with external BIM tools or services.
+- API endpoints for BIM operations.
+
+## Interactions (to be detailed)
+
+- How BIM routes are integrated into the main application.
+- Dependencies on other core services (e.g., project service, file service).
+- Data exchange formats used (e.g., IFC, BCF).

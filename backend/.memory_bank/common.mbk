@@ -1,0 +1,28 @@
+# Common Module (`backend/src/common`)
+
+## Purpose
+
+This module contains shared utilities, middleware, error handling, base models, and other code that is used across multiple modules in the application. It helps in promoting code reuse and maintaining consistency.
+
+## Main Components
+
+- `__tests__/`: Tests for common utilities or components.
+- `errors/`: Custom error classes and error handling utilities.
+- `middleware/`: Common middleware functions (e.g., `errorHandler.ts`, `rateLimiter.ts`, `requestLogger.ts`).
+- `models/`: Common data models or interfaces (e.g., `serviceResponse.ts`).
+- `utils/`: General utility functions (e.g., `envConfig.ts`).
+
+## Key Functionalities (to be detailed)
+
+- Centralized error handling mechanisms.
+- Request rate limiting.
+- Request logging.
+- Standardized service response structures.
+- Environment variable configuration and validation.
+- Other shared helper functions.
+
+## Interactions (to be detailed)
+
+- How middleware from this module is applied in `server.ts` or `index.ts`.
+- How `ServiceResponse` is used by service layers across the application.
+- How custom error classes are thrown by various modules and handled by the error handling middleware.

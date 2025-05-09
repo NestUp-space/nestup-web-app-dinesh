@@ -1,0 +1,30 @@
+# Routes Module (`backend/src/routes`)
+
+## Purpose
+
+This module defines the API routes for the application using Express Routers. Each file typically corresponds to a major feature or entity and maps HTTP methods and URL paths to specific controller functions.
+
+## Main Components
+
+- `auth.routes.ts`: Defines routes for authentication (e.g., `/login`, `/register`).
+- `bim.routes.ts`: Defines routes for BIM functionalities.
+- `file.routes.ts`: Defines routes for file operations.
+- `material.routes.ts`: Defines routes for material management.
+- `project.routes.ts`: Defines routes for project CRUD and other project-related actions.
+- `role.routes.ts`: Defines routes for role and permission management.
+- `site-visit.routes.ts`: Defines routes for site visit functionalities.
+- `siteVisitBox.routes.ts`: Defines routes for site visit box configurations.
+- `user.routes.ts`: Defines routes for user management (e.g., CRUD operations on users).
+
+## Key Functionalities (to be detailed for each route file)
+
+- Creating instances of `express.Router()`.
+- Defining route handlers for various HTTP methods (GET, POST, PUT, DELETE, PATCH).
+- Mapping URL paths (e.g., `/api/users/:id`) to controller functions.
+- Applying route-specific middleware (e.g., `auth.middleware.ts`, `admin.middleware.ts`, validation middleware).
+
+## Interactions (to be detailed for each route file)
+
+- How each router is imported and mounted onto the main Express app in `server.ts` or `index.ts` (e.g., `app.use('/api/auth', authRouter)`).
+- Which controller functions (from the `controllers` module) are invoked by each route definition.
+- Which middlewares (from `middlewares` or `common/middleware` modules) are applied to specific routes or the entire router.

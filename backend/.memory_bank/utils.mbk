@@ -1,0 +1,29 @@
+# Utils Module (`backend/src/utils`)
+
+## Purpose
+
+This module contains various utility functions that provide common, reusable logic not specific to any single business domain. These utilities can be used across different parts of the application.
+
+## Main Components
+
+- `errorHandler/`: Subdirectory for error handling utilities (though primary error handling middleware might be in `common/middleware`). This could contain specific error formatting or logging helpers.
+- `s3/`: Subdirectory containing utilities for interacting with AWS S3, likely for file storage operations. This might include functions to upload, download, or delete files from S3 buckets.
+- (Other general utility files, e.g., for string manipulation, date formatting, etc., could be placed here).
+
+## Key Functionalities (to be detailed)
+
+- **Error Handling Utilities**:
+    - Helper functions for creating or formatting error objects.
+    - Specific error logging mechanisms.
+- **S3 Utilities**:
+    - Functions to configure the S3 client.
+    - Wrapper functions for uploading files to S3 (e.g., handling multipart uploads, setting ACLs).
+    - Functions for generating pre-signed URLs for S3 objects.
+    - Functions for deleting objects from S3.
+- Other general-purpose helper functions.
+
+## Interactions (to be detailed)
+
+- How `errorHandler` utilities are used by the main error handling middleware or within services/controllers.
+- How `s3` utilities are used by `file.service.ts` or other services that require file storage.
+- How other utility functions are imported and used throughout the codebase.

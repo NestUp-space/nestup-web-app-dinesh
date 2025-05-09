@@ -1,0 +1,29 @@
+# Repositories Module (`backend/src/repositories`)
+
+## Purpose
+
+This module encapsulates the data access logic, abstracting the interactions with the database (Prisma ORM). Repositories provide a clean API for services to perform CRUD (Create, Read, Update, Delete) operations and other data queries without needing to know the specifics of the ORM or database.
+
+## Main Components
+
+- `material.repository.ts`: Handles data access for `Material` entities.
+- `project.repository.ts`: Handles data access for `Project` entities.
+- `siteVisitBox.repository.ts`: Handles data access for `SiteVisitBox` entities.
+- `subtask.repository.ts`: Handles data access for `Subtask` entities.
+- `task.repository.ts`: Handles data access for `Task` entities.
+- `user.repository.ts`: Handles data access for `User` entities.
+- (Other repository files for different entities would reside here, e.g., `role.repository.ts`).
+
+## Key Functionalities (to be detailed for each repository)
+
+- Implementing methods for creating, reading (single, multiple, with filters/pagination), updating, and deleting entities.
+- Using Prisma Client methods (e.g., `prisma.user.create()`, `prisma.project.findMany()`) to interact with the database.
+- Handling complex queries, joins (via Prisma's `include` or `select`), and transactions if necessary.
+- Mapping data from database structures to application-level objects if needed (though Prisma often handles this well).
+
+## Interactions (to be detailed for each repository)
+
+- How each repository is instantiated and used by its corresponding service in the `services` module.
+- Dependency on `prisma` client instance from `config/db.ts`.
+- How Prisma model types (from `@prisma/client`) are used for input and output.
+- Error handling for database operations (e.g., catching Prisma-specific errors and potentially re-throwing them or mapping them to custom application errors).

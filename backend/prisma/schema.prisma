@@ -70,6 +70,7 @@ model Project {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   vbCount       Int       @default(0)
+  generatedPlankListFileId Int? // Reference to the generated plank list file
   client           ClientProjectMapping[]
   engineer         User?                    @relation("EngineerProjects", fields: [engineerId], references: [id])
   createdBy        User                     @relation("UserCreatedProjects", fields: [createdById], references: [id])
@@ -78,21 +79,24 @@ model Project {
   comments         Comment[]
   engineerMappings EngineerProjectMapping[]
   userActions      UserAction[]
+  materials        Material[]               // Relation to project materials
+  generatedPlankListFile File?              @relation("GeneratedPlankListFile", fields: [generatedPlankListFileId], references: [id])
 }
 
 model Task {
-  id          Int          @id @default(autoincrement())
-  projectId   Int
-  name        String
-  stage       String? // New field for task stage
-  statusId    Int
-  uploaderRole String? // New field: role expected to upload/initiate
-  viewerRoles String? // New field: JSON string or comma-separated roles for view permissions
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  updatedById Int?
-  startedAt   DateTime?
-  completedAt DateTime?
+  id             Int          @id @default(autoincrement())
+  projectId      Int
+  name           String
+  stage          String? // New field for task stage
+  statusId       Int         @default(1)
+  uploaderRole   String? // New field: role expected to upload/initiate
+  viewerRoles    String? // New field: JSON string or comma-separated roles for view permissions
+  actionRequired String? // New field: description of what action is required
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  updatedById    Int?
+  startedAt      DateTime?
+  completedAt    DateTime?
   project     Project      @relation(fields: [projectId], references: [id])
   status      Status       @relation(fields: [statusId], references: [id])
   updatedBy   User?        @relation("TaskUpdatedBy", fields: [updatedById], references: [id])
@@ -100,6 +104,7 @@ model Task {
   comments    Comment[]
   userActions UserAction[]
   subtasks    Subtask[] // Relation to Subtasks
+  siteVisitBoxes SiteVisitBox[] // Relation to SiteVisitBox
 }
 
 model Subtask {
@@ -127,6 +132,7 @@ model File {
   uploadedAt     DateTime @default(now())
   task           Task     @relation(fields: [taskId], references: [id])
   uploadedByUser User     @relation("FilesUploaded", fields: [uploadedBy], references: [id])
+  projectsAsPlankList Project[] @relation("GeneratedPlankListFile")
 }
 
 // map the projects to the clients
@@ -222,4 +228,36 @@ model ClientMarketplace {
   projectsNum  Int
   location     String
   client       User    @relation(fields: [clientId], references: [id])
+}
+
+// New model for project materials
+model Material {
+  id                    Int      @id @default(autoincrement())
+  projectId             Int
+  materialId            String   // User-defined unique ID within the project
+  plyThickness          Float
+  innerLaminateCode     String
+  outerLaminateCode     String
+  overallThickness      Float    // Calculated: innerLaminate + plyThickness + outerLaminate
+  plyType               String   // e.g., HDHMR, Blockboard
+  grainDirection        String?  // Optional, applicable to specific planks
+  edgebandingInnerCode  String
+  edgebandingExposedCode String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  project               Project  @relation(fields: [projectId], references: [id])
+
+  @@unique([projectId, materialId]) // Ensure materialId is unique within a project
+}
+
+// New model for site visit box configurations
+model SiteVisitBox {
+  id          Int      @id @default(autoincrement())
+  taskId      Int
+  order       Int      // To maintain sequence
+  modelType   String   // e.g., "Simple Box", "L-Shaped Box"
+  inputs      Json     // Store the specific dimensions, adjacencies, material codes, etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  task        Task     @relation(fields: [taskId], references: [id])
 }

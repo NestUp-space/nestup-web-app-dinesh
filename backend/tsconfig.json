@@ -1,13 +1,14 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "CommonJS",
+    "module": "NodeNext",
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
     },
-    "moduleResolution": "Node",
+    "moduleResolution": "NodeNext",
     "outDir": "dist",
+    "jsx": "react-jsx", // Added jsx option
     "importsNotUsedAsValues": "remove",
     "strict": true,
     "esModuleInterop": true,

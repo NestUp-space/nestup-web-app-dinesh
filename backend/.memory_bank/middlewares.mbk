@@ -1,0 +1,28 @@
+# Middlewares Module (`backend/src/middlewares`)
+
+## Purpose
+
+This module contains custom Express middleware functions that are specific to the application's needs, beyond the common ones in `backend/src/common/middleware`. These often handle cross-cutting concerns like authentication, authorization, or specific request processing steps.
+
+## Main Components
+
+- `admin.middleware.ts`: Middleware to check if the authenticated user has an admin role.
+- `auth.middleware.ts`: Middleware to verify JWT tokens and authenticate users, attaching user information to the request object.
+
+## Key Functionalities (to be detailed for each middleware)
+
+- **`auth.middleware.ts`**:
+    - Extracts JWT token from request headers (e.g., Authorization Bearer token).
+    - Verifies the token using `jsonwebtoken` and the JWT secret.
+    - If valid, fetches user details (possibly from database or token payload) and attaches them to `req.user`.
+    - If invalid or missing, sends an appropriate error response (e.g., 401 Unauthorized).
+- **`admin.middleware.ts`**:
+    - Typically runs after `auth.middleware.ts`.
+    - Checks `req.user.role` (or similar property) to ensure the user has administrative privileges.
+    - If not an admin, sends an error response (e.g., 403 Forbidden).
+
+## Interactions (to be detailed for each middleware)
+
+- How these middlewares are applied to specific routes or routers in `server.ts`, `index.ts`, or individual route files in the `routes` module.
+- Dependencies: `auth.middleware.ts` depends on `jsonwebtoken` and potentially user services/repositories. `admin.middleware.ts` depends on `auth.middleware.ts` having run first.
+- Order of execution if multiple middlewares are chained.

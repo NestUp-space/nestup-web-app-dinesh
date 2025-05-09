@@ -1,0 +1,34 @@
+# Controllers Module (`backend/src/controllers`)
+
+## Purpose
+
+This module contains controller functions that handle incoming HTTP requests, process input (often validated DTOs), interact with service layers for business logic, and formulate HTTP responses. It acts as the bridge between the routing layer and the service layer.
+
+## Main Components
+
+- `auth.controller.ts`: Handles authentication-related requests (e.g., login, register).
+- `bim.controller.ts`: Handles BIM-related API requests.
+- `file.controller.ts`: Handles file upload/download/management requests.
+- `material.controller.ts`: Handles requests related to project materials.
+- `project.controller.ts`: Handles project management API requests.
+- `role.controller.ts`: Handles role and permission management requests.
+- `siteVisit.controller.ts`: Handles site visit related requests.
+- `siteVisitBox.controller.ts`: Handles site visit box configuration requests.
+- `user.controller.ts`: Handles user management requests (e.g., CRUD operations on users).
+- `project/`: A subdirectory, possibly for more granular project-related controllers (e.g., task controllers, subtask controllers if not part of the main `project.controller.ts`).
+
+## Key Functionalities (to be detailed for each controller)
+
+- Receiving HTTP requests from the router.
+- Validating request bodies, parameters, and query strings (often using DTOs and validation libraries like Zod).
+- Calling appropriate methods in the service layer to perform business operations.
+- Handling responses from the service layer (e.g., `ServiceResponse` objects).
+- Formatting and sending HTTP responses (JSON) with appropriate status codes.
+- Error handling specific to request processing before or after service layer calls.
+
+## Interactions (to be detailed for each controller)
+
+- How each controller is invoked by its corresponding route in the `routes` module.
+- Which services each controller depends on from the `services` module.
+- Which DTOs (from `dtos` module) are used for request validation and data transfer.
+- How `ServiceResponse` objects from services are translated into HTTP responses.

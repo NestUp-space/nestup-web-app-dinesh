@@ -1,5 +1,7 @@
 {
   "modelType": "Simple Box",
+  "description": "A basic rectangular box with five planks: back, left, right, top, and bottom. Suitable for simple storage units, cabinets, and shelving.",
+  "screenshotUrl": "/img/models/simple-box.png",
   "runtimeInputs": {
     "boxHeight": null,
     "boxWidth": null,

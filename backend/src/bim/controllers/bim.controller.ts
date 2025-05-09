@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { BimService } from '../services/bim.service';
 import { handleServiceResponse } from '../../common/utils/httpHandlers'; // Assuming this utility exists
+import { CutList, Plank } from '../types/bim.types';
+import { subtaskRepository } from '../../repositories/subtask.repository'; // For updating subtask
 
 // TODO: Add input validation using Zod or similar
 
@@ -11,6 +13,59 @@ export class BimController {
   constructor() {
     this.bimService = new BimService();
   }
+
+  /**
+   * @description Gets all available model types.
+   * @param _req Express request object (unused).
+   * @param res Express response object.
+   */
+  public getAvailableModelTypes = async (_req: Request, res: Response): Promise<void> => {
+    const serviceResponse = this.bimService.getAvailableModelTypes();
+    handleServiceResponse(serviceResponse, res);
+  };
+
+  /**
+   * @description Gets information about all available models.
+   * @param _req Express request object (unused).
+   * @param res Express response object.
+   */
+  public getAvailableModels = async (_req: Request, res: Response): Promise<void> => {
+    const serviceResponse = this.bimService.getAvailableModels();
+    handleServiceResponse(serviceResponse, res);
+  };
+
+  /**
+   * @description Gets information about a specific model.
+   * @param req Express request object.
+   * @param res Express response object.
+   */
+  public getModelInfo = async (req: Request, res: Response): Promise<void> => {
+    const { modelType } = req.params;
+    if (!modelType) {
+      res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Missing modelType in request params.' });
+      return;
+    }
+    const serviceResponse = this.bimService.getModelInfo(modelType);
+    handleServiceResponse(serviceResponse, res);
+  };
+
+  /**
+   * @description Validates inputs for a specific model.
+   * @param req Express request object.
+   * @param res Express response object.
+   */
+  public validateModelInputs = async (req: Request, res: Response): Promise<void> => {
+    const { modelType } = req.params;
+    const inputs = req.body;
+    
+    if (!modelType) {
+      res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Missing modelType in request params.' });
+      return;
+    }
+    
+    const serviceResponse = this.bimService.validateModelInputs(modelType, inputs);
+    handleServiceResponse(serviceResponse, res);
+  };
 
   /**
    * @description Processes site measurements.
@@ -42,11 +97,65 @@ export class BimController {
    * @param res Express response object.
    */
   public createPlankList = async (req: Request, res: Response): Promise<void> => {
-    // TODO: Validate req.body and req.params
     const { modelType } = req.params;
-    const inputs = req.body;
-    const serviceResponse = this.bimService.createPlankList(modelType, inputs);
-    handleServiceResponse(serviceResponse, res);
+    const { inputs, subtaskId, boxNumber, packetNumber } = req.body;
+
+    if (!modelType) {
+      res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Missing modelType in request params.' });
+      return;
+    }
+    if (!inputs || subtaskId == null || !boxNumber || !packetNumber) {
+      res.status(StatusCodes.BAD_REQUEST).json({ 
+        success: false, 
+        message: 'Missing required body parameters: inputs, subtaskId, boxNumber, packetNumber.' 
+      });
+      return;
+    }
+
+    // Call the service to generate the plank list
+    // Note: The existing bimService.createPlankList might need adjustment if it doesn't 
+    // directly support passing boxNumber and packetNumber for ID generation.
+    // For now, we assume the plank generation logic itself (e.g., in ../reference/CreatePlanklist)
+    // will need to be aware of these or the service method will handle it.
+    // The current bimService.createPlankList returns ServiceResponse<Plank[] | null>
+    const plankListServiceResponse = this.bimService.createPlankList(modelType, inputs /*, boxNumber, packetNumber */); // Pass box/packet if service method is updated
+
+    if (!plankListServiceResponse.success || !plankListServiceResponse.responseObject) {
+      handleServiceResponse(plankListServiceResponse, res); // Let httpHandlers deal with the error response
+      return;
+    }
+
+    const generatedPlanks = plankListServiceResponse.responseObject;
+
+    // TODO: The plank IDs in `generatedPlanks` might need to be updated here
+    // to include boxNumber and packetNumber if not handled by the core generation logic.
+    // Example:
+    // const finalPlanks = generatedPlanks.map((plank, index) => ({
+    //   ...plank,
+    //   plankId: `B${boxNumber}P${packetNumber}L${index + 1}` // Or use existing plank.plankId suffix
+    // }));
+
+
+    try {
+      const updatedSubtask = await subtaskRepository.update(subtaskId, {
+        metadataJson: JSON.stringify({ plankListGenerated: true, generatedPlanks: generatedPlanks /* or finalPlanks */ }),
+        completed: true,
+      });
+
+      if (!updatedSubtask) {
+        res.status(StatusCodes.NOT_FOUND).json({ success: false, message: `Subtask with ID ${subtaskId} not found.` });
+        return;
+      }
+
+      res.status(StatusCodes.OK).json({ 
+        success: true, 
+        message: 'Plank list generated and subtask updated successfully.', 
+        plankList: generatedPlanks /* or finalPlanks */
+      });
+    } catch (error) {
+      console.error('Error updating subtask:', error);
+      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ success: false, message: 'Failed to update subtask.' });
+    }
   };
 
   /**
@@ -57,12 +166,77 @@ export class BimController {
   public generateCutList = async (req: Request, res: Response): Promise<void> => {
     // TODO: Validate req.body
     const plankList = req.body.plankList; // Assuming plankList is passed in body
+    const materialProperties = req.body.materialProperties; // Optional material properties
+    
     if (!plankList) {
       res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Missing plankList in request body.' });
       return;
     }
-    const serviceResponse = this.bimService.generateCutList(plankList);
+    
+    const serviceResponse = this.bimService.generateCutList(plankList, materialProperties);
     handleServiceResponse(serviceResponse, res);
+  };
+
+  /**
+   * @description Downloads a cut list as CSV.
+   * @param req Express request object.
+   * @param res Express response object.
+   */
+  public downloadCutListCsv = async (req: Request, res: Response): Promise<void> => {
+    // TODO: Validate req.body
+    const cutList = req.body.cutList as CutList; // Assuming cutList is passed in body
+    if (!cutList) {
+      res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Missing cutList in request body.' });
+      return;
+    }
+    
+    const serviceResponse = this.bimService.formatCutListAsCsv(cutList);
+    
+    if (serviceResponse.success && serviceResponse.responseObject) {
+      // Set headers for CSV download
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="cutlist.csv"');
+      
+      // Send the CSV data
+      res.send(serviceResponse.responseObject);
+    } else {
+      // Handle error
+      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: serviceResponse.message || 'Error formatting cut list as CSV.'
+      });
+    }
+  };
+
+  /**
+   * @description Downloads a cut list as JSON.
+   * @param req Express request object.
+   * @param res Express response object.
+   */
+  public downloadCutListJson = async (req: Request, res: Response): Promise<void> => {
+    // TODO: Validate req.body
+    const cutList = req.body.cutList as CutList; // Assuming cutList is passed in body
+    if (!cutList) {
+      res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Missing cutList in request body.' });
+      return;
+    }
+    
+    const serviceResponse = this.bimService.formatCutListAsJson(cutList);
+    
+    if (serviceResponse.success && serviceResponse.responseObject) {
+      // Set headers for JSON download
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', 'attachment; filename="cutlist.json"');
+      
+      // Send the JSON data
+      res.send(serviceResponse.responseObject);
+    } else {
+      // Handle error
+      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: serviceResponse.message || 'Error formatting cut list as JSON.'
+      });
+    }
   };
 
   /**
@@ -72,13 +246,76 @@ export class BimController {
    */
   public generateGCode = async (req: Request, res: Response): Promise<void> => {
     // TODO: Validate req.body
-    const cutList = req.body.cutList; // Assuming cutList is passed in body
+    const cutList = req.body.cutList as CutList; // Assuming cutList is passed in body
     if (!cutList) {
       res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Missing cutList in request body.' });
       return;
     }
     const serviceResponse = this.bimService.generateGCode(cutList);
     handleServiceResponse(serviceResponse, res);
+  };
+
+  /**
+   * @description Downloads G-code.
+   * @param req Express request object.
+   * @param res Express response object.
+   */
+  public downloadGCode = async (req: Request, res: Response): Promise<void> => {
+    // TODO: Validate req.body
+    const cutList = req.body.cutList as CutList; // Assuming cutList is passed in body
+    if (!cutList) {
+      res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Missing cutList in request body.' });
+      return;
+    }
+    
+    const serviceResponse = this.bimService.generateGCode(cutList);
+    
+    if (serviceResponse.success && serviceResponse.responseObject) {
+      // Set headers for G-code download
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Disposition', 'attachment; filename="gcode.nc"');
+      
+      // Send the G-code data
+      res.send(serviceResponse.responseObject);
+    } else {
+      // Handle error
+      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: serviceResponse.message || 'Error generating G-code.'
+      });
+    }
+  };
+
+  /**
+   * @description Visualizes planks as SVG.
+   * @param req Express request object.
+   * @param res Express response object.
+   */
+  public visualizePlanks = async (req: Request, res: Response): Promise<void> => {
+    // TODO: Validate req.body
+    const plankList = req.body.plankList as Plank[]; // Assuming plankList is passed in body
+    const title = req.body.title as string | undefined;
+    
+    if (!plankList) {
+      res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Missing plankList in request body.' });
+      return;
+    }
+    
+    const serviceResponse = this.bimService.visualizePlanks(plankList, title);
+    
+    if (serviceResponse.success && serviceResponse.responseObject) {
+      // Set headers for SVG
+      res.setHeader('Content-Type', 'image/svg+xml');
+      
+      // Send the SVG data
+      res.send(serviceResponse.responseObject);
+    } else {
+      // Handle error
+      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: serviceResponse.message || 'Error visualizing planks.'
+      });
+    }
   };
 
   /**
@@ -106,3 +343,6 @@ export class BimController {
     handleServiceResponse(serviceResponse, res);
   };
 }
+
+// Export a singleton instance
+export const bimController = new BimController();

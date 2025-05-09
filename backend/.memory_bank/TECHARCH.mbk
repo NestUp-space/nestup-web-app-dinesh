@@ -1,0 +1,152 @@
+# NestUp Backend Technical Architecture
+
+## Overview
+
+NestUp is a project management application designed for construction/interior design projects. The backend is built using Node.js, Express, TypeScript, and Prisma ORM with a PostgreSQL database. It follows a layered architecture pattern (Controller-Service-Repository) and provides RESTful APIs for the frontend to consume.
+
+## Core Technologies
+
+- **Node.js**: Runtime environment
+- **Express**: Web framework
+- **TypeScript**: Programming language
+- **Prisma**: ORM for database interactions
+- **PostgreSQL**: Database
+- **Vitest**: Testing framework
+- **Zod**: Schema validation
+- **JWT**: Authentication
+- **AWS S3**: File storage
+- **Swagger/OpenAPI**: API documentation
+
+## Architecture
+
+### Layered Architecture
+
+The application follows a layered architecture pattern:
+
+```mermaid
+graph TD
+    A[Routes] --> B[Controllers]
+    B --> C[Services]
+    C --> D[Repositories]
+    D --> E[Database]
+    F[Middleware] --> A
+```
+
+1. **Routes Layer**: Defines API endpoints and routes requests to appropriate controllers
+2. **Controllers Layer**: Handles HTTP requests/responses, validates input, and delegates business logic to services
+3. **Services Layer**: Contains business logic, orchestrates operations, and interacts with repositories
+4. **Repositories Layer**: Handles data access operations using Prisma ORM
+5. **Database Layer**: PostgreSQL database managed through Prisma
+
+### Request-Response Flow
+
+```mermaid
+sequenceDiagram
+    Client->>+Express: HTTP Request
+    Express->>+Middleware: Process Request
+    Middleware->>+Router: Route to Handler
+    Router->>+Controller: Handle Request
+    Controller->>+Service: Execute Business Logic
+    Service->>+Repository: Data Operations
+    Repository->>+Database: Query/Mutation
+    Database-->>-Repository: Data
+    Repository-->>-Service: Processed Data
+    Service-->>-Controller: Result
+    Controller-->>-Router: HTTP Response
+    Router-->>-Middleware: Pass Response
+    Middleware-->>-Express: Process Response
+    Express-->>-Client: HTTP Response
+```
+
+## Key Components
+
+### Entry Point
+
+The application has two entry points:
+- `index.ts`: Main entry point that initializes the Express app, sets up middleware, and starts the server
+- `server.ts`: Configures the Express app, middleware, and routes (appears to be an alternative or newer setup)
+
+Note: There appears to be some duplication between these files that may need to be resolved.
+
+### Middleware
+
+- **Helmet**: Security headers
+- **CORS**: Cross-Origin Resource Sharing
+- **Rate Limiter**: Prevents abuse
+- **Request Logger**: Logs incoming requests
+- **Error Handler**: Centralized error handling
+
+### Authentication & Authorization
+
+- **JWT-based authentication**: Uses jsonwebtoken for token generation and verification
+- **Role-based access control**: Uses UserRole and UserPermission models
+- **Middleware**: Auth middleware for protecting routes
+
+## Database Schema
+
+The database schema is defined using Prisma and includes the following key models:
+
+- **User**: Stores user information (both internal and external users)
+- **Team**: Tracks team details of internal employees
+- **Project**: Stores project details
+- **Task**: Represents tasks within a project
+- **Subtask**: Represents subtasks within a task
+- **File**: Stores file information
+- **Material**: Stores project material information
+- **SiteVisitBox**: Stores site visit box configurations
+- **UserRole**: Defines user roles
+- **UserPermission**: Defines permissions
+- **Status**: Tracks status of projects and tasks
+- **Comment**: Stores comments on projects and tasks
+
+### Key Relationships
+
+```mermaid
+erDiagram
+    User ||--o{ Project : "creates/manages"
+    Project ||--o{ Task : "contains"
+    Task ||--o{ Subtask : "contains"
+    Task ||--o{ File : "has"
+    Project ||--o{ Material : "has"
+    Task ||--o{ SiteVisitBox : "has"
+    User }|--|| UserRole : "has"
+    UserRole }|--o{ UserPermission : "has"
+```
+
+## Configuration
+
+- **Environment Variables**: Loaded using dotenv
+- **TypeScript**: Configured with path aliases (@/* for src/*)
+- **Vitest**: Configured for testing with coverage and path aliases
+
+## API Structure
+
+The API follows a RESTful structure with the following main endpoints:
+
+- `/api/auth`: Authentication endpoints
+- `/api/users`: User management
+- `/api/projects`: Project management
+- `/api/bim`: BIM (Building Information Modeling) related endpoints
+- `/api/materials`: Material management
+- `/api/site-visit-boxes`: Site visit box management
+- `/health-check`: Health check endpoint
+- OpenAPI documentation (Swagger UI)
+
+## Testing Strategy
+
+The application uses Vitest as the testing framework. Tests should be co-located with the source files in `__tests__` directories. The testing strategy includes:
+
+- **Unit Tests**: For testing individual functions and components
+- **Integration Tests**: For testing interactions between components
+- **API Tests**: For testing API endpoints using supertest
+
+## Deployment
+
+The application is containerized using Docker, as evidenced by the presence of a Dockerfile.
+
+## Future Improvements
+
+- Resolve duplication between `index.ts` and `server.ts`
+- Implement comprehensive test coverage
+- Enhance error handling and logging
+- Improve API documentation

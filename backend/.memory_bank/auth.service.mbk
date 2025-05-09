@@ -1,0 +1,97 @@
+# Auth Service (`backend/src/services/auth.service.ts`)
+
+## Purpose
+
+This service handles the core business logic related to user authentication, including registration, login, password management (placeholder), and fetching user details by ID. It interacts with the User model via Prisma for database operations and uses bcrypt for password hashing and JWT for token generation.
+
+## Dependencies
+
+- `bcrypt`: For hashing and comparing passwords.
+- `jsonwebtoken`: For creating and verifying JWTs.
+- `prisma`: From `../config/db` (Prisma client instance).
+- `@prisma/client`: For `User` and `UserRole` types.
+- `http-status-codes`: For standardized HTTP status codes.
+- `ServiceResponse`: From `../common/models/serviceResponse` for standardized service responses.
+- Environment Variables: `JWT_SECRET`.
+
+## Functions
+
+### 1. `registerUser`
+
+-   **Purpose**: Registers a new user in the system.
+-   **Parameters**:
+    -   `data: RegisterUserData`
+        -   `name: string`
+        -   `email: string`
+        -   `phoneNumber: string`
+        -   `password: string`
+        -   `roleName?: string` (Optional, defaults to 'client' via hardcoded `roleId = 1`)
+-   **Returns**: `Promise<ServiceResponse<Omit<User, 'password'>> | ServiceResponse<null>>`
+-   **Internal Logic**:
+    1.  Checks if a user already exists with the given email or phone number using `prisma.user.findFirst`.
+    2.  If an existing user is found, returns a failure `ServiceResponse` with a `BAD_REQUEST` status.
+    3.  Hardcodes `roleId = 1` (assumed to be 'client' role). **TODO**: Make role assignment more robust (e.g., query by `roleName`).
+    4.  Hashes the provided password using `bcrypt.hash`.
+    5.  Creates a new user in the database using `prisma.user.create` with `verified: false` and `isActive: true`.
+    6.  If user creation is successful, returns a success `ServiceResponse` with the created user object (password excluded) and `CREATED` status.
+    7.  If any error occurs during creation, logs the error and returns a failure `ServiceResponse` with an `INTERNAL_SERVER_ERROR` status.
+-   **Key Test Scenarios Covered (`auth.service.test.ts`)**:
+    -   Successful user registration.
+    -   Attempting to register with an existing email.
+    -   Attempting to register with an existing phone number.
+    -   Handling database errors during user creation.
+
+### 2. `loginUser`
+
+-   **Purpose**: Logs in an existing user.
+-   **Parameters**:
+    -   `data: LoginUserData`
+        -   `email: string`
+        -   `password: string`
+-   **Returns**: `Promise<ServiceResponse<{ token: string; user: Omit<User, 'password'> }> | ServiceResponse<null>>`
+-   **Internal Logic**:
+    1.  Finds the user by email using `prisma.user.findUnique`, including their role.
+    2.  If the user is not found, returns a failure `ServiceResponse` (`UNAUTHORIZED`).
+    3.  If the user is found but `isActive` is false, returns a failure `ServiceResponse` (`FORBIDDEN`).
+    4.  (Commented out: Email verification check - `!user.verified`).
+    5.  Compares the provided password with the stored hashed password using `bcrypt.compare`.
+    6.  If passwords do not match, returns a failure `ServiceResponse` (`UNAUTHORIZED`).
+    7.  Checks if `JWT_SECRET` environment variable is defined. If not, logs an error and returns a failure `ServiceResponse` (`INTERNAL_SERVER_ERROR`).
+    8.  Creates a JWT payload containing `id`, `email`, `name`, and `role.roleType`.
+    9.  Signs the JWT using `jsonwebtoken.sign` with a 1-hour expiry. **TODO**: Consider longer expiry or refresh tokens.
+    10. Returns a success `ServiceResponse` with the token and user object (password excluded) and `OK` status.
+-   **Key Test Scenarios Covered (`auth.service.test.ts`)**:
+    -   Successful login with correct credentials.
+    -   Attempting to login with a non-existent email.
+    -   Attempting to login with an inactive account.
+    -   Attempting to login with an incorrect password.
+    -   Handling missing `JWT_SECRET` environment variable.
+
+### 3. `resetPassword`
+
+-   **Purpose**: Initiates the password reset process for a user (currently a placeholder).
+-   **Parameters**:
+    -   `email: string`
+-   **Returns**: `Promise<ServiceResponse<null>>`
+-   **Internal Logic**:
+    1.  Currently logs that a password reset was requested.
+    2.  Returns a failure `ServiceResponse` with `NOT_IMPLEMENTED` status.
+    3.  **TODO**: Implement actual logic: token generation, email sending, secure token storage.
+-   **Key Test Scenarios Covered (`auth.service.test.ts`)**:
+    -   (No specific tests yet as it's not implemented, but tests should be added once implemented). A test for the `NOT_IMPLEMENTED` status could be added.
+
+### 4. `getUserById`
+
+-   **Purpose**: Fetches a user's details by their ID, including their role.
+-   **Parameters**:
+    -   `id: number`
+-   **Returns**: `Promise<ServiceResponse<(Omit<User, 'password'> & { role: UserRole }) | null>>`
+-   **Internal Logic**:
+    1.  Finds the user by ID using `prisma.user.findUnique`, including their role information.
+    2.  If the user is not found, returns a failure `ServiceResponse` (`NOT_FOUND`).
+    3.  If found, returns a success `ServiceResponse` with the user object (password excluded, role included) and `OK` status.
+    4.  If any error occurs, logs the error and returns a failure `ServiceResponse` (`INTERNAL_SERVER_ERROR`).
+-   **Key Test Scenarios Covered (`auth.service.test.ts`)**:
+    -   Successfully fetching an existing user by ID.
+    -   Attempting to fetch a non-existent user.
+    -   Handling database errors during fetching.

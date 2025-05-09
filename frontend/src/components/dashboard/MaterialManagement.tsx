@@ -1,0 +1,368 @@
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import { useProjectMaterials, useCreateMaterial, useUpdateMaterial, useDeleteMaterial, Material, CreateMaterialData } from '@/hooks';
+import { Button } from '@/components/dashboard/button';
+import { Plus, Edit, Trash2, Save, X } from 'lucide-react';
+
+interface MaterialManagementProps {
+  projectId: number;
+}
+
+const MaterialManagement: React.FC<MaterialManagementProps> = ({ projectId }) => {
+  const { materials, loading: materialsLoading, refetch: refetchMaterials } = useProjectMaterials(projectId);
+  const { createMaterial, loading: createLoading } = useCreateMaterial(projectId);
+  const { deleteMaterial, loading: deleteLoading } = useDeleteMaterial();
+  
+  const [isAddingMaterial, setIsAddingMaterial] = useState(false);
+  const [editingMaterialId, setEditingMaterialId] = useState<number | null>(null);
+  const [formData, setFormData] = useState<CreateMaterialData>({
+    materialId: '',
+    plyThickness: 16,
+    innerLaminateCode: '',
+    outerLaminateCode: '',
+    plyType: 'HDHMR',
+    grainDirection: 'vertical',
+    edgebandingInnerCode: '',
+    edgebandingExposedCode: ''
+  });
+
+  // Reset form when adding new material
+  useEffect(() => {
+    if (isAddingMaterial) {
+      setFormData({
+        materialId: '',
+        plyThickness: 16,
+        innerLaminateCode: '',
+        outerLaminateCode: '',
+        plyType: 'HDHMR',
+        grainDirection: 'vertical',
+        edgebandingInnerCode: '',
+        edgebandingExposedCode: ''
+      });
+    }
+  }, [isAddingMaterial]);
+
+  // Set form data when editing a material
+  useEffect(() => {
+    if (editingMaterialId !== null) {
+      const materialToEdit = materials.find(m => m.id === editingMaterialId);
+      if (materialToEdit) {
+        setFormData({
+          materialId: materialToEdit.materialId,
+          plyThickness: materialToEdit.plyThickness,
+          innerLaminateCode: materialToEdit.innerLaminateCode,
+          outerLaminateCode: materialToEdit.outerLaminateCode,
+          plyType: materialToEdit.plyType,
+          grainDirection: materialToEdit.grainDirection || 'vertical',
+          edgebandingInnerCode: materialToEdit.edgebandingInnerCode,
+          edgebandingExposedCode: materialToEdit.edgebandingExposedCode
+        });
+      }
+    }
+  }, [editingMaterialId, materials]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    
+    // Convert numeric inputs to numbers
+    if (type === 'number') {
+      setFormData(prev => ({ ...prev, [name]: parseFloat(value) }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      if (editingMaterialId !== null) {
+        // Update existing material
+        const { updateMaterial } = useUpdateMaterial(editingMaterialId);
+        await updateMaterial(formData);
+        setEditingMaterialId(null);
+      } else {
+        // Create new material
+        await createMaterial(formData);
+        setIsAddingMaterial(false);
+      }
+      
+      // Refresh materials list
+      refetchMaterials();
+    } catch (error) {
+      console.error('Error saving material:', error);
+      alert('Failed to save material. Please try again.');
+    }
+  };
+
+  const handleDelete = async (materialId: number) => {
+    if (window.confirm('Are you sure you want to delete this material?')) {
+      try {
+        await deleteMaterial(materialId);
+        refetchMaterials();
+      } catch (error) {
+        console.error('Error deleting material:', error);
+        alert('Failed to delete material. Please try again.');
+      }
+    }
+  };
+
+  const calculateOverallThickness = (plyThickness: number): number => {
+    // Assuming inner and outer laminates are 1mm each
+    return plyThickness + 2;
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6 mb-6">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold text-gray-800">Material Management</h2>
+        {!isAddingMaterial && !editingMaterialId && (
+          <Button onClick={() => setIsAddingMaterial(true)} size="sm">
+            <Plus size={16} className="mr-1" /> Add Material
+          </Button>
+        )}
+      </div>
+      
+      {materialsLoading ? (
+        <p className="text-gray-500">Loading materials...</p>
+      ) : (
+        <>
+          {/* Material Form */}
+          {(isAddingMaterial || editingMaterialId !== null) && (
+            <form onSubmit={handleSubmit} className="bg-gray-50 p-4 rounded-md mb-4 border border-gray-200">
+              <h3 className="text-lg font-medium mb-3">
+                {editingMaterialId !== null ? 'Edit Material' : 'Add New Material'}
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Material ID
+                  </label>
+                  <input
+                    type="text"
+                    name="materialId"
+                    value={formData.materialId}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                    placeholder="e.g., M001"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ply Thickness (mm)
+                  </label>
+                  <input
+                    type="number"
+                    name="plyThickness"
+                    value={formData.plyThickness}
+                    onChange={handleInputChange}
+                    required
+                    min="1"
+                    step="0.1"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Inner Laminate Code
+                  </label>
+                  <input
+                    type="text"
+                    name="innerLaminateCode"
+                    value={formData.innerLaminateCode}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                    placeholder="e.g., IL001"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Outer Laminate Code
+                  </label>
+                  <input
+                    type="text"
+                    name="outerLaminateCode"
+                    value={formData.outerLaminateCode}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                    placeholder="e.g., OL001"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ply Type
+                  </label>
+                  <select
+                    name="plyType"
+                    value={formData.plyType}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                  >
+                    <option value="HDHMR">HDHMR</option>
+                    <option value="Blockboard">Blockboard</option>
+                    <option value="MDF">MDF</option>
+                    <option value="Plywood">Plywood</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Grain Direction
+                  </label>
+                  <select
+                    name="grainDirection"
+                    value={formData.grainDirection}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                  >
+                    <option value="vertical">Vertical</option>
+                    <option value="horizontal">Horizontal</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Edgebanding Inner Code
+                  </label>
+                  <input
+                    type="text"
+                    name="edgebandingInnerCode"
+                    value={formData.edgebandingInnerCode}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                    placeholder="e.g., EI001"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Edgebanding Exposed Code
+                  </label>
+                  <input
+                    type="text"
+                    name="edgebandingExposedCode"
+                    value={formData.edgebandingExposedCode}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                    placeholder="e.g., EE001"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Overall Thickness (mm)
+                  </label>
+                  <input
+                    type="text"
+                    value={calculateOverallThickness(formData.plyThickness)}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-200 bg-gray-100 rounded-md shadow-sm text-gray-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Calculated: Ply + Inner + Outer Laminate</p>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsAddingMaterial(false);
+                    setEditingMaterialId(null);
+                  }}
+                >
+                  <X size={16} className="mr-1" /> Cancel
+                </Button>
+                <Button type="submit" disabled={createLoading}>
+                  <Save size={16} className="mr-1" /> Save
+                </Button>
+              </div>
+            </form>
+          )}
+          
+          {/* Materials List */}
+          {materials.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Material ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ply Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thickness</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Laminates</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Edgebanding</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {materials.map((material) => (
+                    <tr key={material.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {material.materialId}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {material.plyType}
+                        {material.grainDirection && <span className="text-xs ml-1">({material.grainDirection})</span>}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {material.overallThickness}mm
+                        <span className="text-xs block">(Ply: {material.plyThickness}mm)</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div>Inner: {material.innerLaminateCode}</div>
+                        <div>Outer: {material.outerLaminateCode}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div>Inner: {material.edgebandingInnerCode}</div>
+                        <div>Exposed: {material.edgebandingExposedCode}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex space-x-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => setEditingMaterialId(material.id)}
+                            disabled={isAddingMaterial || editingMaterialId !== null}
+                          >
+                            <Edit size={16} />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleDelete(material.id)}
+                            disabled={deleteLoading || isAddingMaterial || editingMaterialId !== null}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-gray-500 py-4 text-center">
+              No materials defined yet. Add materials to use in your box configurations.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+export default MaterialManagement;

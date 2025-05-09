@@ -1,0 +1,23 @@
+# Validations Module (`backend/src/validations`)
+
+## Purpose
+
+This module contains custom validation logic or schemas that might be more complex or reusable than those defined directly within DTOs. It could house Zod schemas or custom validation functions used to ensure data integrity for specific business rules.
+
+## Main Components
+
+- `bim.validation.ts`: Contains validation schemas or functions specific to BIM data.
+- `siteVisit.validation.ts`: Contains validation schemas or functions specific to site visit data.
+- (Other validation files for different domains or complex validation scenarios).
+
+## Key Functionalities (to be detailed)
+
+- Defining complex Zod schemas that might be composed of smaller DTO schemas or involve conditional logic.
+- Implementing custom validation functions that perform checks beyond what Zod can easily express (e.g., database lookups for uniqueness, cross-field validation with complex rules).
+- Providing reusable validation logic that can be applied in multiple places (e.g., in services before database operations, or in controllers for specific checks).
+
+## Interactions (to be detailed)
+
+- How these validation schemas or functions are used by controllers or services.
+- If they are used as middleware for request validation.
+- Relationship with DTOs: This module might provide more advanced validation for data structures defined in DTOs, or validate data that isn't directly part of a request/response DTO.
