@@ -6,6 +6,8 @@ import { useUser } from '@/context/UserContext';
 import Breadcrumbs from '@/components/dashboard/Breadcrumbs';
 import { Project, User, UpdateProjectData } from '@/types';
 import { useProject, useDeleteProject, useUpdateProject } from '@/hooks';
+import MaterialManagement from '@/components/dashboard/MaterialManagement';
+import ModelSelector from '@/components/dashboard/ModelSelector';
 import {
   ProjectHeader,
   ProjectDetails,
@@ -116,6 +118,8 @@ export default function ProjectDetailPage() {
           project={project} 
           formatDate={formatDate} 
         />
+        <MaterialManagement projectId={parseInt(projectId)} />
+        <ModelSelector project={project} />
       </div>
 
       <ProjectTasks 

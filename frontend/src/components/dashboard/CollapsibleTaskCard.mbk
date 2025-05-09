@@ -1,0 +1,63 @@
+# Memory Bank: CollapsibleTaskCard.tsx
+
+## File Description
+`frontend/src/components/dashboard/CollapsibleTaskCard.tsx` is a React client component responsible for rendering an individual task card within a project's task list. It displays task details, status, and provides functionality to expand/collapse for viewing and managing subtasks. It also dynamically renders specific components based on task metadata.
+
+## Purpose and Functionality
+- **Display Task Information**: Shows task name, stage, status, creation/update dates, and uploader role.
+- **Collapsible Subtask View**: Allows users to expand the card to see associated subtasks and interact with them.
+- **Subtask Management**:
+    - Toggle completion status of subtasks.
+    - Add new subtasks.
+    - Delete subtasks.
+- **Dynamic Component Rendering (via `metadataJson`)**:
+    - For tasks named "Site Visit" that have valid `metadataJson` containing a `frontendComponents` array, this card will:
+        - Parse the `metadataJson`.
+        - Lazily import and render the React components specified in the `frontendComponents` array (e.g., `MaterialManagement`, `ModelSelector`). This is wrapped in `<Suspense>`.
+- **Integration with BIM Content**: Renders `BimTaskContent` for tasks, passing necessary IDs and names.
+
+## Key Props
+- `task: Task`: The main task object, including its `subtasks` array and `metadataJson`.
+- `formatDate: (dateString?: string) => string`: A utility function to format date strings.
+- `project?: Project`: The parent project object, used to pass `projectId` or other project details to child components like `MaterialManagement`.
+
+## State Management
+- `isOpen: boolean`: Controls the collapsed/expanded state of the card.
+- `currentSubtasks: Subtask[]`: Local state for managing the list of subtasks, allowing for real-time updates upon add/delete/completion toggle.
+- `newSubtaskName: string`: Holds the value for the new subtask input field.
+
+## Key Functions
+- `handleToggleSubtaskCompletion()`: Updates a subtask's completion status via an API call and refreshes local state.
+- `handleAddSubtask()`: Creates a new subtask via an API call and adds it to the local state.
+- `handleDeleteSubtask()`: Deletes a subtask via an API call and removes it from local state.
+
+## Rendering Logic for Dynamic Components
+- Inside the expanded view (`isOpen === true`):
+    - It checks if `task.name === "Site Visit"` and if `task.metadataJson` is present.
+    - If true, it attempts to `JSON.parse(task.metadataJson)`.
+    - If parsing is successful and `metadata.frontendComponents` is an array:
+        - It maps over this array.
+        - For component paths including "MaterialManagement.tsx", it renders `<MaterialManagement projectId={project?.id} />`.
+        - For component paths including "ModelSelector.tsx", it renders `<ModelSelector subtask={task as any} project={project} />`. (Note: `task as any` is used for the `subtask` prop, which might need refinement based on `ModelSelector`'s specific prop requirements if it strictly expects a `Subtask` object).
+        - These components are wrapped in `<Suspense>` for lazy loading.
+        - Null checks are in place for `project` and `project.id` before passing them as props.
+
+## Dependencies
+- React (`useState`, `useEffect`, `lazy`, `Suspense`)
+- `@/components/dashboard/button`
+- `lucide-react` (for icons)
+- `./BimTaskContent` (local component)
+- `@/components/dashboard/MaterialManagement` (lazy-loaded)
+- `@/components/dashboard/ModelSelector` (lazy-loaded)
+- `@/types` (for `Task`, `Subtask`, `Project` interfaces)
+
+## Recent Changes (2025-05-09)
+- Added logic to parse `task.metadataJson` for tasks named "Site Visit".
+- Implemented conditional rendering of `MaterialManagement` and `ModelSelector` components based on paths found in `task.metadataJson.frontendComponents`.
+- Used `React.lazy` and `Suspense` for these dynamically loaded components.
+- Corrected import paths for `MaterialManagement` and `ModelSelector` to use `@/components/dashboard/...`.
+- Ensured `task.name` (not `task.taskName`) is used for conditions.
+- Added null/undefined checks for `project` and `project.id` when passing them as props to `MaterialManagement` and `ModelSelector`.
+- Ensured components are rendered in two ways for redundancy:
+  1. Through the task's `metadataJson` when `task.name === "Site Visit"`.
+  2. Through a specific subtask when `subtask.name === "BIM engineer to upload site measurements"`.

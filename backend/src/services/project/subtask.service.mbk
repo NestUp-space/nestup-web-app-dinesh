@@ -1,0 +1,108 @@
+# Memory Bank: backend/src/services/project/subtask.service.ts
+
+**Overall Description:**
+The `SubtaskService` class is responsible for handling the business logic specifically related to project subtasks. It manages operations such as creating, retrieving, updating, and deleting subtasks. It includes logic for cleaning metadata during subtask creation and provides information about the completion status of sibling subtasks when a subtask is updated. It uses an `ISubtaskRepository` for data access.
+
+**Key Class: `SubtaskService`**
+
+**Dependencies:**
+-   `ISubtaskRepository`: Injected for data access to subtask entities.
+
+---
+
+**Key Method: `createSubtask(data: CreateSubtaskDto)`**
+
+**When it runs:**
+Called by `TaskService` (specifically `createTaskFromTemplate`) when a new task with subtask definitions is being created.
+
+**How it runs (High-Level):**
+1.  Receives `data: CreateSubtaskDto` (which includes `taskId`, `name`, and other optional subtask fields like `description`, `metadataJson`).
+2.  Performs metadata cleaning on `data.metadataJson` if it's a string:
+    a.  Parses the JSON string.
+    b.  If `metadata.allowedFileTypes` is an array, it maps over it to remove leading dots from file extension strings (e.g., ".pdf" becomes "pdf").
+    c.  The cleaned `metadataJson` (or original if no cleaning was needed or parsing failed) is prepared.
+3.  Constructs the final `dataToCreate` object for the repository, including the cleaned `metadataJson`.
+4.  Calls `this.subtaskRepository.create(dataToCreate)` to persist the new subtask.
+5.  Returns the newly created `Subtask` object.
+
+**Why it runs:**
+To create a single subtask with necessary data transformations (like metadata cleaning) before saving it to the database.
+
+**Input:**
+-   `data: CreateSubtaskDto` (contains `taskId`, `name`, `description?`, `actionRequired?`, `type?`, `metadataJson?`)
+
+**Output:**
+-   Success: The newly created `Subtask` object.
+-   Error: Throws an error if repository call fails.
+
+**Diagram (Simplified Flow for `createSubtask`):**
+```mermaid
+graph TD
+    A[TaskService Calls subtaskService.createSubtask] -- CreateSubtaskDto --> B{SubtaskService.createSubtask};
+    B -- metadataJson needs cleaning? --> C{Clean metadataJson};
+    C -- Cleaned DTO --> D[subtaskRepository.create];
+    B -- No cleaning needed --> D;
+    D -- New Subtask --> B;
+    B -- New Subtask --> E[Return Subtask Object];
+```
+
+---
+
+**Key Method: `updateSubtask(subtaskId: number, data: UpdateSubtaskDto)`**
+
+**When it runs:**
+Called by `TaskService` (specifically `updateSubtaskAndPotentiallyParent`) when a subtask needs to be updated.
+
+**How it runs (High-Level):**
+1.  Receives `subtaskId` and `data: UpdateSubtaskDto` (fields to update on the subtask).
+2.  Calls `this.subtaskRepository.update(subtaskId, data)` to update the subtask in the database.
+3.  Initializes `allSiblingSubtasksCompleted = false`.
+4.  If `data.completed` was explicitly set to `true` in the input:
+    a.  Calls `this.subtaskRepository.areAllSubtasksCompleted(updatedSubtask.taskId)` to check if all subtasks for the parent task are now complete.
+    b.  Sets `allSiblingSubtasksCompleted` to the result of this check.
+5.  If `data.completed` was explicitly set to `false`, `allSiblingSubtasksCompleted` remains `false` (or is explicitly set to `false`).
+6.  Returns an object `{ subtask: UpdatedSubtask, allSiblingSubtasksCompleted: boolean }`.
+
+**Why it runs:**
+To update a subtask and provide feedback to the calling service (`TaskService`) about whether this update resulted in all sibling subtasks for the parent task being completed. This allows `TaskService` to decide if the parent task's status should change.
+
+**Input:**
+-   `subtaskId: number`
+-   `data: UpdateSubtaskDto` (can include `name?`, `description?`, `completed?`, etc.)
+
+**Output:**
+-   Success: An object `{ subtask: Subtask, allSiblingSubtasksCompleted: boolean }`.
+-   Error: Throws an error if repository call fails.
+
+**Diagram (Simplified Flow for `updateSubtask`):**
+```mermaid
+graph TD
+    A[TaskService Calls subtaskService.updateSubtask] -- subtaskId, UpdateSubtaskDto --> B{SubtaskService.updateSubtask};
+    B --> C[subtaskRepository.update];
+    C -- Updated Subtask --> B;
+    B -- data.completed === true? --> D{Yes};
+    B -- data.completed === false? --> E{No (allSiblingSubtasksCompleted = false)};
+    B -- data.completed undefined? --> E;
+    D --> F[subtaskRepository.areAllSubtasksCompleted];
+    F -- boolean --> B[Set allSiblingSubtasksCompleted];
+    E --> B;
+    B -- {subtask, allSiblingSubtasksCompleted} --> G[Return {subtask, allSiblingSubtasksCompleted}];
+```
+
+---
+
+**Other Key Methods:**
+
+*   **`getSubtasksByTaskId(taskId: number)`:**
+    *   Retrieves all subtasks for a given `taskId` using `subtaskRepository.findByTaskId()`.
+    *   Returns `SubtaskBase[]`.
+
+*   **`deleteSubtask(subtaskId: number)`:**
+    *   Deletes a subtask using `subtaskRepository.delete()`.
+    *   Returns the deleted `Subtask`.
+
+*   **`transformToResponseDto(subtask: SubtaskBase)`:**
+    *   Transforms a `Subtask` entity into a `SubtaskResponseDto` suitable for API responses.
+
+---
+*This .mbk file describes the `SubtaskService` class.*

@@ -1,12 +1,18 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react'; // Added lazy and Suspense
 import { Button } from '@/components/dashboard/button';
 import { Eye, Edit3, ChevronDown, ChevronUp, CheckCircle, Circle, PlusCircle as PlusCircleIcon, Trash2 as TrashIcon, UploadCloud, Info, UserCheck, Download, Package } from 'lucide-react';
 import BimTaskContent from './BimTaskContent';
-import ModelSelector from './ModelSelector';
-import MaterialManagement from './MaterialManagement';
+// Use corrected paths for dynamic import
+// import ModelSelector from '@/components/dashboard/ModelSelector'; 
+// import MaterialManagement from '@/components/dashboard/MaterialManagement';
 import { Task, Subtask, Project } from '@/types';
+
+// Lazy load the components
+const MaterialManagement = lazy(() => import('@/components/dashboard/MaterialManagement'));
+const ModelSelector = lazy(() => import('@/components/dashboard/ModelSelector'));
+
 
 interface CollapsibleTaskCardProps {
   task: Task;
@@ -236,6 +242,47 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
               taskName={task.name}
             />
           )}
+
+          {/* New logic for Site Visit task specific components */}
+          {task.name === "Site Visit" && task.metadataJson && (
+            (() => {
+              try {
+                const metadata = JSON.parse(task.metadataJson);
+                if (metadata && Array.isArray(metadata.frontendComponents)) {
+                  return (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <h5 className="text-sm font-semibold text-gray-700 mb-3">Task Specific Tools:</h5>
+                      <Suspense fallback={<div>Loading tools...</div>}>
+                        {metadata.frontendComponents.map((componentPath: string) => {
+                          if (componentPath.includes('MaterialManagement.tsx')) {
+                            if (project && typeof project.id === 'number') {
+                              return <MaterialManagement key="material-management" projectId={project.id} />;
+                            }
+                            return <p key="mm-loading-error" className="text-xs text-gray-500">Material Management (Project ID missing)</p>;
+                          }
+                          if (componentPath.includes('ModelSelector.tsx')) {
+                            if (project) {
+                              // Pass the main task as 'subtask' prop if ModelSelector expects a task-like object.
+                              // This casting to 'any' for subtask might hide type issues if ModelSelector strictly expects a Subtask.
+                              return <ModelSelector key="model-selector" subtask={task as any} project={project} />;
+                            }
+                            return <p key="ms-loading-error" className="text-xs text-gray-500">Model Selector (Project data missing)</p>;
+                          }
+                          return null;
+                        })}
+                      </Suspense>
+                    </div>
+                  );
+                }
+              } catch (e) {
+                console.error("Failed to parse task metadataJson:", e);
+                return <p className="text-xs text-red-500 mt-2">Error loading task tools.</p>;
+              }
+              return null;
+            })()
+          )}
+
+          {/* The duplicated BIM Task Content block that was here has been removed. */}
 
           <form onSubmit={handleAddSubtask} className="mt-4 flex items-center space-x-2">
             <input

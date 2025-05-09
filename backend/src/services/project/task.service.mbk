@@ -1,0 +1,126 @@
+# Memory Bank: backend/src/services/project/task.service.ts
+
+**Overall Description:**
+The `TaskService` class is responsible for handling the business logic related to project tasks. It manages operations such as creating tasks (including their subtasks from templates), retrieving, updating, and deleting tasks. It also handles status updates and the logic for automatically updating a parent task's status when all its subtasks are completed. It uses an `ITaskRepository` for data access and a `SubtaskService` for subtask-specific operations.
+
+**Key Class: `TaskService`**
+
+**Dependencies:**
+-   `ITaskRepository`: Injected for data access to task entities.
+-   `SubtaskService` (injected as `_subtaskService` via a setter): Used to delegate operations on subtasks (create, update).
+
+---
+
+**Key Method: `createTaskFromTemplate(projectId: number, taskTemplateItem: TaskTemplate)`**
+
+**When it runs:**
+Called by `ProjectService` when a new project is created, for each task template defined in `defaultProjectTaskTemplates`.
+
+**How it runs (High-Level):**
+  1.  Receives `projectId` and a `taskTemplateItem` (which includes task details, optional `metadataJson`, and an array of subtask templates).
+  2.  Validates the `taskTemplateItem`.
+  3.  Constructs a `CreateTaskDto` from `taskTemplateItem` details (name, stage, status, roles, `actionRequired`, and `metadataJson` if present).
+  4.  Calls `this.taskRepository.create(taskDataToCreate)` to create the main task record.
+  5.  If `this._subtaskService` is injected and `taskTemplateItem.subtasks` exist:
+    a.  Iterates through each `subtaskTemplate` in `taskTemplateItem.subtasks`.
+    b.  Constructs a `CreateSubtaskDto` for each subtask.
+    c.  Calls `this._subtaskService.createSubtask(subtaskDataToCreate)` to create the subtask. (Note: `SubtaskService.createSubtask` handles metadata cleaning).
+6.  Returns the newly created `Task` object.
+
+**Why it runs:**
+To create a single task and all its defined subtasks based on a template, ensuring all parts are correctly persisted.
+
+**Input:**
+-   `projectId: number`
+-   `taskTemplateItem: TaskTemplate` (contains task name, stage, statusId, roles, and an array of subtask templates)
+
+**Output:**
+-   Success: The newly created `Task` object.
+-   Error: Throws an error if validation fails or if repository/subtask service calls fail.
+
+**Diagram (Simplified Flow for `createTaskFromTemplate`):**
+```mermaid
+graph TD
+    A[ProjectService Calls taskService.createTaskFromTemplate] -- projectId, TaskTemplateItem --> B{TaskService.createTaskFromTemplate};
+    B -- Task Details --> C[taskRepository.create (Task)];
+    C -- New Task --> B;
+    B -- Has Subtasks? --> D{Loop: For each SubtaskTemplate};
+    D -- Subtask Details --> E[_subtaskService.createSubtask];
+    E -- Creates Subtask --> D;
+    D -- Done --> B;
+    B -- New Task --> F[Return Task Object];
+```
+
+---
+
+**Key Method: `updateSubtaskAndPotentiallyParent(subtaskId: number, subtaskData: UpdateSubtaskDto)`**
+
+**When it runs:**
+Called when a subtask needs to be updated, with the added responsibility of checking if this update should trigger a change in the parent task's status (e.g., auto-completion). Typically called from a controller handling subtask updates.
+
+**How it runs (High-Level):**
+1.  Receives `subtaskId` and `subtaskData` (fields to update on the subtask).
+2.  Checks if `this._subtaskService` is injected; throws error if not.
+3.  Calls `this._subtaskService.updateSubtask(subtaskId, subtaskData)`. This method in `SubtaskService` updates the subtask and returns an object `{ subtask: UpdatedSubtask, allSiblingSubtasksCompleted: boolean }`.
+4.  If `allSiblingSubtasksCompleted` is `true`:
+    a.  Fetches the parent task using `this.taskRepository.findById(updatedSubtask.taskId)`.
+    b.  If the parent task exists and its status is not already "completed" (e.g., statusId 3):
+        i.  Calls `this.updateTaskStatus(parentTask.id, COMPLETED_STATUS_ID)` to mark the parent task as completed.
+        ii. The updated parent task is stored.
+5.  If the parent task was not updated (either because not all subtasks were complete or it was already complete), it fetches the current state of the parent task.
+6.  Returns an object `{ task: parentTask (possibly updated or current state), subtask: updatedSubtask }`.
+
+**Why it runs:**
+To update a subtask and manage the side effect of potentially auto-completing its parent task if all sibling subtasks are now complete.
+
+**Input:**
+-   `subtaskId: number`
+-   `subtaskData: UpdateSubtaskDto`
+
+**Output:**
+-   Success: An object `{ task: TaskWithSubtasks | null, subtask: Subtask }`.
+-   Error: Throws an error if `SubtaskService` is not injected or if underlying service calls fail.
+
+**Diagram (Simplified Flow for `updateSubtaskAndPotentiallyParent`):**
+```mermaid
+graph TD
+    A[Controller Calls taskService.updateSubtaskAndPotentiallyParent] -- subtaskId, UpdateSubtaskDto --> B{TaskService.updateSubtaskAndPotentiallyParent};
+    B --> C[_subtaskService.updateSubtask];
+    C -- {subtask, allSiblingSubtasksCompleted} --> B;
+    B -- allSiblingSubtasksCompleted is true? --> D{Yes};
+    B -- allSiblingSubtasksCompleted is false? --> E{No - Fetch Parent Task};
+    D --> F[taskRepository.findById (Parent Task)];
+    F -- Parent Task --> G{Parent Task Not Already Completed?};
+    G -- Yes --> H[taskService.updateTaskStatus (Parent Task to Completed)];
+    H -- Updated Parent Task --> B;
+    G -- No --> B;
+    E --> B;
+    B -- {task (parent), subtask} --> I[Return {task, subtask} to Controller];
+```
+
+---
+
+**Other Key Methods:**
+
+*   **`getTasks(projectId: number)`:**
+    *   Retrieves all tasks for a given `projectId` using `taskRepository.findMany()`.
+    *   Returns `TaskWithSubtasks[]`.
+
+*   **`updateTask(taskId: number, data: UpdateTaskDto)`:**
+    *   Updates a task using `taskRepository.update()`.
+    *   Includes a check: if `data.statusId` is being set to "completed", it verifies that all subtasks of this task are also completed. Throws an error if not.
+    *   Returns the updated `Task`.
+
+*   **`deleteTask(taskId: number)`:**
+    *   Deletes a task using `taskRepository.delete()`.
+    *   Returns the deleted `Task`.
+
+*   **`updateTaskStatus(taskId: number, newStatusId: number)`:**
+    *   Updates only the status of a task using `taskRepository.updateStatus()`.
+    *   Returns `TaskWithSubtasks`.
+
+*   **`transformToResponseDto(task: TaskWithSubtasks)`:**
+    *   Transforms a `Task` entity (with its subtasks and `metadataJson`) into a `TaskResponseDto` suitable for API responses. This DTO now includes the `metadataJson` field.
+
+---
+*This .mbk file describes the `TaskService` class. It depends on `SubtaskService` for subtask operations. Recent changes (2025-05-09) include handling `metadataJson` for tasks during creation from templates and in response DTOs.*

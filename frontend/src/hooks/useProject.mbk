@@ -1,0 +1,51 @@
+# Memory Bank: useProject.ts
+
+## File Description
+`frontend/src/hooks/useProject.ts` defines custom React hooks for fetching and managing project-related data, including projects, tasks, and subtasks. It also exports the TypeScript interfaces for these entities as used on the frontend.
+
+## Purpose and Functionality
+- **Data Fetching Hooks**: Provides hooks like `useProjects` (for all projects) and `useProject` (for a single project by ID) that encapsulate API calls (using `useGet` from `./useApi`) and manage state (data, loading, error).
+- **Data Mutation Hooks**: Offers hooks like `useCreateProject`, `useUpdateProject`, and `useDeleteProject` that wrap `usePost`, `usePut`, `useDelete` respectively, to perform CUD operations on projects.
+- **Type Definitions**: Exports key interfaces (`Project`, `Task`, `Subtask`, `CreateProjectData`, `UpdateProjectData`) that define the structure of project-related data on the frontend. These types are consumed by components and other hooks.
+
+## Key Interfaces and Recent Changes (related to `metadataJson`)
+
+### `Task` Interface
+- **Purpose**: Defines the structure of a task object on the frontend.
+- **Interface Snippet**:
+  ```typescript
+  interface Task {
+    id: number;
+    name: string;
+    stage?: string;
+    uploaderRole?: string;
+    viewerRoles?: string;
+    status: { id: number; status: string };
+    createdAt: string;
+    updatedAt: string;
+    metadataJson?: string; // For additional structured data
+    subtasks?: Subtask[];
+  }
+  ```
+- **Recent Changes (2025-05-09)**:
+    - Added `metadataJson?: string;` to the `Task` interface. This allows the frontend to receive and utilize stringified JSON metadata associated with a task, which can be used for features like dynamically rendering UI components based on this metadata.
+
+### Other Interfaces
+- `Project`: Defines the structure of a project, including an array of `Task` objects.
+- `Subtask`: Defines the structure of a subtask. It already included `metadataJson?: string;`.
+- `CreateProjectData`, `UpdateProjectData`: Define data structures for creating and updating projects.
+
+## How and When They Are Used
+- **Hooks**:
+    - `useProjects()`: Typically called in components that list multiple projects (e.g., a projects dashboard page).
+    - `useProject(projectId)`: Called in components that display details for a single project (e.g., a project detail page).
+    - `useCreateProject()`, `useUpdateProject()`, `useDeleteProject()`: Used in forms or UI elements that trigger project creation, update, or deletion.
+- **Types**:
+    - `Project`, `Task`, `Subtask` types are used throughout the frontend application (components, other hooks, utility functions) to ensure type safety when dealing with project-related data.
+
+## Dependencies
+- React (`useState`, `useCallback`)
+- `./useApi` (for `useGet`, `usePost`, `usePut`, `useDelete` base API hooks)
+
+## Relationship to Other Hooks
+- This file exports `Task` and `Subtask` types which are then imported and re-exported by `frontend/src/hooks/useTask.ts` and `frontend/src/hooks/useSubtask.ts` respectively, and ultimately by `frontend/src/types/index.ts`. This makes `useProject.ts` a central place for these core frontend type definitions.

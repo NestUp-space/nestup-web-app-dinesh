@@ -1,0 +1,88 @@
+# Memory Bank: projectTaskTemplate.ts
+
+## File Description
+This file (`backend/src/constants/projectTaskTemplate.ts`) defines the default set of tasks and subtasks that are automatically created when a new project is initiated in the system. It exports an array of `TaskTemplate` objects and a function `getDefaultProjectTaskTemplates()` to access a deep copy of these templates.
+
+## Purpose and Functionality
+- **Standardized Project Kickstart**: Provides a consistent starting point for all new projects by pre-populating them with a common workflow.
+- **Defines Project Lifecycle Stages**: The templates are organized by stages (e.g., "Site measurements", "Design", "Payment", "Approval", "Pre-Production", "Production"), outlining a typical project flow.
+- **Specifies Task Details**: Each task template includes:
+    - `stage`: The project phase it belongs to.
+    - `taskName`: A descriptive name for the task.
+    - `statusId`: The initial status of the task (typically 'Pending').
+    - `uploaderRole`: The user role responsible for initiating or providing primary input for the task (e.g., "Client", "BIM Engineer").
+    - `viewerRoles`: User roles that have permission to view the task.
+    - `actionRequired`: A brief description of what needs to be done for the task.
+    - `metadataJson`: (Optional) A stringified JSON object for additional, task-specific structured data, such as paths to associated frontend components.
+    - `subtasks`: An array of `SubtaskTemplate` objects, breaking down the main task into smaller, manageable steps.
+- **Subtask Granularity**: Subtasks further detail the workflow, specifying:
+    - `name`: The subtask's name.
+    - `actionRequired`: The specific action for the subtask.
+    - `type`: The nature of the subtask (e.g., 'upload', 'approval', 'payment', 'information').
+    - `metadataJson`: A stringified JSON object for additional, structured information relevant to the subtask (e.g., allowed file types, document names, specific invoice types).
+
+## How and When It Runs
+- The `defaultProjectTaskTemplates` array is a constant defined at module load.
+- The `getDefaultProjectTaskTemplates()` function is called by services responsible for project creation (e.g., `ProjectService` via `TaskService`). When a new project is created, this function is invoked to retrieve the standard task structure.
+- The service then iterates through these templates to create actual `Task` and `Subtask` entities in the database, linking them to the new project.
+
+## Key Data Structures
+- `TaskTemplate` (imported from `../types/projectTemplate.types`):
+  ```typescript
+  interface TaskTemplate {
+    taskName: string;
+    stage: string;
+    statusId: number;
+    uploaderRole: string;
+    viewerRoles: string | string[];
+    actionRequired?: string;
+    metadataJson?: string | null; // Added
+    subtasks: SubtaskTemplate[];
+  }
+  ```
+- `SubtaskTemplate` (imported from `../types/projectTemplate.types`):
+  ```typescript
+  interface SubtaskTemplate {
+    name: string;
+    description?: string;
+    actionRequired?: string;
+    type?: string;
+    metadataJson?: string | null;
+  }
+  ```
+
+## Inputs and Outputs
+- **Inputs**: None directly at runtime for the constant itself. The `getDefaultProjectTaskTemplates()` function takes no arguments.
+- **Outputs**:
+    - `defaultProjectTaskTemplates`: An array of `TaskTemplate` objects.
+    - `getDefaultProjectTaskTemplates()`: Returns a deep copy of the `defaultProjectTaskTemplates` array.
+
+## Dependencies
+- `../types/projectTemplate.types`: Contains the TypeScript interface definitions for `TaskTemplate` and `SubtaskTemplate`.
+
+## Recent Changes (as of 2025-05-09)
+- The entire set of `defaultProjectTaskTemplates` was overhauled to include a comprehensive list of tasks as per new requirements. This involved adding multiple stages and detailed tasks with subtasks for:
+    - Site measurements (Book Site Visit, Site Visit, Design inputs with image uploads and approval)
+    - Payment (Token Deposit, First Installment, Last Installment)
+    - Design (Site photos, Finalise designs)
+    - Approval (Production document with uploads and approval, Performa invoice with specific types and payment)
+    - Pre-Production (Material estimation with cuttist upload)
+    - Production (Input QA, Pressing list, G code and cutting list, Output QA, Installation Guide upload)
+- Ensured `metadataJson` in subtasks, where objects were used, are now correctly `JSON.stringify()`-ed to match the `string | null` type definition.
+- Added `metadataJson` to the main `TaskTemplate` definition and utilized it in the "Site Visit" task to store paths to related frontend components (`MaterialManagement.tsx`, `ModelSelector.tsx`).
+- Added a subtask named "BIM engineer to upload site measurements" to the "Site Visit" task to ensure the `MaterialManagement` and `ModelSelector` components are rendered both through the task's `metadataJson` and through the subtask-specific rendering logic in `CollapsibleTaskCard.tsx`.
+- The `getDefaultProjectTaskTemplates` function was updated to perform a deep copy of the templates to prevent accidental modification of the source constant.
+
+## Diagram (Conceptual Flow of Usage)
+```mermaid
+graph TD
+    A[Project Creation Request] --> B{ProjectService.createProject};
+    B --> C{TaskService.createTaskFromTemplate};
+    C --> D[getDefaultProjectTaskTemplates()];
+    D --> E{Iterate TaskTemplates};
+    E --> F[Create Task Entity in DB];
+    F --> G{Iterate SubtaskTemplates};
+    G --> H[Create Subtask Entity in DB];
+    H --> I[Project Created with Default Tasks];
+```
+This diagram shows that when a project creation is requested, the `ProjectService` (likely via `TaskService`) calls `getDefaultProjectTaskTemplates()` to get the standard tasks. These templates are then used to populate the new project with corresponding task and subtask records in the database.

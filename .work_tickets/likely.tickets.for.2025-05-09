@@ -16,3 +16,132 @@ Next Steps:
   - Verify if the API responds with a 200/201 status code.
   - Verify if the frontend "taskName" error is resolved.
   - If errors persist, capture the new backend error message and frontend console output.
+
+---
+Task Name: Refactor Project Services - Consolidate Functionality
+Description: Consolidate project-related service logic from `backend/src/services/project.service.ts` into `backend/src/services/project/project.service.ts` and `backend/src/services/project/task.service.ts`. The goal is to have a single, improved `ProjectService` and a comprehensive `TaskService`, then remove the old service file.
+Timestamps:
+  - Created: 2025-05-09T19:21:00Z
+  - Updated: 2025-05-09T19:31:00Z
+Status: In-Progress (Core refactoring complete. Old service file deleted. MBK files updated. Pending user testing.)
+Assigned to: cline
+Assigned by: user
+
+Sub-Tasks/Tickets:
+  1. Task Name: Analyze `backend/src/services/project/task.service.ts`
+     Description: Read and understand the current capabilities of `task.service.ts` regarding task and subtask management.
+     Status: In-Progress (Analyzed TaskService, need to analyze its SubtaskService dependency)
+     Assigned to: cline
+
+  1.b. Task Name: Analyze `backend/src/services/project/subtask.service.ts`
+      Description: Read and understand the current capabilities of `subtask.service.ts` to ensure all subtask logic from the old `project.service.ts` is covered.
+      Status: Completed (Analyzed SubtaskService, identified gaps: metadata cleaning and parent task auto-completion logic)
+      Assigned to: cline
+
+  2. Task Name: Refactor `TaskService` and `SubtaskService` for Complete Logic
+     Description: Migrate all task and subtask related logic (CRUD, status updates, specific business rules like subtask completion checks, metadata cleaning, parent task auto-completion) from the old `backend/src/services/project.service.ts` into `backend/src/services/project/task.service.ts` and `backend/src/services/project/subtask.service.ts`. Ensure they use repository patterns and are well-structured.
+     Status: Completed (Metadata cleaning added to SubtaskService. Parent task auto-completion logic added to TaskService via new method updateSubtaskAndPotentiallyParent).
+     Assigned to: cline
+
+  3. Task Name: Integrate Updated `TaskService` (and `SubtaskService`) with `ProjectService`
+     Description: Ensure `backend/src/services/project/project.service.ts` correctly injects and uses the refactored `TaskService` for all task/subtask operations, especially during project creation.
+     Status: Completed (ProjectService.createProject now calls taskService.createTaskFromTemplate, removing direct subtask creation. Note: Dependency injection wiring of services (projectService, taskService, subtaskService) needs to be handled at application setup).
+     Assigned to: cline
+
+  4. Task Name: Update Codebase References
+     Description: Identify and update all imports and function calls throughout the codebase (controllers, other services, scripts) that currently use `backend/src/services/project.service.ts`. They should be redirected to use the new `projectService` instance or the `taskService` instance as appropriate.
+     Status: Completed (Updated `backend/src/controllers/project.controller.ts`. No other files found importing the old service.)
+     Assigned to: cline
+
+  5. Task Name: Test Refactored Project and Task Services
+     Description: Conduct thorough testing (unit, integration, and manual if necessary) to ensure all project, task, and subtask functionalities work as expected and no regressions have been introduced.
+     Status: Pending - User Action Required
+     Assigned to: user
+
+  6. Task Name: Delete Old `project.service.ts`
+     Description: After successful refactoring and testing, delete the `backend/src/services/project.service.ts` file.
+     Status: Completed (File deleted upon user approval.)
+     Assigned to: cline
+
+  7. Task Name: Update MBK Documentation
+     Description: Update `backend/src/services/project.service.mbk` (or rename/move to `backend/src/services/project/project.service.mbk`) and create/update `backend/src/services/project/task.service.mbk` to reflect the new architecture and functionalities.
+     Status: Completed (Renamed project.service.mbk and updated its content. Created task.service.mbk and subtask.service.mbk.)
+     Assigned to: cline
+
+Next Steps for "Refactor Project Services":
+  - User to perform testing as per Sub-Task 5.
+  - User to review updated MBK files.
+  - Address any issues found during testing or MBK review.
+  - Once satisfied, this task can be marked as Done.
+
+---
+Task Name: Update Default Project Task Templates
+Description: Add a new comprehensive set of default task templates to `backend/src/constants/projectTaskTemplate.ts` as per user request. This involves defining stages, task names, permissions, actions, and subtasks for various project phases like site measurements, payment, design, approval, pre-production, and production.
+Timestamps:
+  - Created: 2025-05-09T19:47:00Z
+  - Updated: 2025-05-09T19:50:00Z
+Status: Pending Review
+Assigned to: cline
+Assigned by: user
+
+Updates:
+  - 2025-05-09: Wrote the new comprehensive set of task templates to `backend/src/constants/projectTaskTemplate.ts`.
+  - 2025-05-09: Corrected TypeScript errors related to `metadataJson` by using `JSON.stringify()` for object values.
+  - 2025-05-09: Created `backend/src/constants/projectTaskTemplate.mbk` with detailed documentation.
+
+Next Steps:
+  - User to review the updated `backend/src/constants/projectTaskTemplate.ts` file.
+  - User to review the new `backend/src/constants/projectTaskTemplate.mbk` file.
+  - Mark task as Done after user review.
+
+---
+Task Name: Dynamically Render Components in Task Card based on Metadata
+Description: Modify backend and frontend to store and use task metadata (`metadataJson`) to dynamically render specified frontend components (`MaterialManagement.tsx`, `ModelSelector.tsx`) within the "Site Visit" task card.
+Timestamps:
+  - Created: 2025-05-09T20:06:00Z 
+  - Updated: 2025-05-09T20:30:00Z
+Status: Completed
+Assigned to: cline
+Assigned by: user
+
+Sub-Tasks:
+  1. Backend - Update Type Definitions:
+     - `backend/src/types/projectTemplate.types.ts`: Added `metadataJson` to `TaskTemplate`. (Completed)
+     - `backend/src/types/project.types.ts`: Added `metadataJson` to `TaskBase`. (Completed)
+  2. Backend - Update Prisma Schema:
+     - `backend/prisma/schema.prisma`: Added `metadataJson` to `Task` model. (Completed)
+     - Generated and applied migration `20250509143149_add_metadata_to_task`. (Completed)
+  3. Backend - Update Task Template Constant:
+     - `backend/src/constants/projectTaskTemplate.ts`: Added `metadataJson` with component paths to "Site Visit" task. (Completed)
+     - Added a subtask named "BIM engineer to upload site measurements" to the "Site Visit" task for redundant component rendering. (Completed)
+  4. Backend - Update DTOs:
+     - `backend/src/dtos/project.dto.ts`: Added `metadataJson` to `CreateTaskDto` and `TaskResponseDto`. (Completed)
+     - Added `metadataJson` to `UpdateTaskDto` for task updates. (Completed)
+  5. Backend - Update Services and Repositories:
+     - `backend/src/services/project/task.service.ts`: Ensured `metadataJson` is handled in `createTaskFromTemplate` and `transformToResponseDto`. (Completed)
+     - `backend/src/repositories/task.repository.ts`: Fixed `create` and `update` methods to properly save `metadataJson` to the database. (Completed)
+  6. Frontend - Update Type Definitions:
+     - `frontend/src/hooks/useProject.ts`: Added `metadataJson` to `Task` interface. (Completed)
+  7. Frontend - Update Task Card Component:
+     - `frontend/src/components/dashboard/CollapsibleTaskCard.tsx`:
+       - Added logic to parse `task.metadataJson`.
+       - Conditionally render `MaterialManagement` and `ModelSelector` components (using `React.lazy` and `Suspense`) if "Site Visit" task and `frontendComponents` metadata are present.
+       - Corrected import paths for lazy-loaded components.
+       - Corrected `task.taskName` to `task.name`.
+       - Added null checks for `project` prop when passing to child components. (Completed)
+  8. Documentation - Update MBK Files:
+     - `backend/src/constants/projectTaskTemplate.mbk`: Documented the addition of `metadataJson` and the new subtask. (Completed)
+     - `backend/src/dtos/project.dto.mbk`: Created and documented the DTO changes. (Completed)
+     - `backend/src/services/project/task.service.mbk`: Updated to reflect handling of `metadataJson`. (Completed)
+     - `frontend/src/components/dashboard/CollapsibleTaskCard.mbk`: Created and documented the component changes. (Completed)
+     - `frontend/src/hooks/useProject.mbk`: Created and documented the type changes. (Completed)
+
+Implementation Details:
+  - The components are now rendered in two ways for redundancy:
+    1. Through the task's `metadataJson` when `task.name === "Site Visit"`.
+    2. Through a specific subtask when `subtask.name === "BIM engineer to upload site measurements"`.
+  - This ensures the components will be visible regardless of which condition is triggered first.
+  - Fixed a critical issue in `TaskRepository.create` and `TaskRepository.update` methods that were not properly saving `metadataJson` to the database.
+
+Next Steps:
+  - User to test by creating a new project and verifying that the "Site Visit" task card shows both the `MaterialManagement` and `ModelSelector` components.

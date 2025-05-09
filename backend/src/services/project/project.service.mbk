@@ -1,0 +1,95 @@
+# Memory Bank: backend/src/services/project/project.service.ts
+
+**Overall Description:**
+The `ProjectService` class is responsible for handling the business logic related to projects. It encapsulates operations such as creating, retrieving, updating, and deleting projects. It follows a repository pattern for data access by depending on an `IProjectRepository` and delegates task and subtask management to a dedicated `TaskService`.
+
+**Key Class: `ProjectService`**
+
+**Dependencies:**
+-   `IProjectRepository`: Injected for data access to project entities.
+-   `TaskService` (injected as `_taskService` via a setter): Used to delegate the creation of tasks and their associated subtasks when a new project is created from a template.
+
+---
+
+**Key Method: `createProject(data: CreateProjectDto)`**
+
+**When it runs:**
+This method is called when a new project creation is requested, typically via the `POST /api/projects` endpoint handled by `project.controller.ts`.
+
+**How it runs (High-Level):**
+1.  Receives project data encapsulated in a `CreateProjectDto` (name, description, createdById, optional fields like engineerId, clientId, etc.).
+2.  Calls `this.projectRepository.create(data)` to create the main project record in the database.
+3.  Checks if `this._taskService` is injected. If not, it throws an error as it cannot create default tasks.
+4.  Loads `defaultProjectTaskTemplates` from `backend/src/constants/projectTaskTemplate.ts`.
+5.  Iterates through the `typedTaskTemplate` array (which is of type `TaskTemplate[]`).
+    a.  For each `templateTaskItem` (an individual `TaskTemplate`):
+        i.  Performs a basic validation to ensure `templateTaskItem` and `templateTaskItem.taskName` are valid.
+        ii. Calls `this._taskService.createTaskFromTemplate(project.id, templateTaskItem)`. This `TaskService` method is responsible for creating the task itself and any subtasks defined within `templateTaskItem.subtasks`.
+6.  Returns the newly created project object (from the repository call).
+
+**Why it runs:**
+To encapsulate the business logic for creating a new project and ensuring its default set of tasks (and their subtasks) are also created by delegating to the `TaskService`.
+
+**Input:**
+-   `data: CreateProjectDto`: An object containing project details.
+    -   `name: string`
+    -   `createdById: number`
+    -   `description?: string`
+    -   `address?: string`
+    -   `location?: string`
+    -   `sqft?: number`
+    -   `estimatedTime?: Date | string`
+    -   `vbCount?: number`
+    -   `statusId?: number`
+    -   `engineerId?: number`
+    -   `clientId?: number`
+
+**Output:**
+-   Success: The newly created `Project` object.
+-   Error: Throws an error if project creation fails (e.g., database error from repository, `TaskService` not injected, or error from `TaskService`).
+
+**Internal Logic Points:**
+-   Relies on `defaultProjectTaskTemplates` for defining the structure of default tasks.
+-   The actual creation of tasks and subtasks is fully delegated to the injected `TaskService`.
+
+**Diagram (Simplified Flow for `createProject`):**
+```mermaid
+graph TD
+    A[Controller Calls projectService.createProject] -- CreateProjectDto --> B{ProjectService.createProject};
+    B -- CreateProjectDto --> C[projectRepository.create];
+    C -- New Project --> B;
+    B -- Project ID, TaskTemplateItem --> D{Loop: For each TaskTemplate};
+    D --> E[taskService.createTaskFromTemplate];
+    E -- Creates Task & Subtasks --> D;
+    D -- Done --> B;
+    B -- New Project --> F[Return Project Object to Controller];
+    B -- TaskService not injected? --> G[Throw Error];
+```
+
+---
+
+**Other Key Methods:**
+
+*   **`getProjects(user?: UserContext)`:**
+    *   Retrieves a list of projects using `projectRepository.findMany()`.
+    *   Applies filtering based on the `user` context and their role (`client` sees their projects, `engineer` sees their projects, admin/superadmin see all).
+    *   Returns `ProjectWithRelations[]`.
+
+*   **`getProjectById(projectId: number, user?: UserContext)`:**
+    *   Retrieves a single project by ID using `projectRepository.findById()`.
+    *   Performs permission checks based on the `user` context and role.
+    *   Returns `ProjectWithRelations | null`.
+
+*   **`updateProject(projectId: number, data: UpdateProjectDto)`:**
+    *   Updates a project using `projectRepository.update()`.
+    *   Returns the updated `Project`.
+
+*   **`deleteProject(projectId: number)`:**
+    *   Deletes a project using `projectRepository.delete()`.
+    *   Returns the deleted `Project`.
+
+*   **`transformToResponseDto(project: ProjectWithRelations)`:**
+    *   Transforms a `Project` entity (with its relations like tasks, client, engineer) into a `ProjectResponseDto` suitable for API responses. This includes flattening client data and mapping tasks/subtasks.
+
+---
+*This .mbk file describes the refactored `ProjectService` class. Separate .mbk files should exist for `TaskService` and `SubtaskService`.*

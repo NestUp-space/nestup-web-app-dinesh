@@ -32,6 +32,7 @@ interface Task {
   status: { id: number; status: string };
   createdAt: string;
   updatedAt: string;
+  metadataJson?: string; // For additional structured data like associated frontend components
   subtasks?: Subtask[];
 }
 

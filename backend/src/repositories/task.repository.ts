@@ -29,7 +29,9 @@ export class TaskRepository implements ITaskRepository {
   }
 
   async create(data: CreateTaskDto): Promise<Task> {
-    const taskInput: Prisma.TaskCreateInput = {
+    // Instead of creating a typed object first, we'll build the data object directly
+    // This avoids TypeScript errors if the Prisma client types are out of sync
+    const createData: any = {
       name: data.name,
       stage: data.stage,
       status: { connect: { id: data.statusId || 1 } }, // Default to status 1 if not provided
@@ -37,15 +39,20 @@ export class TaskRepository implements ITaskRepository {
       uploaderRole: data.uploaderRole,
     };
 
+    // Add metadataJson if it exists
+    if (data.metadataJson !== undefined) {
+      createData.metadataJson = data.metadataJson;
+    }
+
     // Handle viewerRoles which could be an array or string
     if (data.viewerRoles) {
-      taskInput.viewerRoles = Array.isArray(data.viewerRoles) 
+      createData.viewerRoles = Array.isArray(data.viewerRoles) 
         ? data.viewerRoles.join(',') 
         : data.viewerRoles;
     }
 
     return this.prisma.task.create({
-      data: taskInput,
+      data: createData,
     });
   }
 
@@ -87,12 +94,13 @@ export class TaskRepository implements ITaskRepository {
   }
 
   async update(id: number, data: UpdateTaskDto): Promise<Task> {
-    const updateData: Prisma.TaskUpdateInput = {};
+    const updateData: any = {};
     
     // Copy simple fields
     if (data.name !== undefined) updateData.name = data.name;
     if (data.stage !== undefined) updateData.stage = data.stage;
     if (data.uploaderRole !== undefined) updateData.uploaderRole = data.uploaderRole;
+    if (data.metadataJson !== undefined) updateData.metadataJson = data.metadataJson;
     
     // Handle viewerRoles which could be an array or string
     if (data.viewerRoles !== undefined) {

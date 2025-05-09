@@ -28,43 +28,25 @@ export class ProjectService {
     // Create the project
     const project = await this.projectRepository.create(data);
 
-    // After project creation, create default tasks and their subtasks
+    // After project creation, create default tasks and their subtasks using TaskService
+    if (!this._taskService) {
+      console.error('TaskService not injected into ProjectService. Cannot create default tasks.');
+      // Depending on requirements, either throw an error or return the project without tasks
+      // For now, let's throw, as default tasks are likely expected.
+      throw new Error('TaskService not available in ProjectService for creating default tasks.');
+    }
+
     // Ensure taskTemplate is treated as TaskTemplate[]
-    const typedTaskTemplate: TaskTemplate[] = taskTemplate; 
+    const typedTaskTemplate: TaskTemplate[] = taskTemplate;
 
     if (project && typedTaskTemplate && typedTaskTemplate.length > 0) {
-      for (const templateTask of typedTaskTemplate) { // Iterate over the correctly typed template
-        if (!templateTask || typeof templateTask.taskName === 'undefined') {
-          console.warn('Invalid task template item, skipping:', templateTask);
+      for (const templateTaskItem of typedTaskTemplate) { // Iterate over the correctly typed template
+        if (!templateTaskItem || typeof templateTaskItem.taskName === 'undefined') {
+          console.warn('Invalid task template item in ProjectService, skipping:', templateTaskItem);
           continue;
         }
-        const taskDataToCreate: CreateTaskDto = {
-          projectId: project.id,
-          name: templateTask.taskName, // Should now be safe
-          stage: templateTask.stage,
-          statusId: templateTask.statusId || 1, // Default to statusId 1 (e.g., 'Pending')
-          uploaderRole: templateTask.uploaderRole,
-          viewerRoles: Array.isArray(templateTask.viewerRoles)
-            ? templateTask.viewerRoles.join(',')
-            : templateTask.viewerRoles,
-        };
-
-        const createdTask = await this._taskService.createTask(taskDataToCreate);
-
-        // If the template task has subtasks, create them
-        if (templateTask.subtasks && templateTask.subtasks.length > 0) {
-          for (const subtaskTemplate of templateTask.subtasks) {
-            const subtaskDataToCreate: CreateSubtaskDto = {
-              taskId: createdTask.id,
-              name: subtaskTemplate.name,
-              description: (subtaskTemplate.description !== null && subtaskTemplate.description !== undefined) ? subtaskTemplate.description : "", // Optional, provide default
-              actionRequired: subtaskTemplate.actionRequired,
-              type: subtaskTemplate.type,
-              metadataJson: subtaskTemplate.metadataJson ?? undefined // Convert null to undefined
-            };
-            await this._taskService.subtaskService.createSubtask(subtaskDataToCreate);
-          }
-        }
+        // TaskService.createTaskFromTemplate will handle creation of the task and its subtasks
+        await this._taskService.createTaskFromTemplate(project.id, templateTaskItem);
       }
     }
 

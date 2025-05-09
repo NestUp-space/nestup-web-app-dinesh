@@ -18,5 +18,6 @@ export interface TaskTemplate {
   uploaderRole: string; // Role expected to initiate/upload for this task (e.g., "Client", "BIM Engineer")
   viewerRoles: string | string[]; // Roles that can view this task (e.g., "All", or ["Admin", "Engineer"])
   actionRequired?: string; // Overall action or note for the task
+  metadataJson?: string | null; // For additional structured data like associated frontend components
   subtasks: SubtaskTemplate[];
 }

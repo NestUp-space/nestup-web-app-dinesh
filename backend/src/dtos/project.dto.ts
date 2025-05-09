@@ -54,6 +54,7 @@ export interface CreateTaskDto {
   statusId?: number;
   uploaderRole?: string;
   viewerRoles?: string | string[];
+  metadataJson?: string; // For additional structured data
 }
 
 export interface UpdateTaskDto {
@@ -62,6 +63,7 @@ export interface UpdateTaskDto {
   statusId?: number;
   uploaderRole?: string;
   viewerRoles?: string | string[];
+  metadataJson?: string; // For additional structured data
   updatedById?: number;
 }
 
@@ -74,6 +76,7 @@ export interface TaskResponseDto {
   status: { id: number; status: string };
   createdAt: string;
   updatedAt: string;
+  metadataJson?: string | null; // For additional structured data
   subtasks?: SubtaskResponseDto[];
 }
 

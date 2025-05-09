@@ -31,6 +31,7 @@ export interface TaskBase {
   stage?: string | null;
   uploaderRole?: string | null;
   viewerRoles?: string | null;
+  metadataJson?: string | null; // For additional structured data like associated frontend components
   statusId: number;
   createdAt: Date;
   updatedAt: Date;

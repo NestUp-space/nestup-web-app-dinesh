@@ -1,0 +1,62 @@
+# Memory Bank: project.dto.ts
+
+## File Description
+This file (`backend/src/dtos/project.dto.ts`) defines Data Transfer Object (DTO) interfaces used for project, task, and subtask-related API operations. These DTOs standardize the shape of data sent to and received from the API endpoints.
+
+## Purpose and Functionality
+- **API Contract**: DTOs serve as a clear contract for API request and response payloads, ensuring consistency between frontend and backend.
+- **Data Validation**: While not explicitly defined in this file, DTOs are often used in conjunction with validation libraries (e.g., Zod, class-validator) to ensure incoming data meets specified criteria.
+- **Data Shaping**: DTOs help shape data for specific use cases, selecting only necessary fields from database entities or combining data from multiple sources.
+
+## Key DTOs and Recent Changes (related to `metadataJson`)
+
+### `CreateTaskDto`
+- **Purpose**: Defines the expected structure for creating a new task.
+- **Interface Snippet**:
+  ```typescript
+  export interface CreateTaskDto {
+    projectId: number;
+    name: string;
+    stage?: string;
+    statusId?: number;
+    uploaderRole?: string;
+    viewerRoles?: string | string[];
+    metadataJson?: string; // For additional structured data
+  }
+  ```
+- **Recent Changes (2025-05-09)**:
+    - Added `metadataJson?: string;` to allow passing stringified JSON metadata when creating a task. This is particularly useful for tasks created from templates that might include such metadata (e.g., for linking to frontend components).
+
+### `TaskResponseDto`
+- **Purpose**: Defines the structure of task data sent back to the client (e.g., when fetching project details).
+- **Interface Snippet**:
+  ```typescript
+  export interface TaskResponseDto {
+    id: number;
+    name: string;
+    stage?: string | null;
+    uploaderRole?: string | null;
+    viewerRoles?: string | null;
+    status: { id: number; status: string };
+    createdAt: string;
+    updatedAt: string;
+    metadataJson?: string | null; // For additional structured data
+    subtasks?: SubtaskResponseDto[];
+  }
+  ```
+- **Recent Changes (2025-05-09)**:
+    - Added `metadataJson?: string | null;` to include the task's metadata in API responses. This allows the frontend to access and use this information, for example, to dynamically render UI elements based on the metadata content.
+
+### Other DTOs
+The file also contains DTOs for:
+- `CreateProjectDto`, `UpdateProjectDto`, `ProjectResponseDto`: For project-level operations.
+- `UpdateTaskDto`: For updating existing tasks.
+- `CreateSubtaskDto`, `UpdateSubtaskDto`, `SubtaskResponseDto`: For subtask-level operations. `SubtaskResponseDto` and `CreateSubtaskDto` already included `metadataJson` for subtasks.
+
+## How and When They Are Used
+- **Controllers**: API route handlers in controllers (e.g., `project.controller.ts`) use these DTOs to type request bodies and format response payloads.
+- **Services**: Business logic layers (services like `TaskService`, `ProjectService`) use DTOs to interact with repositories and to structure data passed between layers.
+- **Frontend**: The frontend makes API calls expecting responses that match these DTO structures and sends data according to the create/update DTOs.
+
+## Dependencies
+- None explicitly listed, but these DTOs are used throughout the backend API layers and are implicitly tied to the structure of Prisma entities and frontend expectations.

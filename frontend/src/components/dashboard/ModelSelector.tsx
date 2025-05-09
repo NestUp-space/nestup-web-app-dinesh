@@ -14,8 +14,8 @@ interface ModelTemplate {
 }
 
 interface ModelSelectorProps {
-  subtask: Subtask;
-  project: Project; // Needed for context, potentially packet number logic later
+  subtask?: Subtask; // Made optional
+  project?: Project; // Made optional, Needed for context, potentially packet number logic later
 }
 
 const ModelSelector: React.FC<ModelSelectorProps> = ({ subtask, project }) => {
@@ -55,23 +55,38 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ subtask, project }) => {
   };
 
   const handleGeneratePlanks = async () => {
-    if (!selectedModel || !token || !project) {
+    // If project is still needed for other parts of this function (e.g. packetNumber logic),
+    // the check for !project should remain or be adapted.
+    // For now, assuming project is optional for the core plank generation if subtaskId is removed.
+    if (!selectedModel || !token) {
       alert("Please select a model and ensure you are logged in.");
       return;
     }
+    
+    // If project is used for packetNumber or other logic, ensure it's handled if project is undefined.
+    // Example: const currentPacketNumber = project ? project.somePacketInfo : 'defaultPacket';
 
     // Use generationLoading state from usePost hook
     // setGenerationStatus('loading'); 
     setGenerationError(null);
     setGeneratedPlankList(null);
 
-    const payload = {
+    const payload: any = { // Use 'any' or a more specific type if subtaskId is truly gone
       modelName: selectedModel.name,
       inputs: inputValues,
-      subtaskId: subtask.id,
+      // subtaskId: subtask.id, // Removed as per user request (backend API to be modified)
       boxNumber: boxNumber,
-      packetNumber: packetNumber,
+      packetNumber: packetNumber, // This might depend on 'project' if that logic is implemented
     };
+    // If subtask is still used for other purposes in this function, ensure subtask?.id is used.
+    // For now, assuming subtaskId is completely removed from payload.
+    if (subtask?.id) {
+      // If backend still accepts subtaskId optionally, it could be added here.
+      // payload.subtaskId = subtask.id; 
+      // However, user stated "i dont think sub task id is required for plank generation"
+      // and "modify the back eng api", implying it should be removed from the payload.
+    }
+
 
     try {
       // Use the execute function from usePost

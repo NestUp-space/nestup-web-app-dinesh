@@ -92,6 +92,7 @@ model Task {
   uploaderRole   String? // New field: role expected to upload/initiate
   viewerRoles    String? // New field: JSON string or comma-separated roles for view permissions
   actionRequired String? // New field: description of what action is required
+  metadataJson   String? // For additional structured data like associated frontend components
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   updatedById    Int?
