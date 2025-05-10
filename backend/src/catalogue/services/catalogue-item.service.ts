@@ -53,7 +53,7 @@ export class CatalogueItemService {
       // If scripts exist but no sample inputs, we can't test.
       // Depending on policy, either warn, allow, or throw error.
       // For now, let's throw if there are scripts but no samples to test them.
-      const hasScripts = bomItems.some(b => b.itemLogicScript && b.itemLogicScript.trim() !== '');
+      const hasScripts = bomItems.some(b => b.itemLogicScript && typeof b.itemLogicScript === 'string' && b.itemLogicScript.trim() !== '');
       if (hasScripts) {
         throw new Error('Sample runtime inputs are required to test item logic scripts.');
       }
@@ -61,11 +61,13 @@ export class CatalogueItemService {
     }
 
     for (const bomItem of bomItems) {
-      if (bomItem.itemLogicScript && bomItem.itemLogicScript.trim() !== '') {
+      // Ensure itemLogicScript is a string before trimming
+      const scriptToExecute = typeof bomItem.itemLogicScript === 'string' ? bomItem.itemLogicScript : null;
+      if (scriptToExecute && scriptToExecute.trim() !== '') {
         try {
           console.log(`Testing script for BOM item: ${bomItem.itemName}`);
           const result = await this.jsFunctionService.executeItemScript(
-            bomItem.itemLogicScript,
+            scriptToExecute, // Use the validated script
             sampleRuntimeInputs
           );
 
@@ -177,10 +179,23 @@ export class CatalogueItemService {
         const currentCatalogueItem = await this.catalogueItemRepository.findById(id);
         effectiveSampleInputs = currentCatalogueItem?.sampleRuntimeInputsJson ?? null;
     }
-    if (data.bomItems) { // Only validate if bomItems are part of the update payload
-        await this.validateBomItemScripts(data.bomItems, effectiveSampleInputs);
+    // Prepare bomItems for validation and repo update simultaneously
+    let processedBomItemsForValidation: CatalogueItemBomItemDto[] | undefined = undefined;
+    if (data.bomItems !== undefined) {
+      processedBomItemsForValidation = data.bomItems
+        .filter(b => b && b.itemName && b.itemType) // Filter out items missing essential fields
+        .map(b => ({
+          itemName: b.itemName!, 
+          itemType: b.itemType!, 
+          itemDescription: b.itemDescription ?? null,
+          itemLogicScript: typeof b.itemLogicScript === 'string' ? b.itemLogicScript : null, // Ensure script is string or null
+          addonModelId: b.addonModelId ?? null,
+        }));
+      
+      if (processedBomItemsForValidation.length > 0) { // Only validate if there are valid BOM items after filtering
+        await this.validateBomItemScripts(processedBomItemsForValidation, effectiveSampleInputs);
+      }
     }
-
 
     const catalogueItemDataForRepoUpdate: any = {};
     if (data.name !== undefined) catalogueItemDataForRepoUpdate.name = data.name; // Changed from modelType
@@ -209,17 +224,8 @@ export class CatalogueItemService {
       }).filter(p => p && p.inputName); 
     }
 
-    if (data.bomItems !== undefined) {
-      // Ensure that each item in bomItems has the required fields for creation
-      catalogueItemDataForRepoUpdate.bomItems = data.bomItems
-        .filter(b => b && b.itemName && b.itemType) // Filter out items missing essential fields
-        .map(b => ({
-          itemName: b.itemName!, // Asserting non-null due to filter
-          itemType: b.itemType!, // Asserting non-null due to filter
-          itemDescription: b.itemDescription ?? null,
-          itemLogicScript: b.itemLogicScript ?? null,
-          addonModelId: b.addonModelId ?? null,
-        }));
+    if (processedBomItemsForValidation !== undefined) { // Use the already processed and validated items
+      catalogueItemDataForRepoUpdate.bomItems = processedBomItemsForValidation;
     }
     
     return this.catalogueItemRepository.update(id, catalogueItemDataForRepoUpdate);
@@ -293,7 +299,7 @@ export class CatalogueItemService {
         itemName: data.itemName,
         itemType: data.itemType,
         itemDescription: data.itemDescription ?? null,
-        itemLogicScript: data.itemLogicScript ?? null,
+        itemLogicScript: typeof data.itemLogicScript === 'string' ? data.itemLogicScript : null,
         addonModelId: data.addonModelId ?? null, // Consider if this should be addonCatalogueItemId
     };
     return this.catalogueItemRepository.createBomItem(catalogueItemDefinitionId, bomItemDataToCreate);

@@ -3,7 +3,9 @@
 This log archives significant architectural and design decisions made throughout the project lifecycle.
 
 ---
+
 ## Decision_UnifiedUserModel_20250510
+
 **Date:** 2025-05-10
 **Decision:** Adopted a unified `User` model for both internal employees and external clients, with differentiation managed by the `UserRole` relationship.
 **Rationale (Inferred):** This approach simplifies user identity management, authentication, and referencing across various parts of the application (e.g., project assignments, task updates, comments). It avoids data duplication and allows for consistent handling of user-related operations. Specific permissions and access levels are managed through the RBAC system linked to `UserRole`.
@@ -12,7 +14,9 @@ This log archives significant architectural and design decisions made throughout
     - `CONTEXT_SNAPSHOTS/2025-05-10_PrismaSchema_DataModelOverview.md`
 
 ---
+
 ## Decision_Auth_JWTClaims_20250510
+
 **Date:** 2025-05-10
 **Decision:** JWT payload for authenticated users in Nestup Web App includes `id`, `email`, `name`, and `role.roleType`.
 **Rationale (Inferred):** These claims provide essential user identification and role information directly in the token, potentially reducing database lookups for common authorization checks in downstream services or middleware. `roleType` is used for consistency in role checking.
@@ -20,7 +24,9 @@ This log archives significant architectural and design decisions made throughout
 **Related LTM:** `CONTEXT_SNAPSHOTS/2025-05-10_AuthServiceAnalysis.md`
 
 ---
+
 ## Decision_AuthController_ZodValidation_ServiceResponse_20250511
+
 **Date:** 2025-05-11
 **Decision:** Backend controllers (exemplified by `auth.controller.ts`) will use Zod for input validation of request bodies and will rely on a standardized `ServiceResponse` object from the service layer to formulate HTTP responses.
 **Rationale (Inferred):** Zod provides robust, type-safe validation and clear error reporting. Using a common `ServiceResponse` pattern from services ensures consistent response structures and status code handling in controllers, promoting separation of concerns (business logic in services, HTTP handling in controllers).
@@ -28,7 +34,9 @@ This log archives significant architectural and design decisions made throughout
 **Related LTM:** `CONTEXT_SNAPSHOTS/2025-05-11_AuthControllerAnalysis.md`
 
 ---
+
 ## Decision_ProjectCreation_DefaultsAndAuth_20250511
+
 **Date:** 2025-05-11
 **Decision:** Project creation (`createProject` controller) enforces that 'client' role users cannot create projects. It also implements server-side defaulting for several project fields (e.g., address, location, sqft, statusId) if not provided in the request. `createdById` is automatically set from the authenticated user.
 **Rationale (Inferred):** Role restriction prevents unauthorized project creation. Server-side defaults ensure essential fields have values, potentially simplifying frontend forms or handling cases where not all data is initially available. Auto-setting `createdById` ensures auditability.
@@ -36,7 +44,9 @@ This log archives significant architectural and design decisions made throughout
 **Related LTM:** `CONTEXT_SNAPSHOTS/2025-05-11_ProjectControllerAnalysis.md` (Note: This snapshot refers to the top-level functional controller, which is now understood to be largely inactive for these routes. The active logic is in the nested class-based `ProjectController`).
 
 ---
+
 ## Decision_BimController_OpenAPI_SubtaskUpdate_20250511
+
 **Date:** 2025-05-11
 **Decision:** The `BimController` uses JSDoc comments for OpenAPI documentation. The `generatePlankListAndUpdateSubtask` endpoint directly calls `SubtaskRepository.update()` to mark a subtask as complete and store the generated plank list in its metadata.
 **Rationale (Inferred):** OpenAPI comments facilitate API documentation generation. Direct repository call for subtask update might be for simplicity in this specific workflow, though typically service layers handle such updates. Storing generated data in subtask metadata links the output directly to the relevant task.
@@ -44,7 +54,9 @@ This log archives significant architectural and design decisions made throughout
 **Related LTM:** `CONTEXT_SNAPSHOTS/2025-05-11_BimControllerAnalysis.md`
 
 ---
+
 ## Decision_FileController_Multer_TaskAssociation_20250511
+
 **Date:** 2025-05-11
 **Decision:** File uploads are handled by `file.controller.ts` via a `POST /upload` route, and file retrieval by a `GET /:taskId` route, both protected by `isAuthenticated` middleware. The controller expects `req.file` (populated by Multer) for uploads and `req.body.taskId`.
 **Rationale (Inferred):** Standard approach for file management. The `file.routes.ts` file itself does not explicitly show Multer middleware being applied to the `/upload` route; this configuration must exist where the file router is mounted or be added directly to the route definition for the controller to function as expected.
@@ -52,7 +64,9 @@ This log archives significant architectural and design decisions made throughout
 **Related LTM:** `CONTEXT_SNAPSHOTS/2025-05-11_FileControllerAnalysis.md`, `CONTEXT_SNAPSHOTS/2025-05-11_FileRoutesAnalysis.md`
 
 ---
+
 ## Decision_MaterialRoutes_PublicAccess_20250511
+
 **Date:** 2025-05-11
 **Decision/Observation:** Material routes defined in `material.routes.ts` are currently public as the `authMiddleware` (presumably `isAuthenticated`) is commented out. This contrasts with OpenAPI documentation within the same file which lists 401 Unauthorized as a possible response for these routes.
 **Rationale (To Investigate):** This might be an oversight, a temporary state during development, or intentional if materials are meant to be publicly queryable in some contexts (though CRUD operations being public is less common and a security risk). The discrepancy with OpenAPI docs suggests authentication was likely intended.
@@ -60,7 +74,9 @@ This log archives significant architectural and design decisions made throughout
 **Related LTM:** `CONTEXT_SNAPSHOTS/2025-05-11_MaterialRoutesAnalysis.md`, `CONTEXT_SNAPSHOTS/2025-05-11_MaterialControllerAnalysis.md`
 
 ---
+
 ## Decision_SiteVisitBoxRoutes_PublicAccess_20250511
+
 **Date:** 2025-05-11
 **Decision/Observation:** Site Visit Box routes defined in `siteVisitBox.routes.ts` are currently public as the `authMiddleware` is commented out. This includes routes for creating, reading, updating, deleting, reordering boxes, and generating/downloading plank lists. OpenAPI documentation for these routes lists 401 Unauthorized as a possible response, suggesting authentication was likely intended.
 **Rationale (To Investigate):** This could be an oversight or a temporary state during development. Given the nature of the data (site-specific configurations, potentially sensitive project details in plank lists), these routes should typically require authentication.
@@ -68,7 +84,9 @@ This log archives significant architectural and design decisions made throughout
 **Related LTM:** `CONTEXT_SNAPSHOTS/2025-05-11_SiteVisitBoxRoutesAnalysis.md`, `CONTEXT_SNAPSHOTS/2025-05-11_SiteVisitBoxControllerAnalysis.md`
 
 ---
+
 ## Decision_MaterialController_UtilHelper_ServiceResponse_20250511
+
 **Date:** 2025-05-11
 **Decision:** The `MaterialController` utilizes a common utility function `handleServiceResponse` to process `ServiceResponse` objects from the `materialService` and send standardized HTTP responses. DTOs for material data (`CreateMaterialDto`, `UpdateMaterialDto`) are sourced from `../bim/types/bim.types`.
 **Rationale (Inferred):** `handleServiceResponse` promotes DRY principles and consistent HTTP response formatting across controllers. Sourcing DTOs from `bim/types` might be historical or indicate a close relationship between general materials and BIM-defined material properties; this could be reviewed for better DTO organization if materials are a broader concept.
@@ -76,7 +94,9 @@ This log archives significant architectural and design decisions made throughout
 **Related LTM:** `CONTEXT_SNAPSHOTS/2025-05-11_MaterialControllerAnalysis.md`
 
 ---
+
 ## Decision_RoleController_DirectPrisma_Static_20250511
+
 **Date:** 2025-05-11
 **Decision:** The `RoleController` uses static methods and interacts directly with a locally instantiated Prisma client for all role and permission management logic, without a dedicated service layer. It includes protections for the 'superadmin' role and checks for user assignments before role deletion.
 **Rationale (Inferred):** Direct Prisma usage might have been chosen for simplicity or expediency for this specific CRUD module. Static methods might be a stylistic choice. Superadmin protection and deletion constraints are important for system integrity. The local Prisma client instance is a deviation from the shared instance pattern and should be reviewed for potential connection pooling issues.
@@ -84,7 +104,9 @@ This log archives significant architectural and design decisions made throughout
 **Related LTM:** `CONTEXT_SNAPSHOTS/2025-05-11_RoleControllerAnalysis.md`
 
 ---
+
 ## Decision_SiteVisitBooking_CustomErrors_Next_20250511
+
 **Date:** 2025-05-11
 **Decision:** The `bookSiteVisit` controller in `siteVisit.controller.ts` uses custom error classes (`BadRequestError`, `NotFoundError`) for specific error responses and delegates core logic to `siteVisit.service`. It calls `next(error)` in its catch block, potentially after a response has already been sent.
 **Rationale (Inferred):** Custom errors allow for more structured error handling from services. The `next(error)` call after `res.json()` might be an oversight or intended for a global error logging middleware that can accommodate scenarios where headers might have already been sent; this pattern should be reviewed for consistency with Express error handling best practices. The endpoint appears unauthenticated, suitable for public booking forms.
@@ -92,7 +114,9 @@ This log archives significant architectural and design decisions made throughout
 **Related LTM:** `CONTEXT_SNAPSHOTS/2025-05-11_SiteVisitControllerAnalysis.md`
 
 ---
+
 ## Decision_SiteVisitBox_CSVInController_20250511
+
 **Date:** 2025-05-11
 **Decision:** The `SiteVisitBoxController`'s `downloadPlankListCsv` method directly generates CSV content from data retrieved via `siteVisitBoxService`. DTOs (`CreateSiteVisitBoxDto`, `UpdateSiteVisitBoxDto`) are sourced from `../bim/types/bim.types`. An imported `formatCutListAsCsv` utility is not used in this specific CSV download method.
 **Rationale (Inferred):** Direct CSV generation in the controller might have been implemented for expediency or specific formatting requirements for this endpoint. Sourcing DTOs from `bim/types` continues a pattern seen with `MaterialController`. The unused import might be a remnant or intended for other, perhaps more complex, CSV generation tasks.
@@ -100,7 +124,9 @@ This log archives significant architectural and design decisions made throughout
 **Related LTM:** `CONTEXT_SNAPSHOTS/2025-05-11_SiteVisitBoxControllerAnalysis.md`
 
 ---
+
 ## Decision_DuplicateProjectControllerLogic_ConfirmedActiveNested_20250511
+
 **Date:** 2025-05-11
 **Decision/Observation:** Analysis of `backend/src/routes/project.routes.ts` confirms that the **nested, class-based controllers** in `backend/src/controllers/project/` (i.e., `project.controller.ts`, `task.controller.ts`, and `subtask.controller.ts` within that directory) are the **active handlers** for project, task, and subtask CRUD operations. The top-level functional controller `backend/src/controllers/project.controller.ts` is **not used** for these primary routes and is considered legacy or inactive in this context.
 **Rationale (Confirmed):** Route definitions explicitly import and use the nested controllers. This resolves the ambiguity about which controller set is authoritative.
@@ -108,7 +134,9 @@ This log archives significant architectural and design decisions made throughout
 **Related LTM:** `CONTEXT_SNAPSHOTS/2025-05-11_ProjectControllerAnalysis.md` (Note: This snapshot primarily details the inactive top-level controller but now includes a prominent note about the active nested controllers). MBKs for nested controllers should be prioritized.
 
 ---
+
 ## Decision_UserController_Static_Service_20250511
+
 **Date:** 2025-05-11
 **Decision:** The `UserController` is implemented with static methods and delegates all operations to a static `UserService`. It defines a local `CustomRequest` type where `req.user.role` is a string, which is inconsistent with the global `CustomRequest` from `auth.middleware.ts` (where `req.user.role` is an object `{ id: number; roleType: string; }`).
 **Rationale (Inferred):** Static methods might be a stylistic choice for utility-like controllers or services. The local `CustomRequest` inconsistency is likely an oversight or from a different phase of development and should be reconciled for type safety and clarity.
@@ -116,7 +144,9 @@ This log archives significant architectural and design decisions made throughout
 **Related LTM:** `CONTEXT_SNAPSHOTS/2025-05-11_UserControllerAnalysis.md`
 
 ---
+
 ## Decision_UserController_AuthChecks_FlawedLogic_20250511
+
 **Date:** 2025-05-11
 **Decision:** `UserController.updateUserPassword` includes an authorization check allowing only 'superadmin' or 'admin' roles (string comparison based on its local `CustomRequest.user.role` type) to proceed. `UserController.toggleUserActiveStatus` has a check intended to protect the 'superadmin' role, but its logic (`if (!user || user.role.roleType !== 'superadmin')`) appears flawed for this purpose and might incorrectly forbid action or misreport errors (e.g., returning 403 FORBIDDEN if user is not found, instead of 404).
 **Rationale (Inferred):** Role-based restrictions are necessary for sensitive operations. The flawed logic in `toggleUserActiveStatus` is likely an implementation error requiring correction. The string-based role check in `updateUserPassword` depends on the local `CustomRequest` definition.
@@ -124,7 +154,9 @@ This log archives significant architectural and design decisions made throughout
 **Related LTM:** `CONTEXT_SNAPSHOTS/2025-05-11_UserControllerAnalysis.md`
 
 ---
+
 ## Decision_ServiceLayerDTOTransformation_20250511
+
 **Date:** 2025-05-11
 **Decision:** Services (e.g., `projectService`, `taskService`, `subtaskService`) provide DTO transformation methods (e.g., `transformToResponseDto`) which are utilized by controllers (`project.controller.ts` - referring to the active nested one) to format data before sending HTTP responses.
 **Rationale (Inferred):** Centralizes response formatting logic within the service layer, ensuring consistency and keeping controllers thinner. This pattern helps decouple the internal data representation from the API response structure.
@@ -132,7 +164,9 @@ This log archives significant architectural and design decisions made throughout
 **Related LTM:** `CONTEXT_SNAPSHOTS/2025-05-11_ProjectControllerAnalysis.md` (and individual nested controller analyses if created separately).
 
 ---
+
 ## Decision_Auth_NewUserDefaults_20250510
+
 **Date:** 2025-05-10
 **Decision:** New users registered via `auth.service.ts` in Nestup Web App default to `roleId: 1` (assumed 'client'), `verified: false`, and `isActive: true`.
 **Rationale (Inferred):** Simplifies initial registration flow, assuming most new sign-ups are clients. `isActive: true` allows immediate login post-registration (though email verification is planned). `verified: false` allows for a subsequent email verification step. The hardcoded `roleId` is noted as a temporary measure needing robust implementation.
@@ -140,7 +174,9 @@ This log archives significant architectural and design decisions made throughout
 **Related LTM:** `CONTEXT_SNAPSHOTS/2025-05-10_AuthServiceAnalysis.md`
 
 ---
+
 ## Decision_EnvVarManagement_Dotenv_20250510
+
 **Date:** 2025-05-10
 **Decision:** Backend configuration parameters (like database credentials and JWT secret) are managed via environment variables, loaded using the `dotenv` library from a `.env` file.
 **Rationale (Inferred):** Standard practice for security (keeping secrets out of code) and for environment-specific configurations (dev, staging, prod). `dotenv` simplifies local development. Non-null assertions (`!`) in `env.ts` imply these are mandatory.
@@ -149,7 +185,9 @@ This log archives significant architectural and design decisions made throughout
     - `CONTEXT_SNAPSHOTS/2025-05-10_BackendConfigAnalysis.md`
 
 ---
+
 ## Decision_FrontendStack_NextJS_Tailwind_Radix_20250510
+
 **Date:** 2025-05-10
 **Decision:** The frontend for Nestup Web App is built using Next.js (React framework) with Tailwind CSS for styling, complemented by Radix UI primitives for accessible components. React Hook Form is used for forms, and SWR for data fetching.
 **Rationale (Inferred):** Next.js provides a robust framework for modern React development (SSR, SSG, routing). Tailwind CSS allows for rapid UI development with utility classes. Radix UI ensures accessibility. React Hook Form and SWR are popular, performant choices for their respective tasks.
@@ -158,7 +196,9 @@ This log archives significant architectural and design decisions made throughout
     - `CONTEXT_SNAPSHOTS/2025-05-10_FrontendTechStack_PackageJsonAnalysis.md`
 
 ---
+
 ## Decision_Frontend_DrizzleORM_Usage_Investigate_20250510
+
 **Date:** 2025-05-10
 **Decision/Observation:** The frontend `package.json` includes Drizzle ORM and Neon serverless driver dependencies.
 **Rationale (To Investigate):** This suggests a potential data persistence layer managed or accessed directly from the frontend/edge environment (e.g., via Vercel Functions, Vercel KV, or for specific features). This is distinct from the backend's Prisma/PostgreSQL setup and warrants understanding its specific role and interaction (if any) with the main backend.
@@ -167,7 +207,9 @@ This log archives significant architectural and design decisions made throughout
     - `CONTEXT_SNAPSHOTS/2025-05-10_FrontendTechStack_PackageJsonAnalysis.md`
 
 ---
+
 ## Decision_DualDateLibraries_MomentDateFns_20250510
+
 **Date:** 2025-05-10
 **Decision/Observation:** Both `moment` and `date-fns` are present in frontend dependencies.
 **Rationale (To Investigate):** This could indicate a transition from `moment` (larger, legacy) to `date-fns` (smaller, modern, immutable), or different libraries being used in different parts of the codebase or by different sub-dependencies. Aiming for a single date library is usually preferable for consistency and bundle size.
@@ -176,7 +218,9 @@ This log archives significant architectural and design decisions made throughout
     - `CONTEXT_SNAPSHOTS/2025-05-10_FrontendTechStack_PackageJsonAnalysis.md`
 
 ---
+
 ## Decision_BackendStack_ExpressPrisma_20250510
+
 **Date:** 2025-05-10
 **Decision:** The backend for Nestup Web App is built using Express.js as the web framework and Prisma ORM with PostgreSQL for database interaction. Zod is used for data validation.
 **Rationale (Inferred):** Express.js offers a minimalist and flexible foundation. Prisma provides strong typing, an intuitive query API, and robust migration management. Zod ensures data integrity with clear schema definitions. This combination allows for rapid development while maintaining type safety and data consistency.
@@ -185,7 +229,9 @@ This log archives significant architectural and design decisions made throughout
     - `CONTEXT_SNAPSHOTS/2025-05-10_BackendTechStack_PackageJsonAnalysis.md`
 
 ---
+
 ## Decision_AuthStack_JWT_Bcrypt_20250510
+
 **Date:** 2025-05-10
 **Decision:** Authentication is implemented using JSON Web Tokens (JWTs) with bcrypt for password hashing. Standard security middleware like Helmet and CORS are employed.
 **Rationale (Inferred):** JWTs are a common standard for stateless authentication in APIs. Bcrypt is a strong hashing algorithm. Helmet and CORS provide essential security layers for web applications.
@@ -194,7 +240,9 @@ This log archives significant architectural and design decisions made throughout
     - `CONTEXT_SNAPSHOTS/2025-05-10_BackendTechStack_PackageJsonAnalysis.md`
 
 ---
+
 ## Decision_AWSS3_FileUploads_20250510
+
 **Date:** 2025-05-10
 **Decision:** AWS S3 is utilized for file storage, accessed via the AWS SDK. Multer is used for handling file uploads in Express.
 **Rationale (Inferred):** S3 provides scalable, durable, and cost-effective object storage, suitable for user-uploaded files and potentially generated assets like plank lists.
@@ -203,7 +251,9 @@ This log archives significant architectural and design decisions made throughout
     - `CONTEXT_SNAPSHOTS/2025-05-10_BackendTechStack_PackageJsonAnalysis.md`
 
 ---
+
 ## Decision_DualORM_SequelizePrisma_Investigate_20250510
+
 **Date:** 2025-05-10
 **Decision/Observation:** The presence of both Sequelize and Prisma ORM dependencies in `backend/package.json` is noted.
 **Rationale (To Investigate):** This could indicate a transition phase from Sequelize to Prisma, or Sequelize might be used for specific legacy components or different database interactions. This needs clarification to understand the current data access strategy fully.
@@ -212,7 +262,9 @@ This log archives significant architectural and design decisions made throughout
     - `CONTEXT_SNAPSHOTS/2025-05-10_BackendTechStack_PackageJsonAnalysis.md`
 
 ---
+
 ## Decision_DynamicCatalogueSystem_20250510
+
 **Date:** 2025-05-10
 **Decision:** Implemented a dynamic and scriptable Catalogue System. This system comprises `CatalogueItemDefinition` (templates), `CatalogueItemInputParameter` (configurable inputs), `CatalogueItemBomItem` (bill of materials with `itemLogicScript` for custom calculations), and `ProjectCatalogueItemInstance` (project-specific instances with `runtimeInputsJson`).
 **Rationale (Inferred):** To provide maximum flexibility in defining complex, configurable project components (e.g., furniture, assemblies) without hardcoding specific item types. The scriptable nature of BOM items allows for dynamic property calculation, catering to diverse manufacturing needs and enabling features like automated plank list generation. This is a foundational element for the application's customization and automation capabilities.
@@ -221,7 +273,9 @@ This log archives significant architectural and design decisions made throughout
     - `CONTEXT_SNAPSHOTS/2025-05-10_PrismaSchema_DataModelOverview.md`
 
 ---
+
 ## Decision_JsonForExtensibleMetadata_20250510
+
 **Date:** 2025-05-10
 **Decision:** Utilized `Json` data type for various metadata fields (e.g., `Task.metadataJson`, `Subtask.metadataJson`, `SiteVisitBox.inputs`, `ProjectCatalogueItemInstance.runtimeInputsJson`, `CatalogueItemInputParameter.options`).
 **Rationale (Inferred):** To allow for storing flexible, entity-specific structured data without requiring frequent database schema migrations. This enhances adaptability for diverse task types, catalogue item configurations, and other entities needing custom attributes, promoting extensibility.

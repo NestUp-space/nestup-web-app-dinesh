@@ -3,6 +3,7 @@
 This index helps navigate reusable design patterns, best practices, technology insights, and problem-solution patterns derived from various projects.
 
 ## Categories
+
 - [Design Patterns Observed](DESIGN_PATTERNS_OBSERVED.md)
   - Role-Based Access Control (RBAC) Implementation
   - Extensible Entity Metadata with JSON Fields
@@ -35,4 +36,4 @@ This index helps navigate reusable design patterns, best practices, technology i
   - Multer (File Uploads with Express.js)
 - [Problem-Solution Patterns](PROBLEM_SOLUTION_PATTERNS.md)
 
-*(More specific links and categories will be added as knowledge is extracted and documented.)*
+(More specific links and categories will be added as knowledge is extracted and documented.)

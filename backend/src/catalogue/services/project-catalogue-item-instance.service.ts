@@ -60,3 +60,4 @@ export class ProjectCatalogueItemInstanceService {
   async findGeneratedPlankListsByInstanceId(projectCatalogueItemInstanceId: string): Promise<GeneratedPlankList[]> {
     return this.projectCatalogueItemInstanceRepository.findGeneratedPlankListsByInstanceId(projectCatalogueItemInstanceId);
   }
+}

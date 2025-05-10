@@ -1,3 +1,5 @@
+# Current TODOs
+
 - [ ] LTM_Bootstrap_Codebase_Analysis (Parent Ticket: TICKET-LTM-001):
   - [x] Sub-Task 1: Analyze `backend/prisma/schema.prisma` (Data Models).
   - [x] Sub-Task 2: Analyze `backend/package.json` and `frontend/package.json` (Key Dependencies & Potential Decisions).
