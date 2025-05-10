@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { Button } from './button'; // Assuming button is in the same directory
 import { Sheet, SheetContent, SheetTrigger } from './sheet'; // Assuming sheet is in the same directory
-import { Home, Users2, LineChart, PanelLeft, Package2 } from 'lucide-react';
+import { Home, Users2, LineChart, PanelLeft, Package2, Settings } from 'lucide-react'; // Added Settings icon
 import { useUser } from '@/context/UserContext';
-import { isAdmin } from '@/lib/authUtils';
+import { isAdmin, hasPermission } from '@/lib/authUtils'; // Assuming hasPermission might be more generic if roles differ
 
 export function MobileNav() {
   const { user, isLoading } = useUser();
@@ -36,13 +36,23 @@ export function MobileNav() {
             <Home className="h-5 w-5" />
             Dashboard
           </Link>
-          {!isLoading && isAdmin(user?.role) && (
+          {!isLoading && user?.role && hasPermission(user.role.roleType, 'admin') && ( // Corrected to pass roleType
             <Link
               href="/dashboard/users"
               className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
             >
               <Users2 className="h-5 w-5" />
               Users
+            </Link>
+          )}
+          {/* TODO: Choose a more appropriate icon for Model Management */}
+          {!isLoading && user?.role && hasPermission(user.role.roleType, 'admin') && ( // Corrected to pass roleType
+            <Link
+              href="/dashboard/model-management"
+              className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+            >
+              <Settings className="h-5 w-5" /> {/* Using Settings as a placeholder icon */}
+              Model Management
             </Link>
           )}
           <Link

@@ -1,0 +1,76 @@
+# MBK: Nested Subtask Controller (`backend/src/controllers/project/subtask.controller.ts`)
+
+**Last Updated:** 2025-05-11
+
+**USAGE NOTE:** This class-based `SubtaskController` is the **ACTIVE** controller for subtask-related CRUD operations as defined in `backend/src/routes/project.routes.ts`. It supersedes the subtask-related functions in the top-level functional controller (`backend/src/controllers/project.controller.ts`).
+
+## 1. Purpose and Overview
+This controller handles HTTP requests for managing `Subtask` entities, which are children of `Task` entities. It is a class-based controller exporting a singleton instance (`subtaskController`) and uses `subtaskService` (and potentially `taskService` for cascading updates, though the active controller uses `subtaskService.updateSubtask` directly for its own update).
+
+## 2. Key Functions and Endpoints Handled (from `project.routes.ts`)
+
+*   **`createSubtask(req: CustomRequest, res: Response)`**
+    *   **Route:** `POST /tasks/:taskId/subtasks` (mounted under a base project path, e.g., `/api/projects/tasks/:taskId/subtasks`)
+    *   **Middleware:** `isAuthenticated`
+    *   **Purpose:** Creates a new subtask for a specified parent task.
+    *   **Logic:**
+        *   Casts `req` to `CustomRequest` (from `../../../middlewares/auth.middleware`).
+        *   Parses `taskId` from `req.params`.
+        *   Expects subtask data (conforming to `CreateSubtaskDto` from `../../../dtos/project.dto`) in `req.body`.
+        *   Calls `subtaskService.createSubtask(parseInt(req.params.taskId), req.body, req.user.id)`.
+        *   Uses `handleServiceResponse` (from `../../../common/utils/httpHandlers`) for the response.
+
+*   **`getSubtasksForTask(req: CustomRequest, res: Response)`**
+    *   **Route:** `GET /tasks/:taskId/subtasks`
+    *   **Middleware:** `isAuthenticated`
+    *   **Purpose:** Retrieves all subtasks for a specified parent task.
+    *   **Logic:**
+        *   Casts `req` to `CustomRequest`.
+        *   Parses `taskId` from `req.params`.
+        *   Calls `subtaskService.getSubtasksByTaskId(parseInt(req.params.taskId))`.
+        *   Uses `handleServiceResponse`.
+
+*   **`updateSubtask(req: CustomRequest, res: Response)`**
+    *   **Route:** `PUT /subtasks/:subtaskId` (mounted under a base path, e.g., `/api/projects/subtasks/:subtaskId`)
+    *   **Middleware:** `isAuthenticated`
+    *   **Purpose:** Updates an existing subtask.
+    *   **Logic:**
+        *   Casts `req` to `CustomRequest`.
+        *   Parses `subtaskId` from `req.params`.
+        *   Expects subtask data (conforming to `UpdateSubtaskDto` from `../../../dtos/project.dto`) in `req.body`.
+        *   Calls `subtaskService.updateSubtask(parseInt(req.params.subtaskId), req.body, req.user.id)`.
+            *   **Note:** This direct call to `subtaskService.updateSubtask` differs from the top-level (inactive) functional controller's `updateSubtask` which called `taskService.updateSubtaskAndPotentiallyParent`. This means the active logic path might not trigger parent task status updates directly from this controller method unless `subtaskService.updateSubtask` itself contains that logic or another mechanism handles it.
+        *   Uses `handleServiceResponse`.
+
+*   **`deleteSubtask(req: CustomRequest, res: Response)`**
+    *   **Route:** `DELETE /subtasks/:subtaskId`
+    *   **Middleware:** `isAuthenticated`
+    *   **Purpose:** Deletes a subtask.
+    *   **Logic:**
+        *   Casts `req` to `CustomRequest`.
+        *   Parses `subtaskId` from `req.params`.
+        *   Calls `subtaskService.deleteSubtask(parseInt(req.params.subtaskId), req.user.id)`.
+        *   Uses `handleServiceResponse`.
+
+## 3. Dependencies
+*   `express` (Request, Response types)
+*   `http-status-codes`
+*   `../../../services/project/subtask.service` (`subtaskService`)
+*   `../../../middlewares/auth.middleware` (`CustomRequest`, `isAuthenticated`)
+*   `../../../common/utils/httpHandlers` (`handleServiceResponse`)
+*   `../../../dtos/project.dto` (for `CreateSubtaskDto`, `UpdateSubtaskDto`)
+
+## 4. Key Patterns & Observations
+*   **Class-Based Controller with Singleton Export.**
+*   **Controller-Service Architecture:** Delegates to `subtaskService`.
+*   **Centralized Response Handling:** Uses `handleServiceResponse`.
+*   **Authentication:** All routes protected by `isAuthenticated`. `CustomRequest` used.
+*   **Audit Fields:** `createdById` and `updatedById` (implicitly via `req.user.id`) are passed to service methods.
+*   **Service Call Difference:** The `updateSubtask` method calls `subtaskService.updateSubtask` directly, which is a key difference from the (inactive) top-level functional controller's approach that involved `taskService` for potential parent updates. This has implications for how parent task statuses might be updated based on subtask changes.
+
+## 5. TODOs / Potential Refinements
+*   Ensure DTOs (`CreateSubtaskDto`, `UpdateSubtaskDto`) are explicitly validated (e.g., with Zod) in controller methods or at the start of service methods.
+*   Clarify the logic for cascading status updates from subtasks to parent tasks, given the direct call to `subtaskService.updateSubtask` in the active controller.
+
+---
+*This MBK should be updated if the controller's responsibilities, routes, or interaction patterns change.*

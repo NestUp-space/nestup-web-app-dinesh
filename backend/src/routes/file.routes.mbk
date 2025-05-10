@@ -1,0 +1,37 @@
+# MBK: file.routes.ts
+
+**Last Updated:** 2025-05-11
+
+## 1. Purpose
+This file defines the Express router for API endpoints related to file management, specifically for uploading files and retrieving files associated with tasks.
+
+## 2. Key Routes Defined
+
+*   **`POST /upload`**
+    *   **Controller Function:** `uploadFile` (from `../controllers/file.controller`)
+    *   **Purpose:** Handles file uploads. The associated controller logic expects `req.body.taskId` to link the file to a task.
+    *   **Middleware:** `isAuthenticated` (from `../middlewares/auth.middleware`).
+    *   **Note on Multer:** This route is intended for file uploads and thus requires `multipart/form-data` processing. The `file.controller.uploadFile` function expects `req.file` to be populated by Multer middleware. This middleware configuration is not explicitly defined within this `file.routes.ts` file itself but must be applied either globally before this router is used, or more typically, specifically to this route when the router is mounted or within this file.
+
+*   **`GET /:taskId`**
+    *   **Controller Function:** `getFiles` (from `../controllers/file.controller`)
+    *   **Purpose:** Retrieves files associated with a specific `taskId`.
+    *   **Request Parameter:** `taskId` is expected as a route parameter.
+    *   **Middleware:** `isAuthenticated`.
+
+## 3. Middleware
+*   Both defined routes (`/upload` and `/:taskId`) are protected by the `isAuthenticated` middleware.
+*   The `POST /upload` route implicitly requires Multer middleware for file processing.
+
+## 4. Dependencies
+*   `express` (Router)
+*   Controller functions (`uploadFile`, `getFiles`) from `../controllers/file.controller`.
+*   `isAuthenticated` middleware from `../middlewares/auth.middleware`.
+
+## 5. General Observations
+*   Provides core file management functionalities tied to tasks.
+*   Ensuring Multer is correctly configured for the `/upload` route is critical for its operation.
+*   This router is typically mounted under a base path like `/api/files` in the main application setup (e.g., `server.ts`).
+
+---
+*This MBK should be updated if the routes, controller mappings, or middleware configurations change.*

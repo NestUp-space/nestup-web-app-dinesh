@@ -9,6 +9,8 @@ import { userRouter } from "@/api/user/userRouter";
 import authRouter from "@/routes/auth.routes"; // Auth router
 import projectRouter from "@/routes/project.routes"; // Project router
 import bimRouter from "@/bim/routes/bim.routes"; // BIM router
+// Model Management Router
+import modelManagementRouter from "@/model-management/routes/index"; // Main router for model management
 import materialRouter from "@/routes/material.routes"; // Material router
 import siteVisitBoxRouter from "@/routes/siteVisitBox.routes"; // SiteVisitBox router
 import errorHandler from "@/common/middleware/errorHandler";
@@ -39,6 +41,7 @@ app.use("/api/users", userRouter); // Standardized under /api
 app.use("/api/auth", authRouter); // Auth routes
 app.use("/api/projects", projectRouter); // Project routes
 app.use("/api/bim", bimRouter); // BIM routes, standardized under /api
+app.use("/api/v1/model-management", modelManagementRouter); // Consolidated Model Management routes
 app.use("/api/materials", materialRouter); // Material routes, specific path
 app.use("/api/site-visit-boxes", siteVisitBoxRouter); // SiteVisitBox routes, specific path
 

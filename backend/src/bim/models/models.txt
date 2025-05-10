@@ -1,0 +1,856 @@
+
+function createPlankList() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const inputSheet = ss.getSheetByName("Box Wise Inputs");
+  const outputSheet = ss.getSheetByName("Plank List3") || ss.insertSheet("Plank List3");
+
+  const inputData = inputSheet.getDataRange().getValues();
+  const headers = ["Plank ID", "Height", "Width", "Material Code","Thickess", "Grain Direction"];
+  outputSheet.clear();
+  outputSheet.appendRow(headers);
+
+  for (let i = 1; i < inputData.length; i++) {
+    const row = inputData[i];
+    const BN = row[0]; // Box Number
+    const Model = row[1];
+    const BH = row[2]; // Box Height
+    const BW = row[3]; // Box Width
+    const BD = row[4]; // Box Depth
+    const Position = row[5];
+    const Code1 = row[6];
+    const Code2 = row[7];
+    const Code3 = row[8];
+    const Mainply = row[9];//Thickness
+    const Backply = row[10];//Thickness
+    const BB = row[11];//Blockboard Thickness
+    
+
+    // ✅ Skip blank/invalid rows first
+    if (!BN || !Model) continue;
+    if (Position === "BoxBox","BoxExp","ExpBox","WallWall","ExpExp","WallExp","ExpWall","WallBox","BoxWall") {
+     Logger.log("✅ It's a SimpleBox");
+
+        let hingeHoles = [];
+
+let sideOffset = 23.5; // Distance from edge to center of hinge hole (X)
+let topOffset = 100;   // Distance from top/bottom edge to center of hinge hole (Y)
+
+if (BH < 950) {
+    // 2 hinge holes (top and bottom)
+    hingeHoles.push({ x: sideOffset, y: topOffset, dia: 35 });
+    hingeHoles.push({ x: sideOffset, y: BH - topOffset, dia: 35 });
+} else {
+    // 4 hinge holes (top, bottom, and two equally spaced)
+    let middleSpace = (BH - 2 * topOffset) / 3;
+    hingeHoles.push({ x: sideOffset, y: topOffset, dia: 35 });
+    hingeHoles.push({ x: sideOffset, y: topOffset + middleSpace, dia: 35 });
+    hingeHoles.push({ x: sideOffset, y: topOffset + 2 * middleSpace, dia: 35 });
+    hingeHoles.push({ x: sideOffset, y: BH - topOffset, dia: 35 });
+}
+let hingeHoleDetails = hingeHoles
+  .map(hole => `Hole at (X:${hole.x}, Y:${hole.y}, Dia:${hole.dia})`)
+  .join("; ");
+
+    switch(Model){
+
+      case  "SimpleBox with 1shelf":
+
+
+     // Left Plank
+     outputSheet.appendRow([(BN + "p1") , BH, (BD-Mainply+Backply), Code1,Mainply, "Vertical",]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P2", BH,(BD-Mainply+Backply), Code1,Mainply, "Vertical"]);
+
+     // Bottom Plank
+     outputSheet.appendRow([ BN +"P3", (BW-(Mainply*2)), (BD-Mainply+Backply+20), Code1,Mainply, "Horizontal"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P4", (BW-(Mainply*2)),(BD-Mainply+Backply+20), Code1,Mainply, "Horizontal"]);
+
+     // Shelf Plank
+     outputSheet.appendRow([ BN +"P4", (BW-(Mainply*2)), (BD-Mainply+Backply+20), Code1,Mainply, "Horizontal"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P5", BH, BW , Code1,Backply, "Vertical"]);
+
+      // Door Plank
+     outputSheet.appendRow([ BN +"P6", BH, BW , Code2,Mainply, "Vertical"]);
+      break;
+
+     case  "Simple Box":
+
+      // Left Plank
+     outputSheet.appendRow([(BN + "p1") , BH, (BD-Mainply+Backply), Code1,Mainply, "Vertical",]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P2", BH,(BD-Mainply+Backply), Code1,Mainply, "Vertical"]);
+
+     // Bottom Plank
+     outputSheet.appendRow([ BN +"P3", (BW-(Mainply*2)), (BD-Mainply+Backply+20), Code1,Mainply, "Horizontal"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P4", (BW-(Mainply*2)),(BD-Mainply+Backply+20), Code1,Mainply, "Horizontal"]);
+
+     // Shelf Plank
+     outputSheet.appendRow([ BN +"P4", (BW-(Mainply*2)), (BD-Mainply+Backply+20), Code1,Mainply, "Horizontal"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P5", BH, BW , Code1,Backply, "Vertical"]);
+
+      // Door Plank
+     outputSheet.appendRow([ BN +"P6", BH, BW , Code2,Mainply, "Vertical"]);
+    break;
+
+    case "SimpleBox with 2Doors":
+
+     // Left Plank
+     outputSheet.appendRow([(BN + "p1") , BH, (BD-Mainply+Backply), Code1,Mainply, "Vertical",]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P2", BH,(BD-Mainply+Backply), Code1,Mainply, "Vertical"]);
+
+     // Bottom Plank
+     outputSheet.appendRow([ BN +"P3", (BW-(Mainply*2)), (BD-Mainply+Backply+20), Code1,Mainply, "Horizontal"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P4", (BW-(Mainply*2)),(BD-Mainply+Backply+20), Code1,Mainply, "Horizontal"]);
+     // Back Plank
+     outputSheet.appendRow([ BN +"P5", BH, BW , Code1,Backply, "Vertical"]);
+
+      // Door Plank
+     outputSheet.appendRow([ BN +"P6", BH, BW/2 , Code2,Mainply, "Vertical"]);
+     
+      // Door Plank
+     outputSheet.appendRow([ BN +"P6", BH, BW/2, Code2,Mainply, "Vertical"]);
+      break;
+
+     case "SimpleBox with 2Doors 1self" :
+
+ // Left Plank
+     outputSheet.appendRow([(BN + "p1") , BH, (BD-Mainply+Backply), Code1,Mainply, "Vertical",]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P2", BH,(BD-Mainply+Backply), Code1,Mainply, "Vertical"]);
+
+     // Bottom Plank
+     outputSheet.appendRow([ BN +"P3", (BW-(Mainply*2)), (BD-Mainply+Backply+20), Code1,Mainply, "Horizontal"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P4", (BW-(Mainply*2)),(BD-Mainply+Backply+20), Code1,Mainply, "Horizontal"]);
+
+     // Shelf Plank
+     outputSheet.appendRow([ BN +"P4", (BW-(Mainply*2)), (BD-Mainply+Backply+20), Code1,Mainply, "Horizontal"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P5", BH, BW , Code1,Backply, "Vertical"]);
+
+      // Door Plank
+     outputSheet.appendRow([ BN +"P6", BH, BW/2 , Code2,Mainply, "Vertical"]);
+     
+      // Door Plank
+     outputSheet.appendRow([ BN +"P6", BH, BW/2, Code2,Mainply, "Vertical"]);
+      break;
+
+     case "SimpleBox with 2verticals":
+
+    // Left Plank
+     outputSheet.appendRow([(BN + "p1") , BH, (BD-Mainply+Backply), Code1,Mainply, "Vertical",]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P2", BH,(BD-Mainply+Backply), Code1,Mainply, "Vertical"]);
+
+     // Bottom Plank
+     outputSheet.appendRow([ BN +"P3", (BW-(Mainply*2)), (BD-Mainply+Backply+20), Code1,Mainply, "Horizontal"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P4", (BW-(Mainply*2)),(BD-Mainply+Backply+20), Code1,Mainply, "Horizontal"]);
+
+     // Vertical Plank
+     outputSheet.appendRow([ BN +"P4", (BH-(Mainply*2)), (BD-Mainply+Backply+20), Code1,Mainply, "Horizontal"]);
+       // Vertical Plank
+     outputSheet.appendRow([ BN +"P4", (BH-(Mainply*2)), (BD-Mainply+Backply+20), Code1,Mainply, "Horizontal"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P5", BH, BW , Code1,Backply, "Vertical"]);
+
+      // Door Plank
+     outputSheet.appendRow([ BN +"P6", BH, BW , Code2,Mainply, "Vertical"]);
+      break;
+
+      case "SimpleBox with 1Draw":
+
+    // Left Plank
+     outputSheet.appendRow([(BN + "p1") , BH, BD, Code1,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P2", BH, BD, Code1,Mainply, "Vertical"]);
+
+     // Bottom Plank
+     outputSheet.appendRow([ BN +"P3", (BW-(Mainply*2)), (BD-Mainply+Backply), Code1,Mainply, "Horizontal"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P4", (BW-(Mainply*2)), BD, Code1,Mainply, "Horizontal"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P5", BH, BW , Code1,Backply, "Vertical"]);
+
+      // Door Plank
+     outputSheet.appendRow([ BN +"P6", BH, BW , Code2,Backply, "Vertical"]);
+
+     //Draw
+      // Left Plank
+     outputSheet.appendRow([(BN + "p7") , (BH-Mainply*2+40), (BD-Mainply+Backply+16), Code1,Mainply, "Vertical"]);
+     // Right Plank
+     outputSheet.appendRow([ BN +"P8",  (BH-Mainply*2+40), (BD-Mainply+Backply+16), Code1,Mainply, "Vertical"]);
+     // front Plank
+     outputSheet.appendRow([ BN +"P9", (BW-(Mainply*2)), (BD-Mainply+Backply), Code1,Mainply, "Horizontal"]);
+     // Back Plank
+     outputSheet.appendRow([ BN +"P10", (BW-(Mainply*2)), (BD-Mainply+Backply), Code1,Backply, "Vertical"]);
+      // Bottom Plank
+     outputSheet.appendRow([ BN +"P11", (BW-Mainply*2+26), (BD-Mainply+Backply+16), Code2,Backply, "Vertical"]);
+    break;
+     
+    case "SimpleBox with 2Draw":
+
+
+    // Left Plank
+     outputSheet.appendRow([(BN + "p1") , BH, BD, Code1,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P2", BH, BD, Code1,Mainply, "Vertical"]);
+
+     // Bottom Plank
+     outputSheet.appendRow([ BN +"P3", (BW-(Mainply*2)), (BD-Mainply+Backply), Code1,Mainply, "Horizontal"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P4", (BW-(Mainply*2)), BD, Code1,Mainply, "Horizontal"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P5", BH, BW , Code1,Backply, "Vertical"]);
+
+      // Door Plank
+     outputSheet.appendRow([ BN +"P6", BH/2, BW , Code2,Backply, "Vertical"]);
+       // Door Plank
+     outputSheet.appendRow([ BN +"P6", BH/2, BW , Code2,Backply, "Vertical"]);
+
+     //Draw
+      // Left Plank
+     outputSheet.appendRow([(BN + "p7") , (BH-Mainply*2+40), (BD-Mainply+Backply+16), Code1,Mainply, "Vertical"]);
+     // Right Plank
+     outputSheet.appendRow([ BN +"P8",  (BH-Mainply*2+40), (BD-Mainply+Backply+16), Code1,Mainply, "Vertical"]);
+     // front Plank
+     outputSheet.appendRow([ BN +"P9", (BW-(Mainply*2)), (BD-Mainply+Backply), Code1,Mainply, "Horizontal"]);
+     // Back Plank
+     outputSheet.appendRow([ BN +"P10", (BW-(Mainply*2)), (BD-Mainply+Backply), Code1,Backply, "Vertical"]);
+      // Bottom Plank
+     outputSheet.appendRow([ BN +"P11", (BW-Mainply*2+26), (BD-Mainply+Backply+16), Code2,Backply, "Vertical"]);
+
+     //Draw
+      // Left Plank
+     outputSheet.appendRow([(BN + "p7") , (BH-Mainply*2+40), (BD-Mainply+Backply+16), Code1,Mainply, "Vertical"]);
+     // Right Plank
+     outputSheet.appendRow([ BN +"P8",  (BH-Mainply*2+40), (BD-Mainply+Backply+16), Code1,Mainply, "Vertical"]);
+     // front Plank
+     outputSheet.appendRow([ BN +"P9", (BW-(Mainply*2)), (BD-Mainply+Backply), Code1,Mainply, "Horizontal"]);
+     // Back Plank
+     outputSheet.appendRow([ BN +"P10", (BW-(Mainply*2)), (BD-Mainply+Backply), Code1,Backply, "Vertical"]);
+      // Bottom Plank
+     outputSheet.appendRow([ BN +"P11", (BW-Mainply*2+26), (BD-Mainply+Backply+16), Code2,Backply, "Vertical"]);
+     break;
+
+     case "SimpleBox with 4Draw":
+
+
+     // Left Plank
+     outputSheet.appendRow([(BN + "p1") , BH, BD, Code1,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P2", BH, BD, Code1,Mainply, "Vertical"]);
+
+     // Bottom Plank
+     outputSheet.appendRow([ BN +"P3", (BW-(Mainply*2)), (BD-Mainply+Backply), Code1,Mainply, "Horizontal"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P4", (BW-(Mainply*2)), BD, Code1,Mainply, "Horizontal"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P5", BH, BW , Code1,Backply, "Vertical"]);
+
+      // Door Plank
+     outputSheet.appendRow([ BN +"P6", BH/4, BW , Code2,Backply, "Vertical"]);
+       // Door Plank
+     outputSheet.appendRow([ BN +"P6", BH/4, BW , Code2,Backply, "Vertical"]);
+      // Door Plank
+     outputSheet.appendRow([ BN +"P6", BH/4, BW , Code2,Backply, "Vertical"]);
+       // Door Plank
+     outputSheet.appendRow([ BN +"P6", BH/4, BW , Code2,Backply, "Vertical"]);
+
+     //Draw
+      // Left Plank
+     outputSheet.appendRow([(BN + "p7") , (BH-Mainply*2+40), (BD-Mainply+Backply+16), Code1,Mainply, "Vertical"]);
+     // Right Plank
+     outputSheet.appendRow([ BN +"P8",  (BH-Mainply*2+40), (BD-Mainply+Backply+16), Code1,Mainply, "Vertical"]);
+     // front Plank
+     outputSheet.appendRow([ BN +"P9", (BW-(Mainply*2)), (BD-Mainply+Backply), Code1,Mainply, "Horizontal"]);
+     // Back Plank
+     outputSheet.appendRow([ BN +"P10", (BW-(Mainply*2)), (BD-Mainply+Backply), Code1,Backply, "Vertical"]);
+      // Bottom Plank
+     outputSheet.appendRow([ BN +"P11", (BW-Mainply*2+26), (BD-Mainply+Backply+16), Code1,Backply, "Vertical"]);
+
+     //Draw
+      // Left Plank
+     outputSheet.appendRow([(BN + "p7") , (BH-Mainply*2+40), (BD-Mainply+Backply+16), Code1,Mainply, "Vertical"]);
+     // Right Plank
+     outputSheet.appendRow([ BN +"P8",  (BH-Mainply*2+40), (BD-Mainply+Backply+16), Code1,Mainply, "Vertical"]);
+     // front Plank
+     outputSheet.appendRow([ BN +"P9", (BW-(Mainply*2)), (BD-Mainply+Backply), Code1,Mainply, "Horizontal"]);
+     // Back Plank
+     outputSheet.appendRow([ BN +"P10", (BW-(Mainply*2)), (BD-Mainply+Backply), Code1,Backply, "Vertical"]);
+      // Bottom Plank
+     outputSheet.appendRow([ BN +"P11", (BW-Mainply*2+26), (BD-Mainply+Backply+16), Code1,Backply, "Vertical"]);
+
+     //Draw
+      // Left Plank
+     outputSheet.appendRow([(BN + "p7") , (BH-Mainply*2+40), (BD-Mainply+Backply+16), Code1,Mainply, "Vertical"]);
+     // Right Plank
+     outputSheet.appendRow([ BN +"P8",  (BH-Mainply*2+40), (BD-Mainply+Backply+16), Code1,Mainply, "Vertical"]);
+     // front Plank
+     outputSheet.appendRow([ BN +"P9", (BW-(Mainply*2)), (BD-Mainply+Backply), Code1,Mainply, "Horizontal"]);
+     // Back Plank
+     outputSheet.appendRow([ BN +"P10", (BW-(Mainply*2)), (BD-Mainply+Backply), Code1,Backply, "Vertical"]);
+      // Bottom Plank
+     outputSheet.appendRow([ BN +"P11", (BW-Mainply*2+26), (BD-Mainply+Backply+16), Code1,Backply, "Vertical"]);
+
+     //Draw
+      // Left Plank
+     outputSheet.appendRow([(BN + "p7") , (BH-Mainply*2+40), (BD-Mainply+Backply+16), Code1,Mainply, "Vertical"]);
+     // Right Plank
+     outputSheet.appendRow([ BN +"P8",  (BH-Mainply*2+40), (BD-Mainply+Backply+16), Code1,Mainply, "Vertical"]);
+     // front Plank
+     outputSheet.appendRow([ BN +"P9", (BW-(Mainply*2)), (BD-Mainply+Backply), Code1,Mainply, "Horizontal"]);
+     // Back Plank
+     outputSheet.appendRow([ BN +"P10", (BW-(Mainply*2)), (BD-Mainply+Backply), Code1,Backply, "Vertical"]);
+      // Bottom Plank
+     outputSheet.appendRow([ BN +"P11", (BW-Mainply*2+26), (BD-Mainply+Backply+16), Code2,Backply, "Vertical"]);
+     break;
+
+     case "ProfileDoor with 2shelf":
+
+      // Left Plank
+     outputSheet.appendRow([(BN + "p1") , BH, BD, Code2,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P2", BH, BD, Code1,Mainply, "Vertical"]);
+
+     // Bottom Plank
+     outputSheet.appendRow([ BN +"P3", (BW+Mainply), (BD-(Mainply+Backply)), Code2,Mainply, "Horizontal"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P4", (BW-(Mainply*2)), (BD-(Mainply+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P5", BH, BW , Code1,Backply, "Vertical"]);
+     break;
+
+     case "3TandemBox":
+
+      // Left Plank
+     outputSheet.appendRow([(BN + "p1") , BH, BD, Code1,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P2", BH, BD, Code1,Mainply, "Vertical"]);
+
+     // Bottom Plank
+     outputSheet.appendRow([ BN +"P3", (BW+Mainply), (BD-(Mainply+Backply)), Code2,Mainply, "Horizontal"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P4", (BW-(Mainply*2)), (BD-(Mainply+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P5", BH, BW , Code1,Backply, "Vertical"]);
+
+     // Door Plank
+     outputSheet.appendRow([ BN +"P6", (BH/2), BW , Code2,Backply, "Vertical"]);
+     // Door Plank
+     outputSheet.appendRow([ BN +"P7", ((BH/2)/2), BW , Code2,Backply, "Vertical"]);
+      // Door Plank
+     outputSheet.appendRow([ BN +"P8", ((BH/2)/2), BW , Code2,Backply, "Vertical"]);
+     break;
+
+     case "2TandemBox":
+
+      // Left Plank
+     outputSheet.appendRow([(BN + "p1") , BH, BD, Code1,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P2", BH, BD, Code1,Mainply, "Vertical"]);
+
+     // Bottom Plank
+     outputSheet.appendRow([ BN +"P3", (BW+Mainply), (BD-(Mainply+Backply)), Code2,Mainply, "Horizontal"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P4", (BW-(Mainply*2)), (BD-(Mainply+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P5", BH, BW , Code1,Backply, "Vertical"]);
+
+     // Door Plank
+     outputSheet.appendRow([ BN +"P6", (BH/2), BW , Code2,Backply, "Vertical"]);
+      // Door Plank
+     outputSheet.appendRow([ BN +"P7", (BH/2), BW , Code2,Backply, "Vertical"]);
+     break;
+
+    case "open Box":
+
+      // Left Plank
+     outputSheet.appendRow([(BN + "p1") , BH, BD, Code12,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P2", BH, BD, Code2,Mainply, "Vertical"]);
+
+     // Bottom Plank
+     outputSheet.appendRow([ BN +"P3", (BW-Mainply), (BD-(Mainply+Backply)), Code2,Mainply, "Horizontal"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P4", (BW-Mainply), (BD-(Mainply+Backply)), Code2,Mainply, "Horizontal"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P5", BH, BW , Code2,Backply, "Vertical"]);
+       break;
+
+     case "Wardrobe Type 4":
+
+      // Left Plank
+     outputSheet.appendRow([(BN + "p1") , (BH+110), BD-(Mainply+Backply), Code2,Mainply, "Vertical"]);
+
+     // Extra Plank
+     outputSheet.appendRow([(BN + "p7") , BH, BD, Code2,Mainply, "Vertical"]);
+ 
+     // Right Plank 
+     outputSheet.appendRow([ BN +"P2", (BH+110), BD-(Mainply+Backply), Code1,Mainply, "Vertical"]);
+
+     // Bottom Plank
+     outputSheet.appendRow([ BN +"P3", (BW-Mainply*2), (BD-(Mainply+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P4", (BW-Mainply*2), (BD-(Mainply+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P5", BH,  BW , Code1,Backply, "Vertical"]);
+
+     // Door1 Plank
+     outputSheet.appendRow([ BN +"P6", BH, (BW/2), Code2,Mainply, "Vertical"]);
+
+     //Self1 Plank
+     outputSheet.appendRow([ BN +"P8", BW-(Mainply*2), BD-(Backply+20), Code1,Mainply, "Horizontal"]);
+     //Self2 Plank
+     outputSheet.appendRow([ BN +"P9", BW-(Mainply*2), BD-(Backply+20), Code1,Mainply, "Horizontal"]);
+
+        //Draw
+     // Left Plank
+     outputSheet.appendRow([(BN + "p10") , (175-40), (BD-(Mainply+Backply+56)), Code1,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P11",(175-40),(BD-(Mainply+Backply+56)), Code1,Mainply, "Vertical"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P12", (BW-(26+Mainply*6+60)), (175-(40+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // front Plank
+     outputSheet.appendRow([ BN +"P13", (BW-(26+Mainply*6+60)), (175-(60+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Bottom   Plank
+     outputSheet.appendRow([ BN +"P14", (BD-(Mainply+Backply+56)),  (BW-(26+Mainply*4+60)), Code1,Backply, "Vertical"]);
+
+      // Door Plank
+     outputSheet.appendRow([ BN +"P15", 175, (BW-(Mainply*2+60)) , Code1,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P16", 175, (BD-(Mainply+Backply+40)) , Code2,Backply, "Vertical"]);
+       // Dummy Plank
+     outputSheet.appendRow([ BN +"P17", 175, (BD-(Mainply+Backply+40)) , Code2,Backply, "Vertical"]);
+         // Dummy Plank
+     outputSheet.appendRow([ BN +"P18", 175, 30 , Code2,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P19", 175, 30 , Code2,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P20", 175, 30 , Code2,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P21", 175, 30 , Code2,Backply, "Vertical"]);
+     break;
+
+    case "Wardrobe Type 2":
+
+      // Left Plank
+     outputSheet.appendRow([(BN + "p1") , (BH+110), BD-(Mainply+Backply), Code2,Mainply, "Vertical"]);
+
+     // Extra Plank
+     outputSheet.appendRow([(BN + "p9") , BH, BD, Code2,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P2", (BH+110), BD-(Mainply+Backply), Code1,Mainply, "Vertical"]);
+
+     // Bottom Plank
+     outputSheet.appendRow([ BN +"P3", (BW-Mainply*2), (BD-(Mainply+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P4", (BW-Mainply*2), (BD-(Mainply+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P5", BH,  BW , Code1,Backply, "Vertical"]);
+
+     // Door1 Plank
+     outputSheet.appendRow([ BN +"P6", BH, (BW/2), Code2,Mainply, "Vertical"]);
+      // Door2 Plank
+     outputSheet.appendRow([ BN +"P6", BH, (BW/2), Code2,Mainply, "Vertical"]);
+
+     //Self1 Plank
+     outputSheet.appendRow([ BN +"P7", BW-(Mainply*2), BD-(Backply+20), Code1,Mainply, "Horizontal"]);
+
+     //Self2 Plank
+     outputSheet.appendRow([ BN +"P8", BW-(Mainply*2), BD-(Backply+20), Code1,Mainply, "Horizontal"]);
+
+
+     //Draw
+     // Left Plank
+     outputSheet.appendRow([(BN + "p10") , (220-40), (BD-(Mainply+Backply+56)), Code1,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P11",(220-40),(BD-(Mainply+Backply+56)), Code1,Mainply, "Vertical"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P12", (BW-(26+Mainply*6+60)), (220-(40+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // front Plank
+     outputSheet.appendRow([ BN +"P13", (BW-(26+Mainply*6+60)), (220-(60+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Bottom   Plank
+     outputSheet.appendRow([ BN +"P14", (BD-(Mainply+Backply+56)),  (BW-(26+Mainply*4+60)), Code1,Backply, "Vertical"]);
+     //Draw
+     // Left Plank
+     outputSheet.appendRow([(BN + "p10") , (220-40), (BD-(Mainply+Backply+56)), Code1,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P11",(220-40),(BD-(Mainply+Backply+56)), Code1,Mainply, "Vertical"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P12", (BW-(26+Mainply*6+60)), (220-(40+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // front Plank
+     outputSheet.appendRow([ BN +"P13", (BW-(26+Mainply*6+60)), (220-(60+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Bottom   Plank
+     outputSheet.appendRow([ BN +"P14", (BD-(Mainply+Backply+56)),  (BW-(26+Mainply*4+60)), Code1,Backply, "Vertical"]);
+     
+      // Door Plank
+     outputSheet.appendRow([ BN +"P15", 440, (BW-(Mainply*2+60)) , Code1,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P16", 440, (BD-(Mainply+Backply+40)) , Code2,Backply, "Vertical"]);
+       // Dummy Plank
+     outputSheet.appendRow([ BN +"P17", 440, (BD-(Mainply+Backply+40)) , Code2,Backply, "Vertical"]);
+         // Dummy Plank
+     outputSheet.appendRow([ BN +"P18", 440, 30 , Code2,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P19", 440, 30 , Code2,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P20", 440, 30 , Code2,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P21", 440, 30 , Code2,Backply, "Vertical"]);
+         break;
+
+       case "Wardrobe Type 6":
+
+      // Left Plank
+     outputSheet.appendRow([(BN + "p1") , (BH+110), BD-(Backply+Mainply), Code1,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P2", (BH+110), BD-(Mainply+Backply), Code2,Mainply, "Vertical"]);
+
+      // Extra Plank
+     outputSheet.appendRow([(BN + "p9") , BH, BD, Code2,Mainply, "Vertical"]);
+
+     // Bottom Plank
+     outputSheet.appendRow([ BN +"P3", (BW-Mainply*2), (BD-(Mainply+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P4", (BW-Mainply*2), (BD-(Mainply+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P5", BH,  BW  , Code1,Backply, "Vertical"]);
+
+     // Door1 Plank
+     outputSheet.appendRow([ BN +"P6", BH, (BW/2), Code2,Mainply, "Vertical"]);
+     // Door2 Plank
+     outputSheet.appendRow([ BN +"P6", BH, (BW/2), Code2,Mainply, "Vertical"]);
+
+     //Self1 Plank
+     outputSheet.appendRow([ BN +"P7", BW-(Mainply*2), BD-(Mainply+Backply+20), Code1,Mainply, "Vertical"]);
+
+        //Draw
+     // Left Plank
+     outputSheet.appendRow([(BN + "p10") , (175-40), (BD-(Mainply+Backply+56)), Code1,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P11",(175-40),(BD-(Mainply+Backply+56)), Code1,Mainply, "Vertical"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P12", (BW-(26+Mainply*6+60)), (175-(40+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // front Plank
+     outputSheet.appendRow([ BN +"P13", (BW-(26+Mainply*6+60)), (175-(60+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Bottom   Plank
+     outputSheet.appendRow([ BN +"P14", (BD-(Mainply+Backply+56)),  (BW-(26+Mainply*4+60)), Code1,Backply, "Vertical"]);
+
+      // Door Plank
+     outputSheet.appendRow([ BN +"P15", 175, (BW-(Mainply*2+60)) , Code1,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P16", 175, (BD-(Mainply+Backply+40)) , Code2,Backply, "Vertical"]);
+       // Dummy Plank
+     outputSheet.appendRow([ BN +"P17", 175, (BD-(Mainply+Backply+40)) , Code2,Backply, "Vertical"]);
+         // Dummy Plank
+     outputSheet.appendRow([ BN +"P18", 175, 30 , Code2,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P19", 175, 30 , Code2,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P20", 175, 30 , Code2,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P21", 175, 30 , Code2,Backply, "Vertical"]);
+       break;
+
+     case "Wardrobe Type 7":
+
+      // Left Plank
+     outputSheet.appendRow([(BN + "p1") , (BH+110), BD-(Backply+Mainply), Code1,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P2", (BH+110), BD-(Mainply+Backply), Code2,Mainply, "Vertical"]);
+
+      // Extra Plank
+     outputSheet.appendRow([(BN + "p9") , BH, BD, Code2,Mainply, "Vertical"]);
+
+     // Bottom Plank
+     outputSheet.appendRow([ BN +"P3", (BW-Mainply*2), (BD-(Mainply+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P4", (BW-Mainply*2), (BD-(Mainply+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P5", BH,  BW  , Code1,Backply, "Vertical"]);
+
+     // Door1 Plank
+     outputSheet.appendRow([ BN +"P6", BH, (BW/2), Code2,Mainply, "Vertical"]);
+     // Door2 Plank
+     outputSheet.appendRow([ BN +"P6", BH, (BW/2), Code2,Mainply, "Vertical"]);
+
+     //Self1 Plank
+     outputSheet.appendRow([ BN +"P7", BW-(Mainply*2), BD-(Mainply+Backply+20), Code1,Mainply, "Vertical"]);
+     //Self2 Plank
+     outputSheet.appendRow([ BN +"P7", (BW-(Mainply*2+400)), BD-(Mainply+Backply+20), Code1,Mainply, "Vertical"]);
+    //Self3 Plank
+     outputSheet.appendRow([ BN +"P7", (BW-(Mainply*2+500)), BD-(Mainply+Backply+20), Code1,Mainply, "Vertical"]);
+     //Self Plank
+     outputSheet.appendRow([ BN +"P7", (BW-(Mainply*2+500)), BD-(Mainply+Backply+20), Code1,Mainply, "Vertical"]);
+     //Self3 Plank
+     outputSheet.appendRow([ BN +"P7", (BW-(Mainply*2+500)), BD-(Mainply+Backply+20), Code1,Mainply, "Vertical"]);
+
+        //Draw
+     // Left Plank
+     outputSheet.appendRow([(BN + "p10") , (220-40), (BD-(Mainply+Backply+56)), Code1,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P11",(220-40),(BD-(Mainply+Backply+56)), Code1,Mainply, "Vertical"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P12", (BW-(26+Mainply*6+60)), (220-(40+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // front Plank
+     outputSheet.appendRow([ BN +"P13", (BW-(26+Mainply*6+60)), (220-(60+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Bottom   Plank
+     outputSheet.appendRow([ BN +"P14", (BD-(Mainply+Backply+56)),  (BW-(26+Mainply*4+60)), Code1,Backply, "Vertical"]);
+
+      // Door Plank
+     outputSheet.appendRow([ BN +"P15", 220, (BW-(Mainply*2+60)) , Code1,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P16", 220, (BD-(Mainply+Backply+40)) , Code2,Backply, "Vertical"]);
+       // Dummy Plank
+     outputSheet.appendRow([ BN +"P17", 220, (BD-(Mainply+Backply+40)) , Code2,Backply, "Vertical"]);
+         // Dummy Plank
+     outputSheet.appendRow([ BN +"P18", 220, 30 , Code2,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P19", 220, 30 , Code2,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P20", 220, 30 , Code2,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P21", 220, 30 , Code2,Backply, "Vertical"]);
+       break;
+
+     case "Wardrobe Type 1":
+
+      // Left Plank
+     outputSheet.appendRow([(BN + "p1") , BH, (BD-Backply+Mainply), Code1,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P2", BH, (BD-Backply+Mainply), Code1,Mainply, "Vertical"]);
+
+     // Bottom Plank
+     outputSheet.appendRow([ BN +"P3", (BW-Mainply), (BD-(Mainply+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P4", (BW-Mainply), (BD-(Mainply+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P5", BH, BW , Code1,Backply, "Vertical"]);
+
+     // Door1 Plank
+     outputSheet.appendRow([ BN +"P6", BH, (BW/2), Code2,Mainply, "Vertical"]);
+     // Door2 Plank
+     outputSheet.appendRow([ BN +"P7", BH, (BW/2), Code2,Mainply, "Vertical"]);
+
+     //Self1 Plank
+     outputSheet.appendRow([ BN +"P8", BW-(Mainply*2), BD-(Backply+Mainply+20), Code1,Mainply, "Vertical"]);
+
+     //Self2 Plank
+     outputSheet.appendRow([ BN +"P9", BW-(Mainply*2), BD-(Backply+Mainply+20), Code1,Mainply, "Vertical"]);
+
+        //Draw
+     // Left Plank
+     outputSheet.appendRow([(BN + "p10") , (175-40), (BD-(Mainply+Backply+56)), Code1,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P11",(175-40),(BD-(Mainply+Backply+56)), Code1,Mainply, "Vertical"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P12", (BW-(26+Mainply*6+60)), (175-(40+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // front Plank
+     outputSheet.appendRow([ BN +"P13", (BW-(26+Mainply*6+60)), (175-(60+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Bottom   Plank
+     outputSheet.appendRow([ BN +"P14", (BD-(Mainply+Backply+56)),  (BW-(26+Mainply*4+60)), Code1,Backply, "Vertical"]);
+
+      // Door Plank
+     outputSheet.appendRow([ BN +"P15", 175, (BW-(Mainply*2+60)) , Code1,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P16", 175, (BD-(Mainply+Backply+40)) , Code2,Backply, "Vertical"]);
+       // Dummy Plank
+     outputSheet.appendRow([ BN +"P17", 175, (BD-(Mainply+Backply+40)) , Code2,Backply, "Vertical"]);
+         // Dummy Plank
+     outputSheet.appendRow([ BN +"P18", 175, 30 , Code2,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P19", 175, 30 , Code2,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P20", 175, 30 , Code2,Backply, "Vertical"]);
+        // Dummy Plank
+     outputSheet.appendRow([ BN +"P21", 175, 30 , Code2,Backply, "Vertical"]);
+      break;
+
+    case "Wardrobe Type 3":
+
+      // Left Plank
+     outputSheet.appendRow([(BN + "p1") , (BH+110), BD-(Backply+Mainply), Code1,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P2", (BH+110), BD-(Mainply+Backply), Code1,Mainply, "Vertical"]);
+
+     // Bottom Plank
+     outputSheet.appendRow([ BN +"P3", (BW-Mainply*2), (BD-(Mainply+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P4", (BW-Mainply*2), (BD-(Mainply+Backply)), Code1,Mainply, "Horizontal"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P5", BH,  BW  , Code1, Backply, "Vertical"]);
+
+     // Door1 Plank
+     outputSheet.appendRow([ BN +"P6", BH, (BW/2), Code2,Mainply, "Vertical"]);
+
+     //Self Plank
+     outputSheet.appendRow([ BN +"P7", (BW-(Mainply*3)/2), BD-(Mainply+Backply+20), Code1,Mainply, "Vertical"]);
+     //Self Plank
+     outputSheet.appendRow([ BN +"P8", (BW-(Mainply*3)/2), BD-(Mainply+Backply+20), Code1,Mainply, "Vertical"]);
+     //Self Plank
+     outputSheet.appendRow([ BN +"P9", (BW-(Mainply*3)/2), BD-(Mainply+Backply+20), Code1,Mainply, "Vertical"]);
+     //Self Plank
+     outputSheet.appendRow([ BN +"P10", (BW-(Mainply*3)/2), BD-(Mainply+Backply+20), Code1,Mainply, "Vertical"]);
+      //Self Plank
+     outputSheet.appendRow([ BN +"P11", (BW-(Mainply*3)/2), BD-(Mainply+Backply+20), Code1,Mainply, "Vertical"]);
+      //Self Plank
+     outputSheet.appendRow([ BN +"P12", (BW-(Mainply*3)/2), BD-(Mainply+Backply+20), Code1,Mainply, "Vertical"]);
+       //Self Plank
+     outputSheet.appendRow([ BN +"P13", (BW-(Mainply*3)/2), BD-(Mainply+Backply+20), Code1,Mainply, "Vertical"]);
+       //Self Plank
+     outputSheet.appendRow([ BN +"P14", (BW-(Mainply*3)/2), BD-(Mainply+Backply+20), Code1,Mainply, "Vertical"]);
+       //Self Plank
+     outputSheet.appendRow([ BN +"P15", BH-(Mainply*2), BD-(Mainply+Backply+20), Code1,Mainply, "Vertical"]);
+     
+      break;
+
+      case "TVUnit Type1":
+
+    // Left Plank
+     outputSheet.appendRow([(BN + "p1") , BH, (BD-(Mainply+Backply)), Code2,Mainply, "Vertical"]);
+
+     // Right Plank
+     outputSheet.appendRow([ BN +"P2", BH,(BD-(Mainply+Backply)), Code2,Mainply, "Vertical"]);
+
+     // Top Plank
+     outputSheet.appendRow([ BN +"P3", (BW-(Mainply*2)), (BD-(Mainply*2+Backply)), Code1,Mainply, "Horizontal"]);
+
+    // Bottom Plank
+     outputSheet.appendRow([ BN +"P4", (BW-(Mainply*2)), (BD-(Mainply*2+Backply)), Code1,Mainply, "Horizontal"]);
+
+      // ExtraTop Plank
+     outputSheet.appendRow([ BN +"P5", BW, BD, Code1,Mainply, "Horizontal"]);
+
+     // Back Plank
+     outputSheet.appendRow([ BN +"P6", BH, BW , Code1,Backply, "Vertical"]);
+
+     // Vertical Plank
+     outputSheet.appendRow([ BN +"P7", (BH-Mainply*2), BD-(Backply+Mainply) , Code1,Backply, "Vertical"]);
+     // Vertical Plank
+     outputSheet.appendRow([ BN +"P8", (BH-Mainply*2), BD-(Backply+Mainply) , Code1,Backply, "Vertical"]);
+     // Vertical Plank
+     outputSheet.appendRow([ BN +"P9", (BH-Mainply*2), BD-(Backply+Mainply) , Code1,Backply, "Vertical"]);
+     // Vertical Plank
+     outputSheet.appendRow([ BN +"P10", (BH-Mainply*2), BD-(Backply+Mainply) , Code1,Backply, "Vertical"]);
+    // Vertical Plank
+     outputSheet.appendRow([ BN +"P11", (BH-Mainply*2), BD-(Backply+Mainply) , Code1,Backply, "Vertical"]);
+     // Vertical Plank
+     outputSheet.appendRow([ BN +"P12", (BH-Mainply*2), BD-(Backply+Mainply) , Code1,Backply, "Vertical"]);
+      // Door Plank
+     outputSheet.appendRow([ BN +"P13", BH, BW/4 , Code2,Backply, "Vertical"]);
+     // Door Plank
+     outputSheet.appendRow([ BN +"P14", BH, BW/4 , Code2,Backply, "Vertical"]);
+
+      //Draw
+      // Left Plank
+     outputSheet.appendRow([(BN + "p15") , BH-(Mainply*2+40), (BD-(Mainply+Backply+16)), Code1,Mainply, "Vertical"]);
+      // Right Plank
+     outputSheet.appendRow([(BN + "p16") , BH-(Mainply*2+40), (BD-(Mainply+Backply+16)), Code1,Mainply, "Vertical"]);
+     // Back Plank
+     outputSheet.appendRow([ BN +"P17", (BW/4-(26+Mainply*4)), (BH-(40+Backply)), Code1,Mainply, "Horizontal"]);
+      // Front Plank
+     outputSheet.appendRow([ BN +"P18", (BW/4-(26+Mainply*4)), (BH-(60+Backply)), Code1,Mainply, "Horizontal"]);
+       // Bottom Plank
+     outputSheet.appendRow([ BN +"P19", (BW/4-(26+Mainply*2)), (BH-(40+Backply)), Code1,Mainply, "Horizontal"]);
+      // Left Plank
+     outputSheet.appendRow([(BN + "p15") , BH-(Mainply*2+40), (BD-(Mainply+Backply+16)), Code1,Mainply, "Vertical"]);
+      // Right Plank
+     outputSheet.appendRow([(BN + "p16") , BH-(Mainply*2+40), (BD-(Mainply+Backply+16)), Code1,Mainply, "Vertical"]);
+     // Back Plank
+     outputSheet.appendRow([ BN +"P17", (BW/4-(26+Mainply*4)), (BH-(40+Backply)), Code1,Mainply, "Horizontal"]);
+      // Front Plank
+     outputSheet.appendRow([ BN +"P18", (BW/4-(26+Mainply*4)), (BH-(60+Backply)), Code1,Mainply, "Horizontal"]);
+       // Bottom Plank
+     outputSheet.appendRow([ BN +"P19", (BW/4-(26+Mainply*2)), (BH-(40+Backply)), Code1,Mainply, "Horizontal"]);
+           break;
+
+        default:
+        Logger.log(`❌ Unknown Model Type: ${Model}`);
+        break;
+     }
+    }
+  }
+}

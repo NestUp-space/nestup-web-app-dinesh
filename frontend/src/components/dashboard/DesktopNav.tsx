@@ -40,6 +40,15 @@ export function DesktopNav() {
           </NavItem>
         )}
 
+        {/* TODO: Choose a more appropriate icon for Model Management */}
+        {!isLoading && user?.role && hasPermission(user?.role.roleType, 'admin') && (
+          <NavItem href="/dashboard/model-management" label="Model Management">
+            {/* Using Settings as a placeholder icon */}
+            <Settings className="h-5 w-5 mr-2" /> 
+            Model Management
+          </NavItem>
+        )}
+
         <NavItem href="#" label="Analytics">
           <LineChart className="h-5 w-5 mr-2" />
           Analytics

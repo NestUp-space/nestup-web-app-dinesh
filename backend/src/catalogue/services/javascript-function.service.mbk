@@ -1,0 +1,63 @@
+# JavaScriptFunctionService.mbk - JavaScript Function Service Memory Bank
+
+## 1. Service Overview
+
+*   **Service Name:** JavaScriptFunctionService
+*   **Location:** `backend/src/catalogue/services/javascript-function.service.ts`
+*   **Purpose:** To execute user-provided JavaScript strings (itemLogicScript) in a secure, sandboxed Node.js VM environment. This service is central to calculating properties for `CatalogueItemBomItem` instances based on dynamic logic.
+
+## 2. Core Functionality: `executeItemScript`
+
+*   **Method:** `async executeItemScript(scriptString: string, runtimeInputs: RuntimeInputs): Promise<ExecutedScriptResult | null>`
+*   **Inputs:**
+    *   `scriptString`: The JavaScript code string, typically from `CatalogueItemBomItem.itemLogicScript`. This script is expected to define or evaluate to a function named `calculateProperties`.
+    *   `runtimeInputs`: An object containing:
+        *   User-provided parameters for the `ProjectCatalogueItemInstance` (e.g., `boxWidth`, `materialId`).
+        *   **Enriched Material Definitions:** Full material objects (matching the `Material` Prisma model structure) for specified materials. These are injected by the calling service (e.g., `GenerationController`) before `executeItemScript` is called. Expected keys for these definitions include:
+            *   `exposedMaterialDefinition`
+            *   `innerMaterialDefinition`
+            *   `backPanelMaterialDefinition`
+        *   Any other parameters necessary for the script's execution.
+*   **Sandbox Environment:**
+    *   The script is executed within a Node.js `vm` context.
+    *   The sandbox provides the `runtimeInputs` object and a `globalConstants` object (loaded from `backend/src/catalogue/config/globalConstants.json`).
+    *   Limited `console` methods (`log`, `error`, `warn`) are available, prefixed with `[UserScript Log/Error/Warn]`.
+    *   Potentially harmful Node.js globals like `process`, `require`, `module`, `global`, `Buffer`, and direct timer functions (`setTimeout`, etc.) are explicitly set to `undefined` in the sandbox to enhance security.
+*   **Script Expectation:**
+    *   The `scriptString` should ultimately result in a function, typically named `calculateProperties`.
+    *   This function is invoked with `(runtimeInputs, globalConstants)`.
+    *   It is expected to return an object (`ExecutedScriptResult`) containing the calculated properties for the BOM item.
+*   **Output:**
+    *   Returns a Promise resolving to the `ExecutedScriptResult` object returned by the user's script.
+    *   Returns `null` if the `scriptString` is empty.
+    *   Throws an error if the script execution fails (e.g., syntax error, runtime error within the script, timeout, or if the script doesn't return a valid object).
+*   **Timeout:** Script execution is limited by a timeout (currently 1 second) to prevent runaway scripts.
+*   **Output Validation:** The service performs a basic check that the script returns an object. More specific schema validation (e.g., using Zod for `PlankOutputSchema`) is typically handled by the calling service or controller (like `GenerationController` or `CatalogueItemService` during script validation).
+
+## 3. Key Interactions
+
+*   **Called By:**
+    *   `GenerationController`: During the generation of outputs (e.g., plank lists) for a `ProjectCatalogueItemInstance`. The controller prepares `enrichedRuntimeInputs` including full material definitions.
+    *   `CatalogueItemService`: During the validation of `itemLogicScript` when a `CatalogueItemDefinition` is created or updated. In this case, it uses `sampleRuntimeInputsJson` from the definition.
+*   **Dependencies:**
+    *   Node.js `vm` module for sandboxed execution.
+    *   Node.js `fs` and `path` modules for loading `globalConstants.json`.
+*   **Configuration:**
+    *   Relies on `backend/src/catalogue/config/globalConstants.json` for the `globalConstants` object made available to scripts.
+
+## 4. Security Considerations
+
+*   The use of `vm.Script` and `vm.createContext` provides a basic level of sandboxing.
+*   Explicitly undefining potentially harmful globals is a key security measure.
+*   Timeout prevents scripts from consuming excessive resources.
+*   **Note:** For highly untrusted scripts or more complex scenarios, further hardening (e.g., using `worker_threads` for better isolation, more restrictive contexts) might be considered.
+
+## 5. How it Relates to Recent Changes (Material Definitions in `runtimeInputs`)
+
+*   The `JavaScriptFunctionService` itself is agnostic to how `runtimeInputs` are populated.
+*   The recent change (TICKET-002) modified the **calling services/controllers** (specifically `GenerationController`) to ensure that when `executeItemScript` is invoked for actual output generation, the `runtimeInputs` object passed to it already contains the full `exposedMaterialDefinition`, `innerMaterialDefinition`, and `backPanelMaterialDefinition` objects, not just their IDs.
+*   This allows scripts within `itemLogicScript` to directly access properties of these material definitions (e.g., `runtimeInputs.exposedMaterialDefinition.overallThickness`).
+*   When testing scripts via the `testItemScript` endpoint or validating them in `CatalogueItemService`, the `sampleRuntimeInputs` provided by the user must now manually include these full material definition objects if the script expects them.
+
+---
+*This document should be updated as the JavaScriptFunctionService evolves.*

@@ -1,72 +1,79 @@
-# Memory Bank: backend/src/controllers/material.controller.ts
+# MBK: material.controller.ts
 
-## Purpose
-This file contains the `MaterialController` class, which is responsible for handling HTTP requests related to project materials. It acts as an intermediary between the Express routes and the `materialService`.
+**Last Updated:** 2025-05-11
 
-## How it Works
-- Each public method in the `MaterialController` class corresponds to a specific API endpoint action (e.g., creating, retrieving, updating, deleting materials).
-- Methods parse request parameters (like `projectId`, `materialId`) and request bodies (`materialData`).
-- They call corresponding methods in the `materialService` to perform the business logic and database interactions.
-- They use a `handleServiceResponse` utility (assumed to exist) to standardize sending responses (success or error) back to the client.
-- Error handling is implemented using try-catch blocks to manage exceptions and send appropriate HTTP status codes.
-- **Crucially, request handlers now use `CustomRequest` (imported from `../middlewares/auth.middleware`) to ensure correct typing for `req.user` when accessed after authentication.**
+## 1. Purpose and Overview
 
-## Key Methods
-- `createMaterial(req: CustomRequest, res: Response)`:
-  - Handles `POST /projects/:projectId/materials`.
-  - Extracts `projectId` and `materialData` from the request.
-  - Calls `materialService.createMaterial()`.
-- `getMaterialsByProject(req: CustomRequest, res: Response)`:
-  - Handles `GET /projects/:projectId/materials`.
-  - Extracts `projectId`.
-  - Calls `materialService.getMaterialsByProject()`.
-- `getMaterialById(req: CustomRequest, res: Response)`:
-  - Handles `GET /materials/:materialId`.
-  - Extracts `materialId`.
-  - Calls `materialService.getMaterialById()`.
-- `updateMaterial(req: CustomRequest, res: Response)`:
-  - Handles `PUT /materials/:materialId`.
-  - Extracts `materialId` and `materialData`.
-  - Calls `materialService.updateMaterial()`.
-- `deleteMaterial(req: CustomRequest, res: Response)`:
-  - Handles `DELETE /materials/:materialId`.
-  - Extracts `materialId`.
-  - Calls `materialService.deleteMaterial()`.
+The `MaterialController` class (exporting a singleton instance `materialController`) is responsible for handling HTTP requests related to the management of project-specific materials. It acts as the interface between Express routes (defined in `material.routes.ts` and `project.routes.ts`) and the `materialService`.
 
-## Inputs
-- `CustomRequest` objects (which include Express `Request` properties and an authenticated `user` object).
-- `Response` objects from Express.
-- Data from `req.params` and `req.body`.
-- DTOs like `CreateMaterialDto`, `UpdateMaterialDto` (currently from `../bim/types/bim.types`).
+Key responsibilities include:
+- Parsing request parameters (e.g., `projectId`, `materialId`) and request bodies (containing material data).
+- Invoking methods in `materialService` to perform CRUD operations.
+- Utilizing a common `handleServiceResponse` utility to standardize HTTP responses.
+- Basic validation of route parameters.
 
-## Outputs
-- HTTP responses to clients via the `res` object, typically JSON.
-- Logs errors to the console.
+## 2. Key Functions and Associated Routes (from `material.routes.ts` & `project.routes.ts`)
 
-## Dependencies
-- `express` (Request, Response types).
-- `http-status-codes` (for standardized HTTP status codes).
-- `../services/material.service` (for business logic).
-- `../middlewares/auth.middleware` (for `CustomRequest` type).
-- `../common/utils/httpHandlers` (for `handleServiceResponse`).
-- `../bim/types/bim.types` (for DTOs).
+*   **`createMaterial(req: CustomRequest, res: Response)`**
+    *   **Route:** `POST /projects/:projectId/materials` (defined in `project.routes.ts` and also matches structure in `material.routes.ts`)
+    *   **Authentication (from `project.routes.ts`):** `isAuthenticated`
+    *   **Authentication (from `material.routes.ts`):** Currently Public (middleware commented out) - **This is a discrepancy to note.**
+    *   **Purpose:** Creates a new material associated with a specific project.
+    *   **Request:** `projectId` from `req.params`; Material data (conforming to `CreateMaterialDto` from `../bim/types/bim.types`) in `req.body`.
+    *   **Logic:** Calls `materialService.createMaterial(projectId, req.body)`. Uses `handleServiceResponse`.
 
-## Recent Changes (2025-05-10)
-- Updated all request handler methods (`createMaterial`, `getMaterialsByProject`, etc.) to use `CustomRequest` as the type for the `req` parameter instead of the generic Express `Request`. This aligns with the `isAuthenticated` middleware and resolves TypeScript errors related to `req.user`.
-- Imported `CustomRequest` from `../middlewares/auth.middleware`.
+*   **`getMaterialsByProject(req: CustomRequest, res: Response)`**
+    *   **Route:** `GET /projects/:projectId/materials` (defined in `project.routes.ts` and also matches structure in `material.routes.ts`)
+    *   **Authentication (from `project.routes.ts`):** `isAuthenticated`
+    *   **Authentication (from `material.routes.ts`):** Currently Public.
+    *   **Purpose:** Retrieves all materials for a specific project.
+    *   **Request:** `projectId` from `req.params`.
+    *   **Logic:** Calls `materialService.getMaterialsByProject(projectId)`. Uses `handleServiceResponse`.
 
-## Flow Diagram (Conceptual for `createMaterial`)
-```mermaid
-graph TD
-    RouteHandler[project.routes.ts router.post('/:projectId/materials', materialController.createMaterial)] --> MCCreate{materialController.createMaterial}
-    MCCreate --> ParseRequest{Parse req.params.projectId, req.body}
-    ParseRequest --> ValidateInput{Validate projectId}
-    ValidateInput -- Valid --> CallService{materialService.createMaterial(projectId, materialData)}
-    ValidateInput -- Invalid --> BadRequestResponse[400 Bad Request]
-    CallService --> ServiceResponse{ServiceResponse (success/error)}
-    ServiceResponse --> HandleResponseUtil{handleServiceResponse(serviceResponse, res)}
-    HandleResponseUtil --> ClientResponse[HTTP Response to Client]
-    MCCreate -- OnError --> ErrorHandler{Catch Block}
-    ErrorHandler --> LogError{console.error}
-    ErrorHandler --> InternalErrorResponse[500 Internal Server Error]
-    InternalErrorResponse --> ClientResponse
+*   **`getMaterialById(req: CustomRequest, res: Response)`**
+    *   **Route:** `GET /materials/:materialId` (defined in `project.routes.ts` and also matches structure in `material.routes.ts`)
+    *   **Authentication (from `project.routes.ts`):** `isAuthenticated`
+    *   **Authentication (from `material.routes.ts`):** Currently Public.
+    *   **Purpose:** Retrieves a specific material by its ID.
+    *   **Request:** `materialId` from `req.params`.
+    *   **Logic:** Calls `materialService.getMaterialById(materialId)`. Uses `handleServiceResponse`.
+
+*   **`updateMaterial(req: CustomRequest, res: Response)`**
+    *   **Route:** `PUT /materials/:materialId` (defined in `project.routes.ts` and also matches structure in `material.routes.ts`)
+    *   **Authentication (from `project.routes.ts`):** `isAuthenticated`
+    *   **Authentication (from `material.routes.ts`):** Currently Public.
+    *   **Purpose:** Updates an existing material.
+    *   **Request:** `materialId` from `req.params`; Material data (conforming to `UpdateMaterialDto` from `../bim/types/bim.types`) in `req.body`.
+    *   **Logic:** Calls `materialService.updateMaterial(materialId, req.body)`. Uses `handleServiceResponse`.
+
+*   **`deleteMaterial(req: CustomRequest, res: Response)`**
+    *   **Route:** `DELETE /materials/:materialId` (defined in `project.routes.ts` and also matches structure in `material.routes.ts`)
+    *   **Authentication (from `project.routes.ts`):** `isAuthenticated`
+    *   **Authentication (from `material.routes.ts`):** Currently Public.
+    *   **Purpose:** Deletes a material.
+    *   **Request:** `materialId` from `req.params`.
+    *   **Logic:** Calls `materialService.deleteMaterial(materialId)`. Uses `handleServiceResponse`.
+
+## 3. Dependencies
+*   `express` (Request, Response types)
+*   `http-status-codes`
+*   `../services/material.service.ts` (`materialService`)
+*   `../middlewares/auth.middleware.ts` (`CustomRequest` type, `isAuthenticated` - though usage is inconsistent between route files)
+*   `../common/utils/httpHandlers.ts` (`handleServiceResponse` utility)
+*   `../bim/types/bim.types.ts` (for `CreateMaterialDto`, `UpdateMaterialDto`)
+
+## 4. Key Patterns & Observations
+*   **Class-Based Controller with Singleton Export.**
+*   **Controller-Service Architecture.**
+*   **Centralized Response Handling.**
+*   **DTO Usage:** DTOs from `bim/types`.
+*   **Authentication Discrepancy:** Routes for materials are defined in both `project.routes.ts` (where they are protected by `isAuthenticated`) and `material.routes.ts` (where `authMiddleware` is commented out, making them public). This needs resolution to ensure consistent security. The `material.routes.ts` file also contains extensive OpenAPI documentation.
+
+## 5. TODOs / Potential Refinements
+*   **Resolve Authentication Discrepancy:** Determine the intended authentication state for material routes and apply middleware consistently. If `material.routes.ts` is the primary definition, `isAuthenticated` should be applied there.
+*   **DTO Location:** Evaluate if DTOs should be in a more general location.
+*   **Controller-Level Body Validation:** Consider adding Zod validation.
+*   **Authorization Logic:** Clarify where specific authorization checks occur.
+
+---
+*This MBK should be updated if the controller's responsibilities, routes, DTOs, or interaction patterns change, especially regarding authentication.*

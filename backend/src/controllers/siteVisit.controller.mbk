@@ -1,0 +1,55 @@
+# MBK: siteVisit.controller.ts
+
+**Last Updated:** 2025-05-11
+
+## 1. Purpose and Overview
+
+The `siteVisit.controller.ts` module provides functionality for booking site visits. It consists of a single exported function, `bookSiteVisit`, which orchestrates the creation/update of a user and the creation of a draft project associated with the site visit.
+
+## 2. Key Function and Associated Route (from `site-visit.routes.ts`)
+
+*   **`bookSiteVisit(req: Request, res: Response, next: NextFunction)`**
+    *   **Route:** `POST /book` (assuming router base path like `/api/site-visit`).
+    *   **Middleware (Route Level):** `validateRequest(bookSiteVisitSchema)` is applied to this route for request body validation using a Zod schema.
+    *   **Authentication:** This route is **public** (no `isAuthenticated` middleware applied), suitable for an initial booking form.
+    *   **Purpose:** Allows a user (likely unauthenticated, e.g., via a public form) to book a site visit by providing their details and information about their potential project.
+    *   **Request Body:** Expects data conforming to `BookSiteVisitInput` (from `../validations/siteVisit.validation.ts`), which includes:
+        *   `name` (string): User's name.
+        *   `phone` (string): User's phone number.
+        *   `projectName` (string): Name for the potential project.
+        *   `projectAddress` (string): Address for the site visit/project.
+        *   `projectLocation` (string): Location details.
+        *   `preferredSlot` (string/Date): Preferred date and time for the site visit.
+    *   **Logic Flow:**
+        1.  Calls `createOrUpdateUser(name, phone)` from `siteVisit.service` to find an existing user by phone or create a new one.
+        2.  If user creation/retrieval fails, throws a `NotFoundError`.
+        3.  Calls `createDraftProject(user.id, projectName, projectAddress, projectLocation, new Date(preferredSlot))` from `siteVisit.service` to create a new project. The `preferredSlot` is converted to a `Date` object.
+        4.  If project creation fails, throws a `BadRequestError`.
+        5.  On success, responds with HTTP 201 (Created), a success message, and summarized user/project details.
+    *   **Error Handling:**
+        *   Uses a `try...catch` block.
+        *   Catches specific custom errors (`BadRequestError`, `NotFoundError` from `../common/errors/customErrors`) and responds with their respective status codes and messages.
+        *   Other errors result in a generic 500 Internal Server Error response.
+        *   Calls `next(error)` at the end of the `catch` block, which is unusual if a response has already been sent and might indicate a point for review in the error handling chain.
+
+## 3. Dependencies
+*   `express` (Request, Response, NextFunction types)
+*   `../services/siteVisit.service.ts` (for `createOrUpdateUser`, `createDraftProject`)
+*   `http-status-codes`
+*   `../validations/siteVisit.validation.ts` (for `BookSiteVisitInput` type and `bookSiteVisitSchema`)
+*   `../common/errors/customErrors.ts` (for `BadRequestError`, `NotFoundError`)
+*   `../common/middleware/validateRequest.ts` (`validateRequest` middleware - used at route level)
+
+## 4. Key Patterns & Observations
+*   **Functional Controller:** Exports a single function, not a class.
+*   **Service Layer Delegation:** Relies on `siteVisit.service.ts` for the core business logic.
+*   **Custom Error Classes:** Uses `BadRequestError` and `NotFoundError` for more specific error handling.
+*   **Public Endpoint with Validation:** The route is public but uses `validateRequest` middleware with a Zod schema for robust input validation.
+*   **Potential Error Handling Issue:** The `next(error)` call after `res.json()` in the catch block should be reviewed.
+
+## 5. TODOs / Potential Refinements (from LTM Analysis)
+*   **Review `next(error)` Call:** Investigate the `next(error)` call in the `catch` block.
+*   **Input Validation:** While Zod schema validation is applied at the route level, ensure all necessary field constraints (e.g., phone format, date validity) are covered by `bookSiteVisitSchema`.
+
+---
+*This MBK should be updated if the site visit booking logic, its dependencies, or associated routes change.*

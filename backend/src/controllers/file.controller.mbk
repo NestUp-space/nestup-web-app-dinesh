@@ -1,0 +1,48 @@
+# MBK: file.controller.ts
+
+**Last Updated:** 2025-05-11
+
+## 1. Purpose
+This controller handles HTTP requests for file management operations, specifically uploading files and retrieving files associated with tasks.
+
+## 2. Key Functions and Associated Routes (from `file.routes.ts`)
+
+*   **`uploadFile(req: CustomRequest, res: Response)`**
+    *   **Route:** `POST /upload` (assuming router base path like `/api/files`). Protected by `isAuthenticated`.
+    *   **Note:** This route requires Multer middleware to be configured (likely where the router is mounted or directly on the route definition in `file.routes.ts`) to handle `multipart/form-data` and populate `req.file`.
+    *   **Purpose:** Uploads a single file and associates it with a specific task.
+    *   **Request:**
+        *   Expects `multipart/form-data`.
+        *   Uploaded file via `req.file`.
+        *   `taskId` in `req.body`.
+    *   **Logic:**
+        1.  Checks `req.file`.
+        2.  Calls `uploadFileService(Number(req.body.taskId), req.file)`.
+    *   **Response:** 201 CREATED with file metadata or 400 on error.
+
+*   **`getFiles(req: Request, res: Response)`**
+    *   **Route:** `GET /:taskId` (e.g., `/api/files/:taskId`). Protected by `isAuthenticated`.
+    *   **Purpose:** Retrieves all files for a given `taskId`.
+    *   **Request:** `taskId` from `req.params`.
+    *   **Logic:** Calls `getFilesService(Number(req.params.taskId))`.
+    *   **Response:** 200 OK with file list or 400 on error.
+
+## 3. Dependencies
+*   `express` (for `Request`, `Response` types).
+*   `../services/file.service.ts` (for `uploadFileService`, `getFilesService`).
+*   `multer` (imported for `Express.Multer.File` type, indicating its use as middleware at the routing layer).
+
+## 4. Key Patterns & Observations
+*   **Controller-Service Architecture:** Business logic for file handling (e.g., S3 upload, database record creation) is delegated to `file.service.ts`.
+*   **Multer for File Uploads:** Relies on Multer middleware (configured at the route level) to parse `multipart/form-data` and make the uploaded file available in `req.file`.
+*   **Task Association:** Files are linked to tasks using `taskId`.
+*   **Local `CustomRequest`:** Defines a local `CustomRequest` interface specifically for `req.file`. This is distinct from the `CustomRequest` used for authenticated user data in other controllers, suggesting these file routes might have a different or no standard authentication middleware.
+*   **Error Handling:** Basic `try...catch` blocks that return a 400 status code with an error message.
+
+## 5. TODOs / Potential Refinements
+*   **Authentication & Authorization:** Clarify and implement appropriate authentication and authorization for file operations. For instance, ensure only authorized users can upload files to specific tasks or view files associated with tasks they have access to. This might involve using the standard `CustomRequest` with `req.user`.
+*   **Input Validation:** Add robust validation for `taskId` (e.g., ensuring it's a positive integer) in both `uploadFile` and `getFiles`.
+*   **Error Status Codes:** Use more specific error status codes where appropriate (e.g., 404 if a task is not found when trying to get files).
+
+---
+*This MBK should be updated if the controller's responsibilities, routes, or file handling logic change.*

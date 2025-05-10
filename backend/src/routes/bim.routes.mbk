@@ -1,0 +1,42 @@
+# MBK: bim.routes.ts
+
+**Last Updated:** 2025-05-11
+
+## 1. Purpose
+This file defines the Express router for API endpoints related to Building Information Modeling (BIM) functionalities. It maps HTTP request paths and methods to specific controller actions in `BimController`.
+
+## 2. Key Routes Defined
+
+*   **`GET /test-bim-route`**
+    *   **Controller Function:** Inline Express handler.
+    *   **Purpose:** A simple test route to confirm the BIM router is working.
+    *   **Authentication:** Public (no `isAuthenticated` middleware).
+    *   **Response:** Returns `200 OK` with `{ message: 'BIM test route is working!' }`.
+
+*   **`GET /model-templates`**
+    *   **Controller Function:** `bimController.getModelTemplates`
+    *   **Purpose:** Retrieves all available BIM model templates.
+    *   **Middleware:** `isAuthenticated` (ensures only authenticated users can access).
+    *   **Binding:** Uses `.bind(bimController)` to maintain correct `this` context.
+
+*   **`POST /generate-plank-list`**
+    *   **Controller Function:** `bimController.generatePlankListAndUpdateSubtask`
+    *   **Purpose:** Generates a plank list based on a selected model and inputs, and updates an associated subtask.
+    *   **Middleware:** `isAuthenticated`.
+    *   **Binding:** Uses `.bind(bimController)`.
+
+## 3. Controller Instantiation
+*   A new instance of `BimController` is created within this file: `const bimController = new BimController();`. This instance is used for all BIM routes defined here.
+
+## 4. Dependencies
+*   `express` (Router)
+*   `../controllers/bim.controller` (`BimController` class)
+*   `../middlewares/auth.middleware` (`isAuthenticated` middleware)
+
+## 5. General Observations
+*   The routes are specific to BIM operations.
+*   Functional BIM routes are protected by authentication.
+*   This router is typically mounted under a base path like `/api/bim` in the main application setup (e.g., `server.ts`).
+
+---
+*This MBK should be updated if the routes, controller mappings, or authentication mechanisms change.*

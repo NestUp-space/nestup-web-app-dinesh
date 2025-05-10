@@ -1,0 +1,48 @@
+# MBK: admin.middleware.ts
+
+**Last Updated:** 2025-05-11
+
+## 1. Purpose and Overview
+The `adminMiddleware` is an Express middleware function designed to protect routes by ensuring that only users with administrative privileges can access them. It checks the role of the authenticated user.
+
+## 2. How it Works (Based on typical implementation)
+1.  **Prerequisite:** This middleware should run *after* an authentication middleware (like `isAuthenticated`) has successfully run and populated `req.user` (or a similar property on the request object) with the authenticated user's details, including their role.
+2.  **Role Check:**
+    *   It accesses `req.user.role` (or `req.user.role.roleType` depending on the structure of `req.user`).
+    *   It checks if the user's role is 'admin' or 'superadmin' (or other roles defined as having administrative privileges).
+3.  **Outcome:**
+    *   **Authorized:** If the user has an administrative role, the middleware calls `next()` to pass control to the next handler in the chain (e.g., the route's controller function).
+    *   **Unauthorized:** If the user does not have an administrative role, the middleware sends an HTTP `403 Forbidden` response, typically with a JSON message like `{ success: false, message: 'Forbidden: Admin access required' }`.
+
+## 3. Usage
+*   This middleware is applied to Express routes or routers that require admin-level access.
+*   **Example Usage (from `role.routes.ts`):**
+    ```typescript
+    // In role.routes.ts
+    import { adminMiddleware } from '../middlewares/admin.middleware';
+    import { isAuthenticated } from '../middlewares/auth.middleware';
+    // ...
+    router.use(isAuthenticated); // Ensures user is logged in
+    router.use(adminMiddleware); // Then checks if user is admin
+    // ... routes for role management ...
+    ```
+    In this case, it's applied globally to all routes defined in `role.routes.ts`, ensuring all role management operations are restricted to admins.
+*   **Example Usage (from `user.routes.ts`):**
+    ```typescript
+    // In user.routes.ts
+    router.get('/', adminMiddleware, UserController.getUsers);
+    // ... other admin-specific user routes ...
+    ```
+    Here, `adminMiddleware` is applied individually to specific user management routes that require admin privileges, while routes like `/profile` (for fetching one's own profile) do not use it and are accessible to any authenticated user.
+
+## 4. Key Dependencies
+*   `express` (Request, Response, NextFunction types)
+*   `http-status-codes` (for sending appropriate HTTP status codes)
+*   `CustomRequest` type (from `auth.middleware.ts` or a shared types file) to properly type `req.user`.
+
+## 5. Considerations
+*   The exact property path to access the user's role (e.g., `req.user.role` vs. `req.user.role.roleType`) must be consistent with how the authentication middleware populates `req.user`.
+*   The definition of which roles are considered "admin" (e.g., just 'admin', or 'admin' and 'superadmin') is internal to this middleware's logic.
+
+---
+*This MBK should be updated if the logic of the admin middleware or its usage patterns change.*

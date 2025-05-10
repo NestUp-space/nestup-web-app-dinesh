@@ -1,65 +1,114 @@
-# Memory Bank: BimService (backend/src/services/bim.service.ts)
+# Memory Bank: BimService (`backend/src/services/bim.service.ts`)
 
-**Last Updated:** 2025-05-10
+**Last Updated:** 2025-05-11
 
-## Overview
+## 1. Purpose and Overview
 
-The `BimService` is responsible for handling Business Information Modeling (BIM) related operations. This primarily involves:
-1.  Retrieving available BIM model templates.
-2.  Generating plank lists based on selected models and user inputs.
+The `BimService` is responsible for handling business logic related to Building Information Modeling (BIM) within the application. As of its current version (based on `bim.controller.ts` interactions and its own code):
+- It provides access to available BIM model templates, which are dynamically loaded from JSON files in the `backend/src/bim/models/` directory.
+- It generates plank lists based on a selected model template and user-provided input parameters.
 
-## How and Why It Runs
+This service acts as an abstraction layer over the raw model data (JSON files) and the algorithms for generating manufacturing outputs (plank lists).
 
-### 1. Retrieving Model Templates (`getModelTemplates`)
+*Note: This service seems to represent an earlier approach to dynamic models. The newer "Catalogue System" (with `CatalogueItemDefinition`, `itemLogicScript`, etc.) appears to be a more advanced and database-driven evolution of this concept. The relationship and potential phasing out/integration between `BimService` and the Catalogue System should be monitored.*
 
--   **When:** This method is called when the frontend needs to display a list of available BIM models for selection (e.g., in a dropdown or a model selector component).
--   **How:**
-    -   It reads the contents of the `backend/src/bim/models/` directory. The path to this directory is constructed dynamically using the CommonJS global `__filename` to determine the current file's path and then navigating relatively.
-        -   `const __dirname = path.dirname(__filename);`
-        -   `const modelsDirectory = path.join(__dirname, '..', 'bim', 'models');`
-    -   It iterates through all files in `modelsDirectory`.
-    -   For each `.json` file found, it reads and parses the file content.
-    -   It expects each JSON file to represent a model template and to contain at least `modelType` and `runtimeInputs` properties.
-    -   It transforms the JSON data into `ModelTemplate` objects (defined in this service file) and returns an array of these objects.
--   **Why:** To provide a dynamic way of managing BIM model definitions. Adding a new JSON file to the `models` directory makes a new template available without code changes in the service itself.
--   **Input:** None.
--   **Output:** `Promise<ModelTemplate[]>` - A promise that resolves to an array of model template objects.
--   **Error Handling:** If reading the directory or any file fails, or if JSON parsing fails, it logs an error and throws a generic `Error('Failed to retrieve BIM model templates.')`.
+## 2. Key Functions
 
-### 2. Generating Plank Lists (`generatePlankList`)
+*   **`getModelTemplates(): Promise<ModelTemplate[]>`**
+    *   **Purpose**: Retrieves a list of all BIM model templates available in the system by reading JSON files from a predefined directory.
+    *   **Logic**:
+        1.  Dynamically determines the path to the `backend/src/bim/models/` directory using `__filename` and `path.join`.
+        2.  Reads all file names from this directory.
+        3.  Filters for `.json` files.
+        4.  For each JSON file:
+            *   Reads the file content.
+            *   Parses the JSON content.
+            *   Expects the parsed object to have at least `modelType` (string) and `runtimeInputs` (array of strings representing expected input keys) properties.
+            *   Constructs a `ModelTemplate` object (defined in `bim.service.ts` as `{ modelName: string; parameters: string[]; description?: string; }`) where `modelName` is derived from `modelType` and `parameters` from `runtimeInputs`.
+    *   **Output**: A promise that resolves to an array of `ModelTemplate` objects.
+    *   **Error Handling**: Logs errors and throws a generic `Error('Failed to retrieve BIM model templates.')` if directory/file reading or JSON parsing fails.
 
--   **When:** This method is called after a user has selected a BIM model template and provided the necessary dimensional inputs, typically as part of a project task (e.g., "Collect Model and dimensions").
--   **How:**
-    -   It takes `modelName`, `inputs` (runtime dimensions), `boxNumber`, and `packetNumber` as arguments.
-    -   It constructs the filename for the selected model (e.g., "Simple Box" -> "simplebox.json") and reads the corresponding JSON file from the `modelsDirectory`.
-    -   It expects the model JSON to contain a `planks` array defining the parts of the model.
-    -   Based on the `modelData.modelType` (e.g., "Simple Box", "L-Shaped Box") and the provided `inputs`, it applies specific geometric calculation logic to determine the dimensions and properties of each plank.
-    -   It generates unique `plankId` for each plank using `boxNumber` and `packetNumber`.
-    -   Currently, logic is partially implemented for "Simple Box" and needs to be extended for other model types and features (shelves, doors, adjacencies).
--   **Why:** To automate the calculation of individual components (planks) required to construct a BIM object based on a template and custom dimensions. This is crucial for manufacturing and assembly.
--   **Input:**
-    -   `modelName: string`
-    -   `inputs: Record<string, any>` (e.g., `{ boxHeight: 100, boxWidth: 50, ... }`)
-    -   `boxNumber: string`
-    -   `packetNumber: string`
--   **Output:** `Promise<Array<Record<string, any>>>` - A promise that resolves to an array of generated plank objects, each with properties like `plankId`, `name`, `width`, `height`, `materialCode`.
--   **Error Handling:** Throws errors if model file not found, model definition is invalid, required inputs are missing, or an unsupported `modelType` is encountered.
+*   **`generatePlankList(modelName: string, inputs: Record<string, any>, boxNumber: string, packetNumber: string): Promise<any[]>`**
+    *   **Purpose**: Generates a detailed plank list for a specified BIM model template using the provided runtime inputs and identification numbers.
+    *   **Input**:
+        *   `modelName`: The `modelType` from the model template JSON file (e.g., "Simple Box").
+        *   `inputs`: An object containing key-value pairs of runtime parameters for the model (e.g., `{ boxHeight: 100, boxWidth: 50, boxDepth: 30, panelThickness: 1.8 }`).
+        *   `boxNumber`: A string identifier for the box, used in generating plank IDs.
+        *   `packetNumber`: A string identifier for the packet, used in generating plank IDs.
+    *   **Logic**:
+        1.  Constructs the filename for the selected model (e.g., "Simple Box" -> "simplebox.json") and reads the corresponding JSON file from the `modelsDirectory`.
+        2.  Parses the model JSON. Expects a `modelType` and a `planks` array (defining parts).
+        3.  Validates that all required `runtimeInputs` specified in the model's JSON are present in the `inputs` argument.
+        4.  Iterates through the `planks` array defined in the model's JSON. Each plank definition in the JSON specifies its `name`, `count`, and formulas for `width`, `height`, `materialCode`.
+        5.  For each plank definition:
+            *   Evaluates the `width` and `height` formulas. These formulas are strings in the JSON (e.g., "boxHeight - 2 * panelThickness") and are evaluated using a simple substitution mechanism for input variables (e.g., replacing "boxHeight" with `inputs.boxHeight`). **This evaluation is basic and does not use a full math expression parser.**
+            *   Generates a unique `plankId` using the format: `B<boxNumber>P<packetNumber>PL<index+1>`.
+            *   Constructs a plank object with properties like `plankId`, `name`, calculated `width`, `height`, and `materialCode` (from the plank definition in JSON).
+    *   **Output**: A promise that resolves to an array of generated plank objects.
+    *   **Error Handling**: Throws errors if the model file is not found, the model definition is invalid (e.g., missing `planks` array), required runtime inputs are missing, or an unsupported `modelType` is encountered (though current logic seems to rely on the JSON file defining the planks directly rather than hardcoded model types within the service for generation).
 
-## Key Dependencies
+## 3. Data Structures (Internal to Service or Defined by Model JSONs)
 
--   `fs/promises`: For asynchronous file system operations (reading directory and files).
--   `path`: For constructing file and directory paths.
--   `url.fileURLToPath`: (Note: `import.meta.url` was considered but `__filename` is used due to the CommonJS build context).
--   Model JSON files located in `backend/src/bim/models/`.
+*   **`ModelTemplate` Interface (defined in `bim.service.ts`)**:
+    ```typescript
+    export interface ModelTemplate {
+      modelName: string;      // Corresponds to modelType in JSON
+      parameters: string[];   // Corresponds to runtimeInputs in JSON
+      description?: string;   // Optional, read from JSON if present
+    }
+    ```
+*   **Model JSON File Structure (Expected in `backend/src/bim/models/`)**:
+    ```json
+    {
+      "modelType": "Simple Box", // Used as modelName
+      "description": "A simple rectangular box.",
+      "runtimeInputs": ["boxHeight", "boxWidth", "boxDepth", "panelThickness"],
+      "planks": [
+        {
+          "name": "Top/Bottom Panel",
+          "count": 2,
+          "width": "boxWidth",
+          "height": "boxDepth",
+          "materialCode": "MDF18"
+        },
+        // ... other plank definitions
+      ]
+    }
+    ```
+*   **Plank Object Structure (Example Output from `generatePlankList`)**:
+    ```typescript
+    {
+      plankId: string;        // e.g., "B1P1PL1"
+      name: string;           // e.g., "Top/Bottom Panel"
+      width: number;          // Calculated
+      height: number;         // Calculated
+      materialCode: string;   // From model JSON
+      // Other properties like thickness, edge banding, grain direction are NOT currently part of this service's output structure,
+      // unlike the older hardcoded example. This service focuses on L, W, and material from the JSON.
+      count: number;          // From model JSON
+    }
+    ```
 
-## Important Considerations & Potential Issues
+## 4. Interaction with Other Modules
 
--   **Path Resolution for `modelsDirectory`**: The reliability of `const __dirname = path.dirname(__filename);` is crucial. This assumes the code runs in a CommonJS environment where `__filename` is a global. If the build process or runtime environment changes (e.g., to pure ESM), this path logic might break.
-    -   *Update (2025-05-10)*: Confirmed that the build environment/runtime expects CommonJS behavior, so `__filename` is the correct approach over `import.meta.url` to avoid TypeScript errors (like TS1343) and ensure correct path resolution.
--   **Model File Structure**: The service relies on a specific structure for the JSON model files (presence of `modelType`, `runtimeInputs`, `planks` array, etc.). Malformed files can lead to errors or incomplete data.
--   **Plank Generation Logic**: The `generatePlankList` method's core logic is highly dependent on the specific rules for each `modelType`. This section is complex and needs careful implementation and testing for each supported model.
--   **Error Handling**: Current error handling is somewhat generic. More specific error types or codes could be beneficial for consumers of the service.
+-   **`BimController`**: Invokes `getModelTemplates` and `generatePlankList` methods to serve API requests. The controller is responsible for then updating the `Subtask` with the generated plank list.
+-   **File System**: Directly reads JSON files from `backend/src/bim/models/` to get model definitions.
 
-## Diagrams
+## 5. Business Logic and Rules
 
-N/A at this time. Could add a flowchart for `generatePlankList` if it becomes very complex.
+-   Model templates are defined externally as JSON files.
+-   Plank generation logic involves:
+    -   Reading plank definitions (name, count, dimension formulas, material) from the model's JSON.
+    -   Basic string replacement to evaluate dimension formulas using runtime inputs.
+    -   Generating unique plank IDs.
+-   The service itself does not currently handle complex material properties (like thickness for calculation, beyond what might be an input like `panelThickness`), edge banding, or grain direction explicitly in its generation output; these would need to be part of the `inputs` or defined within the plank `materialCode` if needed by downstream processes.
+
+## 6. TODOs / Future Enhancements (from code or analysis)
+
+-   **Robust Formula Evaluation**: The current string replacement for dimension formulas is very basic. Implementing a proper math expression parser or a safer evaluation mechanism (like a sandboxed VM if formulas become more complex) would be more robust.
+-   **Error Handling**: Could be more specific for different failure modes (e.g., invalid formula, missing input during evaluation).
+-   **Integration with Catalogue System**: This service's functionality (especially `generatePlankList`) has significant overlap with the newer Catalogue System's `PlankListGeneratorService` and `JavaScriptFunctionService`. The Catalogue System offers a more powerful, database-driven, and scriptable approach. `BimService` might be a legacy component or a simpler alternative. Its future role needs clarification. If the Catalogue System is intended to be the primary mechanism, `BimService` might be refactored to use it or be deprecated.
+-   **Path Resolution**: Confirm robustness of `__filename` for path resolution across different build/deployment environments if not already fully vetted.
+
+---
+*This MBK should be updated if the BIM service's interaction with model definitions or its generation logic changes significantly, or as its relationship with the Catalogue System is clarified.*

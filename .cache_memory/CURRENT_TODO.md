@@ -1,0 +1,11 @@
+- [ ] LTM_Bootstrap_Codebase_Analysis (Parent Ticket: TICKET-LTM-001):
+  - [x] Sub-Task 1: Analyze `backend/prisma/schema.prisma` (Data Models).
+  - [x] Sub-Task 2: Analyze `backend/package.json` and `frontend/package.json` (Key Dependencies & Potential Decisions).
+  - [x] Sub-Task 3: Analyze `backend/src/config/` (Core Backend Configurations).
+  - [x] Sub-Task 4: Analyze `frontend/src/config/` (Core Frontend Configurations, if any).
+  - [x] Sub-Task 5: Analyze `backend/.memory_bank/TECHARCH.mbk` (High-level architecture to ensure LTM complements it).
+  - [x] Sub-Task 6: Analyze `backend/src/services/auth.service.ts` (or equivalent core auth module).
+  - [ ] Sub-Task 7: Analyze `backend/src/controllers/` (Identify main API entry points and request flows).
+  - [ ] Sub-Task 8: Analyze `frontend/src/services/` or `frontend/src/lib/api/` (Frontend data fetching logic).
+  - [ ] Sub-Task 9: Analyze `frontend/src/hooks/` (Key custom hooks, often encapsulating important UI logic).
+  - [ ] Sub-Task 10: Analyze `frontend/src/context/` or state management setup (e.g., Redux, Zustand) (Global state).

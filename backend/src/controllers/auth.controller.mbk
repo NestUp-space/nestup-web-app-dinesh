@@ -1,0 +1,65 @@
+# MBK: auth.controller.ts
+
+**Last Updated:** 2025-05-11
+
+## 1. Purpose
+This controller handles HTTP requests related to user authentication and registration. It serves as the entry point for auth-related API calls, validates incoming data using Zod schemas, and delegates business logic to `auth.service.ts`.
+
+## 2. Key Functions and Associated Routes (from `auth.routes.ts`)
+
+*   **`register(req: Request, res: Response)`**
+    *   **Route:** `POST /register` (assuming the auth router is mounted, e.g., under `/api/auth/register`)
+    *   **Purpose:** Handles new user registration.
+    *   **Input Validation:** Uses `RegisterBodySchema` (Zod) to validate `name`, `email`, `phoneNumber`, `password`, and `roleName` (defaults to 'client') from `req.body`.
+    *   **Logic:** Calls `authService.registerUser(validatedData)`.
+    *   **Response:** Uses `handleServiceResponse` utility. On success, typically 201 CREATED with user details (excluding password).
+
+*   **`login(req: Request, res: Response)`**
+    *   **Route:** `POST /login` (e.g., `/api/auth/login`)
+    *   **Purpose:** Handles user login.
+    *   **Input Validation:** Uses `LoginBodySchema` (Zod) to validate `email` and `password` from `req.body`.
+    *   **Logic:** Calls `authService.loginUser(validatedData)`.
+    *   **Response:** Uses `handleServiceResponse` utility. On success, typically 200 OK with JWT token and user details (excluding password).
+
+*   **`handlePasswordResetRequest(req: Request, res: Response)`**
+    *   **Route:** `POST /reset-password-request` (e.g., `/api/auth/reset-password-request`)
+    *   **Purpose:** Initiates the password reset process for a user (e.g., by sending a reset email).
+    *   **Input Validation:** Uses `EmailBodySchema` (Zod) to validate `email` from `req.body`.
+    *   **Logic:** Calls `authService.handlePasswordResetRequest(validatedData.email)`.
+    *   **Response:** Uses `handleServiceResponse` utility. On success, typically 200 OK with a message indicating that if the user exists, a reset email has been sent.
+
+## 3. Input Validation Details
+*   **Zod Schemas:**
+    *   `RegisterBodySchema`: Validates `name`, `email`, `phoneNumber`, `password`, `roleName`.
+    *   `LoginBodySchema`: Validates `email`, `password`.
+    *   `EmailBodySchema`: Validates `email`.
+*   **Error Handling:** If Zod validation fails, the controller returns a `StatusCodes.BAD_REQUEST` (400) with detailed error messages.
+
+## 4. Key Dependencies
+*   `express` (for `Request` and `Response` objects).
+*   `../services/auth.service.ts` (`authService`): Contains the core business logic.
+*   `../common/utils/httpHandlers` (`handleServiceResponse`): Utility for standardizing HTTP responses.
+*   `../validations/auth.validation` (for Zod schemas: `RegisterBodySchema`, `LoginBodySchema`, `EmailBodySchema`).
+*   `http-status-codes`: For standardized HTTP status codes.
+*   `@/common/models/serviceResponse` (Imported as `ServiceResponse`): Custom type for service layer responses.
+
+## 5. Response Structure
+*   Controller methods use the `handleServiceResponse` utility, which standardizes responses based on the `ServiceResponse` object from `authService`.
+*   Typical success response includes `{ success: true, message: string, data?: any }`.
+*   Typical error response includes `{ success: false, message: string, errors?: any }`.
+*   HTTP status codes are derived from the `ServiceResponse.statusCode`.
+
+## 6. Workflow Example (Login - Updated with `handleServiceResponse`)
+1.  Client sends `POST` request to `/login` with `email` and `password`.
+2.  `auth.controller.ts`'s `login` function receives the request.
+3.  `LoginBodySchema` validates `req.body`. If invalid, responds with 400.
+4.  If valid, calls `authService.loginUser(validatedData)`.
+5.  `auth.service.ts` processes login, returns a `ServiceResponse` object.
+6.  `auth.controller.ts` passes the `ServiceResponse` and `res` object to `handleServiceResponse(serviceResponse, res)`.
+7.  `handleServiceResponse` sends the appropriate HTTP JSON response (e.g., 200 OK with token/user, or 401 Unauthorized).
+
+## 7. TODOs / Future Enhancements (from code comments in `auth.routes.ts`)
+*   Implement a controller function and route for handling the actual password reset process using a token (e.g., `POST /reset-password/:token`).
+
+---
+*This MBK should be updated if the controller's responsibilities, routes, or validation logic change.*

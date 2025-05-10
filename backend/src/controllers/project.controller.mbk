@@ -1,95 +1,176 @@
-# Memory Bank: Project Controller (`project.controller.ts`)
+# MBK: project.controller.ts (Top-Level Functional Controller)
 
-**Last Updated:** 2025-05-10
+**IMPORTANT USAGE NOTE (as of 2025-05-11):**
+Based on the analysis of `backend/src/routes/project.routes.ts`, the project, task, and subtask CRUD functions detailed in this MBK (which correspond to the top-level functional controller `backend/src/controllers/project.controller.ts`) are **NOT ACTIVELY USED** for the primary API endpoints related to projects, tasks, and subtasks.
+The active controllers for these operations are the **nested, class-based controllers** located in the `backend/src/controllers/project/` directory (specifically `project.controller.ts`, `task.controller.ts`, and `subtask.controller.ts` within that directory).
+This MBK's detailed analysis of the functions within the top-level `project.controller.ts` is retained for historical context or if these functions are utilized by other, less direct routes, but it should be understood that they are likely inactive or legacy for the main project/task/subtask API routes.
 
-## 1. Purpose and Overview
+---
 
-The `project.controller.ts` module is responsible for handling all incoming HTTP requests related to the management of projects, tasks, and subtasks within the application. It acts as the intermediary between the Express router and the business logic encapsulated in the service layer (`projectService`, `taskService`, `subtaskService`).
+## 1. Purpose (Original Intent)
+This controller (located at `backend/src/controllers/project.controller.ts`) was likely intended to handle HTTP requests related to the management of Projects, Tasks, and Subtasks, acting as an interface to the service layers (`projectService`, `taskService`, `subtaskService`).
 
-Key responsibilities include:
-- Receiving and parsing HTTP request data (parameters, body, authenticated user information).
-- Validating basic request structure and user authorization for certain actions.
-- Invoking appropriate service methods to perform CRUD (Create, Read, Update, Delete) operations.
-- Formatting service responses into HTTP responses with correct status codes and JSON payloads.
-- Handling errors and returning appropriate error responses.
+## Structural Note on Nested Controllers (Updated Understanding)
+The `backend/src/routes/project.routes.ts` file confirms that the **nested, class-based controllers** are the active handlers:
+- `backend/src/controllers/project/project.controller.ts` (class-based `ProjectController`) handles project CRUD.
+- `backend/src/controllers/project/task.controller.ts` (class-based `TaskController`) handles task CRUD.
+- `backend/src/controllers/project/subtask.controller.ts` (class-based `SubtaskController`) handles subtask CRUD.
 
-## 2. Key Functions and Endpoints Handled
+The functional handlers in *this* top-level `project.controller.ts` file appear to be superseded by these nested class-based controllers for the routes defined in `project.routes.ts`.
+Differences noted previously (e.g., `updatedById` handling, `statusId` parsing, `updateSubtask` service calls) are relevant to the *active nested controllers*.
 
-The controller exports several functions, each corresponding to a specific API endpoint:
+## 2. Key Functions and Endpoints Handled (Inferred)
 
-*   **Project Management:**
-    *   `createProject`: Handles `POST /projects`. Creates a new project.
-    *   `getProjects`: Handles `GET /projects`. Retrieves projects accessible to the user.
-    *   `getProjectById`: Handles `GET /projects/:projectId`. Retrieves a specific project.
-    *   `updateProject`: Handles `PUT /projects/:projectId`. Updates a project.
-    *   `deleteProject`: Handles `DELETE /projects/:projectId`. Deletes a project.
+### Project Management
+*   **`createProject(req: CustomRequest, res: Response)`**
+    *   **Route (Assumed):** `POST /projects`
+    *   **Purpose:** Creates a new project.
+    *   **Logic:**
+        *   Performs an authorization check: Client users (`req.user.role === 'client'`) are forbidden from creating projects.
+        *   Extracts project details (`name`, `projectDescription`, `description`, `engineerId`, `clientId`, `address`, `location`, `sqft`, `estimatedTime`, `statusId`, `vbCount`) from `req.body`.
+        *   Provides server-side defaults for `address`, `location`, `sqft`, `estimatedTime`, `statusId`, `vbCount` if not present in the request.
+        *   Parses numeric string inputs to integers.
+        *   Sets `createdById` from `req.user.id`.
+        *   Calls `projectService.createProject` with the processed data.
+        *   (Note: Task and subtask creation from templates is now handled within `projectService.createProject`).
+    *   **Response:** `201 CREATED` with `{ project, message }` or `400 BAD_REQUEST`/`401 UNAUTHORIZED`/`403 FORBIDDEN` on error.
 
-*   **Task Management:**
-    *   `createTask`: Handles `POST /projects/:projectId/tasks`. Creates a task for a project.
-    *   `getTasks`: Handles `GET /projects/:projectId/tasks`. Retrieves tasks for a project.
-    *   `updateTask`: Handles `PUT /tasks/:taskId`. Updates a task.
-    *   `deleteTask`: Handles `DELETE /tasks/:taskId`. Deletes a task.
-    *   `updateTaskStatus`: Handles `PUT /tasks/:taskId/status`. Updates a task's status.
+*   **`getProjects(req: CustomRequest, res: Response)`**
+    *   **Route (Assumed):** `GET /projects`
+    *   **Purpose:** Retrieves a list of projects accessible to the authenticated user.
+    *   **Logic:**
+        *   Constructs a `serviceUser` object (`{ id: req.user.id, role: { name: req.user.role } }`).
+        *   Calls `projectService.getProjects(serviceUser)`.
+        *   Transforms each project in the result using `projectService.transformToResponseDto`.
+    *   **Response:** `200 OK` with `{ projects }` (list of project DTOs) or `400 BAD_REQUEST`/`401 UNAUTHORIZED` on error.
 
-*   **Subtask Management:**
-    *   `createSubtask`: Handles `POST /tasks/:taskId/subtasks`. Creates a subtask.
-    *   `getSubtasksForTask`: Handles `GET /tasks/:taskId/subtasks`. Retrieves subtasks for a task.
-    *   `updateSubtask`: Handles `PUT /subtasks/:subtaskId`. Updates a subtask.
-    *   `deleteSubtask`: Handles `DELETE /subtasks/:subtaskId`. Deletes a subtask.
+*   **`getProjectById(req: CustomRequest, res: Response)`**
+    *   **Route (Assumed):** `GET /projects/:projectId`
+    *   **Purpose:** Retrieves a specific project by its ID.
+    *   **Logic:**
+        *   Parses `projectId` from `req.params`.
+        *   Constructs `serviceUser` object.
+        *   Calls `projectService.getProjectById(projectId, serviceUser)`.
+        *   If project found, transforms it using `projectService.transformToResponseDto`.
+    *   **Response:** `200 OK` with `{ project }` (project DTO), `404 NOT_FOUND` if not found/permitted, or `400 BAD_REQUEST`/`401 UNAUTHORIZED` on error.
 
-## 3. Request Handling and Authentication
+*   **`updateProject(req: CustomRequest, res: Response)`**
+    *   **Route (Assumed):** `PUT /projects/:projectId`
+    *   **Purpose:** Updates an existing project.
+    *   **Logic:**
+        *   Parses `projectId` from `req.params`.
+        *   Calls `projectService.updateProject(projectId, req.body)`.
+    *   **Response:** `200 OK` with `{ project }` (updated project) or `400 BAD_REQUEST` on error.
 
-*   **Request Object Typing**: For routes protected by the `isAuthenticated` middleware, controller methods now type the Express `req` object as `CustomRequest`. This interface is imported from `../middlewares/auth.middleware.ts`.
-    *   **Reason for Change (May 2025)**: Previously, this controller defined a local `AuthenticatedRequest` type. This caused TypeScript errors (TS2769) in `project.routes.ts` because the local type's `req.user.role` definition (`string | { name: string; ... }`) was incompatible with the `CustomRequest`'s `req.user.role` definition (`string`) used by the `isAuthenticated` middleware. Standardizing on `CustomRequest` resolved these type conflicts.
-*   **Authenticated User (`req.user`)**: The `CustomRequest` type ensures that `req.user` is available and correctly typed, containing `id: number` and `role: string` of the authenticated user.
-*   **Authorization**: Controller methods perform basic checks like the existence of `req.user` and `req.user.role`. Specific role-based access control (e.g., 'client' users cannot create projects) is also implemented here.
-*   **Data Passing to Services**: When calling service methods, user information (e.g., `req.user.id` for `createdById`, or `req.user.role` for permission checks in services) is passed. If services expect `role` as an object (e.g., `{ name: string }`), the controller constructs this from `req.user.role` (which is a string).
+*   **`deleteProject(req: CustomRequest, res: Response)`**
+    *   **Route (Assumed):** `DELETE /projects/:projectId`
+    *   **Purpose:** Deletes a project.
+    *   **Logic:**
+        *   Parses `projectId` from `req.params`.
+        *   Calls `projectService.deleteProject(projectId)`.
+    *   **Response:** `200 OK` with `{ message: 'Project deleted successfully' }` or `400 BAD_REQUEST` on error.
 
-## 4. Interaction with Service Layer
+### Task Management
+*   **`createTask(req: CustomRequest, res: Response)`**
+    *   **Route (Assumed):** `POST /projects/:projectId/tasks`
+    *   **Purpose:** Creates a new task for a specified project, typically from a template.
+    *   **Logic:**
+        *   Parses `projectId` from `req.params`.
+        *   Assumes `req.body` is a `TaskTemplate`.
+        *   Calls `taskService.createTaskFromTemplate(projectId, taskTemplateItem)`.
+    *   **Response:** `201 CREATED` with `{ task }` or `400 BAD_REQUEST` on error.
 
-- The controller delegates all business logic to the `projectService`, `taskService`, and `subtaskService`.
-- It passes validated and parsed data from the request to these services.
-- It receives data or status responses from the services and uses them to formulate the HTTP response.
-- Data Transformation Objects (DTOs) are often used for structuring data passed to and received from services (e.g., `CreateSubtaskDto`, `UpdateSubtaskDto`). Service methods like `projectService.transformToResponseDto` are used to format data for the client.
+*   **`getTasks(req: CustomRequest, res: Response)`**
+    *   **Route (Assumed):** `GET /projects/:projectId/tasks`
+    *   **Purpose:** Retrieves tasks for a specified project.
+    *   **Logic:**
+        *   Parses `projectId` from `req.params`.
+        *   Calls `taskService.getTasks(projectId)`.
+        *   Transforms each task using `taskService.transformToResponseDto`.
+    *   **Response:** `200 OK` with `{ tasks }` (list of task DTOs) or `400 BAD_REQUEST` on error.
 
-## 5. Error Handling
+*   **`updateTask(req: CustomRequest, res: Response)`**
+    *   **Route (Assumed):** `PUT /tasks/:taskId`
+    *   **Purpose:** Updates an existing task.
+    *   **Logic:**
+        *   Parses `taskId` from `req.params`.
+        *   Calls `taskService.updateTask(taskId, req.body)`.
+    *   **Response:** `200 OK` with `{ task }` (updated task) or `400 BAD_REQUEST` on error.
 
-- Controller methods are wrapped in `try...catch` blocks.
-- Errors originating from the service layer or within the controller are caught.
-- `http-status-codes` library is used to send appropriate HTTP status codes (e.g., `StatusCodes.UNAUTHORIZED`, `StatusCodes.BAD_REQUEST`, `StatusCodes.CREATED`, `StatusCodes.OK`).
-- Error responses typically include a JSON payload with a `message` field. For `createProject`, more detailed error information (name, stack, details) is provided in the response during development/debugging.
+*   **`deleteTask(req: CustomRequest, res: Response)`**
+    *   **Route (Assumed):** `DELETE /tasks/:taskId`
+    *   **Purpose:** Deletes a task.
+    *   **Logic:**
+        *   Parses `taskId` from `req.params`.
+        *   Calls `taskService.deleteTask(taskId)`.
+    *   **Response:** `200 OK` with `{ message: 'Task deleted successfully' }` or `400 BAD_REQUEST` on error.
 
-## 6. Dependencies
+*   **`updateTaskStatus(req: CustomRequest, res: Response)`**
+    *   **Route (Assumed):** `PATCH /tasks/:taskId/status`
+    *   **Purpose:** Updates the status of a task.
+    *   **Logic:**
+        *   Parses `taskId` from `req.params` and `statusId` from `req.body`.
+        *   Validates `statusId` is a number.
+        *   Calls `taskService.updateTaskStatus(taskId, statusId)`.
+    *   **Response:** `200 OK` with `{ message: 'Task status updated successfully' }` or `400 BAD_REQUEST` on error.
 
-*   `express` (for `Request`, `Response` types)
+### Subtask Management
+*   **`createSubtask(req: CustomRequest, res: Response)`**
+    *   **Route (Assumed):** `POST /tasks/:taskId/subtasks`
+    *   **Purpose:** Creates a new subtask for a specified task.
+    *   **Logic:**
+        *   Parses `taskId` from `req.params`.
+        *   Extracts subtask data (`name`, `description`, etc.) from `req.body` (expected to conform to `CreateSubtaskDto`).
+        *   Calls `subtaskService.createSubtask(subtaskDto)`.
+        *   Transforms result using `subtaskService.transformToResponseDto`.
+    *   **Response:** `201 CREATED` with `{ subtask, message }` or `400 BAD_REQUEST` on error.
+
+*   **`getSubtasksForTask(req: CustomRequest, res: Response)`**
+    *   **Route (Assumed):** `GET /tasks/:taskId/subtasks`
+    *   **Purpose:** Retrieves subtasks for a specified task.
+    *   **Logic:**
+        *   Parses `taskId` from `req.params`.
+        *   Calls `subtaskService.getSubtasksByTaskId(taskId)`.
+        *   Transforms results using `subtaskService.transformToResponseDto`.
+    *   **Response:** `200 OK` with `{ subtasks }` (list of subtask DTOs) or `400 BAD_REQUEST` on error.
+
+*   **`updateSubtask(req: CustomRequest, res: Response)`**
+    *   **Route (Assumed):** `PUT /subtasks/:subtaskId`
+    *   **Purpose:** Updates an existing subtask.
+    *   **Logic:**
+        *   Parses `subtaskId` from `req.params`.
+        *   Assumes `req.body` conforms to `UpdateSubtaskDto`.
+        *   Calls `taskService.updateSubtaskAndPotentiallyParent(subtaskId, subtaskData)` to handle subtask update and potential cascading status update to the parent task.
+    *   **Response:** `200 OK` with `{ subtask, parentTask?, message }` or `400 BAD_REQUEST`/`409 CONFLICT` on error.
+
+*   **`deleteSubtask(req: CustomRequest, res: Response)`**
+    *   **Route (Assumed):** `DELETE /subtasks/:subtaskId`
+    *   **Purpose:** Deletes a subtask.
+    *   **Logic:**
+        *   Parses `subtaskId` from `req.params`.
+        *   Calls `subtaskService.deleteSubtask(subtaskId)`.
+    *   **Response:** `200 OK` with `{ message: 'Subtask deleted successfully' }` or `400 BAD_REQUEST` on error.
+
+## 3. Key Dependencies
+*   `express` (Request, Response types)
 *   `http-status-codes`
-*   `../services/project/project.service.ts`
-*   `../services/project/task.service.ts`
-*   `../services/project/subtask.service.ts`
-*   `../dtos/project.dto.ts` (for DTOs like `CreateSubtaskDto`)
-*   `../types/projectTemplate.types.ts` (for types like `TaskTemplate`)
-*   `../middlewares/auth.middleware.ts` (for `CustomRequest` type)
+*   `projectService`, `taskService`, `subtaskService` from `../services/project/`
+*   DTOs (`CreateSubtaskDto`, `UpdateSubtaskDto`) from `../dtos/project.dto.ts`
+*   `TaskTemplate` type from `../types/projectTemplate.types.ts`
+*   `CustomRequest` from `../middlewares/auth.middleware.ts` (for accessing `req.user`)
 
-## 7. How and Why the Code Runs
+## 4. Key Patterns & Observations
+*   **Controller-Service Architecture:** Clearly delegates business logic to the respective service layers.
+*   **Use of `CustomRequest`:** Leverages `CustomRequest` (populated by authentication middleware) to access authenticated user information (`req.user`) for authorization and audit purposes (e.g., `createdById`).
+*   **Service-Level DTO Transformation:** Relies on `transformToResponseDto` methods within services to format data consistently for API responses.
+*   **Input Defaulting & Parsing (in `createProject`):** The `createProject` method includes logic to provide default values for certain fields and parse numeric inputs. Other methods appear to rely more directly on the structure of `req.body`.
+*   **Error Handling:** Primarily uses `try...catch` blocks, responding with `StatusCodes.BAD_REQUEST` and an error message. `createProject` provides more detailed error logging. `updateSubtask` includes specific handling for `StatusCodes.CONFLICT` if a parent task completion is blocked.
+*   **Authorization:** Basic role-based authorization is present in `createProject`. Comments in other methods ("Add permission checks if necessary") suggest that more granular authorization might be handled within services or is pending further implementation in the controller.
 
-- **How**: The functions in this controller are registered as route handlers in `backend/src/routes/project.routes.ts`. When an HTTP request matches a defined route, Express invokes the corresponding controller function.
-- **Why**: To decouple route definitions and HTTP-specific concerns from the core business logic (which resides in services), following common backend architecture patterns (e.g., MVC-like structure where Controller handles request/response).
+## 5. TODOs / Potential Refinements (from code comments or analysis)
+*   Implement more comprehensive and consistent permission checks across all relevant endpoints, potentially using a dedicated authorization middleware or service.
+*   Standardize input validation for all create/update operations using DTOs and a validation library like Zod (as seen in `auth.controller.ts`) to ensure robust API contracts and reduce manual parsing/defaulting in controller methods.
+*   Clarify the division of responsibilities if nested controllers under `backend/src/controllers/project/` (e.g., `project.controller.ts`, `task.controller.ts`) are intended to take over some of the functionality currently in this top-level controller. If they are active, this top-level controller might be partially a facade or legacy.
 
-## 8. Input/Output Example (`getProjectById`)
-
-*   **Endpoint**: `GET /projects/:projectId`
-*   **Input**:
-    *   `req: CustomRequest`:
-        *   `req.params.projectId`: The ID of the project to retrieve.
-        *   `req.user`: Authenticated user object (`{ id: number, role: string }`).
-*   **Processing**:
-    1.  Checks if `req.user` and `req.user.role` exist.
-    2.  Parses `projectId` from `req.params`.
-    3.  Constructs `serviceUser` object (`{ id: req.user.id, role: { name: req.user.role } }`) for the service layer.
-    4.  Calls `projectService.getProjectById(projectId, serviceUser)`.
-    5.  If project found, transforms it using `projectService.transformToResponseDto(projectWithRelations)`.
-*   **Output**:
-    *   **Success (200 OK)**: JSON response `{ project: ProjectResponseDto }`.
-    *   **Not Found (404 NOT_FOUND)**: JSON response `{ message: 'Project not found or access denied' }`.
-    *   **Bad Request (400 BAD_REQUEST)**: JSON response `{ message: 'Invalid project ID' }` or other error messages.
-    *   **Unauthorized (401 UNAUTHORIZED)**: JSON response `{ message: 'Unauthorized or user role missing' }`.
+---
+*This MBK should be updated if the controller's responsibilities, routes, or internal logic change significantly.*

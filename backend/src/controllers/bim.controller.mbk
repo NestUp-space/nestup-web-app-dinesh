@@ -1,0 +1,47 @@
+# MBK: bim.controller.ts
+
+**Last Updated:** 2025-05-11
+
+## 1. Purpose and Overview
+The `BimController` class handles HTTP requests related to Building Information Modeling (BIM) functionalities. This includes retrieving BIM model templates and generating plank lists based on selected models and inputs, then updating associated subtasks. It uses `BimService` for core BIM logic and `SubtaskRepository` for subtask updates.
+
+## 2. Key Functions and Associated Routes (from `bim.routes.ts`)
+
+*   **`getModelTemplates(req: Request, res: Response, next: NextFunction)`**
+    *   **Route:** `GET /model-templates` (assuming router is mounted under `/api/bim`)
+    *   **Middleware:** `isAuthenticated`
+    *   **Purpose:** Retrieves all available BIM model templates.
+    *   **Logic:** Calls `this.bimService.getModelTemplates()`. Responds with templates or passes error to `next`.
+
+*   **`generatePlankListAndUpdateSubtask(req: Request, res: Response, next: NextFunction)`**
+    *   **Route:** `POST /generate-plank-list` (assuming router is mounted under `/api/bim`)
+    *   **Middleware:** `isAuthenticated`
+    *   **Purpose:** Generates a plank list and updates the specified subtask.
+    *   **Request Body:** Expects `{ modelName, inputs, subtaskId, boxNumber, packetNumber }`.
+    *   **Logic:**
+        1.  Validates required parameters.
+        2.  Calls `this.bimService.generatePlankList(...)`.
+        3.  Calls `this.subtaskRepository.update(subtaskId, { metadataJson: { ...plankList... }, completed: true })`.
+    *   **Response:** 200 OK with success message and plank list, or 400/404 on specific errors, or passes error to `next`.
+
+## 3. Dependencies
+*   `express` (Request, Response, NextFunction types)
+*   `../middlewares/auth.middleware` (`CustomRequest` type, though `req.user` is not actively used in current methods but available via casting `req as CustomRequest`).
+*   `../services/bim.service` (`BimService`, `ModelTemplate` type)
+*   `../repositories/subtask.repository` (`SubtaskRepository` singleton instance `globalSubtaskRepository`)
+*   `../config/db` (`prisma` - indirectly via repository)
+*   `http-status-codes`
+
+## 4. Key Patterns & Observations
+*   **Class-Based Controller:** Instantiated in `bim.routes.ts`.
+*   **Service and Repository Interaction:** Uses `BimService` for BIM logic and `SubtaskRepository` directly for subtask updates.
+*   **OpenAPI Documentation:** Methods are decorated with JSDoc comments for OpenAPI specification generation.
+*   **Error Handling:** Uses `next(error)` for unhandled errors, delegating to a global Express error handler. Specific client errors (400, 404) are handled directly.
+*   **Authentication:** Functional routes are protected by `isAuthenticated` middleware.
+
+## 5. TODOs / Potential Refinements (from LTM Analysis)
+*   Consider if the direct update to `SubtaskRepository` from the controller aligns with the overall architectural strategy for service layer responsibilities.
+*   Ensure robust validation of the `inputs` object in `generatePlankListAndUpdateSubtask`.
+
+---
+*This MBK should be updated if the controller's responsibilities, routes, or interaction patterns change.*

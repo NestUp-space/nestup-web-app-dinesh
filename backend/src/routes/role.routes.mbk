@@ -1,0 +1,52 @@
+# MBK: role.routes.ts
+
+**Last Updated:** 2025-05-11
+
+## 1. Purpose
+This file defines the Express router for API endpoints related to managing user roles and permissions. It maps HTTP request paths and methods to static methods of the `RoleController`.
+
+## 2. Key Routes Defined
+
+All routes defined in this file are protected by both `isAuthenticated` and `adminMiddleware`, applied globally to this router instance. This ensures only authenticated administrators can access these endpoints.
+
+*   **`POST /`**
+    *   **Controller Function:** `RoleController.createRole`
+    *   **Purpose:** Creates a new user role.
+
+*   **`GET /`**
+    *   **Controller Function:** `RoleController.getRoles`
+    *   **Purpose:** Retrieves a list of all user roles.
+
+*   **`GET /:id`**
+    *   **Controller Function:** `RoleController.getRoleById`
+    *   **Purpose:** Retrieves a specific user role by its ID.
+    *   **Request Parameter:** `id` (role ID).
+
+*   **`PUT /:id`**
+    *   **Controller Function:** `RoleController.updateRole`
+    *   **Purpose:** Updates an existing user role.
+    *   **Request Parameter:** `id` (role ID).
+
+*   **`DELETE /:id`**
+    *   **Controller Function:** `RoleController.deleteRole`
+    *   **Purpose:** Deletes a user role.
+    *   **Request Parameter:** `id` (role ID).
+
+## 3. Middleware Application
+*   `router.use(isAuthenticated);`: Ensures the user is authenticated.
+*   `router.use(adminMiddleware);`: Ensures the authenticated user has administrative privileges.
+    *   Both are applied globally to all routes within this `role.routes.ts` file.
+
+## 4. Dependencies
+*   `express` (Router)
+*   `../controllers/role.controller` (`RoleController` class)
+*   `../middlewares/admin.middleware` (`adminMiddleware`)
+*   `../middlewares/auth.middleware` (`isAuthenticated`)
+
+## 5. General Observations
+*   Provides comprehensive CRUD operations for role management.
+*   Strong access control is enforced by applying both authentication and admin-specific authorization middleware to all routes.
+*   This router is typically mounted under a base path like `/api/roles` in the main application setup (e.g., `server.ts`).
+
+---
+*This MBK should be updated if the routes, controller mappings, or middleware configurations change.*

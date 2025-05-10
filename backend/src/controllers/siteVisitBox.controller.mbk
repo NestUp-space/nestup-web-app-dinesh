@@ -1,0 +1,95 @@
+# MBK: siteVisitBox.controller.ts
+
+**Last Updated:** 2025-05-11
+
+## 1. Purpose and Overview
+
+The `SiteVisitBoxController` class (exporting a singleton instance `siteVisitBoxController`) handles HTTP requests related to "Site Visit Boxes." These appear to be configurable units associated with tasks, used for collecting site-specific data and potentially generating outputs like plank lists. The controller manages CRUD operations for these boxes, supports reordering, and provides functionality to generate and download a combined plank list.
+
+**Authentication Note:** As per `siteVisitBox.routes.ts` (as of 2025-05-11), the authentication middleware is currently commented out, meaning these routes are **publicly accessible**. This should be reviewed for security.
+
+## 2. Key Functions and Associated Routes (from `siteVisitBox.routes.ts`)
+
+All routes are assumed to be mounted under a base path like `/api`.
+
+*   **`createBox(req: Request, res: Response)`**
+    *   **Route:** `POST /tasks/:taskId/site-visit/boxes`
+    *   **Authentication:** Currently Public.
+    *   **Purpose:** Creates a new site visit box for a task.
+    *   **Request:** `taskId` (route param), box data (`CreateSiteVisitBoxDto` from `../bim/types/bim.types`) in `req.body`.
+    *   **Logic:** Parses `taskId`, calls `siteVisitBoxService.createSiteVisitBox()`, uses `handleServiceResponse`.
+
+*   **`getBoxesByTask(req: Request, res: Response)`**
+    *   **Route:** `GET /tasks/:taskId/site-visit/boxes`
+    *   **Authentication:** Currently Public.
+    *   **Purpose:** Retrieves all site visit boxes for a task.
+    *   **Request:** `taskId` (route param).
+    *   **Logic:** Parses `taskId`, calls `siteVisitBoxService.getBoxesByTask()`, uses `handleServiceResponse`.
+
+*   **`getBoxById(req: Request, res: Response)`**
+    *   **Route:** `GET /site-visit/boxes/:boxId`
+    *   **Authentication:** Currently Public.
+    *   **Purpose:** Retrieves a specific site visit box by ID.
+    *   **Request:** `boxId` (route param).
+    *   **Logic:** Parses `boxId`, calls `siteVisitBoxService.getBoxById()`, uses `handleServiceResponse`.
+
+*   **`updateBox(req: Request, res: Response)`**
+    *   **Route:** `PUT /site-visit/boxes/:boxId`
+    *   **Authentication:** Currently Public.
+    *   **Purpose:** Updates an existing site visit box.
+    *   **Request:** `boxId` (route param), box data (`UpdateSiteVisitBoxDto` from `../bim/types/bim.types`) in `req.body`.
+    *   **Logic:** Parses `boxId`, calls `siteVisitBoxService.updateBox()`, uses `handleServiceResponse`.
+
+*   **`deleteBox(req: Request, res: Response)`**
+    *   **Route:** `DELETE /site-visit/boxes/:boxId`
+    *   **Authentication:** Currently Public.
+    *   **Purpose:** Deletes a site visit box.
+    *   **Request:** `boxId` (route param).
+    *   **Logic:** Parses `boxId`, calls `siteVisitBoxService.deleteBox()`, uses `handleServiceResponse`.
+
+*   **`reorderBoxes(req: Request, res: Response)`**
+    *   **Route:** `POST /tasks/:taskId/site-visit/boxes/reorder`
+    *   **Authentication:** Currently Public.
+    *   **Purpose:** Reorders site visit boxes within a task.
+    *   **Request:** `taskId` (route param), `{ orderedIds: number[] }` in `req.body`.
+    *   **Logic:** Parses `taskId`, validates `orderedIds`, calls `siteVisitBoxService.reorderBoxes()`, uses `handleServiceResponse`.
+
+*   **`generatePlankList(req: Request, res: Response)`**
+    *   **Route:** `POST /tasks/:taskId/site-visit/generate-planklist`
+    *   **Authentication:** Currently Public.
+    *   **Purpose:** Generates a combined plank list from all boxes in a task.
+    *   **Request:** `taskId` (route param).
+    *   **Logic:** Parses `taskId`, calls `siteVisitBoxService.generateCombinedPlankList()`, uses `handleServiceResponse`.
+
+*   **`downloadPlankListCsv(req: Request, res: Response)`**
+    *   **Route:** `GET /tasks/:taskId/site-visit/download-planklist-csv`
+    *   **Authentication:** Currently Public.
+    *   **Purpose:** Generates and downloads a combined plank list as a CSV file.
+    *   **Request:** `taskId` (route param).
+    *   **Logic:** Calls `siteVisitBoxService.generateCombinedPlankList()`. If successful, **manually formats the result into a CSV string within this controller method**. Sets CSV headers and sends the data.
+    *   **Note:** An import for `formatCutListAsCsv` exists but is not used here.
+
+## 3. Dependencies
+*   `express` (Request, Response types)
+*   `http-status-codes`
+*   `../services/siteVisitBox.service.ts` (`siteVisitBoxService`)
+*   `../common/utils/httpHandlers.ts` (`handleServiceResponse` utility)
+*   `../bim/types/bim.types.ts` (for `CreateSiteVisitBoxDto`, `UpdateSiteVisitBoxDto`)
+*   `../bim/reference/CreateCutlist.ts` (for `formatCutListAsCsv`, though currently unused in `downloadPlankListCsv`)
+
+## 4. Key Patterns & Observations
+*   **Class-Based Controller with Singleton Export.**
+*   **Controller-Service Architecture:** Delegates most logic to `siteVisitBoxService`.
+*   **Centralized Response Handling:** Uses `handleServiceResponse` for JSON API responses.
+*   **DTO Usage:** DTOs are sourced from `bim/types`.
+*   **CSV Generation in Controller:** The `downloadPlankListCsv` method contains CSV formatting logic.
+*   **Authentication Context:** Uses standard Express `Request` type, suggesting these endpoints might not use the standard `CustomRequest` with `req.user`.
+
+## 5. TODOs / Potential Refinements (from LTM Analysis)
+*   **CSV Generation Logic:** Consider refactoring CSV formatting out of the controller into a utility or service.
+*   **Authentication/Authorization:** Clarify auth requirements for these endpoints.
+*   **DTO Location:** Review if DTOs in `bim/types` is appropriate.
+*   **Unused Import:** Remove or utilize the `formatCutListAsCsv` import.
+
+---
+*This MBK should be updated if the controller's responsibilities, routes, or data handling logic change.*

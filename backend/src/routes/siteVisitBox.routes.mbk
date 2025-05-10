@@ -1,0 +1,54 @@
+# MBK: siteVisitBox.routes.ts
+
+**Last Updated:** 2025-05-11
+
+## 1. Purpose
+This file defines the Express router for API endpoints related to "Site Visit Box" configurations. These are associated with tasks and involve CRUD operations, reordering, and plank list generation/download.
+
+## 2. Key Routes Defined
+
+All routes are currently **public** as `authMiddleware` is commented out in `siteVisitBox.routes.ts`.
+
+### Task-Scoped Routes:
+*   **`GET /tasks/:taskId/site-visit/boxes`**
+    *   Controller: `siteVisitBoxController.getBoxesByTask`
+*   **`POST /tasks/:taskId/site-visit/boxes`**
+    *   Controller: `siteVisitBoxController.createBox`
+*   **`POST /tasks/:taskId/site-visit/boxes/reorder`**
+    *   Controller: `siteVisitBoxController.reorderBoxes`
+*   **`POST /tasks/:taskId/site-visit/generate-planklist`**
+    *   Controller: `siteVisitBoxController.generatePlankList`
+*   **`GET /tasks/:taskId/site-visit/download-planklist-csv`**
+    *   Controller: `siteVisitBoxController.downloadPlankListCsv`
+
+### Box-Specific Routes:
+*   **`GET /site-visit/boxes/:boxId`**
+    *   Controller: `siteVisitBoxController.getBoxById`
+*   **`PUT /site-visit/boxes/:boxId`**
+    *   Controller: `siteVisitBoxController.updateBox`
+*   **`DELETE /site-visit/boxes/:boxId`**
+    *   Controller: `siteVisitBoxController.deleteBox`
+
+## 3. Authentication Note
+*   The `authMiddleware` (presumably `isAuthenticated` from `../middlewares/auth.middleware`) is imported but **commented out** in its application to the `siteVisitBoxRouter`.
+*   This makes all Site Visit Box operations currently **publicly accessible**, which is a significant security concern.
+*   OpenAPI documentation within `siteVisitBox.routes.ts` lists "401: Unauthorized" responses, suggesting authentication was likely intended.
+
+## 4. OpenAPI Documentation
+*   Each route is extensively documented with JSDoc comments formatted for OpenAPI specification generation.
+
+## 5. Controller Method Style
+*   Controller methods from `siteVisitBoxController` are directly assigned, suitable for arrow functions in the controller class.
+
+## 6. Dependencies
+*   `express` (Router)
+*   `../controllers/siteVisitBox.controller` (`siteVisitBoxController` instance)
+*   `../middlewares/auth.middleware` (Imported as `authMiddleware` but its usage is commented out)
+
+## 7. General Observations
+*   The router provides comprehensive management for Site Visit Box configurations.
+*   The public accessibility of these routes needs immediate review and likely correction by applying authentication middleware.
+*   This router is typically mounted under a base path like `/api` in the main application setup.
+
+---
+*This MBK should be updated if the routes, controller mappings, or especially the authentication mechanisms change.*

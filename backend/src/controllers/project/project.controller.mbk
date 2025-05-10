@@ -1,0 +1,81 @@
+# MBK: Nested Project Controller (`backend/src/controllers/project/project.controller.ts`)
+
+**Last Updated:** 2025-05-11
+
+**USAGE NOTE:** This class-based `ProjectController` is the **ACTIVE** controller for project-related CRUD operations as defined in `backend/src/routes/project.routes.ts`. It supersedes the project-related functions in the top-level functional controller (`backend/src/controllers/project.controller.ts`).
+
+## 1. Purpose and Overview
+This controller is responsible for handling HTTP requests related to the management of `Project` entities. It is a class-based controller and exports a singleton instance (`projectController`). It interacts with `projectService` for business logic.
+
+## 2. Key Functions and Endpoints Handled (from `project.routes.ts`)
+
+*   **`createProject(req: CustomRequest, res: Response)`**
+    *   **Route:** `POST /` (mounted under a base path, e.g., `/api/projects`)
+    *   **Middleware:** `isAuthenticated`
+    *   **Purpose:** Creates a new project.
+    *   **Logic:**
+        *   Casts `req` to `CustomRequest` (from `../../../middlewares/auth.middleware`).
+        *   Calls `projectService.createProject(req.body, req.user.id)`. Note: `req.user.id` is passed as `createdById`.
+        *   Uses `handleServiceResponse` (from `../../../common/utils/httpHandlers`) to send the response.
+
+*   **`getProjects(req: CustomRequest, res: Response)`**
+    *   **Route:** `GET /`
+    *   **Middleware:** `isAuthenticated`
+    *   **Purpose:** Retrieves a list of projects accessible to the authenticated user.
+    *   **Logic:**
+        *   Casts `req` to `CustomRequest`.
+        *   Calls `projectService.getProjects(req.user)`.
+        *   Uses `handleServiceResponse`.
+
+*   **`getProjectById(req: CustomRequest, res: Response)`**
+    *   **Route:** `GET /:projectId`
+    *   **Middleware:** `isAuthenticated`
+    *   **Purpose:** Retrieves a specific project by its ID.
+    *   **Logic:**
+        *   Casts `req` to `CustomRequest`.
+        *   Parses `projectId` from `req.params`.
+        *   Calls `projectService.getProjectById(projectId, req.user)`.
+        *   Uses `handleServiceResponse`.
+
+*   **`updateProject(req: CustomRequest, res: Response)`**
+    *   **Route:** `PUT /:projectId`
+    *   **Middleware:** `isAuthenticated`
+    *   **Purpose:** Updates an existing project.
+    *   **Logic:**
+        *   Casts `req` to `CustomRequest`.
+        *   Parses `projectId` from `req.params`.
+        *   Constructs update data including `updatedById: req.user.id`.
+        *   Calls `projectService.updateProject(projectId, updateData)`.
+        *   Uses `handleServiceResponse`.
+
+*   **`deleteProject(req: CustomRequest, res: Response)`**
+    *   **Route:** `DELETE /:projectId`
+    *   **Middleware:** `isAuthenticated`
+    *   **Purpose:** Deletes a project.
+    *   **Logic:**
+        *   Casts `req` to `CustomRequest`.
+        *   Parses `projectId` from `req.params`.
+        *   Calls `projectService.deleteProject(projectId, req.user.id)`. (Note: `deleteProject` service method might take `userId` for authorization or audit).
+        *   Uses `handleServiceResponse`.
+
+## 3. Dependencies
+*   `express` (Request, Response types)
+*   `http-status-codes`
+*   `../../../services/project/project.service` (`projectService`)
+*   `../../../middlewares/auth.middleware` (`CustomRequest`, `isAuthenticated`)
+*   `../../../common/utils/httpHandlers` (`handleServiceResponse`)
+*   `../../../dtos/project.dto` (for `CreateProjectDto`, `UpdateProjectDto` - assumed, based on typical patterns)
+
+## 4. Key Patterns & Observations
+*   **Class-Based Controller with Singleton Export.**
+*   **Controller-Service Architecture:** Delegates business logic to `projectService`.
+*   **Centralized Response Handling:** Uses `handleServiceResponse`.
+*   **Authentication:** All routes are protected by `isAuthenticated` middleware. `CustomRequest` (with `req.user`) is used.
+*   **Audit Fields:** `createdById` (in service) and `updatedById` (in controller) are set using `req.user.id`.
+
+## 5. TODOs / Potential Refinements
+*   Ensure DTOs (`CreateProjectDto`, `UpdateProjectDto`) are explicitly used and validated (e.g., with Zod) in controller methods or at the start of service methods if not already.
+*   Verify the exact signature and authorization logic within `projectService.deleteProject` regarding `userId`.
+
+---
+*This MBK should be updated if the controller's responsibilities, routes, or interaction patterns change.*

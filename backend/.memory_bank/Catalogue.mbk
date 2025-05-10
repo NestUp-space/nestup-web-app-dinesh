@@ -1,0 +1,87 @@
+# Catalogue.mbk - Catalogue Module Memory Bank
+
+## 1. Module Overview
+
+*   **Module Name:** Catalogue (formerly Model Management)
+*   **Directory:** `backend/src/catalogue/`
+*   **Purpose:** To provide a system for defining, managing, and utilizing dynamic furniture catalogue items (models). This includes defining item input parameters, Bill of Materials (BOM), and user-editable JavaScript logic for generating manufacturing outputs like plank lists and material estimates.
+*   **Key Goal:** To shift from hardcoded model logic to a flexible, data-driven, and user-configurable system.
+
+## 2. Architecture & Components
+
+*   **Technology Stack:** Express.js, TypeScript, Prisma ORM, PostgreSQL.
+*   **Core Components:**
+    *   **Routes (`routes/`):**
+        *   `catalogue.routes.ts` (or similar, e.g., `catalogue-item.routes.ts`): Handles CRUD for `CatalogueItemDefinition`, `CatalogueItemInputParameter`, and `CatalogueItemBomItem`. Mounted at `/api/catalogue-items` (or similar).
+        *   `generation.routes.ts`: Handles requests for generating plank lists and material estimates. Mounted at `/api/catalogue/generation`.
+    *   **Services (`services/`):**
+        *   `catalogue-item.service.ts`: Business logic for managing catalogue item definitions, their parameters, and BOM items. Interacts with `CatalogueItemRepository`. Validates `itemLogicScript` using `JavaScriptFunctionService` and sample inputs during definition.
+        *   `javascript-function.service.ts`: Core of the script execution engine. Responsible for executing `itemLogicScript` from `CatalogueItemBomItem` in a sandboxed Node.js VM environment. Receives `runtimeInputs` (including full material definitions) and `globalConstants`.
+        *   `plank-list-generator.service.ts`: Takes the resolved BOM items (specifically planks with properties calculated by `JavaScriptFunctionService`) and formats them into a CSV output.
+        *   `material-estimator.service.ts`: (Functionality to be detailed) Takes resolved BOM items and calculates an aggregate material estimate.
+        *   `project-catalogue-item-instance.service.ts`: Manages instances of catalogue items within specific projects.
+    *   **Repositories (`repositories/`):**
+        *   `catalogue-item.repository.ts`: Handles direct database interactions (Prisma calls) for `CatalogueItemDefinition`, `CatalogueItemInputParameter`, and `CatalogueItemBomItem` entities.
+        *   `project-catalogue-item-instance.repository.ts`: Handles DB interactions for `ProjectCatalogueItemInstance`.
+    *   **DTOs (`dtos/`):**
+        *   `catalogue.dto.ts`: Contains Zod schemas for validating API request payloads for all entities within this module (e.g., `CreateCatalogueItemDefinitionDto`).
+    *   **Prisma Schema (`prisma/schema.prisma` - relevant models):**
+        *   `CatalogueItemDefinition`: Stores the core definition of a furniture catalogue item.
+        *   `CatalogueItemInputParameter`: Defines the parameters an item accepts (e.g., height, width).
+        *   `CatalogueItemBomItem`: Represents an item in a catalogue item's BOM (plank, hardware, addon), including its `itemLogicScript` (JavaScript string).
+        *   `ProjectCatalogueItemInstance`: Represents an instance of a `CatalogueItemDefinition` within a specific project, along with its `runtimeInputsJson`.
+        *   `GeneratedPlankList`: Stores metadata and content of generated plank lists.
+        *   `Material`: Defines project-specific materials, instances of which are fetched and injected into `runtimeInputs` for script execution.
+    *   **Configuration (`config/`):**
+        *   `globalConstants.json`: Stores global values (e.g., `panelThickness`, `CEBThickness`) accessible within `itemLogicScript` via the `globalConstants` object.
+
+## 3. Data Flow & Logic
+
+*   **3.1. Catalogue Item Definition Workflow:**
+    1.  **Frontend UI (Admin/Designer):** User interacts with forms to define a new catalogue item or edit an existing one.
+    2.  **API Request:** Frontend sends data (validated by DTOs) to `/api/catalogue-items` (or similar).
+    3.  **Routes (`catalogue.routes.ts`):** Receive requests, perform Zod validation.
+    4.  **Service (`catalogue-item.service.ts`):** Handles business logic. If `itemLogicScript` is provided for BOM items, it's tested using `JavaScriptFunctionService` with `sampleRuntimeInputsJson` from the `CatalogueItemDefinition`.
+    5.  **Repository (`catalogue-item.repository.ts`):** Executes Prisma CUD operations.
+    6.  **Response:** Service returns created/updated entity.
+    *   **`itemLogicScript`:** A JavaScript string attached to each `CatalogueItemBomItem`, expected to define a `calculateProperties(runtimeInputs, globalConstants)` function.
+
+*   **3.2. Plank List / Material Estimate Generation Workflow (Focus on Plank List):**
+    1.  **Frontend UI (Site Engineer/Designer):** User selects a `ProjectCatalogueItemInstance` and triggers generation.
+    2.  **API Request:** Frontend sends request to `/api/catalogue/generation/plank-list` with `projectCatalogueItemInstanceId`.
+    3.  **Controller (`generation.controller.ts` - `generatePlankList` method):**
+        *   Fetches `ProjectCatalogueItemInstance` (including its `projectId` and `runtimeInputsJson`).
+        *   Fetches the associated `CatalogueItemDefinition` and its `CatalogueItemBomItem`s (each with its `itemLogicScript`).
+        *   **Material Enrichment:**
+            *   Identifies material IDs (e.g., `exposedMaterialId`, `innerMaterialId`, `backPanelMaterialId`) from the `runtimeInputsJson`.
+            *   Fetches the full `Material` records from the database for these IDs and the `projectId`.
+            *   Creates an `enrichedRuntimeInputs` object by adding these full material definitions (e.g., as `exposedMaterialDefinition`, `innerMaterialDefinition`).
+    4.  **JavaScript Function Service (`javascript-function.service.ts`):**
+        *   For each `CatalogueItemBomItem` with an `itemLogicScript`, the `GenerationController` calls `JavaScriptFunctionService.executeItemScript()`.
+        *   This service is passed the `itemLogicScript` and the `enrichedRuntimeInputs` (which now includes full material definitions and original runtime parameters) and `globalConstants` (loaded from `config/globalConstants.json`).
+        *   The script is executed in a sandboxed VM. The script's `calculateProperties` function uses these inputs to calculate properties.
+        *   Outputs a "resolved" BOM item object (e.g., a plank with all its dimensions and material details).
+    5.  **Output Generation Services:**
+        *   `PlankListGeneratorService.generatePlankListCsv()`: Takes the list of resolved plank objects and converts them to a CSV string.
+        *   `MaterialEstimatorService.estimateMaterials()`: (To be detailed)
+    6.  **Storage & Response:**
+        *   Generated CSV (for plank list) is stored in `GeneratedPlankList` table and returned for download.
+        *   Material estimate (future) would be returned as JSON.
+
+## 4. Key Design Principles & Considerations
+
+*   **User-Editable Logic:** `itemLogicScript` allows complex calculations and logic to be defined by users without backend code changes.
+*   **Sandboxed Execution:** `JavaScriptFunctionService` uses Node.js `vm` module for safer execution of user scripts.
+*   **Rich Runtime Context:** Scripts receive `runtimeInputs` (including user-provided parameters and full material definitions) and `globalConstants`.
+*   **Decoupling:** Definition, script execution, and output formatting are distinct steps.
+*   **Extensibility:** New properties or calculation methods can be added to scripts.
+*   **Configuration:** `globalConstants.json` provides a central place for shared values.
+
+## 5. Future Enhancements (Potential)
+*   Versioning of Catalogue Item Definitions and Scripts.
+*   Visual Rule Builder UI.
+*   Import/Export of Model Definitions.
+*   Advanced validation and simulation of rules.
+
+---
+*This document describes the intended architecture and functionality of the Model Management module. It should be updated as development progresses.*

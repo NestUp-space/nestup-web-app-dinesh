@@ -1,0 +1,57 @@
+# MBK: material.routes.ts
+
+**Last Updated:** 2025-05-11
+
+## 1. Purpose
+This file defines the Express router for API endpoints related to material management. It maps HTTP request paths and methods to specific controller actions in `materialController`. It also includes extensive OpenAPI documentation for each route.
+
+## 2. Key Routes Defined
+
+*   **`GET /projects/:projectId/materials`**
+    *   **Controller Function:** `materialController.getMaterialsByProject`
+    *   **Purpose:** Retrieves all materials defined for a specific project.
+    *   **Authentication:** Currently Public (see Authentication Note below).
+
+*   **`POST /projects/:projectId/materials`**
+    *   **Controller Function:** `materialController.createMaterial`
+    *   **Purpose:** Creates a new material for a specific project.
+    *   **Authentication:** Currently Public.
+
+*   **`GET /materials/:materialId`**
+    *   **Controller Function:** `materialController.getMaterialById`
+    *   **Purpose:** Retrieves a specific material by its ID.
+    *   **Authentication:** Currently Public.
+
+*   **`PUT /materials/:materialId`**
+    *   **Controller Function:** `materialController.updateMaterial`
+    *   **Purpose:** Updates a specific material by its ID.
+    *   **Authentication:** Currently Public.
+
+*   **`DELETE /materials/:materialId`**
+    *   **Controller Function:** `materialController.deleteMaterial`
+    *   **Purpose:** Deletes a specific material by its ID.
+    *   **Authentication:** Currently Public.
+
+## 3. Authentication Note
+*   The `authMiddleware` (presumably `isAuthenticated` from `../middlewares/auth.middleware`) is imported but **commented out** in its application to the `materialRouter` (`// materialRouter.use(authMiddleware);`).
+*   This means all routes defined in this file are currently **publicly accessible**.
+*   This is a critical security consideration that needs review, as CRUD operations on materials are typically protected.
+*   The OpenAPI documentation for these routes *does* list "401: Unauthorized" as a possible response, suggesting authentication was intended.
+
+## 4. OpenAPI Documentation
+*   Each route is extensively documented with JSDoc comments formatted for OpenAPI specification generation. This includes tags, summaries, descriptions, parameter definitions (path and requestBody with schemas), and detailed response codes.
+
+## 5. Controller Method Style
+*   Controller methods from `materialController` are directly assigned to routes (e.g., `materialRouter.get(..., materialController.getMaterialsByProject)`). This is appropriate as the methods in `MaterialController` are defined as arrow functions, which lexically bind `this`.
+
+## 6. Dependencies
+*   `express` (Router)
+*   `../controllers/material.controller` (`materialController` instance)
+*   `../middlewares/auth.middleware` (Imported as `authMiddleware` but its usage is commented out)
+
+## 7. General Observations
+*   The route structure clearly separates project-scoped material operations from direct material manipulation by ID.
+*   This router is typically mounted under a base path like `/api` (e.g., `/api/projects/:projectId/materials`, `/api/materials/:materialId`) in the main application setup.
+
+---
+*This MBK should be updated if the routes, controller mappings, or especially the authentication mechanisms change.*

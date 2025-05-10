@@ -1,0 +1,101 @@
+# MBK: user.controller.ts
+
+**Last Updated:** 2025-05-11
+
+## 1. Purpose and Overview
+
+The `UserController` class provides static methods for handling HTTP requests related to user management. This includes creating users, retrieving user lists (with pagination and role filtering), fetching individual user details, toggling user active status, updating user passwords, and retrieving the current authenticated user's profile. It delegates all business logic to a static `UserService`. All routes are protected by `isAuthenticated`, with most also requiring `adminMiddleware`.
+
+## 2. Key Characteristics
+
+*   **Static Methods:** All public methods are static (e.g., `UserController.createUser`).
+*   **Service Layer Delegation:** All core logic is handled by static methods on `UserService`.
+*   **Local `CustomRequest` Definition:**
+    ```typescript
+    interface CustomRequest extends Request {
+      user?: {
+        id: number;
+        role: string; // Note: This 'role' is a string, likely roleType.
+      };
+    }
+    ```
+    This interface is used in `updateUserPassword` and `getCurrentUserProfile` to access authenticated user data. The structure of `user.role` as a string here is inconsistent with the `CustomRequest` defined in `auth.middleware.ts` (where `req.user.role` is an object: `{ id: number; roleType: string; }`). This needs review for consistency.
+
+## 3. Key Functions and Associated Routes (from `user.routes.ts`)
+
+All routes are assumed to be mounted under a base path like `/api/users`.
+
+*   **`createUser(req: Request, res: Response)`**
+    *   **Route:** `POST /`
+    *   **Middleware:** `isAuthenticated` (global), `adminMiddleware` (route-specific).
+    *   **Purpose:** Creates a new user.
+    *   **Request Body:** Expects `{ email, password, name, phoneNumber, roleId }`.
+    *   **Logic:** Calls `UserService.createUser()`.
+    *   **Response:** 201 CREATED with new user data.
+
+*   **`getUsers(req: Request, res: Response)`**
+    *   **Route:** `GET /`
+    *   **Middleware:** `isAuthenticated` (global), `adminMiddleware` (route-specific).
+    *   **Purpose:** Retrieves a paginated list of users, with optional role filtering.
+    *   **Query Params:** `page` (number, default 1), `pageSize` (number, default 10), `roleName` (string, optional).
+    *   **Logic:** Calls `UserService.getUsers()`.
+    *   **Response:** 200 OK with `{ data: { users, total } }`.
+
+*   **`toggleUserActiveStatus(req: Request, res: Response)`**
+    *   **Route:** `PATCH /:id/toggle-active`
+    *   **Middleware:** `isAuthenticated` (global), `adminMiddleware` (route-specific).
+    *   **Purpose:** Activates or deactivates a user.
+    *   **Request Params:** `id` (user ID).
+    *   **Request Body:** Expects `{ isActive: boolean }`.
+    *   **Logic:**
+        *   Fetches user by ID via `UserService.getUserById()` for a 'superadmin' check.
+        *   The check `if (!user || user.role.roleType !== 'superadmin')` is intended to prevent disabling superadmin but appears flawed.
+        *   Calls `UserService.toggleUserActiveStatus()`.
+    *   **Response:** 200 OK with updated user data.
+
+*   **`updateUserPassword(req: Request, res: Response)`**
+    *   **Route:** `PATCH /:id/update-password`
+    *   **Middleware:** `isAuthenticated` (global), `adminMiddleware` (route-specific).
+    *   **Purpose:** Updates a specified user's password.
+    *   **Request Params:** `id` (user ID).
+    *   **Request Body:** Expects `{ newPassword: string }`.
+    *   **Authorization:** Checks if `requestingUser.role` (from local `CustomRequest`) is 'superadmin' or 'admin'.
+    *   **Logic:** Calls `UserService.updateUserPassword()`.
+    *   **Response:** 200 OK with updated user data.
+
+*   **`getUserById(req: Request, res: Response)`**
+    *   **Route:** `GET /:id`
+    *   **Middleware:** `isAuthenticated` (global), `adminMiddleware` (route-specific).
+    *   **Purpose:** Retrieves a specific user by ID.
+    *   **Request Params:** `id` (user ID).
+    *   **Logic:** Calls `UserService.getUserById()`.
+    *   **Response:** 200 OK with user data, or 404 NOT_FOUND if user doesn't exist.
+
+*   **`getCurrentUserProfile(req: CustomRequest, res: Response)`**
+    *   **Route:** `GET /profile`
+    *   **Middleware:** `isAuthenticated` (global). No `adminMiddleware` for this specific route.
+    *   **Purpose:** Retrieves the profile of the currently authenticated user.
+    *   **Logic:** Uses `req.user.id` (from local `CustomRequest`). Calls `UserService.getCurrentUserProfile()`. Directly uses properties from the service's response object to construct the HTTP response.
+    *   **Response:** Typically 200 OK with user profile data, or error status from service.
+
+*   **`getUsersByRole(req: Request, res: Response)`**
+    *   **Route:** `GET /by-role`
+    *   **Middleware:** `isAuthenticated` (global), `adminMiddleware` (route-specific).
+    *   **Purpose:** Retrieves users filtered by a specific role name.
+    *   **Query Params:** `roleName` (string, required).
+    *   **Logic:** Calls `UserService.getUsersByRole()`.
+    *   **Response:** 200 OK with an array of user data.
+
+## 4. Dependencies
+*   `express` (Request, Response types)
+*   `../services/user.service.ts` (`UserService`)
+*   `http-status-codes`
+
+## 5. Potential Areas for Review/Refinement (from LTM Analysis)
+*   **`CustomRequest` Inconsistency:** Reconcile the local `CustomRequest` definition (especially `user.role: string`) with the global one from `auth.middleware.ts`.
+*   **Logic in `toggleUserActiveStatus`:** The 'superadmin' protection logic needs review and correction.
+*   **Response Handling in `getCurrentUserProfile`:** Consider using the `handleServiceResponse` utility for consistency if applicable.
+*   **Authorization Granularity:** Review authorization checks for user management operations.
+
+---
+*This MBK should be updated if the controller's responsibilities, routes, or data handling logic change.*

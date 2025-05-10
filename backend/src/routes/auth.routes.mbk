@@ -1,0 +1,41 @@
+# MBK: auth.routes.ts
+
+**Last Updated:** 2025-05-11
+
+## 1. Purpose
+This file defines the Express router for public authentication-related API endpoints. It maps HTTP request paths and methods to specific controller functions in `auth.controller.ts`.
+
+## 2. Key Routes Defined
+
+*   **`POST /register`**
+    *   **Controller Function:** `register` (from `../controllers/auth.controller`)
+    *   **Purpose:** Handles new user registration.
+    *   **Authentication:** Public (no `isAuthenticated` middleware applied in this file).
+
+*   **`POST /login`**
+    *   **Controller Function:** `login` (from `../controllers/auth.controller`)
+    *   **Purpose:** Handles user login.
+    *   **Authentication:** Public.
+
+*   **`POST /reset-password-request`**
+    *   **Controller Function:** `handlePasswordResetRequest` (from `../controllers/auth.controller`)
+    *   **Purpose:** Initiates the password reset process (e.g., by sending a reset link/token to the user's email).
+    *   **Authentication:** Public.
+
+## 3. Middleware
+*   No specific authentication middleware (like `isAuthenticated`) is applied directly within this routes file, as these endpoints are intended for public access.
+
+## 4. Dependencies
+*   `express` (Router)
+*   Controller functions (`register`, `login`, `handlePasswordResetRequest`) from `../controllers/auth.controller`.
+
+## 5. TODOs Noted in Code
+*   A comment `// TODO: Add route for handling the actual password reset link (e.g., POST /reset-password/:token)` indicates that the functionality for completing a password reset (after a user clicks a link with a token) is planned but not yet implemented in this routes file. This would likely involve a new controller function and route.
+
+## 6. General Observations
+*   The routes are clearly defined and map directly to the core authentication actions.
+*   The naming of the `/reset-password-request` route is clear about its purpose.
+*   This router is typically mounted under a base path like `/api/auth` in the main application setup (e.g., `server.ts`).
+
+---
+*This MBK should be updated if the routes, controller mappings, or authentication mechanisms change.*

@@ -1,0 +1,73 @@
+# MBK: role.controller.ts
+
+**Last Updated:** 2025-05-11
+
+## 1. Purpose and Overview
+
+The `RoleController` class provides static methods for managing user roles (`UserRole` model) and their associated permissions (via `UserPermission` and `RolePermissionMapping` models). It handles HTTP requests for CRUD operations on roles and directly interacts with a locally instantiated Prisma client for database operations. All routes are protected by `isAuthenticated` and `adminMiddleware`.
+
+## 2. Key Characteristics
+
+*   **Static Methods:** All public methods are static (e.g., `RoleController.createRole`).
+*   **Direct Prisma Usage:** Instantiates its own `PrismaClient` at the module level (`const prisma = new PrismaClient();`) and uses it for all database interactions. This is a deviation from a service layer pattern and the shared Prisma client instance seen in other parts of the application.
+*   **Comprehensive Role & Permission Logic:**
+    *   Manages the creation of `UserRole` records.
+    *   Dynamically finds or creates `UserPermission` records based on permission keys provided in requests.
+    *   Manages the `RolePermissionMapping` join table to link roles to permissions.
+    *   Includes specific business rules like preventing modification/deletion of the 'superadmin' role and disallowing deletion of roles currently assigned to users.
+*   **Response Transformation:** Transforms permission data into a more client-friendly format (e.g., an object map `{ "permissionKey": true }`) before sending responses.
+*   **Security:** All associated routes (defined in `role.routes.ts`) are protected by `isAuthenticated` and `adminMiddleware`, ensuring only authenticated admin users can perform these operations.
+
+## 3. Key Functions and Associated Routes (from `role.routes.ts`)
+
+All routes are assumed to be mounted under a base path like `/api/roles` and are protected by `isAuthenticated` and `adminMiddleware`.
+
+*   **`createRole(req: Request, res: Response)`**
+    *   **Route:** `POST /`
+    *   **Purpose:** Creates a new role and assigns specified permissions.
+    *   **Request Body:** Expects `{ name: string, permissions: Record<string, boolean> }`.
+    *   **Logic:** Validates `name`, checks for existing role by name (409 if exists). Creates `UserRole`. Iterates `permissions` object: finds/creates `UserPermission` for each key, then creates `RolePermissionMapping`.
+    *   **Response:** 201 CREATED with new role data, or error status (400, 409, 500).
+
+*   **`getRoles(req: Request, res: Response)`**
+    *   **Route:** `GET /`
+    *   **Purpose:** Retrieves all roles with their assigned permissions.
+    *   **Logic:** Fetches all `UserRole` records, including related `roleMappings` and `permission` details. Transforms permissions into an object map.
+    *   **Response:** 200 OK with an array of transformed role objects, or 500 on error.
+
+*   **`getRoleById(req: Request, res: Response)`**
+    *   **Route:** `GET /:id`
+    *   **Purpose:** Retrieves a specific role by ID with its permissions.
+    *   **Request Params:** `id` (role ID).
+    *   **Logic:** Fetches `UserRole` by ID, including permissions. Transforms permissions.
+    *   **Response:** 200 OK with transformed role object, 404 if not found, or 500 on error.
+
+*   **`updateRole(req: Request, res: Response)`**
+    *   **Route:** `PUT /:id`
+    *   **Purpose:** Updates an existing role's name and/or permissions.
+    *   **Request Params:** `id` (role ID).
+    *   **Request Body:** Expects `{ name?: string, permissions?: Record<string, boolean> }`.
+    *   **Logic:** Checks if role exists (404 if not). Prevents updating 'superadmin' role (403). Updates role name if provided. If `permissions` are provided, deletes all existing `RolePermissionMapping` for the role, then iterates new `permissions` to find/create `UserPermission` and create new `RolePermissionMapping` entries. Fetches and returns the updated role with its new permissions.
+    *   **Response:** 200 OK with updated role data, or error status (404, 403, 500).
+
+*   **`deleteRole(req: Request, res: Response)`**
+    *   **Route:** `DELETE /:id`
+    *   **Purpose:** Deletes a role.
+    *   **Request Params:** `id` (role ID).
+    *   **Logic:** Checks if role exists (404 if not). Prevents deleting 'superadmin' role (403). Checks if any users are assigned to the role (409 if yes). Deletes the `UserRole`. (Note: `RolePermissionMapping` deletion relies on DB cascade or is an oversight).
+    *   **Response:** 200 OK with success message, or error status (404, 403, 409, 500).
+
+## 4. Dependencies
+*   `express` (Request, Response types)
+*   `@prisma/client` (PrismaClient and generated types)
+*   `http-status-codes`
+*   `../middlewares/admin.middleware` (`adminMiddleware` - applied at route level)
+*   `../middlewares/auth.middleware` (`isAuthenticated` - applied at route level)
+
+## 5. Potential Areas for Review/Refinement (from LTM)
+*   **Prisma Client Instantiation:** The local `PrismaClient` instance is a deviation from the shared instance pattern and could lead to connection pool issues. Consider refactoring to use the global Prisma client from `src/config/db.ts`.
+*   **Service Layer Abstraction:** Lack of a service layer couples controller logic with data access. Introducing a `RoleService` would improve separation of concerns and testability.
+*   **Cascade Deletes for Mappings:** Clarify if `RolePermissionMapping` entries are cascade-deleted by the database when a `UserRole` is deleted. If not, `deleteRole` should explicitly remove these mappings to prevent orphaned records.
+
+---
+*This MBK should be updated if the controller's responsibilities, routes, or data handling logic change.*

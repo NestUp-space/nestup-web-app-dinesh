@@ -1,152 +1,145 @@
-# NestUp Backend Technical Architecture
+# TECHARCH.mbk - High-Level Project Architecture
 
-## Overview
+## 1. Overview
 
-NestUp is a project management application designed for construction/interior design projects. The backend is built using Node.js, Express, TypeScript, and Prisma ORM with a PostgreSQL database. It follows a layered architecture pattern (Controller-Service-Repository) and provides RESTful APIs for the frontend to consume.
+This document outlines the high-level architecture of the NestUp project, covering end-to-end workflows, setup, configuration, and overall goals.
 
-## Core Technologies
+*   **Primary Goal:** To provide a comprehensive project management solution tailored for interior design and modular furniture manufacturing, from initial client interaction and site visits to design, manufacturing, and installation.
+*   **Key Technologies:**
+    *   **Frontend:**
+        *   Framework: Next.js (with React, TypeScript)
+        *   Styling: Tailwind CSS, Radix UI (primitives)
+        *   State Management/Data Fetching: SWR
+        *   Forms: React Hook Form
+        *   Key Dev Tools: ESLint, PostCSS
+        *   (Note: Drizzle ORM also present - investigate specific use if any for frontend/edge data.)
+    *   **Backend:**
+        *   Runtime: Node.js
+        *   Framework: Express.js
+        *   Language: TypeScript
+        *   ORM: Prisma (primarily) with PostgreSQL. (Note: Sequelize also present in dependencies - investigate specific use if any).
+        *   Database: PostgreSQL
+        *   Validation: Zod
+        *   Authentication: JWT (jsonwebtoken), bcrypt
+        *   File Storage: AWS S3 (via AWS SDK v3 and potentially v2)
+        *   API Documentation: Swagger (via `swagger-ui-express` and `zod-to-openapi`)
+        *   Key Dev Tools: Vitest (testing), BiomeJS (linting/formatting), tsx/tsup (TS execution/bundling)
+    *   **Deployment:** Docker (as per `docker-compose.yml`)
 
-- **Node.js**: Runtime environment
-- **Express**: Web framework
-- **TypeScript**: Programming language
-- **Prisma**: ORM for database interactions
-- **PostgreSQL**: Database
-- **Vitest**: Testing framework
-- **Zod**: Schema validation
-- **JWT**: Authentication
-- **AWS S3**: File storage
-- **Swagger/OpenAPI**: API documentation
+## 2. Core Modules & Workflow (Existing - Summary)
 
-## Architecture
+*   **User Management & Authentication:** Handles user registration, login, roles (RBAC via `UserRole`, `UserPermission`, `RolePermissionMapping`), and permissions. A unified `User` model serves internal and external users. HTTP requests for authentication are handled by `auth.controller.ts`, which uses Zod for input validation before delegating to `auth.service.ts`. The service utilizes JWTs (signed with `jsonwebtoken`, payload includes user ID, email, name, roleType) for session management and `bcrypt` for password hashing. New users are registered with a default 'client' role and require further verification (flow TBD). Role and permission management (CRUD operations on `UserRole`, `UserPermission`, `RolePermissionMapping`) is handled by `RoleController`, which uses static methods and interacts directly with a locally instantiated Prisma client; it includes safeguards for system-critical roles like 'superadmin'. General user CRUD operations, status toggling, password updates, and profile retrieval are managed by `UserController` (using static methods), which delegates to `UserService` and includes some direct role-based authorization checks.
+*   **Project Management:** Core module for creating and tracking `Project` entities, their associated `Task` and `Subtask` hierarchies, and overall project `Status`. The `project.controller.ts` (and its nested controllers in `controllers/project/`) exposes a comprehensive set of API endpoints for CRUD operations on Projects, Tasks, and Subtasks. It validates inputs (partially via DTOs, with some direct parsing/defaulting in the top-level controller), delegates to `projectService`, `taskService`, and `subtaskService`, and uses service-level DTO transformations for responses.
+*   **Client Management:** Handled via `ClientProjectMapping` linking `User` (as client) to `Project`. `ClientMarketplace` offers visibility settings.
+*   **File Management:** The `File` model supports associating files with `Task` entities and a special link for `Project` generated plank lists. File uploads are managed by `file.controller.ts`, which likely uses Multer middleware for `multipart/form-data` processing. Uploaded files are associated with tasks via `taskId` and processed by `file.service.ts` (e.g., for S3 storage).
+*   **BIM Module (Legacy/Current):** The `BimController` handles API requests for BIM model templates (dynamically loaded from JSON files via `BimService`) and plank list generation. The `generatePlankListAndUpdateSubtask` endpoint in `BimController` uses `BimService` for generation and directly updates `Subtask` records (via `SubtaskRepository`) to store generated plank lists and mark related subtasks as complete. API documentation is facilitated via OpenAPI JSDoc comments in the controller. This module's functionality has overlap with the newer Catalogue System, and its future role (integration or deprecation) needs clarification.
+*   **Material Management:** The `Material` model allows defining project-specific materials with detailed properties. CRUD operations are exposed via `material.controller.ts`, which delegates to `materialService` and uses a common `handleServiceResponse` utility for consistent API responses.
+*   **Site Visit Management:** Initial site visit booking is handled by `siteVisit.controller.ts` (`bookSiteVisit` function), which orchestrates user creation/update and draft project creation via `siteVisit.service`. Further site visit data and configurations are managed via `SiteVisitBox` entities, handled by `siteVisitBox.controller.ts`. This controller supports CRUD for these boxes, reordering, and generating/downloading a combined plank list as CSV (with CSV formatting logic currently in the controller itself). The `SiteVisitBox` model uses flexible JSON `inputs` for detailed data capture.
+*   **Team Management:** The `Team` model organizes internal users, with designated managers and members. `EngineerTeamMapping` links engineers to teams.
+*   **Auditing & History:** `UserAction` provides a basic audit trail. `EngineerProjectMapping` tracks engineer handovers on projects. `Comment` model for discussions.
 
-### Layered Architecture
+## 2.1. Data Architecture (Prisma Schema Overview)
 
-The application follows a layered architecture pattern:
+The data architecture is defined in `prisma/schema.prisma` and managed using Prisma ORM.
 
-```mermaid
-graph TD
-    A[Routes] --> B[Controllers]
-    B --> C[Services]
-    C --> D[Repositories]
-    D --> E[Database]
-    F[Middleware] --> A
-```
+**Key Data Domains:**
 
-1. **Routes Layer**: Defines API endpoints and routes requests to appropriate controllers
-2. **Controllers Layer**: Handles HTTP requests/responses, validates input, and delegates business logic to services
-3. **Services Layer**: Contains business logic, orchestrates operations, and interacts with repositories
-4. **Repositories Layer**: Handles data access operations using Prisma ORM
-5. **Database Layer**: PostgreSQL database managed through Prisma
+*   **User & Access Control:**
+    *   Models: `User`, `Team`, `UserRole`, `UserPermission`, `RolePermissionMapping`, `EngineerTeamMapping`, `ClientProjectMapping`, `ClientMarketplace`.
+    *   Description: Manages all user types, their roles, permissions, team structures, and project associations (as creators, engineers, clients).
+*   **Project & Task Management:**
+    *   Models: `Project`, `Task`, `Subtask`, `File`, `Comment`, `Status`, `UserAction`, `EngineerProjectMapping`.
+    *   Description: Forms the core of project execution, tracking project lifecycle, hierarchical tasks, file attachments, discussions, status changes, and user actions.
+*   **Materials & Site Visits:**
+    *   Models: `Material`, `SiteVisitBox`.
+    *   Description: Manages project-specific material definitions and configurations for site visit data capture.
+*   **Catalogue & Model Management System:** (Detailed in Section 3)
+    *   Models: `CatalogueItemDefinition`, `CatalogueItemInputParameter`, `CatalogueItemBomItem`, `ProjectCatalogueItemInstance`, `GeneratedPlankList`.
+    *   Description: Provides a dynamic and scriptable system for defining, configuring, and generating outputs for reusable project components.
 
-### Request-Response Flow
-
-```mermaid
-sequenceDiagram
-    Client->>+Express: HTTP Request
-    Express->>+Middleware: Process Request
-    Middleware->>+Router: Route to Handler
-    Router->>+Controller: Handle Request
-    Controller->>+Service: Execute Business Logic
-    Service->>+Repository: Data Operations
-    Repository->>+Database: Query/Mutation
-    Database-->>-Repository: Data
-    Repository-->>-Service: Processed Data
-    Service-->>-Controller: Result
-    Controller-->>-Router: HTTP Response
-    Router-->>-Middleware: Pass Response
-    Middleware-->>-Express: Process Response
-    Express-->>-Client: HTTP Response
-```
-
-## Key Components
-
-### Entry Point
-
-The application has two entry points:
-- `index.ts`: Main entry point that initializes the Express app, sets up middleware, and starts the server
-- `server.ts`: Configures the Express app, middleware, and routes (appears to be an alternative or newer setup)
-
-Note: There appears to be some duplication between these files that may need to be resolved.
-
-### Middleware
-
-- **Helmet**: Security headers
-- **CORS**: Cross-Origin Resource Sharing
-- **Rate Limiter**: Prevents abuse
-- **Request Logger**: Logs incoming requests
-- **Error Handler**: Centralized error handling
-
-### Authentication & Authorization
-
-- **JWT-based authentication**: Uses jsonwebtoken for token generation and verification
-- **Role-based access control**: Uses UserRole and UserPermission models
-- **Middleware**: Auth middleware for protecting routes
-
-## Database Schema
-
-The database schema is defined using Prisma and includes the following key models:
-
-- **User**: Stores user information (both internal and external users)
-- **Team**: Tracks team details of internal employees
-- **Project**: Stores project details
-- **Task**: Represents tasks within a project
-- **Subtask**: Represents subtasks within a task
-- **File**: Stores file information
-- **Material**: Stores project material information
-- **SiteVisitBox**: Stores site visit box configurations
-- **UserRole**: Defines user roles
-- **UserPermission**: Defines permissions
-- **Status**: Tracks status of projects and tasks
-- **Comment**: Stores comments on projects and tasks
-
-### Key Relationships
+**Overall Entity Relationship Diagram (Conceptual - Key Entities):**
 
 ```mermaid
 erDiagram
-    User ||--o{ Project : "creates/manages"
-    Project ||--o{ Task : "contains"
-    Task ||--o{ Subtask : "contains"
-    Task ||--o{ File : "has"
-    Project ||--o{ Material : "has"
-    Task ||--o{ SiteVisitBox : "has"
-    User }|--|| UserRole : "has"
-    UserRole }|--o{ UserPermission : "has"
+    User ||--o{ Team : "manages"
+    User ||--o{ Team : "member of"
+    User ||--o{ Project : "created by"
+    User ||--o{ Project : "updated by"
+    User ||--o{ Project : "engineer for"
+    User }o--|| UserRole : "has role"
+
+    Project ||--|{ Task : "has"
+    Project ||--o{ Material : "uses"
+    Project ||--o{ ProjectCatalogueItemInstance : "instances"
+
+    Task ||--|{ Subtask : "has"
+    Task ||--o{ File : "attaches"
+    Task ||--o{ SiteVisitBox : "configures"
+
+    CatalogueItemDefinition ||--|{ CatalogueItemInputParameter : "defines inputs"
+    CatalogueItemDefinition ||--|{ CatalogueItemBomItem : "defines BOM"
+    CatalogueItemDefinition ||--o{ ProjectCatalogueItemInstance : "is template for"
+
+    ProjectCatalogueItemInstance ||--o{ GeneratedPlankList : "generates output"
 ```
+*(Note: This is a simplified ERD. For a more detailed view, refer to `.long_term_memory/CONTEXT_SNAPSHOTS/2025-05-10_PrismaSchema_DataModelOverview.md`)*
 
-## Configuration
+**Noteworthy Data Design Patterns:**
+*   **Unified User Model:** Single `User` table for internal/external users, differentiated by roles.
+*   **JSON for Extensibility:** Fields like `Task.metadataJson` and `ProjectCatalogueItemInstance.runtimeInputsJson` allow flexible structured data.
+*   **RBAC:** Standard Role-Based Access Control via `UserRole`, `UserPermission`, `RolePermissionMapping`.
+*   **Scriptable Catalogue:** The Catalogue system uses JavaScript (`itemLogicScript`) for dynamic BOM item property calculation.
 
-- **Environment Variables**: Loaded using dotenv
-- **TypeScript**: Configured with path aliases (@/* for src/*)
-- **Vitest**: Configured for testing with coverage and path aliases
+## 3. Catalogue System (Formerly Model Management System - Overview)
 
-## API Structure
+*   **3.1. Purpose:**
+    To introduce a dynamic and user-configurable system for defining furniture catalogue items (models), their parameters, Bill of Materials (BOM), and the JavaScript logic for generating manufacturing outputs like plank lists and material estimates. This system aims to replace or augment parts of the existing BIM module's hardcoded model logic with a more flexible, database-driven approach.
 
-The API follows a RESTful structure with the following main endpoints:
+*   **3.2. Key Components:**
+    *   **Catalogue Item Definition Core:**
+        *   Users (Admins/Designers) can define new furniture "Catalogue Items" (e.g., "Wardrobe Type A", "Kitchen Cabinet Style B").
+        *   Each Catalogue Item Definition (`CatalogueItemDefinition`) includes:
+            *   Basic metadata (name, description, image).
+            *   A set of user-defined **Input Parameters** (`CatalogueItemInputParameter`) (e.g., height, width, depth, material IDs like `exposedMaterialId`). These parameters are collected at runtime for a `ProjectCatalogueItemInstance`.
+            *   A **Bill of Materials (BOM)** (`CatalogueItemBomItem`), listing constituent parts like "Planks" and "Hardware".
+    *   **JavaScript Logic Engine & User-Editable Scripts:**
+        *   For each item in a Catalogue Item's BOM, users can define a JavaScript string (`itemLogicScript`). This script is expected to be a function `calculateProperties(runtimeInputs, globalConstants)` that calculates the item's properties.
+        *   The `runtimeInputs` object passed to this script includes:
+            *   Values for the `CatalogueItemInputParameter`s (e.g., `runtimeInputs.boxWidth`).
+            *   Full material definition objects (e.g., `runtimeInputs.exposedMaterialDefinition`, `runtimeInputs.innerMaterialDefinition`, `runtimeInputs.backPanelMaterialDefinition`), which are fetched by the `GenerationController` based on material IDs provided in the original runtime inputs.
+        *   The `globalConstants` object provides access to system-wide values (e.g., `globalConstants.panelThickness`).
+        *   These scripts are executed by a backend `JavaScriptFunctionService` in a sandboxed Node.js VM environment. This allows modification of generation logic without backend code changes.
+    *   **Project Integration:**
+        *   Defined Catalogue Items can be instanced into specific Projects as `ProjectCatalogueItemInstance`.
+        *   When a Catalogue Item is instanced, users provide the actual values for its Input Parameters (`runtimeInputsJson` on `ProjectCatalogueItemInstance`), including material IDs.
+    *   **Generation Services & Controller:**
+        *   The `GenerationController` orchestrates output generation. For plank lists:
+            *   It fetches the `ProjectCatalogueItemInstance` and its `CatalogueItemDefinition` (with BOM items).
+            *   It enriches the `runtimeInputsJson` by fetching full `Material` details for specified material IDs.
+            *   It iterates through BOM items, calling `JavaScriptFunctionService.executeItemScript` with the `itemLogicScript` and the enriched `runtimeInputs`.
+        *   `PlankListGeneratorService`: Takes the array of resolved plank objects (output from the scripts) and generates a downloadable CSV.
+        *   `MaterialEstimatorService`: (To be detailed) Calculates total materials required.
 
-- `/api/auth`: Authentication endpoints
-- `/api/users`: User management
-- `/api/projects`: Project management
-- `/api/bim`: BIM (Building Information Modeling) related endpoints
-- `/api/materials`: Material management
-- `/api/site-visit-boxes`: Site visit box management
-- `/health-check`: Health check endpoint
-- OpenAPI documentation (Swagger UI)
+*   **3.3. Data Storage:**
+    *   `CatalogueItemDefinition`, `CatalogueItemInputParameter`, `CatalogueItemBomItem` (with `itemLogicScript`), and `ProjectCatalogueItemInstance` (with `runtimeInputsJson`) are stored in PostgreSQL via Prisma.
+    *   `Material` definitions are stored per project.
+    *   Generated plank lists (`GeneratedPlankList`) are also tracked and stored.
 
-## Testing Strategy
+*   **3.4. Backend Implementation (Express.js):**
+    *   Routes under `/api/catalogue-items` (or similar) for CRUD operations on catalogue definitions.
+    *   Routes under `/api/catalogue/generation` for triggering plank list and material estimate creation.
+    *   Services (`CatalogueItemService`, `JavaScriptFunctionService`, `PlankListGeneratorService`, `MaterialEstimatorService`, `ProjectCatalogueItemInstanceService`) and repositories (`CatalogueItemRepository`, `ProjectCatalogueItemInstanceRepository`) within a `catalogue` directory.
 
-The application uses Vitest as the testing framework. Tests should be co-located with the source files in `__tests__` directories. The testing strategy includes:
+*   **3.5. Impact & Goals:**
+    *   **Increased Flexibility:** Allows for rapid definition of new and varied furniture catalogue items with complex, user-defined calculation logic.
+    *   **Reduced Hardcoding:** Moves model-specific logic from backend TypeScript code into user-manageable JavaScript snippets.
+    *   **Improved Maintainability:** Centralizes model definitions and rules.
+    *   **Scalability:** Designed to handle a growing library of models and rules.
 
-- **Unit Tests**: For testing individual functions and components
-- **Integration Tests**: For testing interactions between components
-- **API Tests**: For testing API endpoints using supertest
+## 4. Setup & Configuration (General)
+*   **Environment Variables:** Backend configuration relies on environment variables, loaded via `dotenv` from a `.env` file during local development (as detailed in `backend/src/config/env.ts`). Key configurations include database credentials (`DB_*`) and `JWT_SECRET`. The `envalid` library is available as a dependency for more robust environment variable validation, though not currently implemented in `env.ts`.
+*   **Database Setup:** Managed via Prisma migrations (`prisma migrate dev`). The Prisma schema (`prisma/schema.prisma`) is the source of truth for database structure. Database connection details are sourced from environment variables. The Prisma Client (`@prisma/client`) is instantiated as a singleton in `backend/src/config/db.ts` and exported for use across the backend, which is a recommended best practice for managing database connections.
+*   **Application Startup:** The backend application is typically started using `npm run dev` (which uses `tsx` for live reloading TypeScript) or `npm start` (for compiled JavaScript in `dist/`). The `start-dev.sh` script might provide an alternative or composite startup mechanism.
 
-## Deployment
-
-The application is containerized using Docker, as evidenced by the presence of a Dockerfile.
-
-## Future Improvements
-
-- Resolve duplication between `index.ts` and `server.ts`
-- Implement comprehensive test coverage
-- Enhance error handling and logging
-- Improve API documentation
+---
+*This document should be updated as the project architecture evolves.*

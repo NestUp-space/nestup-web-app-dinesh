@@ -1,0 +1,58 @@
+# MBK: user.routes.ts
+
+**Last Updated:** 2025-05-11
+
+## 1. Purpose
+This file defines the Express router for API endpoints related to user management and profile retrieval. It maps HTTP request paths and methods to static methods of the `UserController`.
+
+## 2. Global Middleware
+*   `router.use(isAuthenticated);`: This middleware is applied globally to all routes defined in this router. This ensures that a user must be authenticated to access any endpoint within this router.
+
+## 3. Key Routes Defined
+
+*   **`GET /profile`**
+    *   **Controller Function:** `UserController.getCurrentUserProfile`
+    *   **Purpose:** Retrieves the profile of the currently authenticated user.
+    *   **Middleware:** Only `isAuthenticated` (applied globally).
+
+*   **Admin-Only Routes:** The following routes are additionally protected by `adminMiddleware`, meaning only authenticated users with administrative privileges can access them.
+
+    *   **`GET /`**
+        *   Controller: `UserController.getUsers`
+        *   Purpose: Retrieves a list of users (supports pagination and role filtering).
+        *   Middleware: `isAuthenticated` (global), `adminMiddleware` (route-specific).
+    *   **`POST /`**
+        *   Controller: `UserController.createUser`
+        *   Purpose: Creates a new user.
+        *   Middleware: `isAuthenticated` (global), `adminMiddleware` (route-specific).
+    *   **`PATCH /:id/toggle-active`**
+        *   Controller: `UserController.toggleUserActiveStatus`
+        *   Purpose: Toggles the active status of a user.
+        *   Middleware: `isAuthenticated` (global), `adminMiddleware` (route-specific).
+    *   **`PATCH /:id/update-password`**
+        *   Controller: `UserController.updateUserPassword`
+        *   Purpose: Updates a user's password.
+        *   Middleware: `isAuthenticated` (global), `adminMiddleware` (route-specific).
+    *   **`GET /by-role`**
+        *   Controller: `UserController.getUsersByRole`
+        *   Purpose: Retrieves users filtered by a specific role name.
+        *   Middleware: `isAuthenticated` (global), `adminMiddleware` (route-specific).
+    *   **`GET /:id`**
+        *   Controller: `UserController.getUserById`
+        *   Purpose: Retrieves a specific user by their ID.
+        *   Middleware: `isAuthenticated` (global), `adminMiddleware` (route-specific).
+
+## 4. Dependencies
+*   `express` (Router)
+*   `../controllers/user.controller` (`UserController` class)
+*   `../middlewares/admin.middleware` (`adminMiddleware`)
+*   `../middlewares/auth.middleware` (`isAuthenticated`)
+
+## 5. General Observations
+*   Provides comprehensive user management capabilities with clear separation of access levels (general authenticated user vs. admin).
+*   The global application of `isAuthenticated` ensures a baseline security for all user-related data.
+*   Specific admin-only operations are further protected by `adminMiddleware`.
+*   This router is typically mounted under a base path like `/api/users` in the main application setup (e.g., `server.ts`).
+
+---
+*This MBK should be updated if the routes, controller mappings, or middleware configurations change.*

@@ -1,0 +1,10 @@
+{
+  "panelThickness": 18,
+  "edgeBandingThickness": 1,
+  "defaultClearance": 5,
+  "hingeCupDiameter": 35,
+  "drawerSlideClearance": 13,
+  "standardShelfDepthOffset": 20,
+  "CEBThickness": 2,
+  "IEBThickness": 1
+}

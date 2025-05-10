@@ -1,0 +1,88 @@
+# MBK: Nested Task Controller (`backend/src/controllers/project/task.controller.ts`)
+
+**Last Updated:** 2025-05-11
+
+**USAGE NOTE:** This class-based `TaskController` is the **ACTIVE** controller for task-related CRUD operations as defined in `backend/src/routes/project.routes.ts`. It supersedes the task-related functions in the top-level functional controller (`backend/src/controllers/project.controller.ts`).
+
+## 1. Purpose and Overview
+This controller handles HTTP requests for managing `Task` entities within a project. It is a class-based controller exporting a singleton instance (`taskController`) and uses `taskService` for its business logic.
+
+## 2. Key Functions and Endpoints Handled (from `project.routes.ts`)
+
+*   **`createTask(req: CustomRequest, res: Response)`**
+    *   **Route:** `POST /:projectId/tasks` (mounted under a base project path, e.g., `/api/projects/:projectId/tasks`)
+    *   **Middleware:** `isAuthenticated`
+    *   **Purpose:** Creates a new task for a specified project, typically from a `TaskTemplate`.
+    *   **Logic:**
+        *   Casts `req` to `CustomRequest` (from `../../../middlewares/auth.middleware`).
+        *   Parses `projectId` from `req.params`.
+        *   Expects `taskTemplateItem` (of type `TaskTemplate` from `../../../types/projectTemplate.types`) in `req.body`.
+        *   Includes a basic validation for `taskTemplateItem.taskName`.
+        *   Calls `taskService.createTaskFromTemplate(projectId, taskTemplateItem, req.user.id)`.
+        *   Uses `handleServiceResponse` (from `../../../common/utils/httpHandlers`) for the response.
+
+*   **`getTasks(req: CustomRequest, res: Response)`**
+    *   **Route:** `GET /:projectId/tasks`
+    *   **Middleware:** `isAuthenticated`
+    *   **Purpose:** Retrieves tasks for a specified project.
+    *   **Logic:**
+        *   Casts `req` to `CustomRequest`.
+        *   Parses `projectId` from `req.params`.
+        *   Calls `taskService.getTasksByProjectId(projectId)`.
+        *   Uses `handleServiceResponse`.
+
+*   **`updateTask(req: CustomRequest, res: Response)`**
+    *   **Route:** `PUT /tasks/:taskId` (mounted under a base path, e.g., `/api/projects/tasks/:taskId`)
+    *   **Middleware:** `isAuthenticated`
+    *   **Purpose:** Updates an existing task.
+    *   **Logic:**
+        *   Casts `req` to `CustomRequest`.
+        *   Parses `taskId` from `req.params`.
+        *   Constructs update data from `req.body`, adding `updatedById: req.user.id`.
+        *   Calls `taskService.updateTask(taskId, updateData)`.
+        *   Uses `handleServiceResponse`.
+
+*   **`deleteTask(req: CustomRequest, res: Response)`**
+    *   **Route:** `DELETE /tasks/:taskId`
+    *   **Middleware:** `isAuthenticated`
+    *   **Purpose:** Deletes a task.
+    *   **Logic:**
+        *   Casts `req` to `CustomRequest`.
+        *   Parses `taskId` from `req.params`.
+        *   Calls `taskService.deleteTask(taskId, req.user.id)`. (Note: `userId` likely for auth/audit).
+        *   Uses `handleServiceResponse`.
+
+*   **`updateTaskStatus(req: CustomRequest, res: Response)`**
+    *   **Route:** `PUT /tasks/:taskId/status`
+    *   **Middleware:** `isAuthenticated`
+    *   **Purpose:** Updates the status of a task.
+    *   **Logic:**
+        *   Casts `req` to `CustomRequest`.
+        *   Parses `taskId` from `req.params`.
+        *   Expects `statusId` from `req.body.status` (Note: this differs from the top-level functional controller which expected `req.body.statusId`).
+        *   Calls `taskService.updateTaskStatus(taskId, statusId, req.user.id)`.
+        *   Uses `handleServiceResponse`.
+
+## 3. Dependencies
+*   `express` (Request, Response types)
+*   `http-status-codes`
+*   `../../../services/project/task.service` (`taskService`)
+*   `../../../middlewares/auth.middleware` (`CustomRequest`, `isAuthenticated`)
+*   `../../../common/utils/httpHandlers` (`handleServiceResponse`)
+*   `../../../types/projectTemplate.types` (`TaskTemplate`)
+*   `../../../dtos/project.dto` (implicitly for `UpdateTaskDto` if used by service)
+
+## 4. Key Patterns & Observations
+*   **Class-Based Controller with Singleton Export.**
+*   **Controller-Service Architecture:** Delegates to `taskService`.
+*   **Centralized Response Handling:** Uses `handleServiceResponse`.
+*   **Authentication:** All routes protected by `isAuthenticated`. `CustomRequest` used.
+*   **Audit Fields:** `createdById` (in service for `createTaskFromTemplate`) and `updatedById` (in controller for `updateTask`) are set using `req.user.id`.
+*   **Parameter Parsing Difference:** `updateTaskStatus` expects `statusId` from `req.body.status`, which is a point of difference from the (inactive) top-level functional controller.
+
+## 5. TODOs / Potential Refinements
+*   Ensure DTOs (e.g., `UpdateTaskDto`) are explicitly used and validated (e.g., with Zod) for `req.body` in relevant methods.
+*   Verify authorization logic within service methods, especially for updates and deletions.
+
+---
+*This MBK should be updated if the controller's responsibilities, routes, or interaction patterns change.*

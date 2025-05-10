@@ -1,0 +1,40 @@
+# MBK: validateRequest.middleware.ts
+
+**Last Updated:** 2025-05-11
+
+## 1. Purpose and Overview
+The `validateRequest` middleware is a higher-order function that takes a Zod schema and returns an Express middleware function. This returned middleware is designed to validate the `req.body` of an incoming HTTP request against the provided Zod schema.
+
+## 2. How it Works
+1.  **Schema Input:** The `validateRequest` function is called with a Zod schema (e.g., `bookSiteVisitSchema`).
+2.  **Middleware Returned:** It returns a new Express middleware function `(req: Request, res: Response, next: NextFunction) => { ... }`.
+3.  **Validation Logic (within returned middleware):**
+    *   When an HTTP request comes in, this returned middleware attempts to parse `req.body` using the `schema.safeParse(req.body)` method provided by Zod. `safeParse` is used because it doesn't throw an error on validation failure but returns a result object indicating success or failure.
+    *   **Success:** If `result.success` is true, the validated data (available as `result.data`) is often attached back to `req.body` (i.e., `req.body = result.data;`), and `next()` is called to pass control to the next handler (usually the main controller function for the route).
+    *   **Failure:** If `result.success` is false, it means validation failed. The middleware then sends an HTTP `400 Bad Request` response. The response body typically includes a JSON object with `success: false` and an `errors` field containing the validation error details extracted from `result.error.flatten().fieldErrors`. This provides clear, field-specific error messages to the client.
+
+## 3. Usage
+*   This middleware is applied to specific Express routes to validate incoming request bodies before they reach the controller logic.
+*   **Example Usage (from `site-visit.routes.ts`):**
+    ```typescript
+    // In site-visit.routes.ts
+    import { validateRequest } from '../common/middleware/validateRequest';
+    import { bookSiteVisitSchema } from '../validations/siteVisit.validation';
+    // ...
+    router.post('/book', validateRequest(bookSiteVisitSchema), bookSiteVisit);
+    ```
+    Here, `validateRequest(bookSiteVisitSchema)` ensures that the body of `POST /book` requests conforms to `bookSiteVisitSchema` before `bookSiteVisit` controller is called.
+
+## 4. Key Dependencies
+*   `express` (Request, Response, NextFunction types)
+*   `zod` (for schema definition and `safeParse` method)
+*   `http-status-codes` (for sending `StatusCodes.BAD_REQUEST`)
+
+## 5. Benefits
+*   **Decouples Validation Logic:** Separates validation logic from controller logic, keeping controllers cleaner.
+*   **Type Safety:** Ensures that controllers receive data that conforms to the expected schema.
+*   **Standardized Error Responses:** Provides consistent and detailed error messages for validation failures.
+*   **Early Error Detection:** Catches invalid requests before they reach business logic.
+
+---
+*This MBK should be updated if the implementation or usage of the `validateRequest` middleware changes.*
