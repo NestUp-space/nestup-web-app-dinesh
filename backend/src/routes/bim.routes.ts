@@ -5,6 +5,11 @@ import { isAuthenticated } from '../middlewares/auth.middleware'; // Corrected i
 const router = Router();
 const bimController = new BimController();
 
+// TEST ROUTE
+router.get('/test-bim-route', (req, res) => {
+  res.status(200).json({ message: 'BIM test route is working!' });
+});
+
 // Route to get all BIM model templates
 // Applying authentication middleware, adjust as needed
 router.get(

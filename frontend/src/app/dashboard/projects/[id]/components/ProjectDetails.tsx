@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { Project, Task, Subtask } from '@/types'; // Updated imports
-import CollapsibleTaskCard from '@/components/dashboard/CollapsibleTaskCard'; // Added import
+
 
 interface ProjectDetailsProps {
   project: Project;

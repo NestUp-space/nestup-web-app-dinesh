@@ -9,6 +9,7 @@ export interface SubtaskTemplate {
   actionRequired?: string;
   type?: string; // e.g., 'information', 'file_upload', 'approval', 'payment_confirmation', 'validation', 'status_update', 'confirmation'
   metadataJson?: string | null; // For additional structured data like allowedFileTypes, documentName, statuses
+  isSystemDefined?: boolean; // Indicates if the subtask is a core, non-deletable part of the template
 }
 
 export interface TaskTemplate {

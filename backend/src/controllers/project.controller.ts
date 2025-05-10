@@ -5,40 +5,42 @@ import { taskService } from '../services/project/task.service';
 import { subtaskService } from '../services/project/subtask.service';
 import { CreateSubtaskDto, UpdateSubtaskDto } from '../dtos/project.dto'; // For typing controller payloads
 import { TaskTemplate } from '../types/projectTemplate.types'; // For createTask controller
+import { CustomRequest } from '../middlewares/auth.middleware'; // Import CustomRequest
 
 // Extend Request type to include user
 // Assuming role might be a simple string or an object.
 // For service compatibility, we'll ensure role.name is passed.
-interface AuthenticatedRequest extends Request {
-  user?: { id: number; role: string | { name: string; /* other role props */ } };
-}
+// interface AuthenticatedRequest extends Request { // Removed local AuthenticatedRequest
+//   user?: { id: number; role: string | { name: string; /* other role props */ } };
+// }
 
-export const createProject = async (req: AuthenticatedRequest, res: Response) => {
-  console.log('Entering createProject controller with body:', JSON.stringify(req.body, null, 2));
+export const createProject = async (req: Request, res: Response) => {
+  const customReq = req as CustomRequest;
+  console.log('Entering createProject controller with body:', JSON.stringify(customReq.body, null, 2));
   try {
-    if (!req.user) {
-      return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+    if (!customReq.user || !customReq.user.role) { // Added check for customReq.user.role
+      return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized or user role missing' });
     }
 
-    if (req.user.role === 'client') {
+    if (customReq.user.role === 'client') {
       return res.status(StatusCodes.FORBIDDEN).json({ message: 'Client users are not allowed to create projects' });
     }
 
     // Extract values from request body
-    const { name, projectDescription, description, engineerId, clientId } = req.body;
+    const { name, projectDescription, description, engineerId, clientId } = customReq.body;
     
     // Use projectDescription or description (whichever is provided)
     const projectDesc = projectDescription || description;
     
     // Set default values for required fields that might be missing from frontend
-    const address = req.body.address || 'N/A';
-    const location = req.body.location || 'N/A';
+    const address = customReq.body.address || 'N/A';
+    const location = customReq.body.location || 'N/A';
     
     // Convert numeric values to integers
-    const sqft = parseInt(req.body.sqft, 10) || 0;
-    const estimatedTime = req.body.estimatedTime || new Date();
-    const statusId = parseInt(req.body.statusId, 10) || 1; // Assuming 1 is a valid status ID
-    const vbCount = parseInt(req.body.vbCount, 10) || 0;
+    const sqft = parseInt(customReq.body.sqft, 10) || 0;
+    const estimatedTime = customReq.body.estimatedTime || new Date();
+    const statusId = parseInt(customReq.body.statusId, 10) || 1; // Assuming 1 is a valid status ID
+    const vbCount = parseInt(customReq.body.vbCount, 10) || 0;
     
     // Convert IDs to integers and handle NaN values
     const parsedEngineerId = parseInt(engineerId, 10);
@@ -48,7 +50,7 @@ export const createProject = async (req: AuthenticatedRequest, res: Response) =>
     const finalClientId = !isNaN(parsedClientId) ? parsedClientId : undefined;
     
     // Get the user ID for createdById and updatedById
-    const createdById = req.user.id;
+    const createdById = customReq.user.id; // customReq.user.id is guaranteed by CustomRequest if customReq.user exists
 
     if (!name) {
       return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Project name is required' });
@@ -102,18 +104,20 @@ export const createProject = async (req: AuthenticatedRequest, res: Response) =>
   }
 };
 
-export const getProjects = async (req: AuthenticatedRequest, res: Response) => {
+export const getProjects = async (req: Request, res: Response) => {
+  const customReq = req as CustomRequest;
   try {
-    if (!req.user) {
-      return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+    if (!customReq.user || !customReq.user.role) { // Added check for customReq.user.role
+      return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized or user role missing' });
     }
 
     // Prepare user object for service layer
     // The service expects role: { name: string }
+    // CustomRequest ensures customReq.user.role is a string
     const serviceUser = {
-      id: req.user.id,
+      id: customReq.user.id, // customReq.user.id is guaranteed by CustomRequest if customReq.user exists
       role: { 
-        name: typeof req.user.role === 'string' ? req.user.role : req.user.role.name 
+        name: customReq.user.role 
       }
     };
 
@@ -140,21 +144,23 @@ export const getProjects = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-export const getProjectById = async (req: AuthenticatedRequest, res: Response) => {
+export const getProjectById = async (req: Request, res: Response) => {
+  const customReq = req as CustomRequest;
   try {
-    if (!req.user) {
-      return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+    if (!customReq.user || !customReq.user.role) { // Added check for customReq.user.role
+      return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized or user role missing' });
     }
-    const projectId = parseInt(req.params.projectId, 10);
+    const projectId = parseInt(customReq.params.projectId, 10);
     if (isNaN(projectId)) {
       return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID' });
     }
 
     // Prepare user object for service layer
+    // CustomRequest ensures customReq.user.role is a string
     const serviceUser = {
-      id: req.user.id,
+      id: customReq.user.id, // customReq.user.id is guaranteed by CustomRequest if customReq.user exists
       role: { 
-        name: typeof req.user.role === 'string' ? req.user.role : req.user.role.name 
+        name: customReq.user.role
       }
     };
 
@@ -176,10 +182,13 @@ export const getProjectById = async (req: AuthenticatedRequest, res: Response) =
   }
 };
 
-export const updateProject = async (req: Request, res: Response) => {
+export const updateProject = async (req: Request, res: Response) => { 
+  const customReq = req as CustomRequest;
   try {
-    // req.body should conform to UpdateProjectDto
-    const project = await projectService.updateProject(Number(req.params.projectId), req.body);
+    // customReq.body should conform to UpdateProjectDto
+    // Ensure customReq.user is checked if logic depends on it
+    // const updatedById = customReq.user?.id; // Example: Get user ID for audit - Service does not currently support this
+    const project = await projectService.updateProject(Number(customReq.params.projectId), customReq.body); // Service currently expects 2 arguments
     // Consider transforming to DTO if not already done by service
     res.status(200).json({ project });
   } catch (error) {
@@ -187,20 +196,24 @@ export const updateProject = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteProject = async (req: Request, res: Response) => {
+export const deleteProject = async (req: Request, res: Response) => { 
+  const customReq = req as CustomRequest;
   try {
-    await projectService.deleteProject(Number(req.params.projectId));
+    // Add permission checks if necessary based on customReq.user.role or customReq.user.id
+    await projectService.deleteProject(Number(customReq.params.projectId));
     res.status(200).json({ message: 'Project deleted successfully' });
   } catch (error) {
     res.status(400).json({ message: (error as Error).message });
   }
 };
 
-export const createTask = async (req: Request, res: Response) => {
+export const createTask = async (req: Request, res: Response) => { 
+  const customReq = req as CustomRequest;
   try {
-    // req.body should conform to TaskTemplate type
-    const taskTemplateItem = req.body as TaskTemplate;
-    const task = await taskService.createTaskFromTemplate(Number(req.params.projectId), taskTemplateItem);
+    // customReq.body should conform to TaskTemplate type
+    // Add permission checks if necessary
+    const taskTemplateItem = customReq.body as TaskTemplate;
+    const task = await taskService.createTaskFromTemplate(Number(customReq.params.projectId), taskTemplateItem);
     // Consider transforming to DTO
     res.status(201).json({ task });
   } catch (error) {
@@ -208,9 +221,11 @@ export const createTask = async (req: Request, res: Response) => {
   }
 };
 
-export const getTasks = async (req: Request, res: Response) => {
+export const getTasks = async (req: Request, res: Response) => { 
+  const customReq = req as CustomRequest;
   try {
-    const tasksWithSubtasks = await taskService.getTasks(Number(req.params.projectId));
+    // Add permission checks if necessary
+    const tasksWithSubtasks = await taskService.getTasks(Number(customReq.params.projectId));
     const tasks = tasksWithSubtasks.map(t => taskService.transformToResponseDto(t));
     res.status(200).json({ tasks });
   } catch (error) {
@@ -218,10 +233,12 @@ export const getTasks = async (req: Request, res: Response) => {
   }
 };
 
-export const updateTask = async (req: Request, res: Response) => {
+export const updateTask = async (req: Request, res: Response) => { 
+  const customReq = req as CustomRequest;
   try {
-    // req.body should conform to UpdateTaskDto
-    const task = await taskService.updateTask(Number(req.params.taskId), req.body);
+    // customReq.body should conform to UpdateTaskDto
+    // Add permission checks if necessary
+    const task = await taskService.updateTask(Number(customReq.params.taskId), customReq.body);
     // Consider transforming to DTO
     res.status(200).json({ task });
   } catch (error) {
@@ -229,23 +246,27 @@ export const updateTask = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteTask = async (req: Request, res: Response) => {
+export const deleteTask = async (req: Request, res: Response) => { 
+  const customReq = req as CustomRequest;
   try {
-    await taskService.deleteTask(Number(req.params.taskId));
+    // Add permission checks if necessary
+    await taskService.deleteTask(Number(customReq.params.taskId));
     res.status(200).json({ message: 'Task deleted successfully' });
   } catch (error) {
     res.status(400).json({ message: (error as Error).message });
   }
 };
 
-export const updateTaskStatus = async (req: Request, res: Response) => {
+export const updateTaskStatus = async (req: Request, res: Response) => { 
+  const customReq = req as CustomRequest;
   try {
-    // Assuming req.body is { statusId: number }
-    const statusId = req.body.statusId; 
+    // Assuming customReq.body is { statusId: number }
+    // Add permission checks if necessary
+    const statusId = customReq.body.statusId; 
     if (typeof statusId !== 'number') {
       return res.status(StatusCodes.BAD_REQUEST).json({ message: 'statusId is required and must be a number.' });
     }
-    await taskService.updateTaskStatus(Number(req.params.taskId), statusId);
+    await taskService.updateTaskStatus(Number(customReq.params.taskId), statusId);
     res.status(StatusCodes.OK).json({ message: 'Task status updated successfully' });
   } catch (error) {
     res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
@@ -254,12 +275,17 @@ export const updateTaskStatus = async (req: Request, res: Response) => {
 
 // Subtask Controllers
 
-export const createSubtask = async (req: AuthenticatedRequest, res: Response) => {
+export const createSubtask = async (req: Request, res: Response) => { 
+  const customReq = req as CustomRequest;
   try {
+    // customReq.user is available due to CustomRequest and isAuthenticated middleware
+    if (!customReq.user) { // Should not happen if isAuthenticated is used
+        return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'User not authenticated.' });
+    }
     // TODO: Add permission checks if necessary (e.g., only project members can add subtasks)
-    const taskId = parseInt(req.params.taskId, 10);
-    // req.body should conform to CreateSubtaskDto, excluding taskId which is from params
-    const { name, description, actionRequired, type, metadataJson } = req.body;
+    const taskId = parseInt(customReq.params.taskId, 10);
+    // customReq.body should conform to CreateSubtaskDto, excluding taskId which is from params
+    const { name, description, actionRequired, type, metadataJson } = customReq.body;
 
 
     if (isNaN(taskId)) {
@@ -284,9 +310,11 @@ export const createSubtask = async (req: AuthenticatedRequest, res: Response) =>
   }
 };
 
-export const getSubtasksForTask = async (req: Request, res: Response) => {
+export const getSubtasksForTask = async (req: Request, res: Response) => { 
+  const customReq = req as CustomRequest;
   try {
-    const taskId = parseInt(req.params.taskId, 10);
+    // Add permission checks if necessary
+    const taskId = parseInt(customReq.params.taskId, 10);
     if (isNaN(taskId)) {
       return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task ID.' });
     }
@@ -299,12 +327,14 @@ export const getSubtasksForTask = async (req: Request, res: Response) => {
   }
 };
 
-export const updateSubtask = async (req: AuthenticatedRequest, res: Response) => {
+export const updateSubtask = async (req: Request, res: Response) => { 
+  const customReq = req as CustomRequest;
   try {
     // TODO: Add permission checks
-    const subtaskId = parseInt(req.params.subtaskId, 10);
-    // req.body should conform to UpdateSubtaskDto
-    const subtaskData = req.body as UpdateSubtaskDto;
+    // customReq.user will be available if isAuthenticated middleware passed
+    const subtaskId = parseInt(customReq.params.subtaskId, 10);
+    // customReq.body should conform to UpdateSubtaskDto
+    const subtaskData = customReq.body as UpdateSubtaskDto;
 
 
     if (isNaN(subtaskId)) {
@@ -334,10 +364,12 @@ export const updateSubtask = async (req: AuthenticatedRequest, res: Response) =>
   }
 };
 
-export const deleteSubtask = async (req: AuthenticatedRequest, res: Response) => {
+export const deleteSubtask = async (req: Request, res: Response) => { 
+  const customReq = req as CustomRequest;
   try {
     // TODO: Add permission checks
-    const subtaskId = parseInt(req.params.subtaskId, 10);
+    // customReq.user will be available if isAuthenticated middleware passed
+    const subtaskId = parseInt(customReq.params.subtaskId, 10);
     if (isNaN(subtaskId)) {
       return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid subtask ID.' });
     }

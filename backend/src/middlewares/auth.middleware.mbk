@@ -1,0 +1,73 @@
+# Memory Bank: Authentication Middleware (`auth.middleware.ts`)
+
+**Last Updated:** 2025-05-10
+
+## 1. Purpose and Overview
+
+The `auth.middleware.ts` module provides Express middleware for authenticating users based on JSON Web Tokens (JWT). It defines a custom Express request type (`CustomRequest`) and an `isAuthenticated` middleware function.
+
+## 2. `CustomRequest` Interface
+
+*   **Definition**:
+    ```typescript
+    export interface CustomRequest extends Request {
+      user?: {
+        id: number;
+        role: string;
+      };
+    }
+    ```
+*   **Purpose**: Extends the standard Express `Request` interface to include an optional `user` property. This `user` property is populated by the `isAuthenticated` middleware upon successful token verification.
+*   **`user` Property**:
+    *   `id: number`: The unique identifier of the authenticated user.
+    *   `role: string`: The role of the authenticated user (e.g., "admin", "engineer", "client").
+*   **Export and Usage**: This interface is exported and used throughout the application (e.g., in controllers like `project.controller.ts` and `material.controller.ts`) to provide type safety for request objects that have passed through the `isAuthenticated` middleware. This standardization helps prevent type mismatches.
+
+## 3. `isAuthenticated` Middleware
+
+*   **Function Signature**: `async (req: CustomRequest, res: Response, next: NextFunction)`
+*   **Logic**:
+    1.  **Token Extraction**: Retrieves the JWT from the `Authorization` header (expects "Bearer [token]" format).
+    2.  **Token Validation**:
+        *   If no token is found, returns a `401 Unauthorized` response.
+        *   Verifies the token using `jwt.verify()` and the `JWT_SECRET` from environment variables.
+    3.  **User Retrieval**:
+        *   Decodes the token to get the user's ID.
+        *   Calls `authService.getUserById()` (actually `getUserById` directly imported from `../services/auth.service`) to fetch the user's details from the database.
+        *   If the user is not found or the service call fails, returns a `401 Unauthorized` response.
+    4.  **Populate `req.user`**: If authentication is successful, it attaches an object to `req.user` with the user's `id` and `role` (specifically `userResponse.responseObject.role.role` to get the role name string).
+        ```typescript
+        req.user = {
+          id: userResponse.responseObject.id,
+          role: userResponse.responseObject.role.role, // Extract the role name
+        };
+        ```
+    5.  **Debugging Log**: Logs the authenticated user's role to the console.
+    6.  **Proceed to Next Middleware**: Calls `next()` to pass control to the next middleware or route handler in the stack.
+    7.  **Error Handling**: If `jwt.verify()` fails or any other error occurs during the process, returns a `401 Unauthorized` response.
+
+## 4. How and Why the Code Runs
+
+*   **How**: The `isAuthenticated` middleware is applied to specific routes in the Express router setup (e.g., in `project.routes.ts`). When a request is made to a protected route, this middleware executes before the main route handler.
+*   **Why**: To secure API endpoints by ensuring that only authenticated users with valid tokens can access them. It also standardizes how user information is attached to the request object for use in subsequent handlers.
+
+## 5. Dependencies
+
+*   `express` (for `Request`, `Response`, `NextFunction` types)
+*   `jsonwebtoken` (for JWT verification)
+*   `../services/auth.service` (for `getUserById` function to fetch user details)
+*   Environment variable: `JWT_SECRET`
+
+## 6. Input/Output of `isAuthenticated`
+
+*   **Input**:
+    *   `req: CustomRequest`: The incoming Express request. The `Authorization` header is read.
+    *   `res: Response`: The Express response object, used to send `401` responses.
+    *   `next: NextFunction`: Callback to pass control to the next handler.
+*   **Side Effects (Output if successful)**:
+    *   `req.user` is populated with `{ id: number, role: string }`.
+    *   Control is passed to the next middleware/handler via `next()`.
+*   **Output (if authentication fails)**:
+    *   HTTP `401 Unauthorized` response with a JSON body like `{ message: 'Authentication token required' }` or `{ message: 'Invalid token' }` or `{ message: 'Authentication failed' }`.
+
+This middleware is crucial for the application's security and for providing authenticated user context to the controllers.

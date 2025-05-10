@@ -12,6 +12,16 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
     actionRequired: "Site visit is booked based on this the form.",
     subtasks: []
   },
+   // Payment Stage
+   {
+    stage: "Payment",
+    taskName: "Token Deposit",
+    statusId: 1,
+    uploaderRole: "Client",
+    viewerRoles: ["All"], // Assuming "AII" was a typo for "All"
+    actionRequired: "Client to make a payment - Token deposit.",
+    subtasks: []
+  },
   {
     stage: "Site measurements",
     taskName: "Site Visit",
@@ -19,18 +29,21 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
     uploaderRole: "BIM Engineer",
     viewerRoles: ["All"],
     actionRequired: "BIM engineer to Input site measurements.",
-    metadataJson: JSON.stringify({
-      frontendComponents: [
-        "frontend/src/components/dashboard/MaterialManagement.tsx",
-        "frontend/src/components/dashboard/ModelSelector.tsx"
-      ]
-    }),
+    metadataJson: null, // Moved frontendComponents to subtasks
     subtasks: [
       {
-        name: "BIM engineer to upload site measurements",
-        actionRequired: "BIM engineer to upload site measurements and configure models.",
-        type: "upload",
-        metadataJson: null
+        name: "Collect Material Details",
+        actionRequired: "BIM Engineer to input material specifications observed during site visit.",
+        type: "data_collection",
+        isSystemDefined: true,
+        metadataJson: JSON.stringify({ frontendComponent: "frontend/src/components/dashboard/MaterialManagement.tsx" })
+      },
+      {
+        name: "Record Model & Dimension Details",
+        actionRequired: "BIM Engineer to input model selections and measured dimensions from site.",
+        type: "data_collection",
+        isSystemDefined: true,
+        metadataJson: JSON.stringify({ frontendComponent: "frontend/src/components/dashboard/ModelSelector.tsx" })
       }
     ]
   },
@@ -62,34 +75,9 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
       }
     ]
   },
-  // Payment Stage
-  {
-    stage: "Payment",
-    taskName: "Token Deposit",
-    statusId: 1,
-    uploaderRole: "Client",
-    viewerRoles: ["All"], // Assuming "AII" was a typo for "All"
-    actionRequired: "Client to make a payment - Token deposit.",
-    subtasks: []
-  },
-  {
-    stage: "Payment",
-    taskName: "First Installment",
-    statusId: 1,
-    uploaderRole: "Client",
-    viewerRoles: ["All"],
-    actionRequired: "Client to make a first installment payment.",
-    subtasks: []
-  },
-  {
-    stage: "Payment",
-    taskName: "Last Installment",
-    statusId: 1,
-    uploaderRole: "Client",
-    viewerRoles: ["All"],
-    actionRequired: "Client to make a last installment payment.",
-    subtasks: []
-  },
+ 
+  
+
   // Design Stage
   {
     stage: "Design",
@@ -188,6 +176,15 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
     subtasks: []
   },
   {
+    stage: "Payment",
+    taskName: "First Installment",
+    statusId: 1,
+    uploaderRole: "Client",
+    viewerRoles: ["All"],
+    actionRequired: "Client to make a first installment payment.",
+    subtasks: []
+  },
+  {
     stage: "Production",
     taskName: "Pressing list",
     statusId: 1,
@@ -212,6 +209,15 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
     uploaderRole: "BIM Engineer",
     viewerRoles: ["Production Engineer", "BIM Engineer"],
     actionRequired: "Production associate uses this to verify the status.",
+    subtasks: []
+  },
+  {
+    stage: "Payment",
+    taskName: "Last Installment",
+    statusId: 1,
+    uploaderRole: "Client",
+    viewerRoles: ["All"],
+    actionRequired: "Client to make a last installment payment.",
     subtasks: []
   },
   {

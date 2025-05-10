@@ -1,0 +1,65 @@
+# Memory Bank: BimService (backend/src/services/bim.service.ts)
+
+**Last Updated:** 2025-05-10
+
+## Overview
+
+The `BimService` is responsible for handling Business Information Modeling (BIM) related operations. This primarily involves:
+1.  Retrieving available BIM model templates.
+2.  Generating plank lists based on selected models and user inputs.
+
+## How and Why It Runs
+
+### 1. Retrieving Model Templates (`getModelTemplates`)
+
+-   **When:** This method is called when the frontend needs to display a list of available BIM models for selection (e.g., in a dropdown or a model selector component).
+-   **How:**
+    -   It reads the contents of the `backend/src/bim/models/` directory. The path to this directory is constructed dynamically using the CommonJS global `__filename` to determine the current file's path and then navigating relatively.
+        -   `const __dirname = path.dirname(__filename);`
+        -   `const modelsDirectory = path.join(__dirname, '..', 'bim', 'models');`
+    -   It iterates through all files in `modelsDirectory`.
+    -   For each `.json` file found, it reads and parses the file content.
+    -   It expects each JSON file to represent a model template and to contain at least `modelType` and `runtimeInputs` properties.
+    -   It transforms the JSON data into `ModelTemplate` objects (defined in this service file) and returns an array of these objects.
+-   **Why:** To provide a dynamic way of managing BIM model definitions. Adding a new JSON file to the `models` directory makes a new template available without code changes in the service itself.
+-   **Input:** None.
+-   **Output:** `Promise<ModelTemplate[]>` - A promise that resolves to an array of model template objects.
+-   **Error Handling:** If reading the directory or any file fails, or if JSON parsing fails, it logs an error and throws a generic `Error('Failed to retrieve BIM model templates.')`.
+
+### 2. Generating Plank Lists (`generatePlankList`)
+
+-   **When:** This method is called after a user has selected a BIM model template and provided the necessary dimensional inputs, typically as part of a project task (e.g., "Collect Model and dimensions").
+-   **How:**
+    -   It takes `modelName`, `inputs` (runtime dimensions), `boxNumber`, and `packetNumber` as arguments.
+    -   It constructs the filename for the selected model (e.g., "Simple Box" -> "simplebox.json") and reads the corresponding JSON file from the `modelsDirectory`.
+    -   It expects the model JSON to contain a `planks` array defining the parts of the model.
+    -   Based on the `modelData.modelType` (e.g., "Simple Box", "L-Shaped Box") and the provided `inputs`, it applies specific geometric calculation logic to determine the dimensions and properties of each plank.
+    -   It generates unique `plankId` for each plank using `boxNumber` and `packetNumber`.
+    -   Currently, logic is partially implemented for "Simple Box" and needs to be extended for other model types and features (shelves, doors, adjacencies).
+-   **Why:** To automate the calculation of individual components (planks) required to construct a BIM object based on a template and custom dimensions. This is crucial for manufacturing and assembly.
+-   **Input:**
+    -   `modelName: string`
+    -   `inputs: Record<string, any>` (e.g., `{ boxHeight: 100, boxWidth: 50, ... }`)
+    -   `boxNumber: string`
+    -   `packetNumber: string`
+-   **Output:** `Promise<Array<Record<string, any>>>` - A promise that resolves to an array of generated plank objects, each with properties like `plankId`, `name`, `width`, `height`, `materialCode`.
+-   **Error Handling:** Throws errors if model file not found, model definition is invalid, required inputs are missing, or an unsupported `modelType` is encountered.
+
+## Key Dependencies
+
+-   `fs/promises`: For asynchronous file system operations (reading directory and files).
+-   `path`: For constructing file and directory paths.
+-   `url.fileURLToPath`: (Note: `import.meta.url` was considered but `__filename` is used due to the CommonJS build context).
+-   Model JSON files located in `backend/src/bim/models/`.
+
+## Important Considerations & Potential Issues
+
+-   **Path Resolution for `modelsDirectory`**: The reliability of `const __dirname = path.dirname(__filename);` is crucial. This assumes the code runs in a CommonJS environment where `__filename` is a global. If the build process or runtime environment changes (e.g., to pure ESM), this path logic might break.
+    -   *Update (2025-05-10)*: Confirmed that the build environment/runtime expects CommonJS behavior, so `__filename` is the correct approach over `import.meta.url` to avoid TypeScript errors (like TS1343) and ensure correct path resolution.
+-   **Model File Structure**: The service relies on a specific structure for the JSON model files (presence of `modelType`, `runtimeInputs`, `planks` array, etc.). Malformed files can lead to errors or incomplete data.
+-   **Plank Generation Logic**: The `generatePlankList` method's core logic is highly dependent on the specific rules for each `modelType`. This section is complex and needs careful implementation and testing for each supported model.
+-   **Error Handling**: Current error handling is somewhat generic. More specific error types or codes could be beneficial for consumers of the service.
+
+## Diagrams
+
+N/A at this time. Could add a flowchart for `generatePlankList` if it becomes very complex.

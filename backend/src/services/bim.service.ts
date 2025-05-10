@@ -21,6 +21,10 @@ export interface ModelTemplate {
 // Assuming dist/services/bim.service.js and models are in dist/bim/models/
 // Or, more robustly, calculate from project root if possible, or ensure paths are correct post-build.
 // For development, this path works if src/ is the execution context or transpiled paths align.
+// With tsup config `publicDir: "src/bim/models"`, models are copied to the root of `dist`.
+// If __dirname is dist/services, we need to go up two levels to dist/ and then access models.
+// However, publicDir copies the *contents* of src/bim/models to dist.
+// For development, this path works if src/ is the execution context or transpiled paths align.
 const modelsDirectory = path.join(__dirname, '..', 'bim', 'models');
 
 export class BimService {

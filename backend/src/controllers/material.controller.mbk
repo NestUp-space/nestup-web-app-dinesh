@@ -1,0 +1,72 @@
+# Memory Bank: backend/src/controllers/material.controller.ts
+
+## Purpose
+This file contains the `MaterialController` class, which is responsible for handling HTTP requests related to project materials. It acts as an intermediary between the Express routes and the `materialService`.
+
+## How it Works
+- Each public method in the `MaterialController` class corresponds to a specific API endpoint action (e.g., creating, retrieving, updating, deleting materials).
+- Methods parse request parameters (like `projectId`, `materialId`) and request bodies (`materialData`).
+- They call corresponding methods in the `materialService` to perform the business logic and database interactions.
+- They use a `handleServiceResponse` utility (assumed to exist) to standardize sending responses (success or error) back to the client.
+- Error handling is implemented using try-catch blocks to manage exceptions and send appropriate HTTP status codes.
+- **Crucially, request handlers now use `CustomRequest` (imported from `../middlewares/auth.middleware`) to ensure correct typing for `req.user` when accessed after authentication.**
+
+## Key Methods
+- `createMaterial(req: CustomRequest, res: Response)`:
+  - Handles `POST /projects/:projectId/materials`.
+  - Extracts `projectId` and `materialData` from the request.
+  - Calls `materialService.createMaterial()`.
+- `getMaterialsByProject(req: CustomRequest, res: Response)`:
+  - Handles `GET /projects/:projectId/materials`.
+  - Extracts `projectId`.
+  - Calls `materialService.getMaterialsByProject()`.
+- `getMaterialById(req: CustomRequest, res: Response)`:
+  - Handles `GET /materials/:materialId`.
+  - Extracts `materialId`.
+  - Calls `materialService.getMaterialById()`.
+- `updateMaterial(req: CustomRequest, res: Response)`:
+  - Handles `PUT /materials/:materialId`.
+  - Extracts `materialId` and `materialData`.
+  - Calls `materialService.updateMaterial()`.
+- `deleteMaterial(req: CustomRequest, res: Response)`:
+  - Handles `DELETE /materials/:materialId`.
+  - Extracts `materialId`.
+  - Calls `materialService.deleteMaterial()`.
+
+## Inputs
+- `CustomRequest` objects (which include Express `Request` properties and an authenticated `user` object).
+- `Response` objects from Express.
+- Data from `req.params` and `req.body`.
+- DTOs like `CreateMaterialDto`, `UpdateMaterialDto` (currently from `../bim/types/bim.types`).
+
+## Outputs
+- HTTP responses to clients via the `res` object, typically JSON.
+- Logs errors to the console.
+
+## Dependencies
+- `express` (Request, Response types).
+- `http-status-codes` (for standardized HTTP status codes).
+- `../services/material.service` (for business logic).
+- `../middlewares/auth.middleware` (for `CustomRequest` type).
+- `../common/utils/httpHandlers` (for `handleServiceResponse`).
+- `../bim/types/bim.types` (for DTOs).
+
+## Recent Changes (2025-05-10)
+- Updated all request handler methods (`createMaterial`, `getMaterialsByProject`, etc.) to use `CustomRequest` as the type for the `req` parameter instead of the generic Express `Request`. This aligns with the `isAuthenticated` middleware and resolves TypeScript errors related to `req.user`.
+- Imported `CustomRequest` from `../middlewares/auth.middleware`.
+
+## Flow Diagram (Conceptual for `createMaterial`)
+```mermaid
+graph TD
+    RouteHandler[project.routes.ts router.post('/:projectId/materials', materialController.createMaterial)] --> MCCreate{materialController.createMaterial}
+    MCCreate --> ParseRequest{Parse req.params.projectId, req.body}
+    ParseRequest --> ValidateInput{Validate projectId}
+    ValidateInput -- Valid --> CallService{materialService.createMaterial(projectId, materialData)}
+    ValidateInput -- Invalid --> BadRequestResponse[400 Bad Request]
+    CallService --> ServiceResponse{ServiceResponse (success/error)}
+    ServiceResponse --> HandleResponseUtil{handleServiceResponse(serviceResponse, res)}
+    HandleResponseUtil --> ClientResponse[HTTP Response to Client]
+    MCCreate -- OnError --> ErrorHandler{Catch Block}
+    ErrorHandler --> LogError{console.error}
+    ErrorHandler --> InternalErrorResponse[500 Internal Server Error]
+    InternalErrorResponse --> ClientResponse

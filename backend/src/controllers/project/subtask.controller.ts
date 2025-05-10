@@ -7,28 +7,27 @@ import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { subtaskService } from '../../services/project';
 import { CreateSubtaskDto, UpdateSubtaskDto } from '../../dtos/project.dto';
+import { CustomRequest } from '../../middlewares/auth.middleware'; // Import CustomRequest
 
-// Extend Request type to include user
-interface AuthenticatedRequest extends Request {
-  user?: { id: number; role: string | { name: string; /* other role props */ } };
-}
+// Removed local AuthenticatedRequest interface
 
 export class SubtaskController {
   /**
    * Create a new subtask
    */
-  async createSubtask(req: AuthenticatedRequest, res: Response) {
+  async createSubtask(req: Request, res: Response) {
+    const customReq = req as CustomRequest;
     try {
-      if (!req.user) {
+      if (!customReq.user) {
         return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
       }
 
-      const taskId = parseInt(req.params.taskId, 10);
+      const taskId = parseInt(customReq.params.taskId, 10);
       if (isNaN(taskId)) {
         return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task ID.' });
       }
 
-      const { name, description, actionRequired, type, metadataJson } = req.body;
+      const { name, description, actionRequired, type, metadataJson } = customReq.body;
 
       if (!name) {
         return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Subtask name is required.' });
@@ -57,13 +56,14 @@ export class SubtaskController {
   /**
    * Get all subtasks for a task
    */
-  async getSubtasksForTask(req: AuthenticatedRequest, res: Response) {
+  async getSubtasksForTask(req: Request, res: Response) {
+    const customReq = req as CustomRequest;
     try {
-      if (!req.user) {
+      if (!customReq.user) {
         return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
       }
 
-      const taskId = parseInt(req.params.taskId, 10);
+      const taskId = parseInt(customReq.params.taskId, 10);
       if (isNaN(taskId)) {
         return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task ID.' });
       }
@@ -84,18 +84,19 @@ export class SubtaskController {
   /**
    * Update a subtask
    */
-  async updateSubtask(req: AuthenticatedRequest, res: Response) {
+  async updateSubtask(req: Request, res: Response) {
+    const customReq = req as CustomRequest;
     try {
-      if (!req.user) {
+      if (!customReq.user) {
         return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
       }
 
-      const subtaskId = parseInt(req.params.subtaskId, 10);
+      const subtaskId = parseInt(customReq.params.subtaskId, 10);
       if (isNaN(subtaskId)) {
         return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid subtask ID.' });
       }
 
-      const { name, description, completed, actionRequired, type, metadataJson } = req.body;
+      const { name, description, completed, actionRequired, type, metadataJson } = customReq.body;
 
       // Ensure at least one updatable field is provided
       if (name === undefined && description === undefined && completed === undefined && 
@@ -130,13 +131,14 @@ export class SubtaskController {
   /**
    * Delete a subtask
    */
-  async deleteSubtask(req: AuthenticatedRequest, res: Response) {
+  async deleteSubtask(req: Request, res: Response) {
+    const customReq = req as CustomRequest;
     try {
-      if (!req.user) {
+      if (!customReq.user) {
         return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
       }
 
-      const subtaskId = parseInt(req.params.subtaskId, 10);
+      const subtaskId = parseInt(customReq.params.subtaskId, 10);
       if (isNaN(subtaskId)) {
         return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid subtask ID.' });
       }

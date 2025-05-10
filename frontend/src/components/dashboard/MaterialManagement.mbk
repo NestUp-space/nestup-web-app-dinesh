@@ -1,0 +1,55 @@
+# Memory Bank: frontend/src/components/dashboard/MaterialManagement.tsx
+
+## Purpose
+This component provides a user interface for managing materials associated with a specific project. It allows users to view a list of existing materials, add new materials, edit existing ones, and delete materials.
+
+## How it Works
+- **Receives `projectId`**: The component takes a `projectId` prop to identify which project's materials to manage.
+- **State Management**:
+  - `isAddingMaterial: boolean`: Controls the visibility of the "add new material" form.
+  - `editingMaterialId: number | null`: Stores the ID of the material currently being edited. Controls visibility and pre-fills the edit form.
+  - `formData: CreateMaterialData`: Holds the current state of the input fields for adding or editing a material.
+- **Hooks Utilized**:
+  - `useProjectMaterials(projectId)`: Fetches the list of materials for the current project. Provides `materials`, `materialsLoading`, and `refetchMaterials`.
+  - `useCreateMaterial(projectId)`: Provides the `createMaterial` function and `createLoading` state for adding new materials.
+  - `useUpdateMaterial()`: Provides the `executeUpdateMaterial` function (renamed from `updateMaterial` in the hook for clarity) and `updateLoading` state. This hook is called unconditionally at the top level, adhering to Rules of Hooks. The `editingMaterialId` is passed to `executeUpdateMaterial` when an update is performed.
+  - `useDeleteMaterial()`: Provides the `deleteMaterial` function and `deleteLoading` state.
+- **Key Functions**:
+  - `useEffect` (for `isAddingMaterial`): Resets `formData` when `isAddingMaterial` becomes true.
+  - `useEffect` (for `editingMaterialId`, `materials`): Populates `formData` with the details of the material being edited when `editingMaterialId` is set.
+  - `handleInputChange`: Updates `formData` as the user types in the form fields. Converts numeric inputs.
+  - `handleSubmit`:
+    - Prevents default form submission.
+    - If `editingMaterialId` is set, it calls `executeUpdateMaterial(editingMaterialId, formData)` to update an existing material.
+    - Otherwise, it calls `createMaterial(formData)` to add a new material.
+    - After a successful creation or update, it calls `refetchMaterials()` to refresh the list of materials displayed.
+    - Includes error handling and alerts for failed operations.
+  - `handleDelete`: Confirms deletion with the user and then calls `deleteMaterial(materialId)`, followed by `refetchMaterials()`.
+  - `calculateOverallThickness`: A utility function to display the calculated overall thickness based on ply thickness (assuming 1mm for inner and outer laminates).
+- **Rendering**:
+  - Displays a "Loading materials..." message if `materialsLoading` is true.
+  - Shows an "Add Material" button when not adding or editing.
+  - Renders a form for adding/editing materials when `isAddingMaterial` is true or `editingMaterialId` is not null.
+    - The form includes input fields for all material properties (Material ID, Ply Thickness, Laminate Codes, Ply Type, Grain Direction, Edgebanding Codes).
+    - Overall thickness is displayed as a disabled, calculated field.
+    - "Save" and "Cancel" buttons are provided.
+  - Displays a table of existing materials if `materials.length > 0`.
+    - Each row shows material details and "Edit" / "Delete" action buttons.
+  - Shows a "No materials defined yet" message if the materials list is empty and not loading.
+- **Debugging Logs (Added 2025-05-10)**:
+  - `useEffect` to log `projectId` changes.
+  - `useEffect` to log `isAddingMaterial` changes and form reset.
+  - `useEffect` to log `editingMaterialId` or `materials` changes and form population for editing.
+  - `useEffect` to log when the `materials` state (received from `useProjectMaterials`) updates.
+  - `console.log` statements within `handleSubmit` to trace the update/create process and the `refetchMaterials` call.
+
+## Dependencies
+- `react` (useState, useEffect, React.FC)
+- `@/hooks` (specifically `useProjectMaterials`, `useCreateMaterial`, `useUpdateMaterial`, `useDeleteMaterial`, `Material` type, `CreateMaterialData` type)
+- `@/components/dashboard/button` (Button component)
+- `lucide-react` (for icons like Plus, Edit, Trash2, Save, X)
+
+## Key Changes & Fixes (2025-05-10)
+- **Rules of Hooks Correction**: The `useUpdateMaterial` hook is now called unconditionally at the top level of the component. The `editingMaterialId` and `formData` are passed to its execution function (`executeUpdateMaterial`) when an update is performed.
+- **Logging**: Added extensive `console.log` statements to trace component lifecycle, state changes, and function calls for easier debugging of data flow.
+- **Data Flow for List Update**: The component relies on `useProjectMaterials` to provide an updated `materials` array after `refetchMaterials()` is called. The core fix for the list not updating was in `useProjectMaterials` itself (correctly parsing the `ServiceResponseWrapper`).

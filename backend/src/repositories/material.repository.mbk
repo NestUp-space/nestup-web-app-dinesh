@@ -1,0 +1,76 @@
+# Memory Bank: backend/src/repositories/material.repository.ts
+
+## Purpose
+This file defines the `MaterialRepository` class, which is responsible for all direct database interactions related to the `Material` entity. It uses Prisma ORM to perform CRUD (Create, Read, Update, Delete) operations and other specific queries on the `material` table in the database.
+
+## Class Overview: `MaterialRepository`
+
+### Implements: `IMaterialRepository`
+(Assuming `IMaterialRepository` interface defines the contract for material repository methods.)
+
+### Constructor
+- Initializes `this.prisma = prisma;`, where `prisma` is the imported singleton instance of `PrismaClient` from `../config/db`.
+
+### Key Methods & Logic
+
+1.  **`async create(projectId: number, materialData: CreateMaterialDto): Promise<Material>`**
+    - **Purpose**: Creates a new material record in the database.
+    - **Logic**:
+        - Calculates `overallThickness` (plyThickness + 2mm for laminates).
+        - Constructs `prismaCreateData` of type `Prisma.MaterialCreateInput`. This includes linking to the project via `project: { connect: { id: projectId } }`.
+        - Calls `this.prisma.material.create({ data: prismaCreateData })`.
+        - **Type Handling (Updated 2025-05-10)**:
+            - The method now expects `this.prisma.material.create` to return a `PrismaMaterial` (Prisma's generated type for Material).
+            - It uses an `assertIsMaterial` helper function to cast/map `PrismaMaterial` to the local `Material` type (defined in `../bim/types/bim.types`). This assumes structural compatibility or performs necessary transformations.
+        - **Logging (Added 2025-05-10)**: Logs the data being used for creation and the created material object.
+
+2.  **`async findAllByProject(projectId: number): Promise<Material[]>`**
+    - **Purpose**: Retrieves all materials associated with a given `projectId`.
+    - **Logic**:
+        - Calls `this.prisma.material.findMany({ where: { projectId }, orderBy: { materialId: 'asc' } })`.
+        - **Type Handling (Updated 2025-05-10)**: Returns `PrismaMaterial[]`, which is then mapped to `Material[]` using `assertIsMaterialArray`.
+        - **Logging (Added 2025-05-10)**: Logs the `projectId` and the count/content of materials found.
+
+3.  **`async findById(id: number): Promise<Material | null>`**
+    - **Purpose**: Retrieves a single material by its unique database `id`.
+    - **Logic**: Calls `this.prisma.material.findUnique({ where: { id } })`.
+    - **Type Handling (Updated 2025-05-10)**: Returns `PrismaMaterial | null`, mapped to `Material | null`.
+    - **Logging (Added 2025-05-10)**: Logs the ID being searched and the result.
+
+4.  **`async findByProjectAndMaterialId(projectId: number, materialId: string): Promise<Material | null>`**
+    - **Purpose**: Retrieves a material by its user-defined `materialId` within a specific `projectId`.
+    - **Logic**: Calls `this.prisma.material.findFirst({ where: { projectId, materialId } })`.
+    - **Type Handling & Logging**: Similar updates as `findById`.
+
+5.  **`async update(id: number, materialData: UpdateMaterialDto): Promise<Material>`**
+    - **Purpose**: Updates an existing material record.
+    - **Logic**:
+        - Constructs `updateData` of type `Prisma.MaterialUpdateInput`.
+        - Recalculates `overallThickness` if `plyThickness` is provided in `materialData`.
+        - Ensures `projectId` is not part of the update payload (as it shouldn't be changed this way).
+        - Calls `this.prisma.material.update({ where: { id }, data: updateData })`.
+    - **Type Handling & Logging**: Similar updates as `create`.
+
+6.  **`async delete(id: number): Promise<Material>`**
+    - **Purpose**: Deletes a material record by its unique database `id`.
+    - **Logic**: Calls `this.prisma.material.delete({ where: { id } })`.
+    - **Type Handling & Logging**: Similar updates as `create`.
+
+7.  **`async materialIdExists(projectId: number, materialId: string, excludeId?: number): Promise<boolean>`**
+    - **Purpose**: Checks if a given user-defined `materialId` already exists within a `projectId`, optionally excluding a specific material's own database `id` (useful during updates to check if the new `materialId` conflicts with *other* records).
+    - **Logic**: Calls `this.prisma.material.count({ where: { projectId, materialId, id: excludeId ? { not: excludeId } : undefined } })`. Returns `true` if count > 0.
+    - **Logging (Added 2025-05-10)**: Logs parameters and the resulting count.
+
+### Type Safety Improvements (2025-05-10)
+- Replaced previous `(this.prisma as any)` casts with direct usage of Prisma-generated types (e.g., `PrismaMaterial`, `Prisma.MaterialCreateInput`, `Prisma.MaterialUpdateInput`).
+- Introduced helper functions `assertIsMaterial` and `assertIsMaterialArray` for type casting/mapping between Prisma's `Material` type and the local `Material` type, ensuring clearer type intentions. This is a placeholder for more robust mapping if the types diverge significantly.
+
+## Dependencies
+- `@prisma/client` (for `PrismaClient`, `PrismaMaterial`, `Prisma` namespace)
+- `../config/db` (for the `prisma` client instance)
+- `../bim/types/bim.types` (for `CreateMaterialDto`, local `Material` type, `UpdateMaterialDto`)
+
+## Key Considerations
+- **Error Handling**: This repository layer primarily focuses on database operations. Service-layer consumers are responsible for more comprehensive error handling and business logic.
+- **Data Integrity**: Assumes that `projectId` provided to methods like `create` is valid and exists. Relational integrity should be handled by the database schema.
+- **Type Compatibility**: The use of `assertIsMaterial` and `assertIsMaterialArray` relies on the structural compatibility between `PrismaMaterial` and the local `Material` type. If these types differ significantly (e.g., different field names, missing fields), these assertion functions would need to perform actual data transformation/mapping. For now, they primarily serve as explicit casting points.

@@ -1,0 +1,86 @@
+# Memory Bank: frontend/src/hooks/useMaterial.ts
+
+## Purpose
+This file contains custom React hooks for managing material data within a project. These hooks encapsulate API interactions (fetching, creating, updating, deleting materials) and provide state management (loading, error, data) for material-related operations in the frontend.
+
+## Hooks Overview
+
+### 1. `useProjectMaterials(projectId: string | number | null)`
+   - **Purpose**: Fetches all materials associated with a specific project.
+   - **When it runs**: This hook is invoked when a component needs to display or utilize a list of materials for a given `projectId`. It re-runs if `projectId` changes.
+   - **How it runs**:
+     - It constructs an API `endpoint` string: `/projects/{projectId}/materials`.
+     - If `projectId` is `null`, the `endpoint` becomes `null`.
+     - It uses the generic `useGet` hook to perform a GET request.
+     - **Fetch Control**: The `useGet` hook (defined in `useApi.ts`) accepts a `skip` parameter. If `skip` is `true`, the API call is not made.
+       - The `useProjectMaterials` hook calculates `const enabled = !!endpoint;`.
+       - It then passes `!enabled` as the `skip` argument to `useGet`.
+       - This means:
+         - If `projectId` is valid, `endpoint` is valid, `enabled` is `true`, so `skip` becomes `false` (API call proceeds).
+         - If `projectId` is `null`, `endpoint` is `null`, `enabled` is `false`, so `skip` becomes `true` (API call is skipped).
+       - A fallback URL (`/projects/0/materials`) is provided to `useGet` as it might require a URL argument even when `skip` is true, but this URL will not be hit if `skip` is `true`.
+     - A `console.log` is included for debugging to observe `projectId`, `endpoint`, and the `enabled` state.
+   - **Input**:
+     - `projectId: string | number | null`: The ID of the project whose materials are to be fetched. Can be `null` if no project is selected, in which case the hook will not attempt to fetch data.
+   - **Output (Object)**:
+     - `materials: Material[]`: An array of material objects. Defaults to an empty array if data is not yet available or an error occurs.
+     - `error: any`: Error object if the API call fails.
+     - `loading: boolean`: True if the API call is in progress.
+     - `refetch: () => void`: A function to manually trigger a re-fetch of the materials.
+   - **Internal Logic Change (Fixes Implemented on 2025-05-10)**:
+     - **Initial `useGet` Parameter Fix**: Realized `useGet`'s second parameter is `skip`. The logic was corrected to pass `!enabled` as the `skip` argument.
+     - **Data Extraction Fix (Key for UI Update)**:
+       - The `useGet` hook (from `useApi.ts`) returns a `ServiceResponseWrapper<Payload>` object, where `Payload` is the actual data structure expected from the API endpoint (e.g., `Material[]` for a list, or `{ material: Material }` for a single item).
+       - Initially, `useProjectMaterials` was incorrectly trying to access `data.materials` or `data.responseObject.materials` when `data.responseObject` itself was the array of `Material` objects.
+       - The hook was updated to use `useGet<ServiceResponseWrapper<Material[]>>` for `useProjectMaterials`.
+       - The returned `materials` array is now correctly extracted from `data.responseObject` (if `data.success` is true and `data.responseObject` is an array).
+     - **Logging**: Added `useEffect` and `console.log` statements for better debugging of data flow.
+
+### 2. `useCreateMaterial(projectId: string | number)`
+   - **Purpose**: Provides a function to create a new material for a specific project.
+   - **How it runs**:
+     - Uses `usePost<ServiceResponseWrapper<SingleMaterialPayload>, CreateMaterialData>()`.
+     - The `createMaterial` function calls `postHook.execute(...)`.
+     - It then extracts the created `material` from `resultWrapper.responseObject.material` if the request was successful.
+   - **Input (for `createMaterial` function)**: `data: CreateMaterialData` (contains material details).
+   - **Output (Object)**:
+     - `createMaterial: (data: CreateMaterialData) => Promise<Material | undefined>`: Async function to call for material creation.
+     - `loading: boolean`: True if the creation API call is in progress.
+     - `error: any`: Error object if the API call fails.
+
+### 3. `useUpdateMaterial()`
+   - **Purpose**: Provides a function to update an existing material.
+   - **How it runs**:
+     - **Hook Rule Fix**: Changed from `useUpdateMaterial(materialId)` to `useUpdateMaterial()`. The `materialId` is now passed to the execution function.
+     - Uses `usePut<ServiceResponseWrapper<SingleMaterialPayload>, UpdateMaterialData>()`.
+     - The `updateMaterial` function (returned by the hook) takes `materialId` and `data` as arguments.
+     - It calls `putHook.execute(...)`.
+     - It then extracts the updated `material` from `resultWrapper.responseObject.material` if the request was successful.
+   - **Input (for `updateMaterial` function)**: `materialId: string | number`, `data: UpdateMaterialData`.
+   - **Output (Object)**:
+     - `updateMaterial: (materialId: string | number, data: UpdateMaterialData) => Promise<Material | undefined>`: Async function.
+     - `loading: boolean`: True if the update API call is in progress.
+     - `error: any`: Error object if the API call fails.
+
+### 4. `useDeleteMaterial()`
+   - **Purpose**: Provides a function to delete an existing material.
+   - **How it runs**:
+     - Uses `useDelete<ServiceResponseWrapper<{ message: string }>>()`.
+     - The `deleteMaterial` function calls `deleteHook.execute(...)`.
+     - Returns the `ServiceResponseWrapper` which might contain a success message.
+   - **Input (for `deleteMaterial` function)**: `materialId: string | number`.
+   - **Output (Object)**:
+     - `deleteMaterial: (materialId: string | number) => Promise<ServiceResponseWrapper<{ message: string }> | null>`: Async function.
+     - `loading: boolean`: True if the deletion API call is in progress.
+     - `error: any`: Error object if the API call fails.
+
+## Dependencies
+- `react` (specifically `useCallback`, `useEffect`)
+- `./useApi`: Contains the generic `useGet`, `usePost`, `usePut`, `useDelete` hooks.
+
+## Interfaces
+- `Material`: Defines the structure of a material object.
+- `SingleMaterialPayload`: Wrapper for a single material object, typically `{ material: Material }`, used as the payload in `ServiceResponseWrapper` for create/update.
+- `ServiceResponseWrapper<Payload>`: A generic interface describing the common structure of API responses from the backend (e.g., `{ success: boolean, message: string, responseObject: Payload, statusCode: number }`). For fetching a list of materials, `Payload` would be `Material[]`. For fetching/creating/updating a single material, `Payload` would be `SingleMaterialPayload`.
+- `CreateMaterialData`: Defines the data structure for creating a new material.
+- `UpdateMaterialData`: Defines the data structure for updating an existing material.

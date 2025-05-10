@@ -1,0 +1,77 @@
+# Memory Bank: backend/src/routes/project.routes.ts
+
+## Purpose
+This file defines the Express router for all project-related API endpoints, including sub-resources like tasks, subtasks, and materials associated with a project. It maps HTTP request paths and methods to specific controller actions.
+
+## How it Works
+- An Express `Router` instance is created.
+- Middleware like `isAuthenticated` is applied to routes requiring user authentication.
+- Controller methods (e.g., `projectController.createProject`, `materialController.getMaterialsByProject`) are bound to specific route paths and HTTP methods (POST, GET, PUT, DELETE).
+- The router is exported for use in the main application setup (e.g., in `server.ts` or `index.ts`).
+
+## Key Endpoints Defined
+- `/projects`:
+  - `POST /`: Create a new project.
+  - `GET /`: Get all projects.
+- `/projects/:projectId`:
+  - `GET /:projectId`: Get a project by its ID.
+  - `PUT /:projectId`: Update a project.
+  - `DELETE /:projectId`: Delete a project.
+- `/projects/:projectId/tasks`:
+  - `POST /:projectId/tasks`: Create a new task for a project.
+  - `GET /:projectId/tasks`: Get all tasks for a project.
+- `/projects/tasks/:taskId`: (Note: Path structure might vary slightly based on actual implementation, e.g. `/tasks/:taskId`)
+  - `PUT /tasks/:taskId`: Update a task.
+  - `DELETE /tasks/:taskId`: Delete a task.
+  - `PUT /tasks/:taskId/status`: Update the status of a task.
+- `/projects/tasks/:taskId/subtasks`: (Note: Path structure might vary slightly)
+  - `POST /tasks/:taskId/subtasks`: Create a subtask for a task.
+  - `GET /tasks/:taskId/subtasks`: Get all subtasks for a task.
+- `/projects/subtasks/:subtaskId`: (Note: Path structure might vary slightly)
+  - `PUT /subtasks/:subtaskId`: Update a subtask.
+  - `DELETE /subtasks/:subtaskId`: Delete a subtask.
+- **Materials (New/Updated Section)**
+  - `/projects/:projectId/materials`:
+    - `POST /:projectId/materials`: Create a new material for a project. (Controller: `materialController.createMaterial`)
+    - `GET /:projectId/materials`: Get all materials for a project. (Controller: `materialController.getMaterialsByProject`)
+  - `/projects/materials/:materialId`: (Note: Path structure might vary slightly, e.g. `/materials/:materialId`)
+    - `GET /materials/:materialId`: Get a specific material by its ID. (Controller: `materialController.getMaterialById`)
+    - `PUT /materials/:materialId`: Update a material. (Controller: `materialController.updateMaterial`)
+    - `DELETE /materials/:materialId`: Delete a material. (Controller: `materialController.deleteMaterial`)
+
+## Inputs
+- HTTP Request objects from clients.
+- Data from request bodies (for POST/PUT).
+- Parameters from request paths (e.g., `projectId`, `taskId`, `materialId`).
+- User authentication details (via `isAuthenticated` middleware).
+
+## Outputs
+- HTTP Response objects sent to clients, typically containing JSON data or status codes.
+
+## Dependencies
+- `express`: For router functionality.
+- `../controllers/project`: For project, task, and subtask controller instances.
+- `../controllers/material.controller`: For material controller instance.
+- `../middlewares/auth.middleware`: For `isAuthenticated` middleware.
+
+## Recent Changes (2025-05-10)
+- Added routes for material management under `/projects/:projectId/materials` and `/materials/:materialId`.
+- Imported `materialController` to handle these new routes.
+- Ensured `isAuthenticated` middleware is applied to material routes.
+- **TypeScript Error Resolution (TS2769)**: Type errors related to `CustomRequest` in this file were resolved. This was achieved by modifying `backend/src/controllers/project.controller.ts` to remove its local `AuthenticatedRequest` interface and instead import and use the standardized `CustomRequest` from `backend/src/middlewares/auth.middleware.ts`. This ensures type consistency for request objects processed by `isAuthenticated` middleware. No direct changes were made to `project.routes.ts` itself for this fix, as the errors originated from type incompatibilities with the controller.
+
+## Flow Diagram (Conceptual)
+```mermaid
+graph TD
+    ClientRequest[Client HTTP Request] -->|e.g., GET /projects/123/materials| ExpressApp{Express App}
+    ExpressApp --> ProjectRouter{project.routes.ts}
+    ProjectRouter --matches--> RouteHandler{Specific Route Handler, e.g., router.get('/:projectId/materials', ...)}
+    RouteHandler --> IsAuthenticated{isAuthenticated Middleware}
+    IsAuthenticated --Authenticated--> MaterialController{materialController.getMaterialsByProject}
+    MaterialController --> MaterialService{MaterialService}
+    MaterialService --> MaterialRepository{MaterialRepository/DB}
+    MaterialRepository --> MaterialService
+    MaterialService --> MaterialController
+    MaterialController -->|JSON Response| ClientResponse[Client HTTP Response]
+    IsAuthenticated --Not Authenticated--> UnauthorizedResponse[401 Unauthorized]
+    UnauthorizedResponse --> ClientResponse

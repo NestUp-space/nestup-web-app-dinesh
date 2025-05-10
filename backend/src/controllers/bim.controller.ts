@@ -1,4 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express'; // Added Request import
+import { CustomRequest } from '../middlewares/auth.middleware'; // Import CustomRequest
 import { BimService, ModelTemplate } from '../services/bim.service';
 import { SubtaskRepository, subtaskRepository as globalSubtaskRepository } from '../repositories/subtask.repository'; // Use the exported singleton or instantiate
 import prisma from '../config/db'; // Corrected import for default export
@@ -33,11 +34,15 @@ export class BimController {
    *       500:
    *         description: Internal server error
    */
-  public async getModelTemplates(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public async getModelTemplates(req: Request, res: Response, next: NextFunction): Promise<void> { 
+    const customReq = req as CustomRequest; // Cast to CustomRequest
     try {
+      // Note: customReq.user might be used here for role-based access if needed in future
       const templates: ModelTemplate[] = await this.bimService.getModelTemplates();
+      console.log('[BimController.getModelTemplates] Templates to be sent:', JSON.stringify(templates, null, 2)); // DEBUG LOG
       res.status(200).json(templates);
     } catch (error) {
+      console.error('[BimController.getModelTemplates] Error caught:', error); // DEBUG LOG
       next(error); // Pass error to global error handler
     }
   }
@@ -102,9 +107,11 @@ export class BimController {
    *       500:
    *         description: Internal server error
    */
-  public async generatePlankListAndUpdateSubtask(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public async generatePlankListAndUpdateSubtask(req: Request, res: Response, next: NextFunction): Promise<void> { 
+    const customReq = req as CustomRequest; // Cast to CustomRequest
     try {
-      const { modelName, inputs, subtaskId, boxNumber, packetNumber } = req.body;
+      // Note: customReq.user might be used here for role-based access or logging if needed
+      const { modelName, inputs, subtaskId, boxNumber, packetNumber } = customReq.body;
 
       if (!modelName || !inputs || subtaskId == null || !boxNumber || !packetNumber) {
         res.status(400).json({ message: 'Missing required parameters: modelName, inputs, subtaskId, boxNumber, packetNumber.' });
@@ -115,7 +122,7 @@ export class BimController {
 
       // Update the subtask with the generated plank list and mark as completed
       // The plank list could be stored in a JSON field in the Subtask model, e.g., 'metadataJson' or a dedicated 'plankListJson'
-      const updatedSubtask = await this.subtaskRepository.update(subtaskId, { // Changed to 'update'
+      const updatedSubtask = await this.subtaskRepository.update(subtaskId, { 
         // Assuming 'metadataJson' can store this. Adjust if Subtask model has a specific field.
         metadataJson: JSON.stringify({ plankListGenerated: true, generatedPlanks: plankList }),
         completed: true, // Mark subtask as completed

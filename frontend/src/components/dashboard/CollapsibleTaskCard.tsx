@@ -3,7 +3,6 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react'; // Added lazy and Suspense
 import { Button } from '@/components/dashboard/button';
 import { Eye, Edit3, ChevronDown, ChevronUp, CheckCircle, Circle, PlusCircle as PlusCircleIcon, Trash2 as TrashIcon, UploadCloud, Info, UserCheck, Download, Package } from 'lucide-react';
-import BimTaskContent from './BimTaskContent';
 // Use corrected paths for dynamic import
 // import ModelSelector from '@/components/dashboard/ModelSelector'; 
 // import MaterialManagement from '@/components/dashboard/MaterialManagement';
@@ -181,46 +180,35 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
                             </Button>
                         )}
                         
-                        {/* BIM engineer to upload site measurements subtask */}
-                        {subtask.name === "BIM engineer to upload site measurements" && project && (
-                          <div className="mt-3 pt-3 border-t border-gray-100">
-                            {/* Material Management Component */}
-                            <div className="mb-4">
-                              <h6 className="text-xs font-semibold text-gray-600 mb-2">Manage Materials for Site Measurements:</h6>
-                              <MaterialManagement projectId={project.id} />
-                            </div>
+                        {/* Generic component rendering based on subtask.metadataJson */}
+                        {(() => {
+                          if (subtask.metadataJson) {
+                            try {
+                              const metadata = JSON.parse(subtask.metadataJson);
+                              if (metadata && typeof metadata.frontendComponent === 'string') {
+                                const componentPath = metadata.frontendComponent;
+                                const projectId = project?.id;
 
-                            {/* Box Configuration / Model Selector Component */}
-                            <div>
-                              <h6 className="text-xs font-semibold text-gray-600 mb-2">Configure Box/Model for Site Measurements:</h6>
-                              <ModelSelector subtask={subtask} project={project} />
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Display Materials List for specific subtask */}
-                        {subtask.name === "Collection of material details." && project?.materials && (
-                           <div className="mt-3 pt-2 border-t border-gray-200">
-                             <h5 className="text-sm font-semibold text-gray-600 mb-2 flex items-center">
-                               <Package size={14} className="mr-1.5" /> Project Materials:
-                             </h5>
-                             {project.materials.length > 0 ? (
-                               <ul className="list-disc list-inside space-y-1 text-xs text-gray-500 pl-4">
-                                 {project.materials.map(material => (
-                                   <li key={material.id}>
-                                     {material.name} (ID: {material.id})
-                                   </li>
-                                 ))}
-                               </ul>
-                             ) : (
-                               <p className="text-xs text-gray-400 italic pl-4">No materials added to this project yet.</p>
-                             )}
-                           </div>
-                         )}
-                         {/* Add ModelSelector component for 'Collect Model and dimensions.' subtask */}
-                         {subtask.name === "Collect Model and dimensions." && project && (
-                           <ModelSelector subtask={subtask} project={project} />
-                         )}
+                                return (
+                                  <div className="mt-3 pt-3 border-t border-gray-100 w-full">
+                                    <Suspense fallback={<div>Loading component...</div>}>
+                                      {componentPath.includes('MaterialManagement.tsx') && projectId !== undefined && (
+                                        <MaterialManagement projectId={projectId} />
+                                      )}
+                                      {componentPath.includes('ModelSelector.tsx') && project && (
+                                        <ModelSelector subtask={subtask} project={project} />
+                                      )}
+                                    </Suspense>
+                                  </div>
+                                );
+                              }
+                            } catch (e) {
+                              console.error(`Failed to parse subtask metadataJson for subtask "${subtask.name}":`, subtask.metadataJson, e);
+                              return <p className="text-xs text-red-500 mt-2">Error loading subtask-specific tool.</p>;
+                            }
+                          }
+                          return null;
+                        })()}
                       </div>
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => handleDeleteSubtask(subtask.id)} className="text-red-500 hover:text-red-700 ml-2 flex-shrink-0">
@@ -232,15 +220,6 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
             </ul>
           ) : (
             <p className="text-sm text-gray-500">No specific actions or subtasks defined for this step.</p>
-          )}
-
-          {/* BIM Task Content */}
-          {project?.id && task.name && ( // Use project.id and ensure project exists
-            <BimTaskContent
-              taskId={task.id}
-              projectId={project.id} // Pass project.id
-              taskName={task.name}
-            />
           )}
 
           {/* New logic for Site Visit task specific components */}

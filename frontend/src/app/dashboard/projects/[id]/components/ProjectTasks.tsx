@@ -6,19 +6,19 @@
 'use client';
 
 import React from 'react';
-import { Task } from '@/types';
+import { Task, Project } from '@/types';
 import CollapsibleTaskCard from '@/components/dashboard/CollapsibleTaskCard';
 
 interface ProjectTasksProps {
   tasks: Task[];
   formatDate: (dateString?: string) => string;
-  projectId: number;
+  project: Project; // Changed from projectId to project
 }
 
 export const ProjectTasks: React.FC<ProjectTasksProps> = ({ 
   tasks, 
   formatDate,
-  projectId
+  project
 }) => {
   return (
     <div>
@@ -33,7 +33,7 @@ export const ProjectTasks: React.FC<ProjectTasksProps> = ({
               key={task.id} 
               task={task} 
               formatDate={formatDate}
-              projectId={projectId}
+              project={project}
             />
           ))}
         </div>

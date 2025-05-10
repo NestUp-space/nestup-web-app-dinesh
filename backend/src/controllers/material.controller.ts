@@ -3,9 +3,14 @@
  * Handles HTTP requests for project materials
  */
 
-import { Request, Response } from 'express';
+import { Request, Response } from 'express'; // Keep Request for now, CustomRequest will extend it
 import { StatusCodes } from 'http-status-codes';
 import { materialService } from '../services/material.service';
+// Import CustomRequest, assuming it's exported from auth.middleware.ts
+// If it's not exported, we might need to define it here or import from a shared types file.
+// For now, let's assume it can be imported or defined.
+// We'll try to import it. If auth.middleware.ts doesn't export it, this will need adjustment.
+import { CustomRequest } from '../middlewares/auth.middleware'; // Attempting import
 import { handleServiceResponse } from '../common/utils/httpHandlers'; // Assuming this utility exists
 import { CreateMaterialDto, UpdateMaterialDto } from '../bim/types/bim.types';
 
@@ -16,8 +21,9 @@ export class MaterialController {
    * @param res Express response object
    */
   public createMaterial = async (req: Request, res: Response): Promise<void> => {
+    const customReq = req as CustomRequest;
     try {
-      const projectId = parseInt(req.params.projectId, 10);
+      const projectId = parseInt(customReq.params.projectId, 10);
       if (isNaN(projectId)) {
         res.status(StatusCodes.BAD_REQUEST).json({
           success: false,
@@ -26,7 +32,7 @@ export class MaterialController {
         return;
       }
 
-      const materialData: CreateMaterialDto = req.body;
+      const materialData: CreateMaterialDto = customReq.body;
       const serviceResponse = await materialService.createMaterial(projectId, materialData);
       handleServiceResponse(serviceResponse, res);
     } catch (error) {
@@ -44,8 +50,9 @@ export class MaterialController {
    * @param res Express response object
    */
   public getMaterialsByProject = async (req: Request, res: Response): Promise<void> => {
+    const customReq = req as CustomRequest;
     try {
-      const projectId = parseInt(req.params.projectId, 10);
+      const projectId = parseInt(customReq.params.projectId, 10);
       if (isNaN(projectId)) {
         res.status(StatusCodes.BAD_REQUEST).json({
           success: false,
@@ -71,8 +78,9 @@ export class MaterialController {
    * @param res Express response object
    */
   public getMaterialById = async (req: Request, res: Response): Promise<void> => {
+    const customReq = req as CustomRequest;
     try {
-      const materialId = parseInt(req.params.materialId, 10);
+      const materialId = parseInt(customReq.params.materialId, 10);
       if (isNaN(materialId)) {
         res.status(StatusCodes.BAD_REQUEST).json({
           success: false,
@@ -98,8 +106,9 @@ export class MaterialController {
    * @param res Express response object
    */
   public updateMaterial = async (req: Request, res: Response): Promise<void> => {
+    const customReq = req as CustomRequest;
     try {
-      const materialId = parseInt(req.params.materialId, 10);
+      const materialId = parseInt(customReq.params.materialId, 10);
       if (isNaN(materialId)) {
         res.status(StatusCodes.BAD_REQUEST).json({
           success: false,
@@ -108,7 +117,7 @@ export class MaterialController {
         return;
       }
 
-      const materialData: UpdateMaterialDto = req.body;
+      const materialData: UpdateMaterialDto = customReq.body;
       const serviceResponse = await materialService.updateMaterial(materialId, materialData);
       handleServiceResponse(serviceResponse, res);
     } catch (error) {
@@ -126,8 +135,9 @@ export class MaterialController {
    * @param res Express response object
    */
   public deleteMaterial = async (req: Request, res: Response): Promise<void> => {
+    const customReq = req as CustomRequest;
     try {
-      const materialId = parseInt(req.params.materialId, 10);
+      const materialId = parseInt(customReq.params.materialId, 10);
       if (isNaN(materialId)) {
         res.status(StatusCodes.BAD_REQUEST).json({
           success: false,

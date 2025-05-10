@@ -1,0 +1,107 @@
+## Task: Fix Material List Not Updating After Creation and Address Hook Rule Violation
+
+**Description:**
+The list of materials in `MaterialManagement.tsx` does not update to show a newly created material, even though a `refetchMaterials()` call is present and network logs confirm a subsequent GET request. Additionally, there's a Rules of Hooks violation in how `useUpdateMaterial` is called.
+
+**Assigned to:** cline
+**Assigned by:** user
+**Status:** done
+**Timestamps:**
+  - Created: 2025-05-10
+  - Completed: 2025-05-10
+
+**Sub-tasks:**
+1.  **Correct `useUpdateMaterial` Hook Usage:** - Done
+    *   Modified `useUpdateMaterial` in `frontend/src/hooks/useMaterial.ts` to accept `materialId` in its execution function.
+    *   Updated `frontend/src/components/dashboard/MaterialManagement.tsx` to call `useUpdateMaterial` unconditionally at the top level and pass `materialId` to the execution function.
+2.  **Add Detailed Logging for Data Flow:** - Done
+    *   Added `useEffect` logs in `frontend/src/hooks/useMaterial.ts` (within `useProjectMaterials`).
+    *   Added `useEffect` logs in `frontend/src/components/dashboard/MaterialManagement.tsx`.
+    *   Added console logs around `createMaterial` and `refetchMaterials` calls.
+3.  **Investigate `useGet` in `useApi.ts`:** - Done
+    *   Reviewed `useApi.ts` and `client.ts`. Confirmed no client-side caching in these hooks/client.
+4.  **Review Prisma Setup in Backend:** - Done
+    *   User confirmed `npx prisma generate` was run (implicitly by providing logs after changes).
+    *   Removed `(this.prisma as any)` casts in `backend/src/repositories/material.repository.ts` and used proper Prisma types. Added logging.
+5.  **Correct Data Extraction in `useProjectMaterials`:** - Done (Key fix)
+    *   Identified that `useGet` returns a `ServiceResponseWrapper` and the actual materials array is in `data.responseObject`.
+    *   Corrected `frontend/src/hooks/useMaterial.ts` to use `ServiceResponseWrapper<Material[]>` as the generic type for `useGet` in `useProjectMaterials`.
+    *   Adjusted data access to `data.responseObject` to retrieve the materials array.
+    *   Corrected typings for `useCreateMaterial`, `useUpdateMaterial`, and `useDeleteMaterial` to expect `ServiceResponseWrapper` and extract payload from `responseObject`.
+6.  **Update Relevant .mbk Files:** - Pending (will do next)
+    *   `frontend/src/hooks/useMaterial.mbk`
+    *   `frontend/src/components/dashboard/MaterialManagement.mbk`
+    *   `backend/src/repositories/material.repository.mbk`
+
+**Updates:**
+- 2025-05-10: Initial investigation, identified Rules of Hooks violation and potential data flow issues. Added extensive logging to frontend and backend. Refined Prisma types in the repository.
+- 2025-05-10: Analyzed logs. Pinpointed the issue to incorrect data extraction in `useProjectMaterials` due to misunderstanding the structure of the data returned by `useGet` (ServiceResponseWrapper).
+- 2025-05-10: Corrected type definitions and data access paths in `frontend/src/hooks/useMaterial.ts`. User confirmed the issue is resolved.
+
+---
+
+## Task: Fix 404 Error for GET /api/bim/model-templates
+
+**Description:**
+The endpoint `GET http://localhost:5001/api/bim/model-templates` is returning a 404 Not Found error. This needs to be investigated and fixed. The issue was identified from browser console logs showing the failed API call.
+
+**Assigned to:** cline
+**Assigned by:** user
+**Status:** pending
+**Timestamps:**
+  - Created: 2025-05-10
+
+**Sub-tasks:**
+1.  **Investigate Route Definition:** Check `backend/src/routes/bim.routes.ts` for the `/model-templates` route. - Done
+2.  **Inspect Controller Logic:** Review `backend/src/controllers/bim.controller.ts` for the handler associated with this route. - Done
+3.  **Analyze Service Layer:** Examine `backend/src/services/bim.service.ts` to understand data fetching/processing for model templates. - Done
+4.  **Verify Data Source:** Confirm how and where model templates are stored or defined (e.g., `backend/src/bim/models/`, `backend/src/bim/templates/`, database). - Done (files in `backend/src/bim/models/`)
+5.  **Implement Fix:** Apply necessary code changes to resolve the 404 error. - Done (Reverted `bim.service.ts` to use CommonJS `__filename` global)
+6.  **Update MBK Files:** Update relevant `.mbk` files (e.g., `TECHARCH.mbk`, `bim.routes.mbk`, `bim.controller.mbk`, `bim.service.mbk`).
+7.  **Test Solution:** Verify the fix by making a GET request to the endpoint and ensuring a 200 OK response with correct data.
+
+**Updates:**
+- 2025-05-10: Task created.
+- 2025-05-10: Investigated route, controller, service, and module loading. Hypothesized that an error during the loading of `bim.service.ts` (due to incorrect `__dirname` for the module type) prevented `bimRouter` from being set up correctly, leading to the 404.
+- 2025-05-10: Attempted to fix `bim.service.ts` for ESM using `import.meta.url`, but encountered TS1343 error, indicating the build target is CommonJS.
+- 2025-05-10: Reverted `bim.service.ts` to use the CommonJS global `__filename` for `__dirname` definition, which was its original state and should resolve the TypeScript error and the module loading issue.
+
+---
+
+## Task: Refactor Site Visit Task in Project Template
+
+**Description:**
+Modify the project task template to enhance the "Site Visit" task. This involves making specific subtasks non-deletable, associating them with frontend components for material management and model dimensions, and updating type definitions accordingly. This also includes updating the frontend to correctly render these components based on subtask metadata.
+
+**Assigned to:** cline
+**Assigned by:** user
+**Status:** pending
+**Timestamps:**
+  - Created: 2025-05-10
+
+**Sub-tasks:**
+1.  **Update Type Definition:** Add `isSystemDefined?: boolean;` to the `SubtaskTemplate` interface in `backend/src/types/projectTemplate.types.ts`. - Done
+2.  **Modify Task Template (`backend/src/constants/projectTaskTemplate.ts`):** - Done
+    *   Locate the "Site Visit" task (uploaderRole: "BIM Engineer").
+    *   Remove the `frontendComponents` array from the task-level `metadataJson`. Set task-level `metadataJson` to `null` or `JSON.stringify({})`.
+    *   Delete the existing subtask: "BIM engineer to upload site measurements".
+    *   Add new subtask: "Collect Material Details"
+        *   `name`: "Collect Material Details"
+        *   `actionRequired`: "BIM Engineer to input material specifications observed during site visit."
+        *   `type`: "data_collection"
+        *   `isSystemDefined`: `true`
+        *   `metadataJson`: `JSON.stringify({ frontendComponent: "frontend/src/components/dashboard/MaterialManagement.tsx" })`
+    *   Add new subtask: "Record Model & Dimension Details"
+        *   `name`: "Record Model & Dimension Details"
+        *   `actionRequired`: "BIM Engineer to input model selections and measured dimensions from site."
+        *   `type`: "data_collection"
+        *   `isSystemDefined`: `true`
+        *   `metadataJson`: `JSON.stringify({ frontendComponent: "frontend/src/components/dashboard/ModelSelector.tsx" })`
+3.  **Update MBK File:** Modify `backend/src/constants/projectTaskTemplate.mbk` to document all backend changes. - Done
+4.  **Update Frontend Rendering (`frontend/src/components/dashboard/CollapsibleTaskCard.tsx`):** - Done
+    *   Implement generic logic to parse `subtask.metadataJson`.
+    *   If `frontendComponent` key exists in subtask metadata, dynamically render the specified component (MaterialManagement or ModelSelector) using Suspense.
+    *   Remove old hardcoded rendering logic for these components tied to specific subtask names.
+
+**Updates:**
+- 2025-05-10: Task created based on user request and planning session.

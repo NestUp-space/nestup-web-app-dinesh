@@ -7,48 +7,48 @@ import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { projectService } from '../../services/project';
 import { CreateProjectDto, UpdateProjectDto } from '../../dtos/project.dto';
+import { CustomRequest } from '../../middlewares/auth.middleware'; // Import CustomRequest
 
-// Extend Request type to include user
-interface AuthenticatedRequest extends Request {
-  user?: { id: number; role: string | { name: string; /* other role props */ } };
-}
+// Removed local AuthenticatedRequest interface
 
 export class ProjectController {
   /**
    * Create a new project
    */
-  async createProject(req: AuthenticatedRequest, res: Response) {
+  async createProject(req: Request, res: Response) {
+    const customReq = req as CustomRequest;
     try {
-      if (!req.user) {
+      if (!customReq.user) {
         return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
       }
 
-      if (req.user.role === 'client' || (typeof req.user.role !== 'string' && req.user.role.name === 'client')) {
+      // Ensure customReq.user.role is treated as a simple string as per CustomRequest
+      if (customReq.user.role === 'client') {
         return res.status(StatusCodes.FORBIDDEN).json({ message: 'Client users are not allowed to create projects' });
       }
 
       // Extract values from request body
-      const { name, projectDescription, description, engineerId, clientId } = req.body;
+      const { name, projectDescription, description, engineerId, clientId } = customReq.body;
       
       // Use projectDescription or description (whichever is provided)
       const projectDesc = projectDescription || description;
       
       // Set default values for required fields that might be missing from frontend
-      const address = req.body.address || 'N/A';
-      const location = req.body.location || 'N/A';
+      const address = customReq.body.address || 'N/A';
+      const location = customReq.body.location || 'N/A';
       
       // Convert numeric values to integers
-      const sqft = parseInt(req.body.sqft, 10) || 0;
-      const estimatedTime = req.body.estimatedTime || new Date();
-      const statusId = parseInt(req.body.statusId, 10) || 1; // Assuming 1 is a valid status ID
-      const vbCount = parseInt(req.body.vbCount, 10) || 0;
+      const sqft = parseInt(customReq.body.sqft, 10) || 0;
+      const estimatedTime = customReq.body.estimatedTime || new Date();
+      const statusId = parseInt(customReq.body.statusId, 10) || 1; // Assuming 1 is a valid status ID
+      const vbCount = parseInt(customReq.body.vbCount, 10) || 0;
       
       // Convert IDs to integers
       const engineerIdInt = engineerId ? parseInt(engineerId, 10) : undefined;
       const clientIdInt = clientId ? parseInt(clientId, 10) : undefined;
       
       // Get the user ID for createdById
-      const createdById = req.user.id;
+      const createdById = customReq.user.id;
 
       if (!name) {
         return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Project name is required' });
@@ -79,17 +79,18 @@ export class ProjectController {
   /**
    * Get all projects
    */
-  async getProjects(req: AuthenticatedRequest, res: Response) {
+  async getProjects(req: Request, res: Response) {
+    const customReq = req as CustomRequest;
     try {
-      if (!req.user) {
+      if (!customReq.user) {
         return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
       }
 
       // Prepare user object for service layer
       const serviceUser = {
-        id: req.user.id,
+        id: customReq.user.id,
         role: { 
-          name: typeof req.user.role === 'string' ? req.user.role : req.user.role.name 
+          name: customReq.user.role // CustomRequest defines role as string
         }
       };
 
@@ -109,21 +110,22 @@ export class ProjectController {
   /**
    * Get a project by ID
    */
-  async getProjectById(req: AuthenticatedRequest, res: Response) {
+  async getProjectById(req: Request, res: Response) {
+    const customReq = req as CustomRequest;
     try {
-      if (!req.user) {
+      if (!customReq.user) {
         return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
       }
-      const projectId = parseInt(req.params.projectId, 10);
+      const projectId = parseInt(customReq.params.projectId, 10);
       if (isNaN(projectId)) {
         return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID' });
       }
 
       // Prepare user object for service layer
       const serviceUser = {
-        id: req.user.id,
+        id: customReq.user.id,
         role: { 
-          name: typeof req.user.role === 'string' ? req.user.role : req.user.role.name 
+          name: customReq.user.role // CustomRequest defines role as string
         }
       };
 
@@ -146,21 +148,22 @@ export class ProjectController {
   /**
    * Update a project
    */
-  async updateProject(req: AuthenticatedRequest, res: Response) {
+  async updateProject(req: Request, res: Response) {
+    const customReq = req as CustomRequest;
     try {
-      if (!req.user) {
+      if (!customReq.user) {
         return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
       }
 
-      const projectId = parseInt(req.params.projectId, 10);
+      const projectId = parseInt(customReq.params.projectId, 10);
       if (isNaN(projectId)) {
         return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID' });
       }
 
       // Add updatedById to the request body
       const updateData: UpdateProjectDto = {
-        ...req.body,
-        updatedById: req.user.id
+        ...customReq.body,
+        updatedById: customReq.user.id // Assuming CustomRequest guarantees user.id if user exists
       };
 
       const project = await projectService.updateProject(projectId, updateData);
@@ -173,13 +176,14 @@ export class ProjectController {
   /**
    * Delete a project
    */
-  async deleteProject(req: AuthenticatedRequest, res: Response) {
+  async deleteProject(req: Request, res: Response) {
+    const customReq = req as CustomRequest;
     try {
-      if (!req.user) {
+      if (!customReq.user) {
         return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
       }
 
-      const projectId = parseInt(req.params.projectId, 10);
+      const projectId = parseInt(customReq.params.projectId, 10);
       if (isNaN(projectId)) {
         return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID' });
       }

@@ -10,8 +10,14 @@ interface MaterialManagementProps {
 }
 
 const MaterialManagement: React.FC<MaterialManagementProps> = ({ projectId }) => {
+  // DEBUG: Log when projectId changes
+  useEffect(() => {
+    console.log('[MaterialManagement] Project ID:', projectId);
+  }, [projectId]);
+
   const { materials, loading: materialsLoading, refetch: refetchMaterials } = useProjectMaterials(projectId);
   const { createMaterial, loading: createLoading } = useCreateMaterial(projectId);
+  const { updateMaterial: executeUpdateMaterial, loading: updateLoading } = useUpdateMaterial(); // Called unconditionally
   const { deleteMaterial, loading: deleteLoading } = useDeleteMaterial();
   
   const [isAddingMaterial, setIsAddingMaterial] = useState(false);
@@ -29,7 +35,10 @@ const MaterialManagement: React.FC<MaterialManagementProps> = ({ projectId }) =>
 
   // Reset form when adding new material
   useEffect(() => {
+    // DEBUG: Log form reset for adding material
+    console.log('[MaterialManagement] useEffect - isAddingMaterial changed:', isAddingMaterial);
     if (isAddingMaterial) {
+      console.log('[MaterialManagement] Resetting form for new material.');
       setFormData({
         materialId: '',
         plyThickness: 16,
@@ -45,8 +54,11 @@ const MaterialManagement: React.FC<MaterialManagementProps> = ({ projectId }) =>
 
   // Set form data when editing a material
   useEffect(() => {
+    // DEBUG: Log form population for editing material
+    console.log('[MaterialManagement] useEffect - editingMaterialId or materials changed. Editing ID:', editingMaterialId);
     if (editingMaterialId !== null) {
       const materialToEdit = materials.find(m => m.id === editingMaterialId);
+      console.log('[MaterialManagement] Material to edit:', materialToEdit);
       if (materialToEdit) {
         setFormData({
           materialId: materialToEdit.materialId,
@@ -61,6 +73,11 @@ const MaterialManagement: React.FC<MaterialManagementProps> = ({ projectId }) =>
       }
     }
   }, [editingMaterialId, materials]);
+
+  // DEBUG: Log when materials array changes
+  useEffect(() => {
+    console.log('[MaterialManagement] Component received new materials state:', materials);
+  }, [materials]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -79,17 +96,22 @@ const MaterialManagement: React.FC<MaterialManagementProps> = ({ projectId }) =>
     try {
       if (editingMaterialId !== null) {
         // Update existing material
-        const { updateMaterial } = useUpdateMaterial(editingMaterialId);
-        await updateMaterial(formData);
+        console.log(`[MaterialManagement] Attempting to update material ID: ${editingMaterialId}`, formData);
+        await executeUpdateMaterial(editingMaterialId, formData);
+        console.log('[MaterialManagement] Material update successful.');
         setEditingMaterialId(null);
       } else {
         // Create new material
+        console.log('[MaterialManagement] Attempting to create new material:', formData);
         await createMaterial(formData);
+        console.log('[MaterialManagement] Material creation successful.');
         setIsAddingMaterial(false);
       }
       
       // Refresh materials list
-      refetchMaterials();
+      console.log('[MaterialManagement] Calling refetchMaterials...');
+      await refetchMaterials();
+      console.log('[MaterialManagement] refetchMaterials call completed.');
     } catch (error) {
       console.error('Error saving material:', error);
       alert('Failed to save material. Please try again.');

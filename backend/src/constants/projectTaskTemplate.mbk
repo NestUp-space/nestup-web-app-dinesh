@@ -48,6 +48,7 @@ This file (`backend/src/constants/projectTaskTemplate.ts`) defines the default s
     actionRequired?: string;
     type?: string;
     metadataJson?: string | null;
+    isSystemDefined?: boolean; // Added to indicate non-deletable, template-core subtasks
   }
   ```
 
@@ -69,9 +70,26 @@ This file (`backend/src/constants/projectTaskTemplate.ts`) defines the default s
     - Pre-Production (Material estimation with cuttist upload)
     - Production (Input QA, Pressing list, G code and cutting list, Output QA, Installation Guide upload)
 - Ensured `metadataJson` in subtasks, where objects were used, are now correctly `JSON.stringify()`-ed to match the `string | null` type definition.
-- Added `metadataJson` to the main `TaskTemplate` definition and utilized it in the "Site Visit" task to store paths to related frontend components (`MaterialManagement.tsx`, `ModelSelector.tsx`).
-- Added a subtask named "BIM engineer to upload site measurements" to the "Site Visit" task to ensure the `MaterialManagement` and `ModelSelector` components are rendered both through the task's `metadataJson` and through the subtask-specific rendering logic in `CollapsibleTaskCard.tsx`.
+- Added `metadataJson` to the main `TaskTemplate` definition and utilized it in the "Site Visit" task to store paths to related frontend components (`MaterialManagement.tsx`, `ModelSelector.tsx`). (Note: This task-level metadata for components was subsequently moved to subtasks).
+- Added a subtask named "BIM engineer to upload site measurements" to the "Site Visit" task. (Note: This subtask was subsequently removed).
 - The `getDefaultProjectTaskTemplates` function was updated to perform a deep copy of the templates to prevent accidental modification of the source constant.
+
+## Recent Changes (as of 2025-05-10)
+- **Site Visit Task Refactor**:
+    - Introduced an `isSystemDefined?: boolean;` property to the `SubtaskTemplate` interface in `../types/projectTemplate.types.ts`. This flag marks subtasks that are core to the template and should not be user-deletable.
+    - Modified the "Site Visit" task (uploaderRole: "BIM Engineer"):
+        - Removed the `frontendComponents` array from its task-level `metadataJson`. This metadata is now handled at the subtask level. The task's `metadataJson` is now `null`.
+        - Deleted the existing subtask: "BIM engineer to upload site measurements".
+        - Added two new system-defined (non-deletable) subtasks:
+            1.  **"Collect Material Details"**:
+                - `type`: "data_collection"
+                - `isSystemDefined`: `true`
+                - `metadataJson`: Contains `frontendComponent: "frontend/src/components/dashboard/MaterialManagement.tsx"`
+            2.  **"Record Model & Dimension Details"**:
+                - `type`: "data_collection"
+                - `isSystemDefined`: `true`
+                - `metadataJson`: Contains `frontendComponent: "frontend/src/components/dashboard/ModelSelector.tsx"`
+    - These changes ensure that material and model dimension collection are integral and non-deletable steps of the site visit, directly linked to their respective UI components.
 
 ## Diagram (Conceptual Flow of Usage)
 ```mermaid
