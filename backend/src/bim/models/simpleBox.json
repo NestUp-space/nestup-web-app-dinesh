@@ -15,7 +15,8 @@
       "hasDoor": false,
       "exposedSide": null
     },
-    "numberOfShelves": 0
+    "numberOfShelves": 0,
+    "skirting": null
   },
   "planks": [
     {
@@ -53,6 +54,14 @@
     {
       "plankId": "B1P1_Bottom",
       "name": "Bottom Plank",
+      "width": null,
+      "height": null,
+      "materialCode": null,
+      "grainDirection": null
+    },
+    {
+      "plankId": "B1P1_Door",
+      "name": "Door Plank",
       "width": null,
       "height": null,
       "materialCode": null,

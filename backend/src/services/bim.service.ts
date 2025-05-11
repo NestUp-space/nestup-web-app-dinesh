@@ -25,9 +25,30 @@ export interface ModelTemplate {
 // If __dirname is dist/services, we need to go up two levels to dist/ and then access models.
 // However, publicDir copies the *contents* of src/bim/models to dist.
 // For development, this path works if src/ is the execution context or transpiled paths align.
-const modelsDirectory = path.join(__dirname, '..', 'bim', 'models');
+const modelsDirectory = path.join(__dirname, '..', 'bim', 'models'); // For getModelTemplates
+const rulesPath = path.join(__dirname, '..', 'bim', 'rules', 'globalRules.json'); // Path to globalRules
+
+// Import the actual plank list generator
+import { generatePlankList as dispatchToGenerator } from '../bim/generators/plankListGenerator'; // Corrected path
+import { ModelDefinition, GlobalRules, Plank } from '../bim/types/bim.types'; // Ensure Plank is imported if service method returns it
 
 export class BimService {
+  private globalRules!: GlobalRules; // To be loaded in constructor
+
+  constructor() {
+    this.loadGlobalRules();
+  }
+
+  private async loadGlobalRules(): Promise<void> {
+    try {
+      const rulesFileContent = await fs.readFile(rulesPath, 'utf-8');
+      this.globalRules = JSON.parse(rulesFileContent) as GlobalRules;
+    } catch (error) {
+      console.error('Failed to load global rules:', error);
+      // Fallback or throw error if rules are critical
+      // For now, let it proceed, generatePlankList will fail if rules are missing
+    }
+  }
   /**
    * Retrieves all available BIM model templates.
    */
@@ -63,125 +84,42 @@ export class BimService {
     }
   }
 
-  // Placeholder for the plank list generation logic.
-  // This will be significantly more complex and requires detailed rules for each modelType.
   public async generatePlankList(
     modelName: string,
     inputs: Record<string, any>,
-    boxNumber: string, // Added based on plank ID requirement
-    packetNumber: string // Added based on plank ID requirement
-  ): Promise<Array<Record<string, any>>> { // Corrected return type
-    console.log(`Generating plank list for ${modelName} with inputs:`, inputs, `Box: ${boxNumber}, Packet: ${packetNumber}`);
+    boxNumber: string,
+    packetNumber: string
+  ): Promise<Plank[]> { // Return type should be Plank[] from bim.types
+    console.log(`BimService: Generating plank list for ${modelName} with inputs:`, inputs, `Box: ${boxNumber}, Packet: ${packetNumber}`);
 
-    // Find the model file
-    // Ensure modelName is derived correctly if it contains spaces, e.g., "Simple Box" -> "simplebox.json"
+    if (!this.globalRules) {
+      await this.loadGlobalRules(); // Ensure rules are loaded
+      if (!this.globalRules) { // Check again after attempting to load
+         throw new Error('Global rules could not be loaded.');
+      }
+    }
+    
     const modelFileBaseName = modelName.toLowerCase().replace(/\s+/g, '');
     const modelFileName = `${modelFileBaseName}.json`;
-    const modelFilePath = path.join(modelsDirectory, modelFileName);
+    // Corrected path to models directory relative to this service file
+    const modelFilePath = path.join(__dirname, '..', 'bim', 'models', modelFileName);
 
     try {
       const fileContent = await fs.readFile(modelFilePath, 'utf-8');
-      const modelData = JSON.parse(fileContent);
+      const modelDefinition = JSON.parse(fileContent) as ModelDefinition;
 
-      if (!modelData.planks || !Array.isArray(modelData.planks)) {
-        throw new Error(`Model ${modelName} does not have a valid 'planks' definition.`);
+      if (modelDefinition.modelType !== modelName) {
+        // This can happen if filename doesn't perfectly match modelType in JSON
+        console.warn(`Model type mismatch: expected ${modelName}, found ${modelDefinition.modelType} in ${modelFileName}`);
+        // Potentially throw error or try to proceed if confident
       }
 
-      const generatedPlanks: Array<Record<string, any>> = [];
-
-      // Geometric calculation logic per modelType
-      // This is a simplified example for "Simple Box"
-      if (modelData.modelType === "Simple Box") {
-        const { 
-          boxHeight, boxWidth, boxDepth, 
-          outerMaterialCode, innerMaterialCode, backMaterialCode 
-          // TODO: Handle leftAdjacency, rightAdjacency, door, numberOfShelves for more accurate calcs
-        } = inputs;
-
-        // Validate required inputs
-        if (boxHeight == null || boxWidth == null || boxDepth == null) {
-          throw new Error("Missing required dimensions (boxHeight, boxWidth, boxDepth) for Simple Box.");
-        }
-        
-        // Example: Back Plank
-        const backPlankDef = modelData.planks.find((p: any) => p.name === "Back Plank");
-        if (backPlankDef) {
-          generatedPlanks.push({
-            plankId: `B${boxNumber}P${packetNumber}${backPlankDef.plankId.substring(backPlankDef.plankId.indexOf('_'))}`, // e.g., B1P1_Back
-            name: backPlankDef.name,
-            width: boxWidth,
-            height: boxHeight,
-            materialCode: backMaterialCode || outerMaterialCode, // Fallback logic for material
-            // grainDirection: backPlankDef.grainDirection, // Or determined by logic
-          });
-        }
-
-        // Example: Left Plank
-        const leftPlankDef = modelData.planks.find((p: any) => p.name === "Left Plank");
-        if (leftPlankDef) {
-          generatedPlanks.push({
-            plankId: `B${boxNumber}P${packetNumber}${leftPlankDef.plankId.substring(leftPlankDef.plankId.indexOf('_'))}`,
-            name: leftPlankDef.name,
-            width: boxDepth, // Typically depth for side planks
-            height: boxHeight,
-            materialCode: outerMaterialCode,
-          });
-        }
-        
-        // Example: Right Plank
-        const rightPlankDef = modelData.planks.find((p: any) => p.name === "Right Plank");
-        if (rightPlankDef) {
-          generatedPlanks.push({
-            plankId: `B${boxNumber}P${packetNumber}${rightPlankDef.plankId.substring(rightPlankDef.plankId.indexOf('_'))}`,
-            name: rightPlankDef.name,
-            width: boxDepth,
-            height: boxHeight,
-            materialCode: outerMaterialCode,
-          });
-        }
-
-        // Example: Top Plank
-        const topPlankDef = modelData.planks.find((p: any) => p.name === "Top Plank");
-        if (topPlankDef) {
-          generatedPlanks.push({
-            plankId: `B${boxNumber}P${packetNumber}${topPlankDef.plankId.substring(topPlankDef.plankId.indexOf('_'))}`,
-            name: topPlankDef.name,
-            width: boxWidth, 
-            height: boxDepth, // Top/bottom planks often use depth for their 'height' dimension
-            materialCode: outerMaterialCode,
-          });
-        }
-
-        // Example: Bottom Plank
-        const bottomPlankDef = modelData.planks.find((p: any) => p.name === "Bottom Plank");
-        if (bottomPlankDef) {
-          generatedPlanks.push({
-            plankId: `B${boxNumber}P${packetNumber}${bottomPlankDef.plankId.substring(bottomPlankDef.plankId.indexOf('_'))}`,
-            name: bottomPlankDef.name,
-            width: boxWidth,
-            height: boxDepth,
-            materialCode: outerMaterialCode,
-          });
-        }
-        // TODO: Add logic for shelves if inputs.numberOfShelves > 0
-        // TODO: Add logic for door if inputs.door.hasDoor is true
-
-      } else if (modelData.modelType === "L-Shaped Box") {
-        // TODO: Implement logic for L-Shaped Box
-        throw new Error("Plank generation for L-Shaped Box is not yet implemented.");
-      } else {
-        throw new Error(`Unsupported modelType for plank generation: ${modelData.modelType}`);
-      }
-
-      if (generatedPlanks.length === 0 && modelData.planks.length > 0) {
-        // This might happen if input validation is too strict or mapping logic is incomplete
-        console.warn("No planks were generated, though model definition exists.");
-      }
-      
-      return generatedPlanks;
+      // Call the dispatched generator function
+      const planks = dispatchToGenerator(modelDefinition, inputs, this.globalRules, boxNumber, packetNumber);
+      return planks;
 
     } catch (error) {
-      console.error(`Error generating plank list for ${modelName}:`, error);
+      console.error(`Error in BimService.generatePlankList for ${modelName}:`, error);
       throw new Error(`Failed to generate plank list for ${modelName}. Details: ${error instanceof Error ? error.message : String(error)}`);
     }
   }

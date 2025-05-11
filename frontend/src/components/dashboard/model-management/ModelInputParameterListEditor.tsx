@@ -118,8 +118,9 @@ export default function ModelInputParameterListEditor() {
             </div>
              <div>
               <label htmlFor={`inputParameters.${index}.description`} className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-              <input 
+              <textarea 
                 id={`inputParameters.${index}.description`}
+                rows={2}
                 placeholder="Brief description of the parameter"
                 {...register(`inputParameters.${index}.description` as const)}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"

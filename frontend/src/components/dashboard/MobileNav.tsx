@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Button } from './button'; // Assuming button is in the same directory
 import { Sheet, SheetContent, SheetTrigger } from './sheet'; // Assuming sheet is in the same directory
-import { Home, Users2, LineChart, PanelLeft, Package2, Settings } from 'lucide-react'; // Added Settings icon
+import { Home, Users2, LineChart, PanelLeft, Package2, Settings, BookCopy } from 'lucide-react'; // Added Settings icon & BookCopy
 import { useUser } from '@/context/UserContext';
 import { isAdmin, hasPermission } from '@/lib/authUtils'; // Assuming hasPermission might be more generic if roles differ
 
@@ -45,14 +45,14 @@ export function MobileNav() {
               Users
             </Link>
           )}
-          {/* TODO: Choose a more appropriate icon for Model Management */}
+          {/* TODO: Review if BookCopy is the most appropriate icon for Catalogue */}
           {!isLoading && user?.role && hasPermission(user.role.roleType, 'admin') && ( // Corrected to pass roleType
             <Link
-              href="/dashboard/model-management"
+              href="/dashboard/catalogue"
               className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
             >
-              <Settings className="h-5 w-5" /> {/* Using Settings as a placeholder icon */}
-              Model Management
+              <BookCopy className="h-5 w-5" /> 
+              Catalogue
             </Link>
           )}
           <Link

@@ -64,17 +64,53 @@ export default function ProjectModelInstanceForm({
     if (selectedModelId && modelDefinitions) {
       const model = modelDefinitions.find(m => m.id === selectedModelId);
       setSelectedModel(model || null);
-      // Reset runtimeInputs when model changes
-      const defaultRuntimeInputs: Record<string, any> = {};
+      
+      const newRuntimeInputs: Record<string, any> = {};
       model?.inputParameters?.forEach(param => {
-        defaultRuntimeInputs[param.inputName] = param.defaultValue ?? '';
+        // Initialize with the string default value or empty string
+        let formValue: string | number | boolean = param.defaultValue ?? '';
+        
+        if (param.inputType === 'NUMBER') {
+          const num = parseFloat(param.defaultValue || '');
+          formValue = isNaN(num) ? '' : num; // Store as number or empty string for input[type=number]
+        } else if (param.inputType === 'BOOLEAN') {
+          formValue = param.defaultValue === 'true'; // Store as boolean
+        }
+        // For TEXT or SELECT, it remains a string
+        newRuntimeInputs[param.inputName] = formValue;
       });
-      setValue('runtimeInputs', defaultRuntimeInputs);
+
+      if (model?.name === 'Simple Box') {
+        const skirtingParamInfo = model.inputParameters?.find(p => p.inputName === 'skirting');
+        if (!skirtingParamInfo && newRuntimeInputs['skirting'] === undefined) {
+          newRuntimeInputs['skirting'] = 0; // Default as number
+        }
+      }
+      setValue('runtimeInputs', newRuntimeInputs); // runtimeInputs can hold mixed types
     } else {
       setSelectedModel(null);
       setValue('runtimeInputs', {});
     }
   }, [selectedModelId, modelDefinitions, setValue]);
+
+  // Prepare parameters for rendering, augmenting for Simple Box if needed
+  let renderableInputParameters = selectedModel?.inputParameters || [];
+  if (selectedModel?.name === 'Simple Box') {
+    const hasSkirtingParam = renderableInputParameters.some(p => p.inputName === 'skirting');
+    if (!hasSkirtingParam) {
+      renderableInputParameters = [
+        ...renderableInputParameters,
+        {
+          inputName: 'skirting',
+          displayLabel: 'Skirting Height',
+          inputType: 'NUMBER' as const,
+          defaultValue: '0', // Default for display purposes
+          unit: 'mm',
+          description: 'Height of the skirting for the Simple Box.'
+        }
+      ];
+    }
+  }
 
   const onSubmit: SubmitHandler<ProjectModelInstanceFormData> = async (data) => {
     console.log("Submitting ProjectModelInstance:", data);
@@ -84,7 +120,7 @@ export default function ProjectModelInstanceForm({
         modelDefinitionId: data.modelDefinitionId,
         runtimeInputsJson: data.runtimeInputs, // Send as JSON object
       };
-      const response = await apiClient.post('/model-management/project-instances', payload);
+      const response = await apiClient.post('/catalogue/project-instances', payload);
       alert('Project Model Instance created successfully!');
       if (onSaveSuccess) onSaveSuccess(response.data.id);
       reset(); // Reset form after successful submission
@@ -121,10 +157,10 @@ export default function ProjectModelInstanceForm({
         {errors.modelDefinitionId && <p className="text-sm text-red-500 mt-1">{errors.modelDefinitionId.message}</p>}
       </div>
 
-      {selectedModel && selectedModel.inputParameters && selectedModel.inputParameters.length > 0 && (
+      {selectedModel && renderableInputParameters.length > 0 && (
         <div className="space-y-4 pt-4 border-t mt-4">
           <h3 className="text-md font-semibold">Runtime Inputs for {selectedModel.name}</h3>
-          {selectedModel.inputParameters.map(param => (
+          {renderableInputParameters.map(param => (
             <div key={param.inputName}>
               <label htmlFor={`runtimeInputs.${param.inputName}`} className="block text-sm font-medium text-gray-700 mb-1">
                 {param.displayLabel || param.inputName} {param.unit ? `(${param.unit})` : ''}
@@ -134,11 +170,18 @@ export default function ProjectModelInstanceForm({
               <Controller
                 name={`runtimeInputs.${param.inputName}`}
                 control={control}
-                defaultValue={param.defaultValue ?? ''}
+                // defaultValue is managed by useForm's defaultValues and setValue in useEffect
                 render={({ field }) => {
                   if (param.inputType === 'BOOLEAN') {
+                    // For boolean, ensure field.value is correctly handled for a select
+                    // The value from react-hook-form will be a boolean. Convert to string for select.
                     return (
-                      <select {...field} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                      <select 
+                        {...field} 
+                        value={field.value === true ? 'true' : field.value === false ? 'false' : ''}
+                        onChange={(e) => field.onChange(e.target.value === 'true' ? true : e.target.value === 'false' ? false : undefined)}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm"
+                      >
                         <option value="">Select...</option>
                         <option value="true">True</option>
                         <option value="false">False</option>
@@ -148,16 +191,29 @@ export default function ProjectModelInstanceForm({
                   if (param.inputType === 'SELECT' && param.options) {
                     const optionsArray = param.options.split(',').map(opt => opt.trim());
                     return (
-                      <select {...field} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm">
+                      <select 
+                        {...field} 
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm"
+                      >
                         <option value="">-- Select {param.displayLabel || param.inputName} --</option>
                         {optionsArray.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                       </select>
                     );
                   }
+                  // For number inputs, react-hook-form can store them as numbers.
+                  // The input field itself will handle string conversion.
                   return (
                     <input
                       type={param.inputType === 'NUMBER' ? 'number' : 'text'}
                       {...field}
+                      onChange={(e) => {
+                        if (param.inputType === 'NUMBER') {
+                          const val = e.target.value;
+                          field.onChange(val === '' ? '' : parseFloat(val)); // Store as number or empty string
+                        } else {
+                          field.onChange(e.target.value);
+                        }
+                      }}
                       className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     />
                   );

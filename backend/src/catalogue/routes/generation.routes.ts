@@ -7,7 +7,7 @@ import { GeneratePlankListSchema, GenerateMaterialEstimateSchema, TestItemScript
 const router = express.Router();
 const generationController = new GenerationController();
 
-// POST /api/v1/model-management/generate/plank-list
+// POST /api/v1/catalogue/generate/plank-list
 router.post(
   '/plank-list',
   // authMiddleware,
@@ -15,7 +15,7 @@ router.post(
   generationController.generatePlankList
 );
 
-// POST /api/v1/model-management/generate/material-estimate
+// POST /api/v1/catalogue/generate/material-estimate
 router.post(
   '/material-estimate',
   // authMiddleware,
@@ -23,7 +23,7 @@ router.post(
   generationController.generateMaterialEstimate
 );
 
-// POST /api/v1/model-management/generate/test-item-script - For testing a BOM item's logic script
+// POST /api/v1/catalogue/generate/test-item-script - For testing a BOM item's logic script
 router.post(
   '/test-item-script',
   // authMiddleware, // Consider if this needs auth

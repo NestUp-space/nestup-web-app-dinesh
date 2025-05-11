@@ -1,18 +1,23 @@
-import { Request, Response, NextFunction } from 'express'; // Added Request import
-import { CustomRequest } from '../middlewares/auth.middleware'; // Import CustomRequest
-import { BimService, ModelTemplate } from '../services/bim.service';
-import { SubtaskRepository, subtaskRepository as globalSubtaskRepository } from '../repositories/subtask.repository'; // Use the exported singleton or instantiate
-import prisma from '../config/db'; // Corrected import for default export
+import { Request, Response, NextFunction } from 'express';
+import { CustomRequest } from '../middlewares/auth.middleware';
+import { BimService } from '../services/bim.service'; // Corrected: ModelTemplate not directly exported for controller use here
+import { SubtaskRepository, subtaskRepository as globalSubtaskRepository } from '../repositories/subtask.repository';
+// prisma instance is not passed to repositories as they instantiate their own
+import { ProjectModelInstanceRepository } from '../catalogue/repositories/project-model-instance.repository'; // Updated repository name
+import { ModelRepository } from '../catalogue/repositories/model.repository'; // Updated repository name and import
+import { Plank } from '../bim/types/bim.types';
 
 export class BimController {
   private bimService: BimService;
-  private subtaskRepository: SubtaskRepository; // Or use globalSubtaskRepository directly
+  private subtaskRepository: SubtaskRepository;
+  private projectModelInstanceRepository: ProjectModelInstanceRepository; // Updated repository type
+  private modelRepository: ModelRepository; // Updated repository type
 
   constructor() {
     this.bimService = new BimService();
-    // The SubtaskRepository constructor doesn't take arguments, 
-    // or we can use the exported singleton instance.
-    this.subtaskRepository = globalSubtaskRepository; // Using the singleton instance
+    this.subtaskRepository = globalSubtaskRepository;
+    this.projectModelInstanceRepository = new ProjectModelInstanceRepository(); // Updated instantiation
+    this.modelRepository = new ModelRepository(); // Updated instantiation
   }
 
   /**
@@ -34,13 +39,15 @@ export class BimController {
    *       500:
    *         description: Internal server error
    */
-  public async getModelTemplates(req: Request, res: Response, next: NextFunction): Promise<void> { 
-    const customReq = req as CustomRequest; // Cast to CustomRequest
+  public async getModelTemplates(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const customReq = req as CustomRequest;
     try {
-      // Note: customReq.user might be used here for role-based access if needed in future
-      const templates: ModelTemplate[] = await this.bimService.getModelTemplates();
-      console.log('[BimController.getModelTemplates] Templates to be sent:', JSON.stringify(templates, null, 2)); // DEBUG LOG
-      res.status(200).json(templates);
+      // BimService.getModelTemplates() returns Promise<ModelTemplate[]>
+      // ModelTemplate is defined in BimService, ensure it's compatible or map it.
+      // For now, assume the structure returned by service is what frontend expects.
+      const templates = await this.bimService.getModelTemplates(); 
+      console.log('[BimController.getModelTemplates] Templates to be sent:', JSON.stringify(templates, null, 2));
+      res.status(200).json(templates); // Sending what the service returns
     } catch (error) {
       console.error('[BimController.getModelTemplates] Error caught:', error); // DEBUG LOG
       next(error); // Pass error to global error handler
@@ -117,15 +124,20 @@ export class BimController {
         res.status(400).json({ message: 'Missing required parameters: modelName, inputs, subtaskId, boxNumber, packetNumber.' });
         return;
       }
+      
+      // The BimService.generatePlankList is the correct method to call.
+      // It internally handles loading the model definition JSON.
+      const plankListArray = await this.bimService.generatePlankList(modelName, inputs, boxNumber, packetNumber);
 
-      const plankList = await this.bimService.generatePlankList(modelName, inputs, boxNumber, packetNumber);
+      if (!plankListArray) { // Or check for specific error response from service if it returns one
+        res.status(500).json({ message: 'Failed to generate plank list from service.' });
+        return;
+      }
+      const plankList = plankListArray as Plank[]; // Cast if necessary, ensure service returns compatible type
 
-      // Update the subtask with the generated plank list and mark as completed
-      // The plank list could be stored in a JSON field in the Subtask model, e.g., 'metadataJson' or a dedicated 'plankListJson'
       const updatedSubtask = await this.subtaskRepository.update(subtaskId, { 
-        // Assuming 'metadataJson' can store this. Adjust if Subtask model has a specific field.
         metadataJson: JSON.stringify({ plankListGenerated: true, generatedPlanks: plankList }),
-        completed: true, // Mark subtask as completed
+        completed: true, 
       });
 
       if (!updatedSubtask) {
@@ -135,6 +147,107 @@ export class BimController {
       
       res.status(200).json({ message: 'Plank list generated and subtask updated successfully.', plankList });
     } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * @openapi
+   * /api/catalogue/generate/plank-list:
+   *   post:
+   *     tags:
+   *       - BIM Generation
+   *     summary: Generates a plank list CSV for a ProjectCatalogueItemInstance
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - projectModelInstanceId
+   *             properties:
+   *               projectModelInstanceId:
+   *                 type: string
+   *                 description: The ID of the ProjectCatalogueItemInstance.
+   *               boxNumber: # Optional, can be derived or defaulted
+   *                 type: string 
+   *               packetNumber: # Optional
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Plank list CSV generated successfully.
+   *         content:
+   *           text/csv:
+   *             schema:
+   *               type: string
+   *               format: binary
+   *       400:
+   *         description: Bad request (e.g., missing projectModelInstanceId)
+   *       404:
+   *         description: ProjectCatalogueItemInstance or related ModelDefinition not found
+   *       500:
+   *         description: Internal server error
+   */
+  public async generatePlankListCsvForInstance(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const customReq = req as CustomRequest;
+    try {
+      const { projectModelInstanceId, boxNumber = '1', packetNumber = '1' } = customReq.body;
+
+      if (!projectModelInstanceId) {
+        res.status(400).json({ message: 'Missing required parameter: projectModelInstanceId.' });
+        return;
+      }
+
+      const instance = await this.projectModelInstanceRepository.findById(projectModelInstanceId); // Corrected repository name
+      if (!instance) {
+        res.status(404).json({ message: `ProjectModelInstance with ID ${projectModelInstanceId} not found.` }); // Corrected message
+        return;
+      }
+
+      // The CatalogueItemDefinition is what BimService expects as "ModelDefinition"
+      // It's loaded by BimService from JSON files based on modelType.
+      // We need to get the modelType (name) from the instance's linked CatalogueItemDefinition.
+      // However, instance.modelDefinitionId links to CatalogueItemDefinition, which has the 'name' (modelType).
+      // The BimService's getModelTemplate(modelType) loads the full ModelDefinition from JSON.
+      
+      // First, get the ModelDefinition to find its name (which is the modelType)
+      const modelDef = await this.modelRepository.findById(instance.modelDefinitionId); // Updated repository and method
+      if (!modelDef) {
+          res.status(404).json({ message: `ModelDefinition with ID ${instance.modelDefinitionId} not found.` }); // Updated message
+          return;
+      }
+      const modelType = modelDef.name; // Use updated variable
+
+      // BimService.generatePlankList will internally load the model definition JSON based on modelType
+      const runtimeInputs = instance.runtimeInputsJson as any;
+
+      const plankListArray = await this.bimService.generatePlankList(modelType, runtimeInputs, boxNumber, packetNumber);
+
+      if (!plankListArray) { // Or check for specific error response from service
+        res.status(500).json({ message: 'Failed to generate plank list from service.' });
+        return;
+      }
+      const plankList: Plank[] = plankListArray as Plank[]; // Cast if necessary
+
+      // Convert plank list to CSV
+      // Assuming BimService has a method to do this, or we implement it here/in utils
+      // For now, let's assume a simple CSV conversion.
+      // A more robust solution would use a library or a dedicated service method.
+      
+      let csvContent = "PlankID,Name,Width,Height,MaterialCode,Thickness,GrainDirection,EdgeTop,EdgeRight,EdgeBottom,EdgeLeft,Holes,Grooves\n";
+      plankList.forEach(p => {
+        const holesStr = p.holes?.map(h => `(x:${h.x},y:${h.y},z:${h.z},t:${h.t})`).join('; ') || '';
+        const groovesStr = p.grooves?.map(g => `(x1:${g.x1},y1:${g.y1},x2:${g.x2},y2:${g.y2},z:${g.z},t:${g.t})`).join('; ') || '';
+        csvContent += `${p.plankId},${p.name},${p.width},${p.height},${p.materialCode},${p.thickness || ''},${p.grainDirection || ''},${p.edgeBanding?.top || ''},${p.edgeBanding?.right || ''},${p.edgeBanding?.bottom || ''},${p.edgeBanding?.left || ''},"${holesStr}","${groovesStr}"\n`;
+      });
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="plank_list_${projectModelInstanceId}.csv"`);
+      res.status(200).send(csvContent);
+
+    } catch (error) {
+      console.error('Error in generatePlankListCsvForInstance:', error);
       next(error);
     }
   }

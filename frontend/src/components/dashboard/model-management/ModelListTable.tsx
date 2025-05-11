@@ -86,7 +86,7 @@ export default function ModelListTable() {
                 {new Date(model.updatedAt).toLocaleDateString()}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                <Link href={`/dashboard/model-management/${model.id}/edit`} passHref legacyBehavior>
+                <Link href={`/dashboard/catalogue/${model.id}/edit`} passHref legacyBehavior>
                   <a className="text-indigo-600 hover:text-indigo-900" title="Edit">
                     <Edit3 className="h-5 w-5" />
                   </a>
@@ -99,7 +99,7 @@ export default function ModelListTable() {
                 >
                   <Trash2 className="h-5 w-5" />
                 </button> */}
-                <Link href={`/dashboard/model-management/${model.id}`} passHref legacyBehavior>
+                <Link href={`/dashboard/catalogue/${model.id}`} passHref legacyBehavior>
                    <a className="text-gray-600 hover:text-gray-900" title="View Details">
                     <Eye className="h-5 w-5" />
                   </a>

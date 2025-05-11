@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { NavItem } from './nav-item';
-import { Home, Users, LineChart, Settings, LogOut, HelpCircle, User as UserIcon } from 'lucide-react';
+import { Home, Users, LineChart, Settings, LogOut, HelpCircle, User as UserIcon, BookCopy } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
 import { useUser } from '@/context/UserContext';
 import { isAdmin, hasPermission } from '@/lib/authUtils';
@@ -40,12 +40,11 @@ export function DesktopNav() {
           </NavItem>
         )}
 
-        {/* TODO: Choose a more appropriate icon for Model Management */}
+        {/* TODO: Review if BookCopy is the most appropriate icon for Catalogue */}
         {!isLoading && user?.role && hasPermission(user?.role.roleType, 'admin') && (
-          <NavItem href="/dashboard/model-management" label="Model Management">
-            {/* Using Settings as a placeholder icon */}
-            <Settings className="h-5 w-5 mr-2" /> 
-            Model Management
+          <NavItem href="/dashboard/catalogue" label="Catalogue">
+            <BookCopy className="h-5 w-5 mr-2" /> 
+            Catalogue
           </NavItem>
         )}
 

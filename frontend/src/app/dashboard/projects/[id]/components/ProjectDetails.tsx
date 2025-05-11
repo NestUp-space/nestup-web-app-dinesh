@@ -51,7 +51,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({
     error: instancesError, 
     mutate: mutateInstances 
   } = useSWR<ProjectModelInstanceDisplay[]>( // Type for SWR data
-    project?.id ? `/model-management/project-instances/by-project/${project.id}` : null, 
+    project?.id ? `/catalogue/project-instances/by-project/${project.id}` : null, 
     fetcher
   );
 
@@ -59,7 +59,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({
   const [viewingListsForInstance, setViewingListsForInstance] = useState<string | null>(null);
 
   const { data: generatedLists, error: generatedListsError } = useSWR<GeneratedPlankListDisplay[]>(
-    viewingListsForInstance ? `/model-management/project-instances/${viewingListsForInstance}/generated-plank-lists` : null,
+    viewingListsForInstance ? `/catalogue/project-instances/${viewingListsForInstance}/generated-plank-lists` : null,
     fetcher
   );
 
@@ -79,7 +79,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({
       }
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL || ''}/api/model-management/generate/plank-list`, 
+        `${process.env.NEXT_PUBLIC_API_BASE_URL || ''}/api/catalogue/generate/plank-list`, 
         { 
           method: 'POST',
           headers,
@@ -175,89 +175,80 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({
       </div>
     </div>
 
-    {/* Section for Model Instances */}
-    <div className="mt-8 mb-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-gray-700">Furniture Models in Project</h2>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-        >
-          <PlusCircle className="mr-2 h-5 w-5" />
-          Add Furniture Model
-        </button>
-      </div>
 
-      {instancesError && <p className="text-red-500">Error loading furniture models.</p>}
-      {!projectModelInstances && !instancesError && <p>Loading furniture models...</p>}
-      {projectModelInstances && projectModelInstances.length === 0 && (
-        <p className="text-gray-500">No furniture models added to this project yet.</p>
-      )}
-      {projectModelInstances && projectModelInstances.length > 0 && (
-        <div className="space-y-3">
-          {projectModelInstances.map(instance => (
-            <React.Fragment key={instance.id}> {/* Use React.Fragment as the root for each mapped item */}
-              <div className="p-3 border rounded-md bg-gray-50 flex justify-between items-center">
-                <div>
-                  <p className="font-medium">{instance.modelDefinition.name}</p>
-                  <p className="text-xs text-gray-500">Instance ID: {instance.id}</p>
-                  <p className="text-xs text-gray-500">Added: {formatDate(instance.createdAt)}</p>
-                  {/* TODO: Display some key runtime inputs or a summary */}
-                </div>
-                <div className="flex space-x-2">
-                  <button 
-                    onClick={() => setViewingListsForInstance(viewingListsForInstance === instance.id ? null : instance.id)}
-                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                    title={viewingListsForInstance === instance.id ? "Hide Generated Lists" : "View Generated Lists"}
-                  >
-                    {viewingListsForInstance === instance.id ? "Hide Lists" : "View Lists"}
-                  </button>
-                  <button 
-                    onClick={() => handleGeneratePlankList(instance.id)}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                    title="Generate New Plank List"
-                  >
-                    <ListChecks className="mr-1.5 h-4 w-4" />
-                    Generate New List
-                  </button>
-                </div>
-              </div>
-              {viewingListsForInstance === instance.id && (
-                <div className="ml-4 mt-0 mb-2 p-3 border-l-2 border-indigo-500 bg-white shadow-sm rounded-r-md space-y-2">
-                  <h4 className="text-sm font-medium text-gray-700">Generated Plank Lists:</h4>
-                  {generatedListsError && <p className="text-xs text-red-500">Error loading generated lists.</p>}
-                  {!generatedLists && !generatedListsError && <p className="text-xs text-gray-500">Loading lists...</p>}
-                  {generatedLists && generatedLists.length === 0 && <p className="text-xs text-gray-500">No plank lists generated yet for this instance.</p>}
-                  {generatedLists && generatedLists.map(list => (
-                    <div key={list.id} className="text-xs flex justify-between items-center py-1 border-b border-gray-200 last:border-b-0">
-                      <span>Generated: {formatDate(list.generatedAt)} (ID: {list.id.substring(0,8)})</span>
-                      {list.csvContent && (
-                         <button 
-                          onClick={() => {
-                            const blob = new Blob([list.csvContent!], { type: 'text/csv;charset=utf-8;' });
-                            const url = window.URL.createObjectURL(blob);
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.setAttribute('download', `plank_list_${instance.id}_${list.id.substring(0,8)}.csv`);
-                            document.body.appendChild(link);
-                            link.click();
-                            if(link.parentNode) link.parentNode.removeChild(link);
-                            window.URL.revokeObjectURL(url);
-                          }}
-                          className="text-indigo-600 hover:text-indigo-800 font-medium"
-                        >
-                          Download CSV
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </React.Fragment>
-          ))}
+
+    {/* Modal for Adding Project Model Instance */}
+    {isModalOpen && (
+      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex justify-center items-center">
+        <div className="relative mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+          <div className="mt-3 text-center">
+            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Add New Furniture Model to Project</h3>
+            <div className="text-left">
+              <ProjectModelInstanceForm
+                projectId={project.id.toString()} // Ensure projectId is string if API expects string
+                onSaveSuccess={handleSaveSuccess}
+                onCancel={() => setIsModalOpen(false)}
+              />
+            </div>
+            {/* <div className="items-center px-4 py-3">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+              >
+                Close
+              </button>
+            </div> */}
+          </div>
         </div>
-      )}
-    </div>
+      </div>
+    )}
+      {/* Section to display and manage Project Model Instances (Boxes) */}
+      <div className="mt-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-gray-700">Furniture Models / Boxes</h2>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+          >
+            <PlusCircle size={18} className="mr-2" />
+            Add New Model
+          </button>
+        </div>
+
+        {instancesError && <p className="text-red-500">Error loading furniture models.</p>}
+        {!projectModelInstances && !instancesError && <p>Loading furniture models...</p>}
+        
+        {projectModelInstances && projectModelInstances.length === 0 && (
+          <p className="text-gray-500">No furniture models added to this project yet.</p>
+        )}
+
+        {projectModelInstances && projectModelInstances.length > 0 && (
+          <div className="space-y-4">
+            {projectModelInstances.map(instance => (
+              <div key={instance.id} className="p-4 border rounded-md shadow-sm bg-gray-50">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-800">{instance.modelDefinition.name}</h3>
+                    <p className="text-sm text-gray-500">Added on: {formatDate(instance.createdAt)}</p>
+                    {/* Optionally display some runtime inputs */}
+                    {/* <pre className="text-xs mt-1 bg-gray-100 p-2 rounded">
+                      {JSON.stringify(instance.runtimeInputsJson, null, 2)}
+                    </pre> */}
+                  </div>
+                  <button
+                    onClick={() => handleGeneratePlankList(instance.id)}
+                    className="flex items-center px-3 py-1.5 bg-green-500 text-white text-sm rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
+                  >
+                    <ListChecks size={16} className="mr-1.5" />
+                    Generate Plank List
+                  </button>
+                </div>
+                {/* TODO: Could add section here to display previously generated lists for this instance using 'viewingListsForInstance' and 'generatedLists' SWR data */}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
     {/* Modal for Adding Project Model Instance */}
     {isModalOpen && (

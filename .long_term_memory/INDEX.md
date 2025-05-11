@@ -4,7 +4,7 @@ This index helps navigate key documents and insights specific to the Nestup Web 
 
 ## Core Project Documentation
 
-- [Project Context and Roadmap](PROJECT_CONTEXT_AND_ROADMAP.md) (To be populated/updated by user)
+- [Project Context and Roadmap](PROJECT_CONTEXT_AND_ROADMAP.md) (Contains project overview, architecture, roadmap, and codebase analysis insights)
 - [Business Context & User Journeys](BUSINESS_CONTEXT.md)
 - [Guardrails & Coding Standards](GUARDRAILS.md)
 - [Decision Log](DECISION_LOG.md)
@@ -74,6 +74,7 @@ This index helps navigate key documents and insights specific to the Nestup Web 
 - [Site Visit Box Routes (siteVisitBox.routes.ts) Analysis (2025-05-11)](CONTEXT_SNAPSHOTS/2025-05-11_SiteVisitBoxRoutesAnalysis.md)
 - [User Controller (user.controller.ts) Analysis (2025-05-11)](CONTEXT_SNAPSHOTS/2025-05-11_UserControllerAnalysis.md)
 - [User Routes (user.routes.ts) Analysis (2025-05-11)](CONTEXT_SNAPSHOTS/2025-05-11_UserRoutesAnalysis.md)
+- [LTM Bootstrap Codebase Analysis Summary (2025-05-11)](CONTEXT_SNAPSHOTS/2025-05-11_LTM_Bootstrap_Codebase_Analysis_Summary.md)
 <!-- MBK links for nested project controllers will be added once their MBKs are confirmed/created -->
 
 ## Generic Knowledge Base

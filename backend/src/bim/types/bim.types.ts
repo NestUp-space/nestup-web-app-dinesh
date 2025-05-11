@@ -22,6 +22,8 @@ export interface Plank {
   // Additional properties for manufacturing
   sheetAssignment?: string; // Which sheet this plank is cut from
   sheetPosition?: { x: number; y: number }; // Position on the sheet
+  holes?: Array<{ x: number; y: number; z: number; t: string; }>;
+  grooves?: Array<{ x1: number; y1: number; x2: number; y2: number; z: number; t: string; }>;
 }
 
 /**
@@ -52,6 +54,7 @@ export interface SimpleBoxInputs {
     exposedSide?: string;
   };
   numberOfShelves: number;
+  skirting: number;
 }
 
 /**

@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import { ProjectCatalogueItemInstanceService } from '../services/project-catalogue-item-instance.service';
+import { ProjectModelInstanceService } from '../services/project-model-instance.service'; // Updated import
 // import { RuleService } from '../services/rule.service'; // RuleService is effectively replaced by JSFunctionService for item logic
 import { JavaScriptFunctionService, ExecutedScriptResult } from '../services/javascript-function.service'; // Import ExecutedScriptResult
 import { PlankListGeneratorService } from '../services/plank-list-generator.service';
-import { GeneratePlankListDto, TestItemScriptDto } from '../dtos/catalogue.dto'; // Adjusted DTO path
-import { PrismaClient, CatalogueItemBomItem, BomItemType, Material, ProjectCatalogueItemInstance } from '@prisma/client'; // Added Material, ProjectCatalogueItemInstance, kept CatalogueItemBomItem
+import { GeneratePlankListDto, TestItemScriptDto } from '../dtos/model.dto'; // Updated DTO path
+import { PrismaClient, ModelBomItem, BomItemType, Material, ProjectModelInstance } from '@prisma/client'; // Updated Prisma types
 import { z } from 'zod'; // For output validation
 
 const prisma = new PrismaClient();
@@ -28,13 +28,13 @@ const PlankOutputSchema = z.object({
 }).catchall(z.any()); // Allow other properties returned by script
 
 export class GenerationController {
-  private projectCatalogueItemInstanceService: ProjectCatalogueItemInstanceService;
+  private projectModelInstanceService: ProjectModelInstanceService; // Updated type
   // private ruleService: RuleService; // Potentially deprecated or for fallback
   private jsFunctionService: JavaScriptFunctionService;
   private plankListGeneratorService: PlankListGeneratorService;
 
   constructor() {
-    this.projectCatalogueItemInstanceService = new ProjectCatalogueItemInstanceService();
+    this.projectModelInstanceService = new ProjectModelInstanceService(); // Updated instantiation
     // this.ruleService = new RuleService();
     this.jsFunctionService = new JavaScriptFunctionService();
     this.plankListGeneratorService = new PlankListGeneratorService();
@@ -44,10 +44,10 @@ export class GenerationController {
   generatePlankList = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const dto: GeneratePlankListDto = req.body;
-      const { projectCatalogueItemInstanceId } = dto; // Corrected DTO destructuring
+      const { projectModelInstanceId } = dto; // Updated DTO destructuring to match expected DTO if it changes
 
-      const instanceWithIncludes = await prisma.projectCatalogueItemInstance.findUnique({
-        where: { id: projectCatalogueItemInstanceId },
+      const instanceWithIncludes = await prisma.projectModelInstance.findUnique({ // Updated Prisma model
+        where: { id: projectModelInstanceId }, // Updated variable name
         include: {
           modelDefinition: {
             include: {
@@ -58,9 +58,9 @@ export class GenerationController {
       });
 
       if (!instanceWithIncludes || !instanceWithIncludes.modelDefinition || !instanceWithIncludes.modelDefinition.bomItems) {
-        return res.status(404).json({ message: 'Project catalogue item instance or its definition/BOM not found.' });
+        return res.status(404).json({ message: 'Project model instance or its definition/BOM not found.' }); // Updated message
       }
-      const instance = instanceWithIncludes as ProjectCatalogueItemInstance & { modelDefinition: { bomItems: CatalogueItemBomItem[] }};
+      const instance = instanceWithIncludes as ProjectModelInstance & { modelDefinition: { bomItems: ModelBomItem[] }}; // Updated bomItems type
       
       const originalRuntimeInputs = instance.runtimeInputsJson as any || {};
       const projectId = instance.projectId;

@@ -284,3 +284,17 @@ This log archives significant architectural and design decisions made throughout
     - `CONTEXT_SNAPSHOTS/2025-05-10_PrismaSchema_DataModelOverview.md`
 
 ---
+
+## Decision_S3BucketStructure_GeneratedDocuments_20250511
+
+**Date:** 2025-05-11
+**Decision:** The S3 bucket structure for storing generated files will be:
+
+* Production Documents: `s3://<your-bucket-name>/projects/{projectId}/documents/production/{documentType}/{fileName}`
+* Financial Documents: `s3://<your-bucket-name>/projects/{projectId}/documents/financial/{documentType}/{fileName}`
+Where `{documentType}` can be a subfolder (e.g., `planklabels`, `cutlists`, `invoices`) for further organization.
+**Rationale:** This structure provides clear organization by project, then by general category (production/financial), and then by specific document type. This facilitates easier browsing, access control (if needed at these levels), and management of generated files. Using `{fileName}` allows for unique identification of each document.
+**Impacted Areas:** File storage logic (`FileService` or equivalent), `ModelOutputService` (when saving files), any feature that generates and stores documents to S3.
+**Related LTM:** `docs/PROJECT_CONTEXT_AND_ROADMAP.md` (references S3 usage).
+
+---

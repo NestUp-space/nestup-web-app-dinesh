@@ -5,8 +5,8 @@
 ---
 
 **TICKET-001: Update Global Constants**
-*   **Description:** Add `CEBThickness: 2` and `IEBThickness: 1` to `backend/src/model-management/config/globalConstants.json`.
-*   **Files:** `backend/src/model-management/config/globalConstants.json` (now `backend/src/catalogue/config/globalConstants.json`)
+*   **Description:** Add `CEBThickness: 2` and `IEBThickness: 1` to `backend/src/catalogue/config/globalConstants.json`.
+*   **Files:** `backend/src/catalogue/config/globalConstants.json` (now `backend/src/catalogue/config/globalConstants.json`)
 *   **Assigned To:** cline
 *   **Status:** done
 *   **Timestamp (Created):** 2025-05-10_20:23:00
@@ -28,8 +28,8 @@
 ---
 
 **TICKET-003: Update Expected Plank Output Documentation in Modal**
-*   **Description:** Modify `EXPECTED_PLANK_OUTPUT_DOC` in `frontend/src/components/dashboard/model-management/ItemLogicEditorModal.tsx` to reflect the full output structure including holes/grooves and correct derivation comments for material-related fields.
-*   **Files:** `frontend/src/components/dashboard/model-management/ItemLogicEditorModal.tsx` (path may change with catalogue rename)
+*   **Description:** Modify `EXPECTED_PLANK_OUTPUT_DOC` in `frontend/src/components/dashboard/catalogue/ItemLogicEditorModal.tsx` to reflect the full output structure including holes/grooves and correct derivation comments for material-related fields.
+*   **Files:** `frontend/src/components/dashboard/catalogue/ItemLogicEditorModal.tsx` (path may change with catalogue rename)
 *   **Assigned To:** cline
 *   **Status:** done
 *   **Timestamp (Created):** 2025-05-10_20:23:00
@@ -39,12 +39,12 @@
 
 **TICKET-004: Enhance Sample Inputs for Script Testing in Modal**
 *   **Description:** Update the UI/logic for `sampleRuntimeInputsJsonString` in `ItemLogicEditorModal.tsx` (and its data source, likely `ModelBuilderForm.tsx` or similar) to support and guide the user in providing the three material definition objects as part of the sample JSON.
-*   **Files:** `frontend/src/components/dashboard/model-management/ItemLogicEditorModal.tsx`, potentially `frontend/src/components/dashboard/model-management/ModelBuilderForm.tsx` (paths may change with catalogue rename).
+*   **Files:** `frontend/src/components/dashboard/catalogue/ItemLogicEditorModal.tsx`, potentially `frontend/src/components/dashboard/catalogue/ModelBuilderForm.tsx` (paths may change with catalogue rename).
 *   **Assigned To:** cline
 *   **Status:** done
 *   **Timestamp (Created):** 2025-05-10_20:23:00
 *   **Updates:**
-    *   2025-05-10: Updated `frontend/src/components/dashboard/model-management/ItemLogicEditorModal.tsx` to include guidance for users to manually add `exposedMaterialDefinition`, `innerMaterialDefinition`, and `backPanelMaterialDefinition` objects to their `sampleRuntimeInputsJsonString` when testing scripts that rely on these full definitions.
+    *   2025-05-10: Updated `frontend/src/components/dashboard/catalogue/ItemLogicEditorModal.tsx` to include guidance for users to manually add `exposedMaterialDefinition`, `innerMaterialDefinition`, and `backPanelMaterialDefinition` objects to their `sampleRuntimeInputsJsonString` when testing scripts that rely on these full definitions.
 *   **Timestamp (Completed):** 2025-05-10_21:13:00
 
 ---

@@ -5,8 +5,8 @@ import generationRoutes from './generation.routes'; // Assuming this will be for
 
 const router = express.Router();
 
-router.use('/definitions', modelDefinitionRoutes); // e.g., /api/v1/model-management/definitions
-router.use('/project-instances', projectModelInstanceRoutes); // e.g., /api/v1/model-management/project-instances
-router.use('/generate', generationRoutes); // e.g., /api/v1/model-management/generate/plank-list
+router.use('/definitions', modelDefinitionRoutes); // e.g., /api/v1/catalogue/definitions
+router.use('/project-instances', projectModelInstanceRoutes); // e.g., /api/v1/catalogue/project-instances
+router.use('/generate', generationRoutes); // e.g., /api/v1/catalogue/generate/plank-list
 
 export default router;

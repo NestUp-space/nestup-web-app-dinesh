@@ -37,6 +37,7 @@ model User {
   oldEngineerProjects EngineerProjectMapping[] @relation("OldEngineerProjects")
   newEngineerProjects EngineerProjectMapping[] @relation("NewEngineerProjects")
   clientMarketplace   ClientMarketplace?
+  generatedDocuments  GeneratedDocument[] // Added back-relation
 }
 
 // track the team details of the internal employees
@@ -81,7 +82,8 @@ model Project {
   userActions      UserAction[]
   materials        Material[]               // Relation to project materials
   generatedPlankListFile File?              @relation("GeneratedPlankListFile", fields: [generatedPlankListFileId], references: [id])
-  projectCatalogueItemInstances ProjectCatalogueItemInstance[]
+  projectInstances ProjectModelInstance[]
+  generatedDocuments GeneratedDocument[] // Added back-relation
 }
 
 model Task {
@@ -269,7 +271,7 @@ model SiteVisitBox {
 // ----------------------------------------------------
 
 // --- Catalogue Item Definition ---
-model CatalogueItemDefinition {
+model ModelDefinition {
   id          String @id @default(cuid())
   name        String @unique
   description String?
@@ -279,17 +281,17 @@ model CatalogueItemDefinition {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  inputParameters CatalogueItemInputParameter[]
-  bomItems        CatalogueItemBomItem[]
-  projectInstances ProjectCatalogueItemInstance[] // Instances of this catalogue item in projects
+  inputParameters ModelInputParameter[]
+  bomItems        ModelBomItem[]
+  projectInstances ProjectModelInstance[] // Instances of this model in projects
 }
 
-model CatalogueItemInputParameter {
-  id                String @id @default(cuid())
-  modelDefinitionId String // Will be renamed to catalogueItemDefinitionId in references
-  modelDefinition   CatalogueItemDefinition @relation(fields: [modelDefinitionId], references: [id], onDelete: Cascade)
+model ModelInputParameter {
+  id              String @id @default(cuid())
+  modelDefinitionId String 
+  modelDefinition   ModelDefinition @relation(fields: [modelDefinitionId], references: [id], onDelete: Cascade)
 
-  inputName         String // e.g., "boxWidth", "numberOfShelves", "leftAdjacency"
+  inputName       String // e.g., "boxWidth", "numberOfShelves", "leftAdjacency"
   displayLabel      String? // User-friendly label for the UI
   inputType         String // e.g., "NUMBER", "TEXT", "BOOLEAN", "SELECT"
   defaultValue      String?
@@ -297,43 +299,44 @@ model CatalogueItemInputParameter {
   unit              String?  // e.g., "mm"
   description       String?
 
-  @@unique([modelDefinitionId, inputName]) // modelDefinitionId here refers to CatalogueItemDefinition's id
+  @@unique([modelDefinitionId, inputName]) 
 }
 
 // --- Bill of Materials & Rules ---
 enum BomItemType {
   PLANK
   HARDWARE
-  ADDON // Addons can be treated as special BOM items or link to other CatalogueItemDefinitions
+  ADDON // Addons can be treated as special BOM items or link to other ModelDefinitions
 }
 
-model CatalogueItemBomItem {
-  id                String      @id @default(cuid())
-  modelDefinitionId String // Will be renamed to catalogueItemDefinitionId in references
-  modelDefinition   CatalogueItemDefinition @relation(fields: [modelDefinitionId], references: [id], onDelete: Cascade)
+model ModelBomItem {
+  id              String      @id @default(cuid())
+  modelDefinitionId String 
+  modelDefinition   ModelDefinition @relation(fields: [modelDefinitionId], references: [id], onDelete: Cascade)
 
   itemName          String      // e.g., "Top Plank", "Left Side Panel", "Hinge Type A"
   itemType          BomItemType
   itemDescription   String?
+  details           Json?       // To store type-specific details for PLANK (width, height, holes, grooves) and HARDWARE (type, countRule)
 
   // JavaScript function string to calculate this item's properties
   itemLogicScript   String? @db.Text // Use @db.Text for potentially long scripts
 
-  // For ADDON type, this could link to another CatalogueItemDefinition
+  // For ADDON type, this could link to another ModelDefinition
   addonModelId      String?
-  // addonModel        CatalogueItemDefinition? @relation("AddonLink", fields: [addonModelId], references: [id], onDelete:Restrict) // Requires careful thought on relations
+  // addonModel        ModelDefinition? @relation("AddonLink", fields: [addonModelId], references: [id], onDelete:Restrict) // Requires careful thought on relations
 
-  @@unique([modelDefinitionId, itemName]) // modelDefinitionId here refers to CatalogueItemDefinition's id
+  @@unique([modelDefinitionId, itemName]) 
 }
 
 // --- Project Specific Catalogue Item Instances ---
-model ProjectCatalogueItemInstance {
-  id                String @id @default(cuid())
-  projectId         Int
-  project           Project @relation(fields: [projectId], references: [id])
+model ProjectModelInstance {
+  id              String @id @default(cuid())
+  projectId       Int
+  project         Project @relation(fields: [projectId], references: [id])
 
-  modelDefinitionId String // Will be renamed to catalogueItemDefinitionId in references
-  modelDefinition   CatalogueItemDefinition @relation(fields: [modelDefinitionId], references: [id])
+  modelDefinitionId String 
+  modelDefinition   ModelDefinition @relation(fields: [modelDefinitionId], references: [id])
 
   // Runtime inputs provided by the user for this specific instance
   // Example: { "boxWidth": 1200, "numberOfShelves": 2, "leftAdjacency": "Wall" }
@@ -343,15 +346,44 @@ model ProjectCatalogueItemInstance {
   updatedAt         DateTime @updatedAt
 
   generatedPlankLists GeneratedPlankList[]
+  generatedDocuments  GeneratedDocument[] // Added back-relation
 }
 
 // --- Generated Outputs ---
 model GeneratedPlankList {
-  id                    String   @id @default(cuid())
-  projectModelInstanceId String // Will be renamed to projectCatalogueItemInstanceId in references
-  projectModelInstance  ProjectCatalogueItemInstance @relation(fields: [projectModelInstanceId], references: [id])
-  generatedAt           DateTime @default(now())
-  filePath              String?  // Path to the stored CSV file, or content stored directly
+  id                      String   @id @default(cuid())
+  projectModelInstanceId  String 
+  projectModelInstance    ProjectModelInstance @relation(fields: [projectModelInstanceId], references: [id])
+  generatedAt                     DateTime @default(now())
+  filePath                        String?  // Path to the stored CSV file, or content stored directly
   csvContent            String?  @db.Text // Alternative to filePath
   // Add other metadata as needed
+}
+
+// --- Generated Document Tracking ---
+model GeneratedDocument {
+  id                          String    @id @default(cuid())
+  documentType                DocumentType
+  fileName                    String
+  filePath                    String // S3 path
+  generatedAt                 DateTime  @default(now())
+  userId                      Int? // User who generated
+  user                        User?     @relation(fields: [userId], references: [id])
+  projectId                   Int?
+  project                     Project?  @relation(fields: [projectId], references: [id])
+  projectModelInstanceId      String?
+  projectModelInstance        ProjectModelInstance? @relation(fields: [projectModelInstanceId], references: [id])
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+}
+
+enum DocumentType {
+  INPUT_QA_CSV
+  PRESSING_LIST_CSV
+  OUTPUT_QA_CSV
+  CUTLIST_PDF
+  PLANKLABEL_PDF
+  INSTALLATION_GUIDE_PDF
+  PROFORMA_INVOICE_PDF
+  FINAL_INVOICE_PDF
 }
