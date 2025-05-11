@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/dashboard/button';
 import { useGet, usePost } from '@/hooks/useApi';
 import { Project, Subtask } from '@/types';
-import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, Loader2, Download } from 'lucide-react';
 
 interface CatalogueModel {
   id: string;
@@ -77,7 +77,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ subtask, project }) => {
       return;
     }
     
-    setGeneratedPlankList(null);
+    setGeneratedPlankList(null); // Reset previous list
 
     const payload: any = {
       modelName: selectedModel.name,
@@ -90,15 +90,93 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ subtask, project }) => {
     }
 
     try {
+      console.log("Attempting to generate plank list with payload:", payload);
       const result = await generatePlanks('/bim/generate-plank-list', payload);
-      if (result?.plankList) {
+      
+      // Log the raw result and any API error from the hook
+      console.log("Raw result from API:", result);
+      // The generationApiError is destructured from usePost, so it should reflect the hook's error state.
+      // We log it here to see its state after the generatePlanks call.
+      console.log("generationApiError from usePost hook (after exec):", generationApiError);
+
+      if (result?.plankList && Array.isArray(result.plankList)) { // Added Array.isArray check
         setGeneratedPlankList(result.plankList);
+        console.log("Plank list set successfully:", result.plankList);
       } else {
-        throw new Error(result?.message || 'Failed to generate plank list.');
+        const errorMessage = result?.message || 'Failed to generate plank list: API response did not contain a valid plankList array.';
+        console.error("Plank generation error (custom logic):", errorMessage, "Full API result:", result);
+        // If usePost doesn't set its error state for this kind of "successful HTTP but bad data" scenario,
+        // we might need a way to manually trigger an error display.
+        // For now, throwing an error will be caught by the catch block.
+        throw new Error(errorMessage);
       }
     } catch (error) {
-        console.error("Plank generation error:", error);
+        // This catch block will catch errors from the HTTP request itself (if usePost throws them)
+        // or errors thrown manually from the try block.
+        console.error("Plank generation error (caught in catch block):", error);
+        // If 'error' is the one we threw, generationApiError from the hook might still be null/undefined
+        // if the HTTP request itself was successful.
+        // The `generationApiError` state from the `usePost` hook should ideally be used for displaying API errors.
+        // If the hook doesn't set it for non-2xx responses or network errors, that's a limitation of the hook.
+        // The current UI relies on `generationApiError` for display.
     }
+  };
+
+  // Utility function to generate CSV content
+  const generateCSVContent = (plankData: any[], currentBoxNumber: string, currentPacketNumber: string): string => {
+    if (!plankData || plankData.length === 0) return '';
+
+    const headers = ["Width", "Height", "Material Code", "Plank ID", "Hole", "Groove"];
+    // Assuming plank item structure:
+    // { W: number, H: number, MC: string, plankIdentifier: string, 
+    //   holes?: Array<{ x: number; y: number; z: number; t: string | number }>, 
+    //   grooves?: Array<{ x1: number; y1: number; x2: number; y2: number; z: number; t: string | number }> }
+    // These are assumptions. Actual property names from API response might differ.
+    const rows = plankData.map(plank => {
+      const plankId = `${currentBoxNumber} - ${currentPacketNumber} - ${plank.plankIdentifier || 'N/A'}`;
+      
+      const holesString = plank.holes?.map((h: any) => `(${h.x},${h.y},${h.z},${h.t})`).join('; ') || '';
+      const groovesString = plank.grooves?.map((g: any) => `(${g.x1},${g.y1},${g.x2},${g.y2},${g.z},${g.t})`).join('; ') || '';
+
+      return [
+        plank.W ?? '', // Width
+        plank.H ?? '', // Height
+        plank.MC ?? '', // Material Code
+        plankId,       // Plank ID
+        holesString,   // Hole
+        groovesString  // Groove
+      ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(','); // Escape double quotes and wrap in quotes
+    });
+
+    return [headers.join(','), ...rows].join('\n');
+  };
+
+  // Utility function to trigger CSV download
+  const downloadCSV = (csvContent: string, filename: string) => {
+    if (!csvContent) return;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) { // feature detection
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const handleDownloadPlankList = () => {
+    if (!generatedPlankList || generatedPlankList.length === 0) {
+      alert("No plank list data available to download.");
+      return;
+    }
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `plank-list_${project?.name || 'project'}_${subtask?.name || 'subtask'}_${timestamp}.csv`;
+    const csvData = generateCSVContent(generatedPlankList, boxNumber, packetNumber);
+    downloadCSV(csvData, filename);
   };
 
   const renderInputField = (
@@ -229,20 +307,44 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ subtask, project }) => {
           size="sm"
         >
           {generationLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Generate Plank List & Complete Subtask
+          Generate Plank List
         </Button>
       )}
 
-       {generatedPlankList && !generationLoading && !generationApiError && (
+       {generatedPlankList && generatedPlankList.length > 0 && !generationLoading && !generationApiError && (
          <div className="mt-4 p-3 bg-green-100 border border-green-200 rounded-md text-green-800 text-xs">
-           <div className="flex items-center mb-2">
-             <CheckCircle className="h-4 w-4 mr-1.5" />
-             <span className="font-semibold">Plank list generated successfully!</span>
+           <div className="flex items-center justify-between mb-2">
+             <div className="flex items-center">
+               <CheckCircle className="h-4 w-4 mr-1.5" />
+               <span className="font-semibold">Plank list generated successfully!</span>
+             </div>
+             <Button 
+                onClick={handleDownloadPlankList} 
+                size="sm" 
+                variant="outline"
+                className="bg-white hover:bg-gray-50 text-green-700 border-green-300 hover:border-green-400 py-1 px-2 text-xs" // Adjusted padding and text size for a smaller feel
+              >
+                <Download className="mr-1.5 h-3 w-3" />
+                Download CSV
+              </Button>
            </div>
-           <pre className="mt-2 text-xs overflow-x-auto bg-white p-2 rounded">
-             {JSON.stringify(generatedPlankList, null, 2)}
-           </pre>
+           {/* Optional: Keep the JSON preview or replace with a more structured display */}
+           <details className="mt-2">
+            <summary className="text-xs text-gray-600 cursor-pointer hover:underline">View Raw Data</summary>
+            <pre className="mt-1 text-xs overflow-x-auto bg-white p-2 rounded">
+              {JSON.stringify(generatedPlankList, null, 2)}
+            </pre>
+           </details>
          </div>
+       )}
+       {/* Handle case where plank list is generated but empty */}
+       {generatedPlankList && generatedPlankList.length === 0 && !generationLoading && !generationApiError && (
+          <div className="mt-4 p-3 bg-yellow-100 border border-yellow-200 rounded-md text-yellow-800 text-xs">
+            <div className="flex items-center">
+              <AlertCircle className="h-4 w-4 mr-1.5" />
+              <span className="font-semibold">Plank list generated, but it is empty.</span>
+            </div>
+          </div>
        )}
        {generationApiError && (
          <div className="mt-4 p-3 bg-red-100 border border-red-200 rounded-md text-red-800 text-xs">

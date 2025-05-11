@@ -19,27 +19,32 @@ export class BimController {
    * @param _req Express request object (unused).
    * @param res Express response object.
    */
-  public getAvailableModelTypes = async (_req: Request, res: Response): Promise<void> => {
+  /*
+  public async getAvailableModelTypes(_req: Request, res: Response): Promise<void> {
     const serviceResponse = this.bimService.getAvailableModelTypes();
     handleServiceResponse(serviceResponse, res);
-  };
+  }
+  */
 
   /**
    * @description Gets information about all available models.
    * @param _req Express request object (unused).
    * @param res Express response object.
    */
-  public getAvailableModels = async (_req: Request, res: Response): Promise<void> => {
+  /*
+  public async getAvailableModels(_req: Request, res: Response): Promise<void> {
     const serviceResponse = this.bimService.getAvailableModels();
     handleServiceResponse(serviceResponse, res);
-  };
+  }
+  */
 
   /**
    * @description Gets information about a specific model.
    * @param req Express request object.
    * @param res Express response object.
    */
-  public getModelInfo = async (req: Request, res: Response): Promise<void> => {
+  /*
+  public async getModelInfo(req: Request, res: Response): Promise<void> {
     const { modelType } = req.params;
     if (!modelType) {
       res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Missing modelType in request params.' });
@@ -47,14 +52,16 @@ export class BimController {
     }
     const serviceResponse = this.bimService.getModelInfo(modelType);
     handleServiceResponse(serviceResponse, res);
-  };
+  }
+  */
 
   /**
    * @description Validates inputs for a specific model.
    * @param req Express request object.
    * @param res Express response object.
    */
-  public validateModelInputs = async (req: Request, res: Response): Promise<void> => {
+  /*
+  public async validateModelInputs(req: Request, res: Response): Promise<void> {
     const { modelType } = req.params;
     const inputs = req.body;
     
@@ -65,49 +72,55 @@ export class BimController {
     
     const serviceResponse = this.bimService.validateModelInputs(modelType, inputs);
     handleServiceResponse(serviceResponse, res);
-  };
+  }
+  */
 
   /**
    * @description Processes site measurements.
    * @param req Express request object.
    * @param res Express response object.
    */
-  public processSiteMeasurements = async (req: Request, res: Response): Promise<void> => {
+  /*
+  public async processSiteMeasurements(req: Request, res: Response): Promise<void> {
     // TODO: Validate req.body
     const measurements = req.body;
     const serviceResponse = this.bimService.processSiteMeasurements(measurements);
     handleServiceResponse(serviceResponse, res);
-  };
+  }
+  */
 
   /**
    * @description Initiates 3D design creation.
    * @param req Express request object.
    * @param res Express response object.
    */
-  public create3DDesign = async (req: Request, res: Response): Promise<void> => {
+  /*
+  public async create3DDesign(req: Request, res: Response): Promise<void> {
     // TODO: Validate req.body
     const modelData = req.body;
     const serviceResponse = this.bimService.create3DDesign(modelData);
     handleServiceResponse(serviceResponse, res);
-  };
+  }
+  */
 
   /**
    * @description Generates a plank list.
    * @param req Express request object.
    * @param res Express response object.
    */
-  public createPlankList = async (req: Request, res: Response): Promise<void> => {
-    const { modelType } = req.params;
-    const { inputs, subtaskId, boxNumber, packetNumber } = req.body;
+  public async createPlankList(req: Request, res: Response): Promise<void> {
+    console.log('--- BimController.createPlankList ENTERED ---', 'Body:', req.body, 'Params:', req.params); // Diagnostic log
+    // modelType (or modelName) should come from the body as sent by the frontend
+    const { modelName, inputs, subtaskId, boxNumber, packetNumber } = req.body;
 
-    if (!modelType) {
-      res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Missing modelType in request params.' });
+    if (!modelName) { // Changed from modelType (params) to modelName (body)
+      res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Missing modelName in request body.' });
       return;
     }
     if (!inputs || subtaskId == null || !boxNumber || !packetNumber) {
       res.status(StatusCodes.BAD_REQUEST).json({ 
         success: false, 
-        message: 'Missing required body parameters: inputs, subtaskId, boxNumber, packetNumber.' 
+        message: 'Missing required body parameters: modelName, inputs, subtaskId, boxNumber, packetNumber.' 
       });
       return;
     }
@@ -118,7 +131,8 @@ export class BimController {
     // For now, we assume the plank generation logic itself (e.g., in ../reference/CreatePlanklist)
     // will need to be aware of these or the service method will handle it.
     // The current bimService.createPlankList returns ServiceResponse<Plank[] | null>
-    const plankListServiceResponse = this.bimService.createPlankList(modelType, inputs /*, boxNumber, packetNumber */); // Pass box/packet if service method is updated
+    // It expects modelType as the first argument. We are using modelName from the body.
+    const plankListServiceResponse = this.bimService.createPlankList(modelName, inputs /*, boxNumber, packetNumber */); // Pass modelName instead of modelType
 
     if (!plankListServiceResponse.success || !plankListServiceResponse.responseObject) {
       handleServiceResponse(plankListServiceResponse, res); // Let httpHandlers deal with the error response
@@ -156,14 +170,15 @@ export class BimController {
       console.error('Error updating subtask:', error);
       res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ success: false, message: 'Failed to update subtask.' });
     }
-  };
+  }
 
   /**
    * @description Generates a cut list.
    * @param req Express request object.
    * @param res Express response object.
    */
-  public generateCutList = async (req: Request, res: Response): Promise<void> => {
+  /*
+  public async generateCutList(req: Request, res: Response): Promise<void> {
     // TODO: Validate req.body
     const plankList = req.body.plankList; // Assuming plankList is passed in body
     const materialProperties = req.body.materialProperties; // Optional material properties
@@ -175,14 +190,16 @@ export class BimController {
     
     const serviceResponse = this.bimService.generateCutList(plankList, materialProperties);
     handleServiceResponse(serviceResponse, res);
-  };
+  }
+  */
 
   /**
    * @description Downloads a cut list as CSV.
    * @param req Express request object.
    * @param res Express response object.
    */
-  public downloadCutListCsv = async (req: Request, res: Response): Promise<void> => {
+  /*
+  public async downloadCutListCsv(req: Request, res: Response): Promise<void> {
     // TODO: Validate req.body
     const cutList = req.body.cutList as CutList; // Assuming cutList is passed in body
     if (!cutList) {
@@ -206,14 +223,16 @@ export class BimController {
         message: serviceResponse.message || 'Error formatting cut list as CSV.'
       });
     }
-  };
+  }
+  */
 
   /**
    * @description Downloads a cut list as JSON.
    * @param req Express request object.
    * @param res Express response object.
    */
-  public downloadCutListJson = async (req: Request, res: Response): Promise<void> => {
+  /*
+  public async downloadCutListJson(req: Request, res: Response): Promise<void> {
     // TODO: Validate req.body
     const cutList = req.body.cutList as CutList; // Assuming cutList is passed in body
     if (!cutList) {
@@ -237,14 +256,16 @@ export class BimController {
         message: serviceResponse.message || 'Error formatting cut list as JSON.'
       });
     }
-  };
+  }
+  */
 
   /**
    * @description Generates G-code.
    * @param req Express request object.
    * @param res Express response object.
    */
-  public generateGCode = async (req: Request, res: Response): Promise<void> => {
+  /*
+  public async generateGCode(req: Request, res: Response): Promise<void> {
     // TODO: Validate req.body
     const cutList = req.body.cutList as CutList; // Assuming cutList is passed in body
     if (!cutList) {
@@ -253,14 +274,16 @@ export class BimController {
     }
     const serviceResponse = this.bimService.generateGCode(cutList);
     handleServiceResponse(serviceResponse, res);
-  };
+  }
+  */
 
   /**
    * @description Downloads G-code.
    * @param req Express request object.
    * @param res Express response object.
    */
-  public downloadGCode = async (req: Request, res: Response): Promise<void> => {
+  /*
+  public async downloadGCode(req: Request, res: Response): Promise<void> {
     // TODO: Validate req.body
     const cutList = req.body.cutList as CutList; // Assuming cutList is passed in body
     if (!cutList) {
@@ -284,14 +307,16 @@ export class BimController {
         message: serviceResponse.message || 'Error generating G-code.'
       });
     }
-  };
+  }
+  */
 
   /**
    * @description Visualizes planks as SVG.
    * @param req Express request object.
    * @param res Express response object.
    */
-  public visualizePlanks = async (req: Request, res: Response): Promise<void> => {
+  /*
+  public async visualizePlanks(req: Request, res: Response): Promise<void> {
     // TODO: Validate req.body
     const plankList = req.body.plankList as Plank[]; // Assuming plankList is passed in body
     const title = req.body.title as string | undefined;
@@ -316,24 +341,28 @@ export class BimController {
         message: serviceResponse.message || 'Error visualizing planks.'
       });
     }
-  };
+  }
+  */
 
   /**
    * @description Retrieves global BIM rules.
    * @param _req Express request object (unused).
    * @param res Express response object.
    */
-  public getGlobalRules = async (_req: Request, res: Response): Promise<void> => {
+  /*
+  public async getGlobalRules(_req: Request, res: Response): Promise<void> {
     const serviceResponse = this.bimService.getGlobalRules();
     handleServiceResponse(serviceResponse, res);
-  };
+  }
+  */
 
   /**
    * @description Retrieves a specific BIM model template.
    * @param req Express request object.
    * @param res Express response object.
    */
-  public getModelTemplate = async (req: Request, res: Response): Promise<void> => {
+  /*
+  public async getModelTemplate(req: Request, res: Response): Promise<void> {
     const { modelType } = req.params;
     if (!modelType) {
         res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Missing modelType in request params.' });
@@ -341,7 +370,8 @@ export class BimController {
     }
     const serviceResponse = this.bimService.getModelTemplate(modelType);
     handleServiceResponse(serviceResponse, res);
-  };
+  }
+  */
 }
 
 // Export a singleton instance

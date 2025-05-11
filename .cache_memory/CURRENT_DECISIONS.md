@@ -1,30 +1,23 @@
-# Current Session Decisions Log (Append-Only)
+# Session Decisions Log: 2025-05-11
 
----
+**Task: Update `frontend/src/components/dashboard/ModelSelector.tsx` UI for Plank List (Backend Investigation)**
 
-**Decision ID:** 20250511-173500-TSCONFIG-FIX
-**Timestamp:** 2025-05-11 05:35 PM (Asia/Calcutta)
-**Context:** TypeScript error "Cannot find name 'process'" in `backend/prisma/seed.ts`. `@types/node` was installed, but `backend/tsconfig.json` had `compilerOptions.types` set to `["vitest/globals"]`, restricting other global types.
-**Decision:** Modify `backend/tsconfig.json` to include `"node"` in the `compilerOptions.types` array.
-**Rationale:** Explicitly adding `"node"` to the `types` array makes Node.js global types (like `process`) available to the TypeScript compiler, resolving the error.
-**Affected Files:**
-    - `backend/tsconfig.json` (Modified)
-    - `backend/prisma/seed.ts` (Error resolved)
-**Status:** Implemented
----
-
-**Decision ID:** 20250511-175300-CATALOGUE-IMAGE-UPLOAD-API
-**Timestamp:** 2025-05-11 05:53 PM (Asia/Calcutta)
-**Context:** Need to implement backend API for uploading images for Catalogue Items (ModelDefinitions).
-**Decision:**
-    1. Added a new route `POST /catalogue/:modelId/image-upload` to `backend/src/catalogue/routes/model.routes.ts`.
-    2. Used `isAuthenticated` middleware for authentication.
-    3. Configured `multer` for in-memory storage and image file type filtering, using `upload.single('catalogueImage')` middleware.
-    4. Added a new method `uploadModelImage(modelId: string, file: Express.Multer.File)` to `backend/src/catalogue/services/model.service.ts`.
-    5. The `uploadModelImage` service method uses `uploadToS3` utility to upload the file to S3 and then updates the `imageUrl` field of the corresponding `ModelDefinition` record.
-**Rationale:** Provides a dedicated, authenticated endpoint for catalogue item image uploads, leveraging existing S3 upload utilities and consistent service patterns.
-**Affected Files:**
-    - `backend/src/catalogue/routes/model.routes.ts` (Modified)
-    - `backend/src/catalogue/services/model.service.ts` (Modified)
-**Status:** Implemented
----
+1. **Button Text Change:** (No change)
+2. **Plank List Display and Download Format:** (No change)
+3. **Download UI Implementation:** (No change)
+4. **CSV Data Structure Assumption:** (No change)
+5. **Styling and Error Correction for Download Button:** (No change)
+6. **Error Handling for Plank Generation (Initial Frontend):** (No change)
+7. **Debugging API Response (Frontend Logging):** (No change)
+8. **Diagnosis of 404 Error for Plank Generation (Initial Backend):** (No change)
+9. **Diagnosis of Additional 404 Error for Catalogue Loading (Initial Backend):** (No change)
+10. **Backend Fix Attempt for `POST /api/bim/generate-plank-list` (2025-05-11):** (No change to decisions)
+11. **Backend Investigation for Catalogue Loading (`GET /api/v1/catalogue`) (2025-05-11):** (No change to analysis)
+12. **Re-evaluation after User Feedback (Persistent TS Error):** (No change to decision - user action required for TS error)
+13. **Confirmation of TS Error Resolution & Next Diagnostic Step (Ping Route & Controller Log):**
+    * Observation: User confirmed TS error resolved. Ping route `GET /api/bim/ping-bim-debug` still 404. Backend logs show no hit on controller.
+    * Decision: Problem likely with `bimRouter` mounting in `server.ts` or Express setup.
+14. **Diagnostic Step - Check `tsconfig.json` and `server.ts` for `bimRouter` (2025-05-11):**
+    * **Analysis:** `tsconfig.json` path alias `@/` for `src/*` seems correct. `server.ts` import `import bimRouter from "@/bim/routes/bim.routes";` and usage `app.use("/api/bim", bimRouter);` appear correct.
+    * **Decision:** To further diagnose why `bimRouter` might not be effective, add `console.log` statements in `server.ts` around the `app.use("/api/bim", bimRouter);` line to inspect the `bimRouter` object itself at startup.
+    * **Action:** User to restart backend and provide startup logs from the terminal, then test ping route. Task blocked pending these logs.

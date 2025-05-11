@@ -1,23 +1,37 @@
-# Current Context: Project in Phase 0 - Foundational Setup
+# Current Session Context: 2025-05-11 (Awaiting Server Startup Logs)
 
-**Overall Goal:** The project is currently at the beginning of its detailed implementation roadmap, specifically in **Phase 0: Foundational Setup & Preparatory Refactoring**. This phase focuses on essential groundwork, code refactoring (like the "Catalogue" rename), and setting up core services (like PDF generation) that are necessary before tackling the MVP features outlined in Phase 1 and beyond.
+**Active Task:** Update `frontend/src/components/dashboard/ModelSelector.tsx` UI for Plank List (Backend Investigation).
 
-**Previous Milestone (Completed):**
+**Current Status: Blocked - Backend API Issue - Awaiting Diagnostic Results for Router Mounting.**
 
-* **TICKET-ROADMAP-001: Develop Detailed Implementation Roadmap.**
-  * User clarifications were integrated into `docs/PROJECT_CONTEXT_AND_ROADMAP.md` (Section 6).
-  * Section 7 of `docs/PROJECT_CONTEXT_AND_ROADMAP.md` (Detailed Implementation Plan) was drafted and is now considered established.
-  * The `docs/PROJECT_CONTEXT_AND_ROADMAP.md` file reflects these updates.
+**Summary of Issues & Attempts:**
 
-**Recent Activity (Completed):**
+- **Frontend Goal:** Update button text, add CSV download. UI changes in `ModelSelector.tsx`.
+- **Backend Problem (Plank Generation & BIM Routes - 404 Error):**
+  - `POST /api/bim/generate-plank-list` and diagnostic `GET /api/bim/ping-bim-debug` are 404.
+  - User confirmed TypeScript error in `bim.routes.ts` is resolved in their editor.
+  - **Diagnostic Step:** `console.log` statements added to `backend/src/server.ts` to inspect `bimRouter` object during application startup and mounting. This will help determine if `bimRouter` is being correctly imported and is a valid Express router object when `app.use("/api/bim", bimRouter)` is called.
+- **Backend (Catalogue Loading):**
+  - `GET /api/v1/catalogue` (used by frontend) is working (304). Models should load in UI.
+  - The 404 for `GET /api/catalogue/project-instances/by-project/70` is likely separate and lower priority.
 
-* **Fix - Resolve "Cannot find name 'process'" TypeScript error:** Modified `backend/tsconfig.json` by adding "node" to `compilerOptions.types`. This resolved an issue in `backend/prisma/seed.ts` related to Node.js global type recognition.
-* **Housekeeping - Cleared CURRENT_TODO.md:** Removed completed "Catalogue Management - End-to-End Flow" tasks from `.cache_memory/CURRENT_TODO.md`.
-* **Feature - Backend API for Catalogue Item Image Upload:** Implemented the backend API (`POST /catalogue/:modelId/image-upload`) for uploading images for catalogue items. This involved adding the route, multer middleware for file handling, and a service method in `ModelService` to handle S3 upload and update the `ModelDefinition`'s `imageUrl`.
+**Frontend State:**
 
-**Current Focus:**
+- UI changes and CSV functionality are in `frontend/src/components/dashboard/ModelSelector.tsx`.
+- Diagnostic logging in `handleGeneratePlanks` (frontend) and `createPlankList` (backend controller), and now in `server.ts` for router mounting.
 
-* Executing remaining tasks outlined in **Phase 0** of `docs/PROJECT_CONTEXT_AND_ROADMAP.md`.
-* All previously "in-progress" tickets for today are now complete.
+**Work Ticket & Cache Updated:**
 
-The LTM_Bootstrap_Codebase_Analysis task remains on hold.
+- Memory files reflect the current diagnostic step focusing on `bimRouter` in `server.ts`.
+
+**Pending Actions (CRITICAL for Diagnosis):**
+
+- **User:**
+    1. **Fully STOP and RESTART Backend Server** (to activate new logs in `server.ts`).
+    2. **Provide Backend Server Terminal Output from Startup:** Share the logs showing:
+        - `--- [SERVER.TS] Attempting to mount bimRouter ---`
+        - `--- [SERVER.TS] typeof bimRouter: ...`
+        - `--- [SERVER.TS] bimRouter object: ...` (details of the router)
+        - `--- [SERVER.TS] bimRouter mounted for /api/bim ---`
+    3. **Test Ping Route:** Access `http://localhost:5001/api/bim/ping-bim-debug`. Report browser result and if its specific log appears in backend terminal.
+- **Backend (Cline, based on new logs):** Analyze server startup logs for `bimRouter` status.
