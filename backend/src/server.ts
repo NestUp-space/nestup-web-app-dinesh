@@ -40,7 +40,13 @@ app.use("/health-check", healthCheckRouter);
 app.use("/api/users", userRouter); // Standardized under /api
 app.use("/api/auth", authRouter); // Auth routes
 app.use("/api/projects", projectRouter); // Project routes
+
+// --- BIM Router Mounting ---
+console.log('--- [SERVER.TS] Attempting to mount bimRouter ---');
+console.log('--- [SERVER.TS] typeof bimRouter:', typeof bimRouter);
+console.log('--- [SERVER.TS] bimRouter object:', bimRouter); // Log the router object itself
 app.use("/api/bim", bimRouter); // BIM routes, standardized under /api
+console.log('--- [SERVER.TS] bimRouter mounted for /api/bim ---');
 
 // Inline test route for catalogue path
 app.get("/api/v1/catalogue/ping", (req, res) => {

@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, MockInstance } from 'vitest';
 import { mockDeep, DeepMockProxy } from 'vitest-mock-extended';
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient, Material, ProjectCatalogueItemInstance, CatalogueItemDefinition, CatalogueItemBomItem, BomItemType } from '@prisma/client';
+import { PrismaClient, Material, ProjectModelInstance, ModelDefinition, ModelBomItem, BomItemType } from '@prisma/client';
 
 import { GenerationController } from '../generation.controller';
-import { ProjectCatalogueItemInstanceService } from '../../services/project-catalogue-item-instance.service';
+import { ProjectModelInstanceService } from '../../services/project-model-instance.service'; // Corrected filename
 import { JavaScriptFunctionService, ExecutedScriptResult } from '../../services/javascript-function.service';
 import { PlankListGeneratorService } from '../../services/plank-list-generator.service';
 
@@ -19,7 +19,7 @@ vi.mock('@prisma/client', async (importOriginal) => {
 });
 
 // Mock services
-vi.mock('../../services/project-catalogue-item-instance.service');
+vi.mock('../../services/project-model-instance.service'); // Corrected filename
 vi.mock('../../services/javascript-function.service');
 vi.mock('../../services/plank-list-generator.service');
 
@@ -30,7 +30,7 @@ describe('GenerationController', () => {
   let mockNext: NextFunction;
 
   // Mocks for service instances
-  let mockProjectCatalogueItemInstanceService: DeepMockProxy<ProjectCatalogueItemInstanceService>;
+  let mockProjectModelInstanceService: DeepMockProxy<ProjectModelInstanceService>; // Corrected type
   let mockJsFunctionService: DeepMockProxy<JavaScriptFunctionService>;
   let mockPlankListGeneratorService: DeepMockProxy<PlankListGeneratorService>;
 
@@ -38,12 +38,12 @@ describe('GenerationController', () => {
     vi.clearAllMocks();
 
     // Re-initialize mocks for services before each test
-    mockProjectCatalogueItemInstanceService = mockDeep<ProjectCatalogueItemInstanceService>();
+    mockProjectModelInstanceService = mockDeep<ProjectModelInstanceService>(); // Corrected type
     mockJsFunctionService = mockDeep<JavaScriptFunctionService>();
     mockPlankListGeneratorService = mockDeep<PlankListGeneratorService>();
 
     // @ts-ignore - Mock constructor implementation
-    ProjectCatalogueItemInstanceService.mockImplementation(() => mockProjectCatalogueItemInstanceService);
+    ProjectModelInstanceService.mockImplementation(() => mockProjectModelInstanceService); // Corrected service name
     // @ts-ignore
     JavaScriptFunctionService.mockImplementation(() => mockJsFunctionService);
     // @ts-ignore
@@ -76,11 +76,11 @@ describe('GenerationController', () => {
         id: 2, projectId, materialId: 'INM001', plyThickness: 18, innerLaminateCode: 'ILC02', outerLaminateCode: 'OLC02', overallThickness: 19, plyType: 'MR Plywood', grainDirection: 'Horizontal', edgebandingInnerCode: 'EBI02', edgebandingExposedCode: 'EBE02', createdAt: new Date(), updatedAt: new Date()
       };
 
-      const mockBomItem: CatalogueItemBomItem = {
-        id: 'bom-item-1', modelDefinitionId: 'model-def-1', itemName: 'Test Plank', itemType: BomItemType.PLANK, itemDescription: 'A test plank', itemLogicScript: 'return { plankId: "P1", name: "Test Plank", width: 100, height: 200, thickness: runtimeInputs.exposedMaterialDefinition.overallThickness, materialCode: runtimeInputs.exposedMaterialDefinition.materialId, grainDirection: "Vertical" };', addonModelId: null
+      const mockBomItem: ModelBomItem = {
+        id: 'bom-item-1', modelDefinitionId: 'model-def-1', itemName: 'Test Plank', itemType: BomItemType.PLANK, itemDescription: 'A test plank', details: null, itemLogicScript: 'return { plankId: "P1", name: "Test Plank", width: 100, height: 200, thickness: runtimeInputs.exposedMaterialDefinition.overallThickness, materialCode: runtimeInputs.exposedMaterialDefinition.materialId, grainDirection: "Vertical" };', addonModelId: null
       };
       
-      const mockInstance: ProjectCatalogueItemInstance & { modelDefinition: { bomItems: CatalogueItemBomItem[] } } = {
+      const mockInstance: ProjectModelInstance & { modelDefinition: ModelDefinition & { bomItems: ModelBomItem[] } } = {
         id: projectCatalogueItemInstanceId,
         projectId,
         modelDefinitionId: 'model-def-1',
@@ -95,8 +95,8 @@ describe('GenerationController', () => {
       
       // Mock Prisma calls via the global prismaMock
       // This is how the controller uses prisma directly
-      (prismaMock.projectCatalogueItemInstance.findUnique as vi.Mock).mockResolvedValue(mockInstance);
-      (prismaMock.material.findUnique as vi.Mock)
+      (prismaMock.projectModelInstance.findUnique as MockInstance).mockResolvedValue(mockInstance);
+      (prismaMock.material.findUnique as MockInstance)
         .mockResolvedValueOnce(mockExposedMaterial) // For exposedMaterialId
         .mockResolvedValueOnce(mockInnerMaterial);  // For innerMaterialId
         // Assuming backPanelMaterialId is not in runtimeInputsJson for this test
@@ -107,13 +107,13 @@ describe('GenerationController', () => {
       const mockCsvData = "PlankID,Name,Description,Width,Height,MaterialCode,GrainDirection\nP1,Test Plank,A test plank,100,200,EXM001,Vertical";
       mockPlankListGeneratorService.generatePlankListCsv.mockReturnValue(mockCsvData);
       
-      (prismaMock.generatedPlankList.create as vi.Mock).mockResolvedValue({ id: 'gl-1', projectCatalogueItemInstanceId, csvContent: mockCsvData, filePath: null, generatedAt: new Date() });
+      (prismaMock.generatedPlankList.create as MockInstance).mockResolvedValue({ id: 'gl-1', projectCatalogueItemInstanceId, csvContent: mockCsvData, filePath: null, generatedAt: new Date() });
 
       // Act
       await generationController.generatePlankList(mockRequest, mockResponse, mockNext);
 
       // Assert
-      expect(prismaMock.projectCatalogueItemInstance.findUnique).toHaveBeenCalledWith({
+      expect(prismaMock.projectModelInstance.findUnique).toHaveBeenCalledWith({
         where: { id: projectCatalogueItemInstanceId },
         include: { modelDefinition: { include: { bomItems: true } } },
       });
@@ -141,7 +141,7 @@ describe('GenerationController', () => {
 
     it('should return 404 if instance not found', async () => {
       mockRequest.body = { projectCatalogueItemInstanceId: 'not-found-id' };
-      (prismaMock.projectCatalogueItemInstance.findUnique as vi.Mock).mockResolvedValue(null);
+      (prismaMock.projectModelInstance.findUnique as MockInstance).mockResolvedValue(null);
 
       await generationController.generatePlankList(mockRequest, mockResponse, mockNext);
 
