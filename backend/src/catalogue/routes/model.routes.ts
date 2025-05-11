@@ -31,13 +31,28 @@ const validateData = (schema: any) => (req: Request, res: Response, next: NextFu
   }
 };
 
+// TEST ROUTE
+router.get('/test-route', (req: Request, res: Response) => {
+  console.log('--- /api/v1/catalogue/test-route HIT ---');
+  res.status(StatusCodes.OK).send('Catalogue test route is working!');
+});
+
 // GET /catalogue - List all models
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const items = await modelService.findAllModels();
     res.status(StatusCodes.OK).json(items);
-  } catch (error) {
-    console.error('Error fetching models:', error);
+  } catch (error: any) { // Explicitly type error as any to access properties
+    console.error('--- ERROR IN GET /api/v1/catalogue ROUTE ---'); // Corrected log label
+    console.error('Error Message:', error.message);
+    console.error('Error Stack:', error.stack);
+    if (error.errors) { // For ZodErrors or similar
+      console.error('Detailed Errors:', error.errors);
+    }
+    if (error.data) { // For custom ApiErrors
+        console.error('Error Data:', error.data);
+    }
+    console.error('Full Error Object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
     next(error);
   }
 });
@@ -47,8 +62,17 @@ router.post('/', validateData(CreateModelDefinitionSchema), async (req: Request,
   try {
     const newItem = await modelService.createModel(req.body);
     res.status(StatusCodes.CREATED).json(newItem);
-  } catch (error) {
-    console.error('Error creating model:', error);
+  } catch (error: any) { // Added enhanced logging here as well for consistency
+    console.error('--- ERROR IN POST /api/v1/catalogue ROUTE ---');
+    console.error('Error Message:', error.message);
+    console.error('Error Stack:', error.stack);
+    if (error.errors) { // For ZodErrors or similar
+      console.error('Detailed Errors:', error.errors);
+    }
+    if (error.data) { // For custom ApiErrors
+        console.error('Error Data:', error.data);
+    }
+    console.error('Full Error Object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
     next(error);
   }
 });

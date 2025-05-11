@@ -38,7 +38,7 @@ type SimpleBoxModelData = {
 const simpleBoxDefaultData: SimpleBoxModelData = {
   modelType: 'Simple Box',
   description: 'A basic rectangular box with five planks: back, left, right, top, and bottom. Suitable for simple storage units, cabinets, and shelving.',
-  imageUrl: '/img/models/simple-box.png',
+  imageUrl: null, // Changed from '/img/models/simple-box.png' to null as the image is missing
   inputParameters: [ // Based on defaultModelInputParameters from ModelBuilderForm
     { inputName: 'boxHeight', displayLabel: 'Box Height', inputType: 'NUMBER', defaultValue: '600', unit: 'mm', description: 'The overall height of the box.' },
     { inputName: 'boxWidth', displayLabel: 'Box Width', inputType: 'NUMBER', defaultValue: '700', unit: 'mm', description: 'The overall width of the box.' },

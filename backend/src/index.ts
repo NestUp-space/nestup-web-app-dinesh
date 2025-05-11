@@ -9,6 +9,7 @@ import userRoutes from './routes/user.routes';
 import fileRoutes from './routes/file.routes';
 import siteVisitRoutes from './routes/site-visit.routes';
 import roleRoutes from './routes/role.routes';
+import catalogueRouter from "./catalogue/routes/model.routes"; // Import catalogue router
 
 // Load environment variables
 dotenv.config();
@@ -48,6 +49,7 @@ app.use('/api/files', fileRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/site-visit', siteVisitRoutes);
 app.use('/api/roles', roleRoutes);
+app.use('/api/v1/catalogue', catalogueRouter); // Mount catalogue router
 
 // Health check endpoint
 app.get('/health', (req, res) => {

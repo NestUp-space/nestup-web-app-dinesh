@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
+import { useForm, FormProvider, SubmitHandler, SubmitErrorHandler } from 'react-hook-form'; // Added SubmitErrorHandler
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 // import { BomItemType } from '@prisma/client'; // REMOVE: Frontend should not import from @prisma/client
@@ -125,28 +125,39 @@ export default function ModelBuilderForm({
   const { mutate } = useSWRConfig();
   const [selectedImageFile, setSelectedImageFile] = React.useState<File | null>(null);
 
+  const onInvalid: SubmitErrorHandler<ModelFormData> = (validationErrors) => {
+    console.error('--- FORM VALIDATION FAILED (onInvalid) ---', validationErrors);
+    // You can add more detailed logging or UI feedback here if needed
+  };
+
   const { data: existingModelData, isLoading: isLoadingModel } = useSWR<ModelFormData>(
-    modelId ? `/api/v1/catalogue/${modelId}` : null,
+    modelId ? `/v1/catalogue/${modelId}` : null, // Removed /api prefix
     async (url: string) => {
-      const response = await apiClient.get(url);
-      const modelData = response.data;
-      // modelData.imageUrl is already a string or null from backend
-      modelData.inputParameters = modelData.inputParameters || [];
-      modelData.bomItems = modelData.bomItems || [];
-      return modelData;
+      const response = await apiClient.get(url); // apiClient.get returns the data directly
+      // Ensure data structure matches ModelFormData, especially for nested arrays
+      // The backend sends 'name', frontend form uses 'modelType'
+      const fetchedData = {
+        ...response,
+        modelType: response.name, // Map 'name' to 'modelType'
+        inputParameters: response.inputParameters || [],
+        bomItems: response.bomItems || [],
+      };
+      delete fetchedData.name; // Remove original 'name' if it's not in ModelFormData
+      return fetchedData;
     },
     {
       onSuccess: (data) => {
-        if (data) reset(data);
+        // Data is already transformed by the fetcher
+        if (data) reset(data); 
       },
       revalidateOnFocus: false,
     }
   );
   
   const onSubmit: SubmitHandler<ModelFormData> = async (formData) => {
-    console.log('--- onSubmit CALLED ---'); // Diagnostic log
-    console.log('Form data submitted:', formData);
-    console.log('Errors from formState:', errors); // Diagnostic log for errors
+    // console.log('--- onSubmit CALLED ---'); // Diagnostic log removed
+    // console.log('Form data submitted:', formData); // Diagnostic log removed
+    // console.log('Errors from formState:', errors); // Diagnostic log removed
 
     // The backend DTO expects sampleRuntimeInputsJson as a string, which it will parse.
     // sampleOnsiteInputs is also expected as a string by the DTO.
@@ -170,7 +181,7 @@ export default function ModelBuilderForm({
     }
 
     const payload: any = { 
-      modelType: formData.modelType, 
+      name: formData.modelType, // Changed modelType to name to match backend DTO
       description: formData.description,
       imageUrl: finalImageUrl, // Use the potentially updated image URL
       inputParameters: formData.inputParameters,
@@ -192,26 +203,25 @@ export default function ModelBuilderForm({
 
 
     try {
-      console.log('--- Attempting API call ---'); // Diagnostic log
+      // console.log('--- Attempting API call ---'); // Diagnostic log removed
       let response;
       if (modelId) { // Update mode
-        console.log(`--- Calling PUT /api/v1/catalogue/${modelId} ---`, payload); // Diagnostic log
-        response = await apiClient.put(`/api/v1/catalogue/${modelId}`, payload);
-        alert(`Model updated successfully! Model ID: ${modelId}`);
-        mutate(`/api/v1/catalogue/${modelId}`); // Revalidate specific model
+        response = await apiClient.put(`/v1/catalogue/${modelId}`, payload); 
+        alert(`Model "${formData.modelType}" (ID: ${modelId}) updated successfully.`);
+        mutate(`/v1/catalogue/${modelId}`); 
+        if (onSaveSuccess) onSaveSuccess(modelId); // Call onSaveSuccess for updates too
       } else { // Create mode
-        console.log('--- Calling POST /api/v1/catalogue ---', payload); // Diagnostic log
-        response = await apiClient.post('/api/v1/catalogue', payload);
-        alert(`Model created successfully! Model ID: ${response.data.id}`);
-        if (onSaveSuccess) onSaveSuccess(response.data.id);
+        response = await apiClient.post('/v1/catalogue', payload); 
+        alert(`Model "${formData.modelType}" (ID: ${response.id}) created successfully.`); 
+        if (onSaveSuccess) onSaveSuccess(response.id); 
       }
-      mutate('/api/v1/catalogue'); // Revalidate the list of models, assuming this is the correct list endpoint
-      console.log('--- API call successful ---'); // Diagnostic log
+      mutate('/api/v1/catalogue'); // Revalidate the list for both create and update
       
     } catch (apiError: any) {
-      console.error("--- API Error ---", apiError); // Diagnostic log
+      const operation = modelId ? 'updating' : 'creating';
+      const modelNameInfo = formData.modelType ? `model "${formData.modelType}"` : 'the model';
       const errorMessage = apiError.response?.data?.errors?.[0]?.message || apiError.response?.data?.message || apiError.message || 'An unknown error occurred.';
-      alert(`Error: ${errorMessage}`);
+      alert(`Error ${operation} ${modelNameInfo}: ${errorMessage}`);
     }
   };
   
@@ -221,7 +231,7 @@ export default function ModelBuilderForm({
 
   return (
     <FormProvider {...methods}>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-8"> {/* Added onInvalid handler */}
         
         <div className="p-4 border rounded-md">
           <h3 className="text-lg font-semibold mb-3">1. Basic Information</h3>
@@ -255,9 +265,9 @@ export default function ModelBuilderForm({
           <button 
             type="submit" 
             className="px-4 py-2 border rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
-            disabled={isSubmitting}
+            disabled={isSubmitting} // Restored disabled state
           >
-            {isSubmitting ? 'Saving...' : (modelId ? 'Update Model' : 'Create Model')}
+            {isSubmitting ? 'Saving...' : (modelId ? 'Update Model' : 'Create Model')} {/* Restored dynamic text */}
           </button>
         </div>
       </form>

@@ -9,16 +9,16 @@ import Image from 'next/image'; // For displaying images
 
 interface ListedModelData {
   id: string;
-  modelType: string; // Assuming 'name' from backend is 'modelType' in frontend context
+  name: string; // Changed from modelType to name, to match backend
   description: string | null;
   imageUrl: string | null;
   // Add other fields if needed for display, e.g., createdAt, updatedAt
 }
 
-const fetcher = (url: string) => apiClient.get(url).then(res => res.data);
+const fetcher = (url: string) => apiClient.get(url); // Corrected: apiClient.get already returns the data
 
 export default function ModelManagementPage() {
-  const { data: models, error, isLoading } = useSWR<ListedModelData[]>('/api/v1/catalogue', fetcher);
+  const { data: models, error, isLoading } = useSWR<ListedModelData[]>('/v1/catalogue', fetcher); // Removed /api prefix
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
@@ -50,7 +50,7 @@ export default function ModelManagementPage() {
             <div key={model.id} className="bg-white rounded-lg border border-border shadow-sm overflow-hidden flex flex-col">
               <div className="relative w-full h-48 bg-gray-200">
                 {model.imageUrl ? (
-                  <Image src={model.imageUrl} alt={model.modelType} layout="fill" objectFit="cover" />
+                  <Image src={model.imageUrl} alt={model.name} layout="fill" objectFit="cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-400">
                     <Eye className="w-12 h-12" /> {/* Placeholder Icon */}
@@ -58,7 +58,7 @@ export default function ModelManagementPage() {
                 )}
               </div>
               <div className="p-4 flex flex-col flex-grow">
-                <h3 className="text-lg font-semibold mb-1 truncate" title={model.modelType}>{model.modelType}</h3>
+                <h3 className="text-lg font-semibold mb-1 truncate" title={model.name}>{model.name}</h3> {/* Changed model.modelType to model.name */}
                 <p className="text-sm text-muted-foreground mb-3 flex-grow line-clamp-3">
                   {model.description || 'No description available.'}
                 </p>

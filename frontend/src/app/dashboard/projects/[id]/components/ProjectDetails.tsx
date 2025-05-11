@@ -202,53 +202,6 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({
         </div>
       </div>
     )}
-      {/* Section to display and manage Project Model Instances (Boxes) */}
-      <div className="mt-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-700">Furniture Models / Boxes</h2>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-          >
-            <PlusCircle size={18} className="mr-2" />
-            Add New Model
-          </button>
-        </div>
-
-        {instancesError && <p className="text-red-500">Error loading furniture models.</p>}
-        {!projectModelInstances && !instancesError && <p>Loading furniture models...</p>}
-        
-        {projectModelInstances && projectModelInstances.length === 0 && (
-          <p className="text-gray-500">No furniture models added to this project yet.</p>
-        )}
-
-        {projectModelInstances && projectModelInstances.length > 0 && (
-          <div className="space-y-4">
-            {projectModelInstances.map(instance => (
-              <div key={instance.id} className="p-4 border rounded-md shadow-sm bg-gray-50">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-800">{instance.modelDefinition.name}</h3>
-                    <p className="text-sm text-gray-500">Added on: {formatDate(instance.createdAt)}</p>
-                    {/* Optionally display some runtime inputs */}
-                    {/* <pre className="text-xs mt-1 bg-gray-100 p-2 rounded">
-                      {JSON.stringify(instance.runtimeInputsJson, null, 2)}
-                    </pre> */}
-                  </div>
-                  <button
-                    onClick={() => handleGeneratePlankList(instance.id)}
-                    className="flex items-center px-3 py-1.5 bg-green-500 text-white text-sm rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
-                  >
-                    <ListChecks size={16} className="mr-1.5" />
-                    Generate Plank List
-                  </button>
-                </div>
-                {/* TODO: Could add section here to display previously generated lists for this instance using 'viewingListsForInstance' and 'generatedLists' SWR data */}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
     {/* Modal for Adding Project Model Instance */}
     {isModalOpen && (

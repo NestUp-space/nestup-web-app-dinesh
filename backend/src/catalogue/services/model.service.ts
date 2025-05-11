@@ -102,7 +102,10 @@ export class ModelService {
       }
     }
 
-    await this.validateBomItemScripts(data.bomItems, parsedSampleRuntimeInputs);
+    // Only validate scripts if sample inputs were provided and there are BOM items with scripts
+    if (parsedSampleRuntimeInputs && data.bomItems && data.bomItems.some(b => b.itemLogicScript && b.itemLogicScript.trim() !== '')) {
+      await this.validateBomItemScripts(data.bomItems, parsedSampleRuntimeInputs);
+    }
 
     const modelDataForRepo = {
       name: data.name,
