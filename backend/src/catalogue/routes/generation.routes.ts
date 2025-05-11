@@ -1,7 +1,7 @@
 import express from 'express';
 import { GenerationController } from '../controllers/generation.controller';
 import { validateRequest } from '../../common/middleware/validateRequest';
-import { GeneratePlankListSchema, GenerateMaterialEstimateSchema, TestItemScriptDtoSchema } from '../dtos/model.dto'; // Added TestItemScriptDtoSchema
+import { GeneratePlankListSchema, GenerateMaterialEstimateSchema, TestItemScriptDtoSchema, GenerateProjectPlankListSchema } from '../dtos/model.dto'; // Added GenerateProjectPlankListSchema
 // import { authMiddleware } from '../../middlewares/auth.middleware'; // TODO: Add auth middleware
 
 const router = express.Router();
@@ -29,6 +29,14 @@ router.post(
   // authMiddleware, // Consider if this needs auth
   validateRequest(TestItemScriptDtoSchema),
   generationController.testItemScript
+);
+
+// POST /api/v1/catalogue/generate/project-plank-list - For generating an aggregated plank list for all instances in a project
+router.post(
+  '/project-plank-list',
+  // authMiddleware, // Consider if this needs auth
+  validateRequest(GenerateProjectPlankListSchema),
+  generationController.generateProjectPlankList
 );
 
 export default router;

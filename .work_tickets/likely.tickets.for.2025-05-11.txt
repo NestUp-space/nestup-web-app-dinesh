@@ -1,58 +1,11 @@
-Task Name: UI - Rename "Model Management" to "Catalogue" in DesktopNav & MobileNav
-Description: Change the display text for the Model Management navigation item to "Catalogue" in `frontend/src/components/dashboard/DesktopNav.tsx` and `frontend/src/components/dashboard/MobileNav.tsx`. Also updated href to `/dashboard/catalogue` and icon to `BookCopy`.
-Timestamps:
-  - Created: 2025-05-11 04:05 AM
-Status: done
-Assigned to: cline
-Assigned by: user
-Updates:
-  - 2025-05-11 04:05 AM: Started work on DesktopNav.tsx.
-  - 2025-05-11 04:05 AM: Updated DesktopNav.tsx.
-  - 2025-05-11 04:05 AM: Updated MobileNav.tsx. Task complete.
-
----
-Task Name: UI - Remove sections from ModelBuilderForm
-Description: Remove "3. Sample Runtime Inputs (for Testing Scripts)", "6. Sample Onsite Inputs (General Reference JSON)", and "5. Site Engineer Instructions" from the ModelBuilderForm UI.
-Timestamps:
-  - Created: 2025-05-11 04:05 AM
-Status: done
-Assigned to: cline
-Assigned by: user
-Updates:
-  - 2025-05-11 04:06 AM: Removed sections from ModelBuilderForm.tsx, updated Zod schema, default values, and related logic. Task complete.
-
----
-Task Name: UI & Backend - Restructure Bill of Materials
-Description: Redesign the Bill of Materials section in the ModelBuilderForm UI and backend to support detailed Plank and Hardware definitions.
-Timestamps:
-  - Created: 2025-05-11 04:05 AM
-Status: done
-Assigned to: cline
-Assigned by: user
-Updates:
-  - 2025-05-11 04:06 AM: Added `details: Json?` to `CatalogueItemBomItem` in `prisma.schema`. Ran migration.
-  - 2025-05-11 04:07 AM: Added `details: z.any().optional().nullable()` to `CatalogueItemBomItemDTOSchema` in `catalogue.dto.ts`.
-  - 2025-05-11 04:08 AM: Updated `BillOfMaterialListEditor.tsx` to include UI for Plank and Hardware details. Structural changes complete.
-
----
 Task Name: UI & Backend - Enable Image Upload for Catalogue Item
 Description: Replace screenshot URL input with an image upload feature for Catalogue Items. Involves frontend changes in ModelMetadataEditor and ModelBuilderForm, and requires a new backend API for upload.
 Timestamps:
   - Created: 2025-05-11 04:19 AM
-Status: in-progress
+Status: done
 Assigned to: cline
 Assigned by: user
 Updates:
   - 2025-05-11 04:20 AM: Updated ModelMetadataEditor.tsx to use file input and pass selected file to parent.
   - 2025-05-11 04:21 AM: Updated ModelBuilderForm.tsx to handle selected file state and change field to imageUrl. Backend API for upload still needed.
-
----
-Task Name: UI - Remove "ADDON" from BomItemType Dropdown
-Description: Modify BillOfMaterialListEditor.tsx to exclude "ADDON" from the item type selection dropdown.
-Timestamps:
-  - Created: 2025-05-11 04:19 AM
-Status: done
-Assigned to: cline
-Assigned by: user
-Updates:
-  - 2025-05-11 04:21 AM: Filtered ADDON from itemTypeOptions in BillOfMaterialListEditor.tsx.
+  - 2025-05-11 05:53 PM: Implemented backend API for image upload. Added POST /catalogue/:modelId/image-upload route in model.routes.ts. Added uploadModelImage method to model.service.ts to handle S3 upload and DB update. Ticket complete.

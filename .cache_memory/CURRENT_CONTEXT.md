@@ -9,8 +9,15 @@
   * Section 7 of `docs/PROJECT_CONTEXT_AND_ROADMAP.md` (Detailed Implementation Plan) was drafted and is now considered established.
   * The `docs/PROJECT_CONTEXT_AND_ROADMAP.md` file reflects these updates.
 
+**Recent Activity (Completed):**
+
+* **Fix - Resolve "Cannot find name 'process'" TypeScript error:** Modified `backend/tsconfig.json` by adding "node" to `compilerOptions.types`. This resolved an issue in `backend/prisma/seed.ts` related to Node.js global type recognition.
+* **Housekeeping - Cleared CURRENT_TODO.md:** Removed completed "Catalogue Management - End-to-End Flow" tasks from `.cache_memory/CURRENT_TODO.md`.
+* **Feature - Backend API for Catalogue Item Image Upload:** Implemented the backend API (`POST /catalogue/:modelId/image-upload`) for uploading images for catalogue items. This involved adding the route, multer middleware for file handling, and a service method in `ModelService` to handle S3 upload and update the `ModelDefinition`'s `imageUrl`.
+
 **Current Focus:**
 
-* Executing tasks outlined in **Phase 0** of `docs/PROJECT_CONTEXT_AND_ROADMAP.md`.
+* Executing remaining tasks outlined in **Phase 0** of `docs/PROJECT_CONTEXT_AND_ROADMAP.md`.
+* All previously "in-progress" tickets for today are now complete.
 
 The LTM_Bootstrap_Codebase_Analysis task remains on hold.

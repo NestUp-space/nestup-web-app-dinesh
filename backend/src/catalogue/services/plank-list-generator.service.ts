@@ -6,6 +6,8 @@ interface ResolvedPlank {
   height: number | string | null;
   materialCode: string | null;
   grainDirection?: string | null; // From rulesJson
+  hole?: { x: number; y: number; z: number; t: string | number; } | string | null; // Added
+  groove?: { x1: number; y1: number; x2: number; y2: number; z: number; t: string | number; } | string | null; // Added
   // Add other relevant properties that might be calculated or static
   itemDescription?: string | null;
 }
@@ -26,26 +28,42 @@ export class PlankListGeneratorService {
     }
 
     const headers = [
-      'PlankID',
-      'Name',
-      'Description',
-      'Width',
-      'Height',
-      'MaterialCode',
-      'GrainDirection',
+      'Width- W',
+      'Height - H',
+      'Material Code - MC',
+      'Plank ID ( Box Number - Plank Number - Plank Identifier )',
+      'Hole ( x,y,z,t)',
+      'Groove (x1,y1,x2,y2,z,t)',
     ];
     
     const csvRows = [headers.join(',')];
 
     for (const plank of planks) {
+      const formatHole = (holeData: any): string => {
+        if (!holeData) return '';
+        if (typeof holeData === 'string') return `"${holeData.replace(/"/g, '""')}"`;
+        if (typeof holeData === 'object') {
+          return `"${[holeData.x, holeData.y, holeData.z, holeData.t].join(',').replace(/"/g, '""')}"`;
+        }
+        return '';
+      };
+
+      const formatGroove = (grooveData: any): string => {
+        if (!grooveData) return '';
+        if (typeof grooveData === 'string') return `"${grooveData.replace(/"/g, '""')}"`;
+        if (typeof grooveData === 'object') {
+          return `"${[grooveData.x1, grooveData.y1, grooveData.x2, grooveData.y2, grooveData.z, grooveData.t].join(',').replace(/"/g, '""')}"`;
+        }
+        return '';
+      };
+
       const row = [
-        plank.plankId || 'N/A',
-        `"${(plank.name || '').replace(/"/g, '""')}"`, // Escape double quotes
-        `"${(plank.itemDescription || '').replace(/"/g, '""')}"`,
-        plank.width ?? '', // Handle null/undefined
+        plank.width ?? '',
         plank.height ?? '',
         `"${(plank.materialCode || '').replace(/"/g, '""')}"`,
-        `"${(plank.grainDirection || '').replace(/"/g, '""')}"`,
+        `"${(plank.plankId || 'N/A').replace(/"/g, '""')}"`,
+        formatHole(plank.hole),
+        formatGroove(plank.groove),
       ];
       csvRows.push(row.join(','));
     }

@@ -25,6 +25,26 @@ const PlankOutputSchema = z.object({
     right: z.string().optional(),
   }).optional(),
   processingDetails: z.string().optional(),
+  hole: z.union([
+    z.object({
+      x: z.number(),
+      y: z.number(),
+      z: z.number(),
+      t: z.union([z.string(), z.number()]),
+    }),
+    z.string()
+  ]).optional(),
+  groove: z.union([
+    z.object({
+      x1: z.number(),
+      y1: z.number(),
+      x2: z.number(),
+      y2: z.number(),
+      z: z.number(),
+      t: z.union([z.string(), z.number()]),
+    }),
+    z.string()
+  ]).optional(),
 }).catchall(z.any()); // Allow other properties returned by script
 
 export class GenerationController {
@@ -212,6 +232,137 @@ export class GenerationController {
       // If jsFunctionService.executeItemScript throws, it will be caught here.
       console.error("Error in testItemScript controller:", error.message);
       res.status(400).json({ message: `Script test failed: ${error.message}` }); // Send specific error back
+    }
+  };
+
+  generateProjectPlankList = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { projectId } = req.body;
+
+      if (!projectId || typeof projectId !== 'number') {
+        return res.status(400).json({ message: 'Valid projectId is required.' });
+      }
+
+      const projectInstances = await prisma.projectModelInstance.findMany({
+        where: { projectId: projectId },
+        include: {
+          modelDefinition: {
+            include: {
+              bomItems: true,
+            },
+          },
+        },
+      });
+
+      if (!projectInstances || projectInstances.length === 0) {
+        return res.status(404).json({ message: 'No model instances found for this project.' });
+      }
+
+      const allResolvedPlanks: ExecutedScriptResult[] = [];
+
+      for (const instance of projectInstances) {
+        if (!instance.modelDefinition || !instance.modelDefinition.bomItems) {
+          console.warn(`Instance ${instance.id} is missing model definition or BOM items. Skipping.`);
+          continue;
+        }
+        
+        const originalRuntimeInputs = instance.runtimeInputsJson as any || {};
+        const currentInstanceProjectId = instance.projectId; // Use projectId from the instance itself for material fetching
+      
+        const enrichedRuntimeInputs: any = { ...originalRuntimeInputs };
+        const materialIdKeys = {
+          exposed: 'exposedMaterialId',
+          inner: 'innerMaterialId',
+          backPanel: 'backPanelMaterialId',
+        };
+        const materialDefinitionKeys = {
+          exposed: 'exposedMaterialDefinition',
+          inner: 'innerMaterialDefinition',
+          backPanel: 'backPanelMaterialDefinition',
+        };
+
+        for (const [type, idKey] of Object.entries(materialIdKeys)) {
+          const materialId = originalRuntimeInputs[idKey];
+          if (materialId && typeof materialId === 'string') {
+            try {
+              const materialDefinition = await prisma.material.findUnique({
+                where: { projectId_materialId: { projectId: currentInstanceProjectId, materialId } },
+              });
+              if (materialDefinition) {
+                enrichedRuntimeInputs[materialDefinitionKeys[type as keyof typeof materialDefinitionKeys]] = materialDefinition;
+              } else {
+                 console.warn(`WARN: Material with ID ${materialId} for type ${type} not found in project ${currentInstanceProjectId} for instance ${instance.id}.`);
+              }
+            } catch (dbError) {
+              console.error(`ERROR: Failed to fetch material ID ${materialId} for project ${currentInstanceProjectId} (instance ${instance.id}):`, dbError);
+            }
+          }
+        }
+
+        for (const bomItem of instance.modelDefinition.bomItems) {
+          if (bomItem.itemType === BomItemType.PLANK) {
+            if (bomItem.itemLogicScript && bomItem.itemLogicScript.trim() !== '') {
+              try {
+                const scriptOutput = await this.jsFunctionService.executeItemScript(
+                  bomItem.itemLogicScript,
+                  enrichedRuntimeInputs
+                );
+                if (scriptOutput) {
+                  const validationResult = PlankOutputSchema.safeParse(scriptOutput);
+                  if (validationResult.success) {
+                    const plankData = {
+                      ...validationResult.data,
+                      name: validationResult.data.name || bomItem.itemName,
+                      itemDescription: bomItem.itemDescription,
+                    };
+                    allResolvedPlanks.push(plankData);
+                  } else {
+                     console.warn(`Script output validation failed for BOM item ${bomItem.itemName} (ID: ${bomItem.id}, Instance: ${instance.id}):`, validationResult.error.flatten());
+                  }
+                } else {
+                  console.warn(`Script for BOM item ${bomItem.itemName} (ID: ${bomItem.id}, Instance: ${instance.id}) did not return properties.`);
+                }
+              } catch (scriptError: any) {
+                console.error(`Error executing script for BOM item ${bomItem.itemName} (ID: ${bomItem.id}, Instance: ${instance.id}): ${scriptError.message}`);
+              }
+            } else {
+              console.warn(`BOM item ${bomItem.itemName} (ID: ${bomItem.id}, Instance: ${instance.id}) is a PLANK but has no itemLogicScript.`);
+            }
+          }
+        }
+      }
+
+      if (allResolvedPlanks.length === 0) {
+        // Consider if sending an empty CSV is better or a 204/404
+        const emptyCsvData = this.plankListGeneratorService.generatePlankListCsv([]);
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="project_plank_list_${projectId}_empty.csv"`);
+        return res.status(200).send(emptyCsvData);
+      }
+
+      const csvData = this.plankListGeneratorService.generatePlankListCsv(allResolvedPlanks as any);
+      
+      // Optional: Store the aggregated CSV in GeneratedDocument
+      // This requires deciding on a file storage strategy (S3 or DB blob)
+      // For now, just returning the CSV directly.
+      // Example for future:
+      // await prisma.generatedDocument.create({
+      //   data: {
+      //     documentType: 'PROJECT_PLANK_LIST_CSV',
+      //     fileName: `project_plank_list_${projectId}.csv`,
+      //     filePath: 'path/to/s3/or/identifier', // if storing elsewhere
+      //     // csvContent: csvData, // if storing directly and schema supports
+      //     projectId: projectId,
+      //     // userId: req.user.id // if auth is used
+      //   }
+      // });
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="project_plank_list_${projectId}.csv"`);
+      res.status(200).send(csvData);
+
+    } catch (error) {
+      next(error);
     }
   };
 }

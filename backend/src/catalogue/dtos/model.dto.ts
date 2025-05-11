@@ -89,3 +89,9 @@ export const TestItemScriptDtoSchema = z.object({
   sampleRuntimeInputs: z.record(z.any(), { description: "Sample runtime inputs for testing the script" }), // Expects a JSON object
 });
 export type TestItemScriptDto = z.infer<typeof TestItemScriptDtoSchema>;
+
+// --- Project Aggregated Plank List DTO ---
+export const GenerateProjectPlankListSchema = z.object({
+  projectId: z.number().int().positive("Project ID must be a positive integer"),
+});
+export type GenerateProjectPlankListDto = z.infer<typeof GenerateProjectPlankListSchema>;

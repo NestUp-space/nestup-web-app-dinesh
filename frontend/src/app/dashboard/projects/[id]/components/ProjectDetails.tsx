@@ -10,10 +10,10 @@ import { Project, Task, Subtask } from '@/types'; // Updated imports
 import useSWR from 'swr'; // Added SWR
 import { apiClient } from '@/lib/api/client'; // Added apiClient
 import ProjectModelInstanceForm from '@/components/dashboard/project-model-instance/ProjectModelInstanceForm'; // Added form import
-import { PlusCircle, ListChecks } from 'lucide-react'; // Added icons
+// import { PlusCircle } from 'lucide-react'; // PlusCircle will be removed if the modal is removed too.
 // Assuming a simple modal, otherwise import your modal components
 // import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@nextui-org/modal"; // Example for NextUI
-// import { Button } from '@/components/ui/button'; // Assuming shadcn button
+// import { Button } from '@/components/ui/button'; // Assuming shadcn button - this was already commented out
 
 // Define type for ProjectModelInstance (simplified)
 interface GeneratedPlankListDisplay {
@@ -55,76 +55,14 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({
     fetcher
   );
 
-  // State to manage which instance's generated lists are being viewed
-  const [viewingListsForInstance, setViewingListsForInstance] = useState<string | null>(null);
-
-  const { data: generatedLists, error: generatedListsError } = useSWR<GeneratedPlankListDisplay[]>(
-    viewingListsForInstance ? `/catalogue/project-instances/${viewingListsForInstance}/generated-plank-lists` : null,
-    fetcher
-  );
+  // Removed viewingListsForInstance state and generatedLists SWR hook
 
   const handleSaveSuccess = (instanceId: string) => {
     mutateInstances(); // Revalidate the list of instances
     setIsModalOpen(false);
   };
 
-  const handleGeneratePlankList = async (instanceId: string) => {
-    try {
-      const token = localStorage.getItem('token'); // Assuming token is stored in localStorage
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL || ''}/api/catalogue/generate/plank-list`, 
-        { 
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ projectModelInstanceId: instanceId }),
-        }
-      );
-
-      if (!response.ok) {
-        // Try to parse error message if it's JSON, otherwise use statusText
-        let errorData;
-        try {
-          errorData = await response.json();
-        } catch (e) {
-          // Not a JSON response
-        }
-        throw new Error(errorData?.message || response.statusText || `HTTP error! status: ${response.status}`);
-      }
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      
-      const contentDisposition = response.headers.get('content-disposition');
-      let fileName = `plank_list_${instanceId}.csv`; // Default filename
-      if (contentDisposition) {
-        const fileNameMatch = contentDisposition.match(/filename="?(.+)"?/i);
-        if (fileNameMatch && fileNameMatch.length === 2)
-          fileName = fileNameMatch[1];
-      }
-      link.setAttribute('download', fileName);
-      document.body.appendChild(link);
-      link.click();
-      
-      if(link.parentNode) {
-        link.parentNode.removeChild(link);
-      }
-      window.URL.revokeObjectURL(url);
-      alert('Plank list generated and download started!');
-
-    } catch (error: any) {
-      console.error("Error generating plank list:", error);
-      alert(`Error: ${error.message || 'Failed to generate plank list.'}`);
-    }
-  };
+  // Removed handleGenerateInstancePlankList and handleGenerateAggregatedPlankList functions
 
   return (
     <>
@@ -175,59 +113,9 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({
       </div>
     </div>
 
-
-
-    {/* Modal for Adding Project Model Instance */}
-    {isModalOpen && (
-      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex justify-center items-center">
-        <div className="relative mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-          <div className="mt-3 text-center">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Add New Furniture Model to Project</h3>
-            <div className="text-left">
-              <ProjectModelInstanceForm
-                projectId={project.id.toString()} // Ensure projectId is string if API expects string
-                onSaveSuccess={handleSaveSuccess}
-                onCancel={() => setIsModalOpen(false)}
-              />
-            </div>
-            {/* <div className="items-center px-4 py-3">
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-              >
-                Close
-              </button>
-            </div> */}
-          </div>
-        </div>
-      </div>
-    )}
-
-    {/* Modal for Adding Project Model Instance */}
-    {isModalOpen && (
-      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex justify-center items-center">
-        <div className="relative mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-          <div className="mt-3 text-center">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Add New Furniture Model to Project</h3>
-            <div className="text-left">
-              <ProjectModelInstanceForm
-                projectId={project.id.toString()} // Ensure projectId is string if API expects string
-                onSaveSuccess={handleSaveSuccess}
-                onCancel={() => setIsModalOpen(false)}
-              />
-            </div>
-            {/* <div className="items-center px-4 py-3">
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-              >
-                Close
-              </button>
-            </div> */}
-          </div>
-        </div>
-      </div>
-    )}
+    {/* The "Furniture Models / Boxes" section and its related modal for adding an instance are removed. */}
+    {/* If a general "Add Model" or similar functionality is desired elsewhere, it would need a new UI trigger. */}
+    {/* The modal for viewing generated lists is also removed as it was tied to the removed section. */}
     </>
   );
 };

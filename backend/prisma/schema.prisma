@@ -386,4 +386,5 @@ enum DocumentType {
   INSTALLATION_GUIDE_PDF
   PROFORMA_INVOICE_PDF
   FINAL_INVOICE_PDF
+  PROJECT_PLANK_LIST_CSV // Added for aggregated project plank list
 }

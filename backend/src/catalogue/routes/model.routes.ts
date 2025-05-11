@@ -1,5 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
+import multer from 'multer';
 import { ModelService } from '../services/model.service';
+import { isAuthenticated } from '../../middlewares/auth.middleware'; // Assuming auth.middleware is in src/middlewares
 import { 
   CreateModelDefinitionSchema,
   UpdateModelDefinitionSchema,
@@ -31,11 +33,50 @@ const validateData = (schema: any) => (req: Request, res: Response, next: NextFu
   }
 };
 
+// Multer setup for image upload (memory storage)
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Not an image! Please upload an image file.') as any, false);
+    }
+  }
+});
+
 // TEST ROUTE
 router.get('/test-route', (req: Request, res: Response) => {
   console.log('--- /api/v1/catalogue/test-route HIT ---');
   res.status(StatusCodes.OK).send('Catalogue test route is working!');
 });
+
+// --- Model Definition (Catalogue Item) Image Upload ---
+// POST /catalogue/:modelId/image-upload - Upload an image for a model definition
+router.post('/:modelId/image-upload', isAuthenticated, upload.single('catalogueImage'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { modelId } = req.params;
+    if (!req.file) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'No image file uploaded.' });
+    }
+    
+    const updatedModel = await modelService.uploadModelImage(modelId, req.file!); // Added non-null assertion for req.file as it's checked above
+    
+    res.status(StatusCodes.OK).json(updatedModel);
+  } catch (error: any) {
+    console.error(`Error uploading image for model ${req.params.modelId}:`, error);
+    if (error.message.includes('not found')) {
+      return res.status(StatusCodes.NOT_FOUND).json({ message: error.message });
+    }
+    if (error.message.startsWith('Not an image!')) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
 
 // GET /catalogue - List all models
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {

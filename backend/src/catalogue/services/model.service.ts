@@ -1,5 +1,6 @@
 import { ModelDefinition, ModelInputParameter, ModelBomItem, BomItemType } from '@prisma/client';
 import { ModelRepository } from '../repositories/model.repository';
+import { uploadToS3 } from '../../utils/s3'; // For S3 uploads
 import { 
   CreateModelDefinitionDto, 
   UpdateModelDefinitionDto,
@@ -47,12 +48,23 @@ export class ModelService {
     if (!bomItems || bomItems.length === 0) {
       return;
     }
-    if (!sampleRuntimeInputs || typeof sampleRuntimeInputs !== 'object' || Object.keys(sampleRuntimeInputs).length === 0) {
+    // Check if sampleRuntimeInputs is provided and is a non-null object
+    if (!sampleRuntimeInputs || typeof sampleRuntimeInputs !== 'object') {
       const hasScripts = bomItems.some(b => b.itemLogicScript && typeof b.itemLogicScript === 'string' && b.itemLogicScript.trim() !== '');
       if (hasScripts) {
-        throw new Error('Sample runtime inputs are required to test item logic scripts.');
+        // If scripts are present, inputs are mandatory and must be an object.
+        throw new Error('Sample runtime inputs (must be an object) are required to test item logic scripts.');
       }
-      return; 
+      return; // No scripts, or no inputs and no scripts that need them.
+    }
+    // Now, sampleRuntimeInputs is a non-null object. Check if it's empty.
+    if (Object.keys(sampleRuntimeInputs).length === 0) {
+      const hasScripts = bomItems.some(b => b.itemLogicScript && typeof b.itemLogicScript === 'string' && b.itemLogicScript.trim() !== '');
+      if (hasScripts) {
+        // If scripts are present, an empty inputs object is problematic.
+        throw new Error('Sample runtime inputs object cannot be empty if item logic scripts are present.');
+      }
+      return; // Empty inputs object, but no scripts that need them.
     }
 
     for (const bomItem of bomItems) {
@@ -184,7 +196,7 @@ export class ModelService {
           addonModelId: b.addonModelId ?? null,
         }));
       
-      if (processedBomItemsForValidation.length > 0) {
+      if (processedBomItemsForValidation && processedBomItemsForValidation.length > 0) {
         await this.validateBomItemScripts(processedBomItemsForValidation, effectiveSampleInputs);
       }
     }
@@ -321,5 +333,24 @@ export class ModelService {
 
   async deleteBomItem(id: string): Promise<ModelBomItem | null> {
     return this.modelRepository.deleteBomItem(id);
+  }
+
+  // --- Model Image Upload ---
+  async uploadModelImage(modelId: string, file: Express.Multer.File): Promise<ModelDefinition | null> {
+    const modelExists = await this.modelRepository.findById(modelId);
+    if (!modelExists) {
+      throw new Error(`Model with id ${modelId} not found.`);
+    }
+
+    // The uploadToS3 utility likely handles its own key generation or uses a default.
+    // If specific naming for catalogue images is needed, uploadToS3 might need modification
+    // or a new utility function specific for catalogue images.
+    // For now, we assume uploadToS3(file) is sufficient.
+    const imageUrl = await uploadToS3(file);
+
+    // Update the model definition with the new image URL
+    const updatedModel = await this.modelRepository.update(modelId, { imageUrl });
+    
+    return updatedModel;
   }
 }
