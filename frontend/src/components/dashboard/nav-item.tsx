@@ -20,20 +20,21 @@ export function NavItem({
 }) {
   const pathname = usePathname();
 
+  const isActive = pathname === href;
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Link
           href={href}
           className={clsx(
-            'flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8',
+            'flex h-9 w-full items-center justify-start rounded-lg px-3 text-muted-foreground transition-colors hover:text-foreground md:h-8', 
             {
-              'bg-accent text-black': pathname === href
+              'bg-accent text-accent-foreground': isActive 
             }
           )}
         >
           {children}
-          <span className="sr-only">{label}</span>
         </Link>
       </TooltipTrigger>
       <TooltipContent side="right">{label}</TooltipContent>

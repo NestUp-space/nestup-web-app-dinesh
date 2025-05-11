@@ -1,15 +1,21 @@
 "use client";
 
-import React from 'react';
-import ModelBuilderForm from '@/components/dashboard/model-management/ModelBuilderForm'; // Uncommented
+import React, { useState, useEffect } from 'react'; // Added useState, useEffect
+import ModelBuilderForm from '@/components/dashboard/model-management/ModelBuilderForm'; 
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation'; // To get modelId from URL and for navigation
+import { useParams, useRouter } from 'next/navigation';
+import { DashboardBreadcrumb } from '@/components/dashboard/dashboardBreadcrumb'; // Import DashboardBreadcrumb
 
 export default function EditModelPage() {
   const params = useParams();
   const router = useRouter();
-  const modelId = params.modelId as string; // Or handle array/undefined if necessary
+  const modelId = params.modelId as string;
+  const [modelNameForBreadcrumb, setModelNameForBreadcrumb] = useState<string | null>(null);
+
+  const handleModelDataFetched = (name: string) => {
+    setModelNameForBreadcrumb(name);
+  };
 
   const handleSaveSuccess = (updatedModelId: string) => {
     console.log(`Model ${updatedModelId} updated successfully, redirecting...`);
@@ -20,19 +26,27 @@ export default function EditModelPage() {
     router.push('/dashboard/catalogue');
   };
 
-  // ModelBuilderForm handles fetching data internally when modelId is provided.
+  
+  const nameMap = {
+    'catalogue': 'Catalogue',
+    [modelId]: modelNameForBreadcrumb || modelId, // Use fetched name, fallback to ID
+    'edit': 'Edit'
+  };
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-4">
-        <Link href="/dashboard/catalogue" passHref>
-          <button className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 w-10 hover:bg-accent hover:text-accent-foreground">
+      <DashboardBreadcrumb nameMap={nameMap} />
+      <div className="flex items-center gap-4 mt-2"> {/* Added mt-2 for spacing after breadcrumb */}
+        <Link href="/dashboard/catalogue" passHref legacyBehavior>
+          <a className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 w-10 hover:bg-accent hover:text-accent-foreground">
             <ChevronLeft className="h-5 w-5" />
             <span className="sr-only">Back</span>
-          </button>
+          </a>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Edit Model {modelId && `(${modelId})`}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Edit Model: {modelNameForBreadcrumb || modelId}
+          </h1>
           <p className="text-muted-foreground">
             Modify the details of your furniture model.
           </p>
@@ -40,15 +54,12 @@ export default function EditModelPage() {
       </div>
 
       <div className="grid gap-4">
-        {/* <p className="text-muted-foreground">
-          Model builder form for editing model ID: {modelId} will be here. 
-          (ModelBuilderForm component to be implemented and pre-filled with model data)
-        </p> */}
         <ModelBuilderForm 
           modelId={modelId} 
           onSaveSuccess={handleSaveSuccess}
           onCancel={handleCancel}
-        /> {/* Render the form and pass modelId and handlers */}
+          onDataFetched={handleModelDataFetched} // Pass the callback
+        />
       </div>
     </div>
   );

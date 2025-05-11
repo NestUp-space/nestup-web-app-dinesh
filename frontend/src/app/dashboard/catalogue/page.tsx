@@ -2,7 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { PlusCircle, Edit, Eye } from 'lucide-react'; // Added Edit and Eye icons
+import { PlusCircle, Edit, Eye } from 'lucide-react'; 
+import { DashboardBreadcrumb } from '@/components/dashboard/dashboardBreadcrumb'; // Import DashboardBreadcrumb
 import useSWR from 'swr';
 import { apiClient } from '@/lib/api/client';
 import Image from 'next/image'; // For displaying images
@@ -18,11 +19,12 @@ interface ListedModelData {
 const fetcher = (url: string) => apiClient.get(url); // Corrected: apiClient.get already returns the data
 
 export default function ModelManagementPage() {
-  const { data: models, error, isLoading } = useSWR<ListedModelData[]>('/v1/catalogue', fetcher); // Removed /api prefix
+  const { data: models, error, isLoading } = useSWR<ListedModelData[]>('/v1/catalogue', fetcher); 
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-4 p-4 md:p-6"> {/* Adjusted gap for breadcrumb */}
+      <DashboardBreadcrumb /> {/* Add breadcrumb here */}
+      <div className="flex items-center justify-between mt-2"> {/* Added mt-2 for spacing */}
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Model Catalogue</h1>
           <p className="text-muted-foreground text-sm md:text-base">

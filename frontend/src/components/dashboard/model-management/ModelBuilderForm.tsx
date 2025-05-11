@@ -102,6 +102,7 @@ interface ModelBuilderFormProps {
   initialData?: Partial<ModelFormData>; 
   onSaveSuccess?: (modelId: string) => void;
   onCancel?: () => void;
+  onDataFetched?: (modelName: string) => void; // New callback prop
 }
 
 export default function ModelBuilderForm({
@@ -109,6 +110,7 @@ export default function ModelBuilderForm({
   initialData,
   onSaveSuccess,
   onCancel,
+  onDataFetched, // Destructure new prop
 }: ModelBuilderFormProps) {
   const methods = useForm<ModelFormData>({
     resolver: zodResolver(modelFormSchema),
@@ -147,8 +149,12 @@ export default function ModelBuilderForm({
     },
     {
       onSuccess: (data) => {
-        // Data is already transformed by the fetcher
-        if (data) reset(data); 
+        if (data) {
+          reset(data);
+          if (onDataFetched && data.modelType) {
+            onDataFetched(data.modelType); // Call the callback with the model name (modelType)
+          }
+        }
       },
       revalidateOnFocus: false,
     }

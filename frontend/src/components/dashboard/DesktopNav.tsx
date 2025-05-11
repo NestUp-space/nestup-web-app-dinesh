@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { NavItem } from './nav-item';
-import { Home, Users, LineChart, Settings, LogOut, HelpCircle, User as UserIcon, BookCopy } from 'lucide-react';
+import { Home, Users, LineChart, Settings, LogOut, HelpCircle, User as UserIcon, BookCopy, FolderKanban, Workflow } from 'lucide-react'; // Added FolderKanban, Workflow
 import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
 import { useUser } from '@/context/UserContext';
 import { isAdmin, hasPermission } from '@/lib/authUtils';
@@ -33,6 +33,11 @@ export function DesktopNav() {
           Dashboard
         </NavItem>
 
+        <NavItem href="/dashboard/projects" label="Projects">
+          <FolderKanban className="h-5 w-5 mr-2" />
+          Projects
+        </NavItem>
+
         {!isLoading && user?.role && hasPermission(user?.role.roleType, 'admin') && (
           <NavItem href="/dashboard/users" label="Users">
             <Users className="h-5 w-5 mr-2" />
@@ -40,11 +45,17 @@ export function DesktopNav() {
           </NavItem>
         )}
 
-        {/* TODO: Review if BookCopy is the most appropriate icon for Catalogue */}
         {!isLoading && user?.role && hasPermission(user?.role.roleType, 'admin') && (
           <NavItem href="/dashboard/catalogue" label="Catalogue">
             <BookCopy className="h-5 w-5 mr-2" /> 
             Catalogue
+          </NavItem>
+        )}
+
+        {!isLoading && user?.role && hasPermission(user?.role.roleType, 'admin') && ( // Assuming BIM Process has same permissions as Catalogue
+          <NavItem href="/dashboard/bimProcess" label="BIM Process">
+            <Workflow className="h-5 w-5 mr-2" />
+            BIM Process
           </NavItem>
         )}
 

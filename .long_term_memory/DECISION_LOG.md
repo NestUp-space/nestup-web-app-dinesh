@@ -305,9 +305,11 @@ Where `{documentType}` can be a subfolder (e.g., `planklabels`, `cutlists`, `inv
 **Decision:** Added `"node"` to the `compilerOptions.types` array in `backend/tsconfig.json`.
 **Rationale:** Resolved a TypeScript error ("Cannot find name 'process'") in `backend/prisma/seed.ts`. The `types` array was previously `["vitest/globals"]`, which restricted TypeScript from recognizing Node.js global types even though `@types/node` was installed. Explicitly adding "node" makes these types available.
 **Impacted Areas:** TypeScript compilation and type-checking for the backend, specifically for files relying on Node.js globals like `process` (e.g., `prisma/seed.ts`).
-**Related LTM:** None directly, but relates to overall backend TypeScript configuration.
+**Related LTM:** None directly, but relates to overall backend TypeScript configuration
 ---
+
 ## Decision_CatalogueItemImageUploadAPI_20250511
+
 **Date:** 2025-05-11
 **Decision:** Implemented backend API for Catalogue Item (ModelDefinition) image uploads.
     1. Added route `POST /catalogue/:modelId/image-upload` to `backend/src/catalogue/routes/model.routes.ts`.
@@ -317,5 +319,5 @@ Where `{documentType}` can be a subfolder (e.g., `planklabels`, `cutlists`, `inv
     5. Service method uses `uploadToS3` utility for S3 storage and updates `ModelDefinition.imageUrl`.
 **Rationale:** Provides a dedicated and secure endpoint for managing catalogue item images, integrating with existing S3 infrastructure and service patterns.
 **Impacted Areas:** Catalogue item management, backend API for catalogue, S3 storage for images.
-**Related LTM:** `backend/src/catalogue/routes/model.routes.ts`, `backend/src/catalogue/services/model.service.ts`.
+**Related LTM:** `backend/src/catalogue/routes/model.routes.ts`, `backend/src/catalogue/services/model.service.ts`
 ---
