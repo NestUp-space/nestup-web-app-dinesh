@@ -10,6 +10,7 @@ import fileRoutes from './routes/file.routes';
 import siteVisitRoutes from './routes/site-visit.routes';
 import roleRoutes from './routes/role.routes';
 import catalogueRouter from "./catalogue/routes/model.routes"; // Import catalogue router
+import plankGenerationRouter from "./bim/routes/plank-generation.routes"; // Import plank generation router
 
 // Load environment variables
 dotenv.config();
@@ -50,6 +51,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/site-visit', siteVisitRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/v1/catalogue', catalogueRouter); // Mount catalogue router
+app.use('/api/bim/plank-generation', plankGenerationRouter); // Mount plank generation router
 
 // Health check endpoint
 app.get('/health', (req, res) => {

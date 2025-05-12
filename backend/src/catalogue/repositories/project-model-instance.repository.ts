@@ -21,7 +21,8 @@ export class ProjectModelInstanceRepository {
   async findAllByProjectId(projectId: number): Promise<ProjectModelInstance[]> {
     return prisma.projectModelInstance.findMany({
       where: { projectId },
-      include: { modelDefinition: true, generatedPlankLists: true } 
+      include: { modelDefinition: true, generatedPlankLists: true },
+      orderBy: { uiDisplayOrder: 'asc' } // Added ordering
     });
   }
 

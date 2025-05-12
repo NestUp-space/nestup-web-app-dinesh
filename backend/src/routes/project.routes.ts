@@ -5,6 +5,7 @@ import {
   subtaskController
 } from '../controllers/project';
 import { materialController } from '../controllers/material.controller'; // Added import
+import projectModelInstanceRoutes from '../catalogue/routes/project-model-instance.routes'; // Import instance routes
 import { isAuthenticated } from '../middlewares/auth.middleware';
 
 import { Request, Response } from 'express'; // Ensure Request and Response are imported from express
@@ -39,5 +40,9 @@ router.get('/:projectId/materials', isAuthenticated, materialController.getMater
 router.get('/materials/:materialId', isAuthenticated, materialController.getMaterialById.bind(materialController)); // For direct fetch if needed
 router.put('/materials/:materialId', isAuthenticated, materialController.updateMaterial.bind(materialController));
 router.delete('/materials/:materialId', isAuthenticated, materialController.deleteMaterial.bind(materialController));
+
+// Mount Project Model Instance routes
+// This will make routes like GET /:projectId/model-instances available
+router.use('/:projectId/model-instances', projectModelInstanceRoutes);
 
 export default router;

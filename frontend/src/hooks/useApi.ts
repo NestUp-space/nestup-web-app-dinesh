@@ -29,9 +29,18 @@ export function useApi<T = any, P = any>({
   const [error, setError] = useState<Error | null>(null);
   const [loading, setLoading] = useState<boolean>(!skip);
 
-  const fetchData = useCallback(async () => {
-    if (skip) return;
+  const fetchData = useCallback(async (options?: { forceFetch?: boolean }) => {
+    const isForced = options?.forceFetch === true;
+    // Log the endpoint being used by this specific hook instance
+    console.log(`[useApi fetchData] Hook instance for endpoint: ${endpoint}, Method: ${method}, Skip: ${skip}, ForceFetch: ${isForced}`);
+    
+    if (skip && !isForced) {
+      console.log(`[useApi fetchData] Skipping fetch for endpoint: ${endpoint} (skip=${skip}, forceFetch=${isForced})`);
+      setLoading(false); // Ensure loading is false if skipped and not forced
+      return;
+    }
 
+    console.log(`[useApi fetchData] Starting fetch for endpoint: ${endpoint} (skip=${skip}, forceFetch=${isForced})`);
     setLoading(true);
     setError(null);
 
@@ -40,15 +49,19 @@ export function useApi<T = any, P = any>({
 
       switch (method) {
         case 'GET':
+          console.log(`[useApi fetchData] apiClient.get called with endpoint: ${endpoint}`);
           result = await apiClient.get<T>(endpoint);
           break;
         case 'POST':
+          console.log(`[useApi fetchData] apiClient.post called with endpoint: ${endpoint}`);
           result = await apiClient.post<T, P>(endpoint, params);
           break;
         case 'PUT':
+          console.log(`[useApi fetchData] apiClient.put called with endpoint: ${endpoint}`);
           result = await apiClient.put<T, P>(endpoint, params);
           break;
         case 'DELETE':
+          console.log(`[useApi fetchData] apiClient.delete called with endpoint: ${endpoint}`);
           result = await apiClient.delete<T>(endpoint);
           break;
         default:
@@ -67,12 +80,19 @@ export function useApi<T = any, P = any>({
   }, [endpoint, method, params, skip, onSuccess, onError]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    // Initial fetch on mount, respecting skip unless endpoint is empty
+    if (endpoint) { // Only run if endpoint is valid
+      fetchData();
+    } else {
+      setLoading(false); // If no endpoint, not loading
+    }
+  }, [fetchData, endpoint]); // Add endpoint to dependencies
 
   const refetch = useCallback(() => {
-    fetchData();
-  }, [fetchData]);
+    if (endpoint) { // Only refetch if endpoint is valid
+      fetchData({ forceFetch: true });
+    }
+  }, [fetchData, endpoint]); // Add endpoint to dependencies
 
   return { data, error, loading, refetch };
 }

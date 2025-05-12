@@ -1,8 +1,17 @@
-import { ProjectModelInstance, GeneratedPlankList, Prisma } from '@prisma/client'; // Updated ProjectCatalogueItemInstance to ProjectModelInstance
+import { ProjectModelInstance, GeneratedPlankList, Prisma, PrismaClient } from '@prisma/client'; // Added PrismaClient
 import { ProjectModelInstanceRepository } from '../repositories/project-model-instance.repository'; // Updated repository name
 import { CreateProjectModelInstanceDto, UpdateProjectModelInstanceDto } from '../dtos/model.dto'; // Updated DTO import and names
 import { ModelRepository } from '../repositories/model.repository'; // Updated repository import
 // import { ProjectRepository } from '../../repositories/project.repository'; // To check if Project exists
+
+// Interface for the data expected from the frontend for each box configuration
+interface BoxConfigDto {
+  id?: string; // Existing instance ID (if updating)
+  modelDefinitionId: string;
+  runtimeInputsJson: Prisma.InputJsonValue;
+  uiDisplayOrder: number;
+  // projectId will be passed as a separate parameter to the service method
+}
 
 export class ProjectModelInstanceService { // Updated class name
   private projectModelInstanceRepository: ProjectModelInstanceRepository; // Updated repository type
@@ -34,7 +43,10 @@ export class ProjectModelInstanceService { // Updated class name
   }
 
   async findAllByProjectId(projectId: number): Promise<ProjectModelInstance[]> { // Updated return type
-    return this.projectModelInstanceRepository.findAllByProjectId(projectId); // Updated repository method
+    // TODO: Ensure the repository method fetches ordered by uiDisplayOrder
+    // For now, assuming the repository method will be updated or handles this.
+    // If not, add { orderBy: { uiDisplayOrder: 'asc' } } to the findMany call in the repository.
+    return this.projectModelInstanceRepository.findAllByProjectId(projectId); 
   }
 
   async findById(id: string): Promise<ProjectModelInstance | null> { // Updated return type
@@ -59,5 +71,68 @@ export class ProjectModelInstanceService { // Updated class name
 
   async findGeneratedPlankListsByInstanceId(projectModelInstanceId: string): Promise<GeneratedPlankList[]> { // Updated parameter name
     return this.projectModelInstanceRepository.findGeneratedPlankListsByInstanceId(projectModelInstanceId); // Updated repository method
+  }
+
+  async batchUpdateInstancesForProject(
+    projectId: number,
+    boxConfigs: BoxConfigDto[],
+  ): Promise<ProjectModelInstance[]> {
+    const prisma = new PrismaClient(); // TODO: Refactor to use injected or repository's prisma instance
+
+    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // 1. Fetch existing instances for the project
+      const existingInstances = await tx.projectModelInstance.findMany({
+        where: { projectId },
+      });
+      const existingInstanceIds = existingInstances.map((inst: ProjectModelInstance) => inst.id);
+
+      const incomingConfigIds = boxConfigs.filter((conf) => conf.id).map((conf) => conf.id as string);
+
+      // 2. Determine instances to delete
+      const idsToDelete = existingInstanceIds.filter((id: string) => !incomingConfigIds.includes(id));
+      if (idsToDelete.length > 0) {
+        await tx.projectModelInstance.deleteMany({
+          where: { id: { in: idsToDelete } },
+        });
+      }
+
+      // 3. Upsert (Create or Update) instances
+      const upsertPromises: Promise<ProjectModelInstance>[] = [];
+      for (const config of boxConfigs) {
+        const dataToUpsert = {
+          projectId,
+          modelDefinitionId: config.modelDefinitionId,
+          runtimeInputsJson: config.runtimeInputsJson,
+          uiDisplayOrder: config.uiDisplayOrder,
+        };
+
+        if (config.id && existingInstanceIds.includes(config.id)) {
+          // Update existing instance
+          upsertPromises.push(
+            tx.projectModelInstance.update({
+              where: { id: config.id },
+              data: dataToUpsert,
+            }),
+          );
+        } else {
+          // Create new instance
+          // If config.id was provided but not found, it implies a new client-side ID,
+          // so we let Prisma generate a new ID.
+          upsertPromises.push(
+            tx.projectModelInstance.create({
+              data: dataToUpsert, // Prisma will generate 'id'
+            }),
+          );
+        }
+      }
+      await Promise.all(upsertPromises);
+
+      // 4. Fetch and return the updated list of instances, ordered
+      return tx.projectModelInstance.findMany({
+        where: { projectId },
+        orderBy: { uiDisplayOrder: 'asc' },
+        include: { modelDefinition: true, generatedPlankLists: true }, // Consistent with findAllByProjectId
+      });
+    });
   }
 }

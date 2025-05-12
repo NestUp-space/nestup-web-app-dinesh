@@ -54,17 +54,27 @@ export class ApiClient {
   }
 
   private async handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
+    console.log(`Response status: ${response.status} ${response.statusText}`);
     const contentType = response.headers.get('content-type');
+    console.log(`Response content type: ${contentType}`);
     let data: any;
 
-    if (contentType && contentType.includes('application/json')) {
-      data = await response.json();
-    } else {
-      data = await response.text();
+    try {
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+        console.log("Response JSON data:", data);
+      } else {
+        data = await response.text();
+        console.log("Response text data:", data);
+      }
+    } catch (error) {
+      console.error("Error parsing response:", error);
+      throw new ApiError(`Failed to parse response: ${error}`, response.status);
     }
 
     if (!response.ok) {
       const message = data?.message || response.statusText || 'API request failed';
+      console.error(`API Error (${response.status}): ${message}`, data);
       throw new ApiError(message, response.status, data);
     }
 
@@ -77,7 +87,10 @@ export class ApiClient {
   }
 
   async get<T = any>(endpoint: string, options?: ApiClientOptions): Promise<T> {
-    const url = `${API_BASE_URL}/api${endpoint}`;
+    // Check if endpoint already starts with /api to avoid double /api
+    const apiPrefix = endpoint.startsWith('/api') ? '' : '/api';
+    const url = `${API_BASE_URL}${apiPrefix}${endpoint}`;
+    console.log(`API GET request to: ${url}`);
     const headers = this.getHeaders(options);
 
     const response = await fetch(url, {
@@ -90,7 +103,11 @@ export class ApiClient {
   }
 
   async post<T = any, D = any>(endpoint: string, data?: D, options?: ApiClientOptions): Promise<T> {
-    const url = `${API_BASE_URL}/api${endpoint}`;
+    // Check if endpoint already starts with /api to avoid double /api
+    const apiPrefix = endpoint.startsWith('/api') ? '' : '/api';
+    const url = `${API_BASE_URL}${apiPrefix}${endpoint}`;
+    console.log(`API POST request to: ${url}`);
+    console.log("POST data:", data);
     const headers = this.getHeaders(options);
 
     const response = await fetch(url, {
@@ -104,7 +121,11 @@ export class ApiClient {
   }
 
   async put<T = any, D = any>(endpoint: string, data?: D, options?: ApiClientOptions): Promise<T> {
-    const url = `${API_BASE_URL}/api${endpoint}`;
+    // Check if endpoint already starts with /api to avoid double /api
+    const apiPrefix = endpoint.startsWith('/api') ? '' : '/api';
+    const url = `${API_BASE_URL}${apiPrefix}${endpoint}`;
+    console.log(`API PUT request to: ${url}`);
+    console.log("PUT data:", data);
     const headers = this.getHeaders(options);
 
     const response = await fetch(url, {
@@ -118,7 +139,10 @@ export class ApiClient {
   }
 
   async delete<T = any>(endpoint: string, options?: ApiClientOptions): Promise<T> {
-    const url = `${API_BASE_URL}/api${endpoint}`;
+    // Check if endpoint already starts with /api to avoid double /api
+    const apiPrefix = endpoint.startsWith('/api') ? '' : '/api';
+    const url = `${API_BASE_URL}${apiPrefix}${endpoint}`;
+    console.log(`API DELETE request to: ${url}`);
     const headers = this.getHeaders(options);
 
     const response = await fetch(url, {

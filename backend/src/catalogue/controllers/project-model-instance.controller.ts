@@ -1,110 +1,186 @@
-import { Request, Response, NextFunction } from 'express';
-import { ProjectModelInstanceService } from '../services/project-model-instance.service'; // Updated import
-import { CreateProjectModelInstanceSchema, UpdateProjectModelInstanceSchema } from '../dtos/model.dto'; // Updated DTO import
-import { ZodError } from 'zod';
-import { StatusCodes } from 'http-status-codes';
+import { Request, Response } from 'express';
+import { 
+    CreateProjectModelInstanceDTO,
+    UpdateProjectModelInstanceDTO,
+    GetProjectModelInstancesDTO,
+    BatchUpdateProjectModelInstancesDTO
+} from '../dtos/project-model-instance.dto';
+import { PrismaClient } from '@prisma/client';
 
-const projectModelInstanceService = new ProjectModelInstanceService(); // Updated service instantiation
+const prisma = new PrismaClient();
 
-// Middleware for Zod validation (can be moved to a shared middleware file)
-const validateData = (schema: any) => (req: Request, res: Response, next: NextFunction) => {
-  try {
-    schema.parse(req.body);
-    next();
-  } catch (error) {
-    if (error instanceof ZodError) {
-      res.status(StatusCodes.BAD_REQUEST).json({
-        message: 'Validation failed',
-        errors: error.errors,
-      });
-    } else {
-      next(error); // Pass to global error handler
-    }
-  }
-};
+// Create a new project model instance
+export const createProjectModelInstance = async (req: Request, res: Response) => {
+    const { projectId } = req.params;
+    const { modelDefinitionId, runtimeInputsJson, uiDisplayOrder } = req.body;
 
-export const createProjectModelInstance = [ // Updated DTO schema
-  validateData(CreateProjectModelInstanceSchema),
-  async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const instance = await projectModelInstanceService.create(req.body);
-      res.status(StatusCodes.CREATED).json(instance);
+        const instance = await prisma.projectModelInstance.create({
+            data: {
+                projectId: parseInt(projectId),
+                modelDefinitionId,
+                runtimeInputsJson,
+                uiDisplayOrder: uiDisplayOrder || 0,
+            },
+        });
+
+        res.status(201).json(instance);
     } catch (error) {
-      console.error('Error creating project model instance:', error);
-      next(error);
+        console.error('Error creating project model instance:', error);
+        res.status(500).json({ message: 'Failed to create project model instance' });
     }
-  }
-];
-
-export const getAllProjectModelInstancesByProjectId = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const projectId = parseInt(req.params.projectId, 10);
-    if (isNaN(projectId)) {
-      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID format.' });
-    }
-    const instances = await projectModelInstanceService.findAllByProjectId(projectId);
-    res.status(StatusCodes.OK).json(instances);
-  } catch (error) {
-    console.error(`Error fetching project model instances for project ${req.params.projectId}:`, error);
-    next(error);
-  }
 };
 
-export const getProjectModelInstanceById = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { instanceId } = req.params; // Assuming route param is instanceId
-    const instance = await projectModelInstanceService.findById(instanceId);
-    if (!instance) {
-      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Project Model Instance not found' });
-    }
-    res.status(StatusCodes.OK).json(instance);
-  } catch (error) {
-    console.error(`Error fetching project model instance ${req.params.instanceId}:`, error);
-    next(error);
-  }
-};
+// Get all project model instances for a project
+export const getAllProjectModelInstancesByProjectId = async (req: Request, res: Response) => {
+    const { projectId } = req.params;
 
-export const updateProjectModelInstance = [ // Updated DTO schema
-  validateData(UpdateProjectModelInstanceSchema),
-  async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { instanceId } = req.params;
-      const updatedInstance = await projectModelInstanceService.update(instanceId, req.body);
-      if (!updatedInstance) {
-        return res.status(StatusCodes.NOT_FOUND).json({ message: 'Project Model Instance not found' });
-      }
-      res.status(StatusCodes.OK).json(updatedInstance);
-    } catch (error) {
-      console.error(`Error updating project model instance ${req.params.instanceId}:`, error);
-      next(error);
-    }
-  }
-];
+        const instances = await prisma.projectModelInstance.findMany({
+            where: {
+                projectId: parseInt(projectId),
+            },
+            orderBy: {
+                uiDisplayOrder: 'asc',
+            },
+        });
 
-export const deleteProjectModelInstance = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { instanceId } = req.params;
-    const deletedInstance = await projectModelInstanceService.delete(instanceId);
-    if (!deletedInstance) {
-      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Project Model Instance not found or already deleted' });
+        res.json(instances);
+    } catch (error) {
+        console.error('Error fetching project model instances:', error);
+        res.status(500).json({ message: 'Failed to fetch project model instances' });
     }
-    res.status(StatusCodes.OK).json({ message: 'Project Model Instance deleted successfully', item: deletedInstance });
-  } catch (error) {
-    console.error(`Error deleting project model instance ${req.params.instanceId}:`, error);
-    if ((error as any).code === 'P2025') { // Prisma specific error code for record not found
-        return res.status(StatusCodes.NOT_FOUND).json({ message: 'Project Model Instance not found' });
-    }
-    next(error);
-  }
 };
 
-export const getGeneratedPlankListsForInstance = async (req: Request, res: Response, next: NextFunction) => {
-  try {
+// Get a specific project model instance by ID
+export const getProjectModelInstanceById = async (req: Request, res: Response) => {
     const { instanceId } = req.params;
-    const plankLists = await projectModelInstanceService.findGeneratedPlankListsByInstanceId(instanceId);
-    res.status(StatusCodes.OK).json(plankLists);
-  } catch (error) {
-    console.error(`Error fetching generated plank lists for instance ${req.params.instanceId}:`, error);
-    next(error);
-  }
+
+    try {
+        const instance = await prisma.projectModelInstance.findUnique({
+            where: {
+                id: instanceId,
+            },
+        });
+
+        if (!instance) {
+            return res.status(404).json({ message: 'Project model instance not found' });
+        }
+
+        res.json(instance);
+    } catch (error) {
+        console.error('Error fetching project model instance:', error);
+        res.status(500).json({ message: 'Failed to fetch project model instance' });
+    }
+};
+
+// Update a project model instance
+export const updateProjectModelInstance = async (req: Request, res: Response) => {
+    const { instanceId } = req.params;
+    const { modelDefinitionId, runtimeInputsJson, uiDisplayOrder } = req.body;
+
+    try {
+        const instance = await prisma.projectModelInstance.update({
+            where: {
+                id: instanceId,
+            },
+            data: {
+                ...(modelDefinitionId && { modelDefinitionId }),
+                ...(runtimeInputsJson && { runtimeInputsJson }),
+                ...(uiDisplayOrder !== undefined && { uiDisplayOrder }),
+            },
+        });
+
+        res.json(instance);
+    } catch (error) {
+        console.error('Error updating project model instance:', error);
+        res.status(500).json({ message: 'Failed to update project model instance' });
+    }
+};
+
+// Delete a project model instance
+export const deleteProjectModelInstance = async (req: Request, res: Response) => {
+    const { instanceId } = req.params;
+
+    try {
+        await prisma.projectModelInstance.delete({
+            where: {
+                id: instanceId,
+            },
+        });
+
+        res.status(204).send();
+    } catch (error) {
+        console.error('Error deleting project model instance:', error);
+        res.status(500).json({ message: 'Failed to delete project model instance' });
+    }
+};
+
+// Get generated plank lists for a specific instance
+export const getGeneratedPlankListsForInstance = async (req: Request, res: Response) => {
+    const { instanceId } = req.params;
+
+    try {
+        const plankLists = await prisma.generatedPlankList.findMany({
+            where: {
+                projectModelInstanceId: instanceId,
+            },
+            orderBy: {
+                generatedAt: 'desc',
+            },
+        });
+
+        res.json(plankLists);
+    } catch (error) {
+        console.error('Error fetching generated plank lists:', error);
+        res.status(500).json({ message: 'Failed to fetch generated plank lists' });
+    }
+};
+
+// Batch update project model instances
+export const batchUpdateProjectModelInstances = async (req: Request, res: Response) => {
+    const { projectId } = req.params;
+    const { boxes } = req.body;
+
+    try {
+        // Start a transaction for batch operations
+        const result = await prisma.$transaction(async (tx) => {
+            const updatedInstances = [];
+
+            for (const box of boxes) {
+                const { id, modelDefinitionId, runtimeInputsJson, uiDisplayOrder } = box;
+
+                if (id) {
+                    // Update existing instance
+                    const instance = await tx.projectModelInstance.update({
+                        where: { id },
+                        data: {
+                            modelDefinitionId,
+                            runtimeInputsJson,
+                            uiDisplayOrder,
+                        },
+                    });
+                    updatedInstances.push(instance);
+                } else {
+                    // Create new instance
+                    const instance = await tx.projectModelInstance.create({
+                        data: {
+                            projectId: parseInt(projectId),
+                            modelDefinitionId,
+                            runtimeInputsJson,
+                            uiDisplayOrder,
+                        },
+                    });
+                    updatedInstances.push(instance);
+                }
+            }
+
+            return updatedInstances;
+        });
+
+        res.json(result);
+    } catch (error) {
+        console.error('Error in batch update of project model instances:', error);
+        res.status(500).json({ message: 'Failed to batch update project model instances' });
+    }
 };

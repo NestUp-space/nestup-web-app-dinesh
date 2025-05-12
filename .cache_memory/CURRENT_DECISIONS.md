@@ -1,23 +1,38 @@
-# Session Decisions Log: 2025-05-11
+# Session Decisions Log: 2025-05-12
 
-**Task: Update `frontend/src/components/dashboard/ModelSelector.tsx` UI for Plank List (Backend Investigation)**
+## **Task: Fix Login Error -> Roadmap Update -> Plan Persistent Multi-Box UI**
 
-1. **Button Text Change:** (No change)
-2. **Plank List Display and Download Format:** (No change)
-3. **Download UI Implementation:** (No change)
-4. **CSV Data Structure Assumption:** (No change)
-5. **Styling and Error Correction for Download Button:** (No change)
-6. **Error Handling for Plank Generation (Initial Frontend):** (No change)
-7. **Debugging API Response (Frontend Logging):** (No change)
-8. **Diagnosis of 404 Error for Plank Generation (Initial Backend):** (No change)
-9. **Diagnosis of Additional 404 Error for Catalogue Loading (Initial Backend):** (No change)
-10. **Backend Fix Attempt for `POST /api/bim/generate-plank-list` (2025-05-11):** (No change to decisions)
-11. **Backend Investigation for Catalogue Loading (`GET /api/v1/catalogue`) (2025-05-11):** (No change to analysis)
-12. **Re-evaluation after User Feedback (Persistent TS Error):** (No change to decision - user action required for TS error)
-13. **Confirmation of TS Error Resolution & Next Diagnostic Step (Ping Route & Controller Log):**
-    * Observation: User confirmed TS error resolved. Ping route `GET /api/bim/ping-bim-debug` still 404. Backend logs show no hit on controller.
-    * Decision: Problem likely with `bimRouter` mounting in `server.ts` or Express setup.
-14. **Diagnostic Step - Check `tsconfig.json` and `server.ts` for `bimRouter` (2025-05-11):**
-    * **Analysis:** `tsconfig.json` path alias `@/` for `src/*` seems correct. `server.ts` import `import bimRouter from "@/bim/routes/bim.routes";` and usage `app.use("/api/bim", bimRouter);` appear correct.
-    * **Decision:** To further diagnose why `bimRouter` might not be effective, add `console.log` statements in `server.ts` around the `app.use("/api/bim", bimRouter);` line to inspect the `bimRouter` object itself at startup.
-    * **Action:** User to restart backend and provide startup logs from the terminal, then test ping route. Task blocked pending these logs.
+## **Task: Implement Persistent Multi-Box Configuration in ModelSelector UI**
+
+1. **Implementation Approach (2025-05-12 3:34 PM):**
+   * **Completed Components:**
+     * Created reusable BoxComponent with proper UI indicators
+     * Implemented individual box operations (save, delete, move)
+     * Added validation to prevent plank generation with unsaved boxes
+   * **Technical Decisions:**
+     * Used isModified flag to track changes in box configurations
+     * Implemented per-box error handling and loading states
+     * Added box number prefixing for plank identifiers
+   * **Status:** Core functionality implemented, awaiting bug reports and testing
+
+1. **Login Issue Resolution (2025-05-12 12:11 PM):**
+    * Login issue resolved (attributed to dev environment caching of `.env`). Debug log removed.
+2. **Roadmap Reprioritization & Update (2025-05-12 11:20 AM - 11:28 AM):**
+    * User requested roadmap update: Phase 0 marked done, Phase 1 reprioritized with new manufacturing outputs at top.
+    * Action: `PROJECT_CONTEXT_AND_ROADMAP.md` updated.
+3. **New Feature Request - Persistent Multi-Box UI (2025-05-12 12:19 PM onwards):**
+    * **Requirement:** User wants `ModelSelector.tsx` to allow configuration of multiple "boxes" that persist in the backend.
+    * **Chosen Approach (Scalable, Best Practice):**
+        * Utilize existing `ProjectModelInstance` Prisma model.
+        * Add a `uiDisplayOrder: Int? @default(0)` field to `ProjectModelInstance` for sequencing.
+        * Store `inputValues` for each box in the `inputValuesJson` field of its `ProjectModelInstance` record.
+        * Backend APIs:
+            * `GET /api/catalogue/projects/{projectId}/model-instances` (fetches ordered by `uiDisplayOrder`).
+            * `PUT /api/catalogue/projects/{projectId}/model-instances/batch` (for batch create/update/delete of instances, transactional).
+        * Frontend `ModelSelector.tsx`:
+            * State to manage an array of `BoxItem` objects.
+            * Fetch existing config on load.
+            * UI for add/remove/reorder/edit boxes.
+            * "Save Box Setup" button to call the batch PUT API.
+            * "Generate Plank List" to use client-side state (after encouraging save) and call `/bim/generate-plank-list` with an array of box data.
+    * **Decision:** Proceed with this detailed plan. Document in roadmap, cache files, and create a new detailed work ticket.

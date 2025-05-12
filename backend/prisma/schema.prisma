@@ -341,6 +341,7 @@ model ProjectModelInstance {
   // Runtime inputs provided by the user for this specific instance
   // Example: { "boxWidth": 1200, "numberOfShelves": 2, "leftAdjacency": "Wall" }
   runtimeInputsJson Json
+  uiDisplayOrder    Int      @default(0) // For ordering boxes in UI
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
