@@ -31,23 +31,20 @@
       - Move Up/Down (local reordering) (Status: Completed)
     - `0.5.B.4`: Update "Generate Plank List":
       - Only allow generation when all boxes are saved (Status: Completed)
-      - Use box numbers in plank identifiers (Status: Backend Verified, Frontend CSV already handles)
-      - Update CSV download to handle prefixed plank IDs (Status: Frontend CSV already handles prefixed ID and box number columns)
-      - **Investigate Empty Plank Values:** Plank list generates, but values (Width, Height, MC) are empty. Requires debugging `itemLogicScript` for PLANK `BillOfMaterialItem`s. (Status: Pending Investigation)
+      - Use box numbers in plank identifiers (Status: Backend Verified, Frontend CSV structured to handle)
+      - Update CSV download to handle prefixed plank IDs (Status: Frontend CSV structured to handle)
+      - **Investigate Empty Plank Values:** Plank list generates, but values (Width, Height, MC, etc.) are empty. Requires debugging `itemLogicScript` for PLANK `BillOfMaterialItem`s. (Status: Paused - Pending User Input: example `itemLogicScript`, `details` JSON, and `runtimeInputsJson` for a problematic model).
+    - `0.5.B.5`: Unit Tests for ModelSelector & related services. (Status: Sample test created for `ModelSelector.tsx`. Full coverage deferred by user).
 
-- **Task: Implement Box Number Prefixing in Plank IDs**
-  - **Status:** New requirement, part of Phase 0.5
-  - **Context:** When plank list is generated, each plank ID needs to be prefixed with its box number
+- **Task: Implement Box Number Prefixing in Plank IDs** (This task is effectively completed as part of 0.5.A.3 and 0.5.B.4)
+  - **Status:** Completed (Backend Verified, Frontend CSV handles).
+  - **Context:** When plank list is generated, each plank ID needs to be prefixed with its box number.
   - **Implementation Details:**
-    - Backend will prefix each plank's identifier with its box number during generation
-    - Format: "{boxNumber}-{originalPlankId}"
-    - Affects both plank list generation and CSV export
-  - **Dependencies:**
-    - Must be implemented alongside individual box save/delete functionality
-    - Requires coordination between frontend box numbering and backend plank generation
+    - Backend prefixes plank identifiers.
+    - Format: "{boxNumber}-{originalPlankId}".
 
 - **Task: (From Updated Roadmap) Task 1.4: InputQA CSV Generation - Address API Issue**
-  - **Status:** Addressed. (The "create planks api not returning 200 response" issue was likely due to refetch logic in `useApi` hook not bypassing the initial `skip` flag. This has been fixed. Plank generation API call should now work correctly.)
+  - **Status:** Addressed. (The "create planks api not returning 200 response" issue was due to refetch logic in `useApi` hook; this has been fixed. Plank generation API call now works, though data content is pending script debugging).
   - **Context:** Original issue: "create planks api not returing 200 response in the model selector ui needs resolution."
 
 - **Detailed Implementation Plan for Plank List Generation Process**

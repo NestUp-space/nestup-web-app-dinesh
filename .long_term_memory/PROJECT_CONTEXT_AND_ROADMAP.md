@@ -429,56 +429,57 @@ This section outlines the planned phases for developing the features discussed i
 
 ### Phase 0.5: Prerequisite - Persistent Multi-Box Configuration UI with Individual Box Operations
 
+**Status: Largely Completed, pending plank data investigation.**
+
 **Goal:** Implement functionality in `ModelSelector.tsx` to allow users to add, configure, reorder, and remove multiple "boxes" (each a `ProjectModelInstance`), with these configurations saved to and loaded from the backend. Each box should have individual save/delete functionality, and plank IDs should be prefixed with box numbers. This is a prerequisite for effectively generating consolidated outputs like Plank Lists for multiple boxes.
 
 **Phase A: Backend Modifications**
 
 * **Task 0.5.A.1: Modify `ProjectModelInstance` Prisma Model**
-  * **Description:** Add a `uiDisplayOrder` field (e.g., `Int? @default(0)`) to `ProjectModelInstance` in `backend/prisma/schema.prisma` to manage UI sequence.
-  * **Action:** Update schema, create and run Prisma migration.
+  * **Description:** Add a `uiDisplayOrder` field to `ProjectModelInstance`.
+  * **Status: Completed.**
   * **Effort:** S
 
 * **Task 0.5.A.2: Backend API Endpoints for Individual Box Operations**
-  * **Description:** Create endpoints (e.g., in `backend/src/catalogue/routes/project-model-instance.routes.ts`):
-    * `POST /api/catalogue/projects/{projectId}/model-instances`: Creates a single instance.
-    * `PUT /api/catalogue/projects/{projectId}/model-instances/{instanceId}`: Updates a single instance.
-    * `DELETE /api/catalogue/projects/{projectId}/model-instances/{instanceId}`: Deletes a single instance and updates order of remaining instances.
-    * `GET /api/catalogue/projects/{projectId}/model-instances`: Fetches ordered instances.
-  * **Validation & Auth:** Implement input validation (Zod) and authorization.
+  * **Description:** Create/Verify CRUD and batch endpoints for `ProjectModelInstance`.
+  * **Details:** Routes now correctly mounted under `/api/projects/:projectId/model-instances`.
+  * **Status: Completed.**
   * **Effort:** L
 
 * **Task 0.5.A.3: Update Plank Generation Service for Box Number Prefixing**
-  * **Description:** Modify the plank generation service to prefix each plank's identifier with its box number (e.g., `{boxNumber}-{originalPlankId}`).
+  * **Description:** Modify the plank generation service to prefix each plank's identifier with its box number.
+  * **Status: Completed (Backend Verified).**
   * **Effort:** M
 
 **Phase B: Frontend `ModelSelector.tsx` Modifications**
 
 * **Task 0.5.B.1: Update BoxItem Interface & State Management**
-  * **Description:** Refactor state to manage an array of `BoxItem` objects with enhanced properties:
-    * Add `dbId`, `isModified`, `isSaving`, `saveError` fields
-    * Update state management for individual box operations
+  * **Description:** Refactor state for `BoxItem` array, including modification and saving states.
+  * **Status: Completed.**
   * **Effort:** M
 
 * **Task 0.5.B.2: Extract Box Component**
-  * **Description:** Create a reusable `BoxComponent` with:
-    * Individual save/delete buttons
-    * Loading states and error handling
-    * Move up/down controls
+  * **Description:** Create reusable `BoxComponent` for individual box UI and actions.
+  * **Status: Completed.**
   * **Effort:** M
 
 * **Task 0.5.B.3: Implement Individual Box Operations**
-  * **Description:** Implement handlers for:
-    * Save This Box functionality (create/update)
-    * Delete This Box functionality with confirmation
-    * Move Up/Down (local reordering)
+  * **Description:** Implement save, delete, move up/down handlers. API calls updated to use `/api/projects/...` paths. `projectId` handling refined.
+  * **Status: Completed (User confirmed box saving works).**
   * **Effort:** L
 
-* **Task 0.5.B.4: Update "Generate Plank List" for Box Number Prefixing**
-  * **Description:** Modify `handleGeneratePlanks` to:
-    * Only allow generation when all boxes are saved
-    * Pass box numbers to the backend
-    * Update CSV download to handle prefixed plank IDs
+* **Task 0.5.B.4: Update "Generate Plank List" Functionality**
+  * **Description:**
+    * Ensure plank list generation only occurs when all boxes are saved. (Status: Completed)
+    * Ensure box numbers are used for plank ID prefixing (Backend handles, frontend CSV displays). (Status: Completed)
+    * Ensure CSV download handles prefixed IDs. (Status: Frontend CSV structured to handle)
+    * **Current Issue:** Plank list generates and CSV downloads, but specific plank data fields (Width, Height, Material Code, etc.) are empty. (Status: Paused - Investigation pending user input on `itemLogicScript` and related data).
   * **Effort:** M
+
+* **Task 0.5.B.5: Unit Tests**
+  * **Description:** Create unit tests for `ModelSelector.tsx` and related services.
+  * **Status: Sample unit test for `ModelSelector.tsx` (save functionality) created. Full coverage deferred by user.**
+  * **Effort:** M (for full coverage)
 
 ### Phase 1: MVP - Core Production Document Generation & Initial Manufacturing Outputs (Revised)
 

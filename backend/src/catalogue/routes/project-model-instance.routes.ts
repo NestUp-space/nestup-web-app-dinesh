@@ -15,7 +15,7 @@ import {
     updateProjectModelInstanceSchema,
     getProjectModelInstancesSchema,
     batchUpdateProjectModelInstancesSchema
-} from '../dtos/project-model-instance.dto';
+} from './../dtos/project-model-instance.dto';
 
 const router = express.Router({ mergeParams: true });
 

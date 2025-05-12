@@ -4,16 +4,26 @@
 
 ## **Task: Implement Persistent Multi-Box Configuration in ModelSelector UI**
 
-1. **Implementation Approach (2025-05-12 3:34 PM):**
-   * **Completed Components:**
-     * Created reusable BoxComponent with proper UI indicators
-     * Implemented individual box operations (save, delete, move)
-     * Added validation to prevent plank generation with unsaved boxes
-   * **Technical Decisions:**
-     * Used isModified flag to track changes in box configurations
-     * Implemented per-box error handling and loading states
-     * Added box number prefixing for plank identifiers
-   * **Status:** Core functionality implemented, awaiting bug reports and testing
+1. **API Routing and `projectId` Handling (2025-05-12 4:20 PM):**
+    * **Decision:** Mount `projectModelInstanceRoutes` under `/api/projects/:projectId/model-instances` in `backend/src/routes/project.routes.ts`.
+    * **Rationale:** Aligns with RESTful practices for nested resources and resolves 404 errors.
+    * **Frontend Impact:** Updated `ModelSelector.tsx` to use these new API paths. Refined `numericProjectId` derivation from props.
+    * **Status:** Box saving confirmed working by user. Plank generation API call fixed by correcting `useApi` refetch logic.
+
+2. **Plank List Generation - Empty Values (2025-05-12 5:20 PM):**
+    * **Observation:** Plank list generates and CSV downloads, but specific plank data (Width, Height, MC) is empty.
+    * **Hypothesis:** Issue lies in the `itemLogicScript` of `BillOfMaterialItem` records or the data passed to them.
+    * **Decision:** Pause debugging this issue. Awaiting user to provide example `itemLogicScript`, `details` JSON, and `runtimeInputsJson` for a problematic model.
+    * **Status:** Paused.
+
+3. **Unit Testing (2025-05-12 5:18 PM):**
+    * **Action:** Created a sample unit test file (`frontend/src/components/dashboard/ModelSelector.test.tsx`) with basic tests for save/update functionality.
+    * **Decision:** Defer full unit test coverage as per user's preference to prioritize functional tasks.
+    * **Status:** Sample created.
+
+4. **Default Model Data (2025-05-12 5:18 PM):**
+    * **Action:** Created `simple-box-model-template.json` as an example of prefilled data for creating a "Simple Box" model, as `ModelService.createModel` does not add defaults itself.
+    * **Status:** Template file created.
 
 1. **Login Issue Resolution (2025-05-12 12:11 PM):**
     * Login issue resolved (attributed to dev environment caching of `.env`). Debug log removed.

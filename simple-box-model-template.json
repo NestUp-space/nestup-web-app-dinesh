@@ -1,0 +1,98 @@
+{
+  "name": "Simple Box",
+  "description": "A basic rectangular box model with configurable dimensions and material thickness.",
+  "sampleRuntimeInputsJson": "{\"boxHeight\": 600, \"boxWidth\": 400, \"boxDepth\": 300, \"materialThickness\": 18}",
+  "inputParameters": [
+    {
+      "inputName": "boxHeight",
+      "displayLabel": "Box Height",
+      "inputType": "NUMBER",
+      "defaultValue": "600",
+      "unit": "mm",
+      "description": "Overall external height of the box."
+    },
+    {
+      "inputName": "boxWidth",
+      "displayLabel": "Box Width",
+      "inputType": "NUMBER",
+      "defaultValue": "400",
+      "unit": "mm",
+      "description": "Overall external width of the box."
+    },
+    {
+      "inputName": "boxDepth",
+      "displayLabel": "Box Depth",
+      "inputType": "NUMBER",
+      "defaultValue": "300",
+      "unit": "mm",
+      "description": "Overall external depth of the box."
+    },
+    {
+      "inputName": "materialThickness",
+      "displayLabel": "Material Thickness",
+      "inputType": "NUMBER",
+      "defaultValue": "18",
+      "unit": "mm",
+      "description": "Thickness of the material used for panels."
+    }
+  ],
+  "bomItems": [
+    {
+      "itemName": "Top Panel",
+      "itemType": "PLANK",
+      "itemDescription": "Top panel of the box.",
+      "details": {
+        "baseMaterial": "Plywood"
+      },
+      "itemLogicScript": "context.result = {\n  plankId: 'TOP_01',\n  name: 'Top Panel',\n  width: context.inputs.boxWidth,\n  height: context.inputs.boxDepth,\n  thickness: context.inputs.materialThickness,\n  materialCode: 'PLY_' + context.inputs.materialThickness + 'MM',\n  grainDirection: 'along_width',\n  edgeBanding: { top: '1mm', bottom: '1mm', left: '1mm', right: '1mm' }\n};"
+    },
+    {
+      "itemName": "Bottom Panel",
+      "itemType": "PLANK",
+      "itemDescription": "Bottom panel of the box.",
+      "details": {
+        "baseMaterial": "Plywood"
+      },
+      "itemLogicScript": "context.result = {\n  plankId: 'BOT_01',\n  name: 'Bottom Panel',\n  width: context.inputs.boxWidth,\n  height: context.inputs.boxDepth,\n  thickness: context.inputs.materialThickness,\n  materialCode: 'PLY_' + context.inputs.materialThickness + 'MM',\n  grainDirection: 'along_width',\n  edgeBanding: { top: '1mm', bottom: '1mm', left: '1mm', right: '1mm' }\n};"
+    },
+    {
+      "itemName": "Left Panel",
+      "itemType": "PLANK",
+      "itemDescription": "Left side panel of the box.",
+      "details": {
+        "baseMaterial": "Plywood"
+      },
+      "itemLogicScript": "context.result = {\n  plankId: 'LFT_01',\n  name: 'Left Panel',\n  width: context.inputs.boxHeight - (2 * context.inputs.materialThickness),\n  height: context.inputs.boxDepth,\n  thickness: context.inputs.materialThickness,\n  materialCode: 'PLY_' + context.inputs.materialThickness + 'MM',\n  grainDirection: 'along_height',\n  edgeBanding: { top: '1mm', bottom: '1mm', left: '1mm', right: '1mm' }\n};"
+    },
+    {
+      "itemName": "Right Panel",
+      "itemType": "PLANK",
+      "itemDescription": "Right side panel of the box.",
+      "details": {
+        "baseMaterial": "Plywood"
+      },
+      "itemLogicScript": "context.result = {\n  plankId: 'RGT_01',\n  name: 'Right Panel',\n  width: context.inputs.boxHeight - (2 * context.inputs.materialThickness),\n  height: context.inputs.boxDepth,\n  thickness: context.inputs.materialThickness,\n  materialCode: 'PLY_' + context.inputs.materialThickness + 'MM',\n  grainDirection: 'along_height',\n  edgeBanding: { top: '1mm', bottom: '1mm', left: '1mm', right: '1mm' }\n};"
+    },
+    {
+      "itemName": "Back Panel",
+      "itemType": "PLANK",
+      "itemDescription": "Back panel of the box (typically thinner).",
+      "details": {
+        "baseMaterial": "MDF",
+        "defaultThickness": 6 
+      },
+      "itemLogicScript": "const backPanelThickness = context.itemDetails.defaultThickness || context.inputs.materialThickness / 3;\ncontext.result = {\n  plankId: 'BCK_01',\n  name: 'Back Panel',\n  width: context.inputs.boxWidth - (2 * context.inputs.materialThickness),\n  height: context.inputs.boxHeight - (2 * context.inputs.materialThickness),\n  thickness: backPanelThickness,\n  materialCode: 'MDF_' + backPanelThickness + 'MM',\n  grainDirection: 'along_width'\n};"
+    },
+    {
+      "itemName": "Assembly Screws",
+      "itemType": "HARDWARE",
+      "itemDescription": "Screws for assembling the box.",
+      "details": {
+        "type": "Wood Screw",
+        "size": "4x30mm",
+        "quantityPerBox": 20
+      },
+      "itemLogicScript": "context.result = {\n  name: 'Assembly Screws',\n  quantity: context.itemDetails.quantityPerBox,\n  unit: 'pieces',\n  supplierCode: 'SCRW_4X30'\n};"
+    }
+  ]
+}
