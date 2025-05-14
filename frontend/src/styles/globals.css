@@ -2,3 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  /* Form Inputs */
+  .input-field {
+    @apply mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
+    focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 
+    text-sm disabled:opacity-50;
+  }
+
+  .input-field-sm {
+    @apply mt-1 block w-full px-2 py-1 border border-gray-300 rounded-md shadow-sm 
+    focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 
+    text-xs disabled:opacity-50;
+  }
+
+  /* Text Editor/Code Input */
+  .code-editor {
+    @apply font-mono text-sm relative border rounded-md overflow-hidden 
+    focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500;
+  }
+
+  .code-editor-textarea {
+    @apply relative w-full p-2 bg-transparent border-0 resize-y min-h-[100px] 
+    focus:outline-none focus:ring-0;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium 
+    text-white bg-indigo-600 hover:bg-indigo-700 
+    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 
+    disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 border rounded-md text-sm font-medium text-gray-700 
+    bg-white hover:bg-gray-50 
+    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 
+    disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Cards and Sections */
+  .section-card {
+    @apply p-4 border rounded-md bg-white shadow-sm;
+  }
+
+  .section-title {
+    @apply text-lg font-semibold text-gray-800 mb-3;
+  }
+
+  /* Syntax Highlighting Colors */
+  .syntax-keyword {
+    @apply text-blue-600;
+  }
+
+  .syntax-variable {
+    @apply text-green-600 font-semibold;
+  }
+
+  .syntax-constant {
+    @apply text-purple-600 font-semibold;
+  }
+
+  .syntax-string {
+    @apply text-amber-600;
+  }
+
+  .syntax-number {
+    @apply text-blue-500;
+  }
+
+  .syntax-comment {
+    @apply text-gray-500 italic;
+  }
+}

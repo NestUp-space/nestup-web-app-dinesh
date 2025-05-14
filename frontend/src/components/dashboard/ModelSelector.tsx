@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/dashboard/button';
 import { useGet, usePost, usePut, useDelete } from '@/hooks/useApi';
 import { Project, Subtask } from '@/types';
+import { PlankDetails } from '@/types/plankTypes'; // Import PlankDetails
 import { AlertCircle, CheckCircle, Loader2, Download, PlusCircle, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import BoxComponent from './BoxComponent';
 
@@ -336,25 +337,25 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ subtask, project, project
   };
 
   // Generate CSV content from plank data
-  const generateCSVContent = (plankData: any[]): string => {
+  const generateCSVContent = (plankData: PlankDetails[]): string => { // Use PlankDetails type
     if (!plankData || plankData.length === 0) return '';
     
-    const headers = ["Box Number", "Packet Number", "Plank Identifier", "Width", "Height", "Material Code", "Holes", "Grooves"];
+    // Headers match the PlankDetails interface and user request
+    const headers = ["PlankID", "Width", "Length", "MaterialCode", "Holes", "Grooves"];
     
     const rows = plankData.map(plank => {
-      const holesString = plank.holes?.map((h: any) => `(${h.x},${h.y},${h.z},${h.t})`).join('; ') || '';
-      const groovesString = plank.grooves?.map((g: any) => `(${g.x1},${g.y1},${g.x2},${g.y2},${g.z},${g.t})`).join('; ') || '';
+      // Ensure holes and grooves are stringified, even if empty arrays
+      const holesString = JSON.stringify(plank.holes || []); 
+      const groovesString = JSON.stringify(plank.grooves || []);
       
       return [
-        plank.boxNumber ?? '',
-        plank.packetNumber ?? '',
-        plank.plankIdentifier ?? '',
-        plank.W ?? '',
-        plank.H ?? '',
-        plank.MC ?? '',
+        plank.plankId,
+        plank.width,
+        plank.length, // Use 'length' as per PlankDetails
+        plank.materialCode,
         holesString,
         groovesString
-      ].map(value => `"${String(value).replace(/"/g, '""')}"`).join(',');
+      ].map(value => `"${String(value ?? '').replace(/"/g, '""')}"`).join(','); // Handle null/undefined for safety
     });
     
     return [headers.join(','), ...rows].join('\n');

@@ -44,6 +44,10 @@ This index helps navigate key documents and insights specific to the Nestup Web 
 - [User Controller Static Methods & Service Delegation (2025-05-11)](DECISION_LOG.md#Decision_UserController_Static_Service_20250511)
 - [User Controller Authorization Checks & Logic Review (2025-05-11)](DECISION_LOG.md#Decision_UserController_AuthChecks_FlawedLogic_20250511)
 - [Active Project/Task/Subtask Controllers Confirmed (Nested Class-Based) (2025-05-11)](DECISION_LOG.md#Decision_DuplicateProjectControllerLogic_ConfirmedActiveNested_20250511)
+- [S3 Bucket Structure for Generated Documents (2025-05-11)](DECISION_LOG.md#Decision_S3BucketStructure_GeneratedDocuments_20250511)
+- [TypeScript Configuration for Node.js Types (2025-05-11)](DECISION_LOG.md#Decision_TSConfig_NodeTypes_20250511)
+- [Catalogue Item Image Upload API (2025-05-11)](DECISION_LOG.md#Decision_CatalogueItemImageUploadAPI_20250511)
+- [Plank Logic UI Evolution (Introduction of ExpressionInput) (2025-05-13)](DECISION_LOG.md#Decision_PlankLogicUI_Evolution_20250513)
 
 ## Context Snapshots & Analyses
 

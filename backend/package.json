@@ -47,6 +47,7 @@
     "sequelize": "^6.37.3",
     "swagger-ui-express": "^4.1.2",
     "tsyringe": "^4.10.0",
+    "vm2": "^3.9.19",
     "zod": "^3.24.4"
   },
   "devDependencies": {

@@ -1,10 +1,30 @@
 {
-  "panelThickness": 18,
-  "edgeBandingThickness": 1,
-  "defaultClearance": 5,
-  "hingeCupDiameter": 35,
-  "drawerSlideClearance": 13,
-  "standardShelfDepthOffset": 20,
-  "CEBThickness": 2,
-  "IEBThickness": 1
+  "MATERIAL_THICKNESS": {
+    "STANDARD_PLYWOOD": 18,
+    "THIN_PLYWOOD": 12,
+    "THICK_PLYWOOD": 25
+  },
+  "MATERIAL_CODES": {
+    "STANDARD_WHITE": "WM-18",
+    "PREMIUM_WHITE": "PWM-18",
+    "STANDARD_BROWN": "BM-18"
+  },
+  "EDGE_BANDING": {
+    "INNER_EDGEBANDING": 1,
+    "COLOR_EDGEBANDING": 2
+  },
+  "GROOVE": {
+    "STANDARD_WIDTH": 6,
+    "STANDARD_DEPTH": 8
+  },
+  "HARDWARE": {
+    "SCREW_DIAMETER": 8,
+    "SCREW_LENGTH": 30,
+    "HINGE_WIDTH": 35
+  },
+  "CLEARANCE": {
+    "DOOR_GAP": 2,
+    "SHELF_CLEARANCE": 1,
+    "BACK_PANEL_GROOVE_DEPTH": 8
+  }
 }

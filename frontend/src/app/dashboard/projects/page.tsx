@@ -264,27 +264,6 @@ export default function ProjectsPage({ // Renamed from ProductsPage to ProjectsP
                 />
               </div>
               <div className="mt-2">
-                <label htmlFor="projectSqft" className="block text-gray-700 text-sm font-bold mb-2">Square Footage</label>
-                <input
-                  type="number"
-                  id="projectSqft"
-                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:shadow-outline"
-                  placeholder="Square Footage"
-                  value={projectSqft}
-                  onChange={(e) => setProjectSqft(parseInt(e.target.value) || 0)}
-                />
-              </div>
-              <div className="mt-2">
-                <label htmlFor="projectEstimatedTime" className="block text-gray-700 text-sm font-bold mb-2">Estimated Completion Date</label>
-                <input
-                  type="date"
-                  id="projectEstimatedTime"
-                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:shadow-outline"
-                  value={projectEstimatedTime}
-                  onChange={(e) => setProjectEstimatedTime(e.target.value)}
-                />
-              </div>
-              <div className="mt-2">
                 <label htmlFor="client" className="block text-gray-700 text-sm font-bold mb-2">Client</label>
                 <select
                   id="client"

@@ -2,16 +2,11 @@
 
 import React from 'react';
 import ModelBuilderForm, { BomItemType } from '@/components/dashboard/model-management/ModelBuilderForm'; // Assuming BomItemType is exported
-// If ModelFormData is not exported, we might need to define a similar type here or import its constituents
-// For now, let's assume we can construct the data according to ModelBuilderForm's expected structure.
-// import { DashboardShell } from '@/components/dashboard/dashboard-shell';
-// import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
-import { useRouter } from 'next/navigation'; // Added useRouter
+import { useRouter, useParams } from 'next/navigation'; // Added useRouter and useParams
 
 // Define a type for the form data, mirroring ModelFormData from ModelBuilderForm.tsx
-// This is a simplified version; ideally, ModelFormData would be exported and imported.
 type SimpleBoxModelData = {
   modelType: string;
   description: string | null;
@@ -45,13 +40,13 @@ const simpleBoxDefaultData: SimpleBoxModelData = {
     { inputName: 'boxDepth', displayLabel: 'Box Depth', inputType: 'NUMBER', defaultValue: '550', unit: 'mm', description: 'The overall depth of the box.' },
     { inputName: 'leftAdjacency', displayLabel: 'Left Side Adjacency', inputType: 'SELECT', defaultValue: 'Expose', options: 'Expose,Wall,AdjacentBox', description: 'Defines how the left side of the box is finished.' },
     { inputName: 'rightAdjacency', displayLabel: 'Right Side Adjacency', inputType: 'SELECT', defaultValue: 'Expose', options: 'Expose,Wall,AdjacentBox', description: 'Defines how the right side of the box is finished.' },
-    { inputName: 'outerMaterialCode', displayLabel: 'Outer Material', inputType: 'TEXT', defaultValue: 'OUTER_MAT_01', description: 'Material code for external surfaces.' },
-    { inputName: 'innerMaterialCode', displayLabel: 'Inner Material', inputType: 'TEXT', defaultValue: 'INNER_MAT_01', description: 'Material code for internal surfaces.' },
+    { inputName: 'outerMaterialCode', displayLabel: 'Outer Material', inputType: 'SELECT', defaultValue: '', description: 'Material code for external surfaces. Will use the first available material if none selected.' },
+    { inputName: 'innerMaterialCode', displayLabel: 'Inner Material', inputType: 'SELECT', defaultValue: '', description: 'Material code for internal surfaces. Will use the first available material if none selected.' },
     { inputName: 'backMaterialCode', displayLabel: 'Back Panel Material', inputType: 'TEXT', defaultValue: 'BACK_MAT_01', description: 'Material code for the back panel.' },
     { inputName: 'hasDoor', displayLabel: 'Has Door?', inputType: 'BOOLEAN', defaultValue: 'false', description: 'Indicates if the box includes a door.' },
     { inputName: 'doorExposedSide', displayLabel: 'Door Exposed Side', inputType: 'SELECT', defaultValue: 'Front', options: 'Front,Left,Right', description: 'Specifies which side the door is on.' },
     { inputName: 'numberOfShelves', displayLabel: 'Number of Shelves', inputType: 'NUMBER', defaultValue: '0', description: 'Number of internal shelves.' },
-    { inputName: 'skirting', displayLabel: 'Skirting', inputType: 'SELECT', defaultValue: 'None', options: 'None,TypeA,TypeB', description: 'Type of skirting.' }
+    { inputName: 'skirting', displayLabel: 'Skirting', inputType: 'NUMBER', defaultValue: '0', description: 'Type of skirting.' }
   ],
   bomItems: [
     {
@@ -168,6 +163,8 @@ function calculateProperties(runtimeInputs, globalConstants) {
 
 export default function CreateModelPage() {
   const router = useRouter();
+  const params = useParams();
+  const projectId = params.id as string;
 
   const handleSaveSuccess = (modelId: string) => {
     console.log(`Model created with ID: ${modelId}, redirecting...`);

@@ -21,13 +21,11 @@ const ProjectsPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // State for new project form
+  // Form state variables
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
   const [newProjectAddress, setNewProjectAddress] = useState('');
   const [newProjectLocation, setNewProjectLocation] = useState('');
-  const [newProjectSqft, setNewProjectSqft] = useState('');
-  const [newProjectEstimatedTime, setNewProjectEstimatedTime] = useState('');
   const [newProjectVbCount, setNewProjectVbCount] = useState('');
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [selectedEngineerId, setSelectedEngineerId] = useState<string>('');
@@ -39,8 +37,6 @@ const ProjectsPage = () => {
 
   const fetchProjects = async () => {
     try {
-      // Assuming /api/projects is a Next.js API route within this frontend project
-      // If it's an external backend, use process.env.NEXT_PUBLIC_API_BASE_URL
       const token = localStorage.getItem('token');
       if (!token) {
         setError("Authentication token not found.");
@@ -50,8 +46,6 @@ const ProjectsPage = () => {
       const response = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      // The actual project data might be nested, e.g., response.data.projects or response.data.data.projects
-      // Based on createProject controller, it's response.data.projects
       setProjects(response.data.projects || response.data.data?.projects || []); 
       setLoading(false);
     } catch (err: any) {
@@ -68,7 +62,6 @@ const ProjectsPage = () => {
       const response = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users?roleName=${roleName}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      // Assuming users are in response.data.data.users based on UsersPage
       setter(response.data.data.users || []);
     } catch (err: any) {
       console.error(`Failed to fetch ${roleName}s:`, err.response?.data?.message || err.message);
@@ -88,7 +81,6 @@ const ProjectsPage = () => {
       return;
     }
 
-    // Check if user is available
     if (!user) {
       setFormError("User information not available. Please log in again.");
       return;
@@ -99,13 +91,10 @@ const ProjectsPage = () => {
       description: newProjectDescription,
       address: newProjectAddress,
       location: newProjectLocation,
-      sqft: newProjectSqft ? parseInt(newProjectSqft, 10) : undefined,
-      estimatedTime: newProjectEstimatedTime || undefined, // Backend expects Date or string parsable to Date
       vbCount: newProjectVbCount ? parseInt(newProjectVbCount, 10) : undefined,
       clientId: selectedClientId ? parseInt(selectedClientId, 10) : undefined,
       engineerId: selectedEngineerId ? parseInt(selectedEngineerId, 10) : undefined,
-      createdById: user.id, // Add the user ID as createdById
-      // statusId will be defaulted by backend if not provided
+      createdById: user.id
     };
 
     try {
@@ -117,8 +106,6 @@ const ProjectsPage = () => {
       setNewProjectDescription('');
       setNewProjectAddress('');
       setNewProjectLocation('');
-      setNewProjectSqft('');
-      setNewProjectEstimatedTime('');
       setNewProjectVbCount('');
       setSelectedClientId('');
       setSelectedEngineerId('');
@@ -132,8 +119,8 @@ const ProjectsPage = () => {
     const token = localStorage.getItem('token');
     if (token) {
         fetchProjects();
-        fetchUsersByRole('client', setClientsList); // Assuming 'client' is the role name string
-        fetchUsersByRole('engineer', setEngineersList); // Assuming 'engineer' is the role name string
+        fetchUsersByRole('client', setClientsList);
+        fetchUsersByRole('engineer', setEngineersList);
     } else {
         setError("Authentication required. Please log in.");
         setLoading(false);
@@ -141,9 +128,7 @@ const ProjectsPage = () => {
   }, []);
 
   if (loading) return <p>Loading projects...</p>;
-  // Error display can be improved, e.g. showing multiple lines if setError appends
   if (error && !projects.length) return <p style={{whiteSpace: 'pre-line'}}>{error}</p>;
-
 
   return (
     <div style={{ padding: '20px' }}>
@@ -182,29 +167,15 @@ const ProjectsPage = () => {
             onChange={(e) => setNewProjectLocation(e.target.value)}
             style={{ padding: '8px', marginBottom: '10px' }}
           />
-          <input
-            type="number"
-            placeholder="Square Footage"
-            value={newProjectSqft}
-            onChange={(e) => setNewProjectSqft(e.target.value)}
-            style={{ padding: '8px', marginBottom: '10px' }}
-          />
-          <input
-            type="number"
-            placeholder="VB Count"
-            value={newProjectVbCount}
-            onChange={(e) => setNewProjectVbCount(e.target.value)}
-            style={{ padding: '8px', marginBottom: '10px' }}
-          />
-          <input
-            type="datetime-local" // Or 'date' if only date is needed
-            placeholder="Estimated Completion Time"
-            value={newProjectEstimatedTime}
-            onChange={(e) => setNewProjectEstimatedTime(e.target.value)}
-            style={{ padding: '8px', marginBottom: '10px' }}
-            title="Estimated Completion Time"
-          />
-           <div> {/* Placeholder for spacing */} </div>
+          <div style={{ gridColumn: 'span 2' }}>
+            <input
+              type="number"
+              placeholder="VB Count"
+              value={newProjectVbCount}
+              onChange={(e) => setNewProjectVbCount(e.target.value)}
+              style={{ padding: '8px', marginBottom: '10px', width: '100%' }}
+            />
+          </div>
 
           <select 
             value={selectedClientId} 
@@ -244,7 +215,6 @@ const ProjectsPage = () => {
             <li key={project.id} style={{ border: '1px solid #eee', padding: '15px', marginBottom: '10px', borderRadius: '8px' }}>
               <h3>{project.name}</h3>
               <p>{project.description || 'No description available.'}</p>
-              {/* Updated button to navigate to the project detail page */}
               <button 
                 onClick={() => window.location.href = `/dashboard/projects/${project.id}`}
                 style={{ padding: '8px 12px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}

@@ -1,48 +1,34 @@
-# Session Decisions Log: 2025-05-12
+# Session Decisions Log: 2025-05-13
 
-## **Task: Fix Login Error -> Roadmap Update -> Plan Persistent Multi-Box UI**
+## **Task: Enhance Item Logic Script UI for PLANKs in ModelBuilderForm**
 
-## **Task: Implement Persistent Multi-Box Configuration in ModelSelector UI**
+1. **Initial UI Enhancements (2025-05-13 Morning/Afternoon):**
+    * **Decision:** Enhance `CollapsibleVariables.tsx` for better variable display, including input types, default adjacency values, and improved styling. Remove "Sample Usage" section.
+    * **Rationale:** Improve clarity and usability of the variable reference component.
+    * **Decision:** Update `plankScripts.ts` to include new default calculation logic for all plank types (left, right, top, bottom, back, door) based on user-provided formulas.
+    * **Rationale:** Ensure new models are pre-filled with correct, up-to-date logic.
+    * **Decision:** Modify `BillOfMaterialListEditor.tsx` to auto-populate all standard plank types on new model creation.
+    * **Rationale:** Streamline the model creation process for users.
+    * **Decision:** Initially modify `PlankLogicEditor.tsx` to display the full `itemLogicScript`.
+    * **Rationale:** First step towards allowing users to edit logic.
 
-1. **API Routing and `projectId` Handling (2025-05-12 4:20 PM):**
-    * **Decision:** Mount `projectModelInstanceRoutes` under `/api/projects/:projectId/model-instances` in `backend/src/routes/project.routes.ts`.
-    * **Rationale:** Aligns with RESTful practices for nested resources and resolves 404 errors.
-    * **Frontend Impact:** Updated `ModelSelector.tsx` to use these new API paths. Refined `numericProjectId` derivation from props.
-    * **Status:** Box saving confirmed working by user. Plank generation API call fixed by correcting `useApi` refetch logic.
+2. **Reversion of `PlankLogicEditor` to Individual Logic Fields (2025-05-13 Afternoon):**
+    * **Decision:** Revert `PlankLogicEditor.tsx` from displaying the full `itemLogicScript` to having three separate `LogicInput.tsx` fields for "Width Calculation," "Length Calculation," and "Material Code Calculation."
+    * **Rationale:** User feedback indicated that editing the full JavaScript script was too complex. Separating the logic into distinct, manageable parts was preferred.
+    * **Decision:** Pre-fill these individual `LogicInput` fields with the default JavaScript calculation logic.
+    * **Rationale:** Provide users with a working baseline that they can then customize.
 
-2. **Plank List Generation - Empty Values (2025-05-12 5:20 PM):**
-    * **Observation:** Plank list generates and CSV downloads, but specific plank data (Width, Height, MC) is empty.
-    * **Hypothesis:** Issue lies in the `itemLogicScript` of `BillOfMaterialItem` records or the data passed to them.
-    * **Decision:** Pause debugging this issue. Awaiting user to provide example `itemLogicScript`, `details` JSON, and `runtimeInputsJson` for a problematic model.
-    * **Status:** Paused.
+3. **Development of `ExpressionInput.tsx` for User-Friendly Logic Entry (2025-05-13 Late Afternoon):**
+    * **Decision:** Create a new component, `ExpressionInput.tsx`, to replace `LogicInput.tsx` for the plank calculation fields in `PlankLogicEditor.tsx`.
+    * **Rationale:** To provide an even more user-friendly way to input and manage calculation logic, abstracting away direct JavaScript syntax for users not comfortable with it.
+    * **Feature Set for `ExpressionInput.tsx`:**
+        * Text area for logic input.
+        * "Format" button: To automatically apply basic formatting (spacing, indentation) to the entered or pasted text.
+        * "Show/Hide Code" toggle: Allows users to view a syntax-highlighted version of their entered expression, translating it into a more code-like appearance.
+        * Syntax Highlighting (in preview mode): For keywords (if, else, return), runtimeInputs, globalConstants, operators, strings, and numbers.
+        * Variable Chips: Display a subset of `runtimeInputs` as clickable chips that insert the variable name into the expression at the cursor position.
+    * **Decision:** `PlankLogicEditor.tsx` to be updated to use three instances of `ExpressionInput.tsx`.
+    * **Rationale:** This approach balances ease of use for non-technical users with transparency for those who want to see the underlying code structure.
 
-3. **Unit Testing (2025-05-12 5:18 PM):**
-    * **Action:** Created a sample unit test file (`frontend/src/components/dashboard/ModelSelector.test.tsx`) with basic tests for save/update functionality.
-    * **Decision:** Defer full unit test coverage as per user's preference to prioritize functional tasks.
-    * **Status:** Sample created.
-
-4. **Default Model Data (2025-05-12 5:18 PM):**
-    * **Action:** Created `simple-box-model-template.json` as an example of prefilled data for creating a "Simple Box" model, as `ModelService.createModel` does not add defaults itself.
-    * **Status:** Template file created.
-
-1. **Login Issue Resolution (2025-05-12 12:11 PM):**
-    * Login issue resolved (attributed to dev environment caching of `.env`). Debug log removed.
-2. **Roadmap Reprioritization & Update (2025-05-12 11:20 AM - 11:28 AM):**
-    * User requested roadmap update: Phase 0 marked done, Phase 1 reprioritized with new manufacturing outputs at top.
-    * Action: `PROJECT_CONTEXT_AND_ROADMAP.md` updated.
-3. **New Feature Request - Persistent Multi-Box UI (2025-05-12 12:19 PM onwards):**
-    * **Requirement:** User wants `ModelSelector.tsx` to allow configuration of multiple "boxes" that persist in the backend.
-    * **Chosen Approach (Scalable, Best Practice):**
-        * Utilize existing `ProjectModelInstance` Prisma model.
-        * Add a `uiDisplayOrder: Int? @default(0)` field to `ProjectModelInstance` for sequencing.
-        * Store `inputValues` for each box in the `inputValuesJson` field of its `ProjectModelInstance` record.
-        * Backend APIs:
-            * `GET /api/catalogue/projects/{projectId}/model-instances` (fetches ordered by `uiDisplayOrder`).
-            * `PUT /api/catalogue/projects/{projectId}/model-instances/batch` (for batch create/update/delete of instances, transactional).
-        * Frontend `ModelSelector.tsx`:
-            * State to manage an array of `BoxItem` objects.
-            * Fetch existing config on load.
-            * UI for add/remove/reorder/edit boxes.
-            * "Save Box Setup" button to call the batch PUT API.
-            * "Generate Plank List" to use client-side state (after encouraging save) and call `/bim/generate-plank-list` with an array of box data.
-    * **Decision:** Proceed with this detailed plan. Document in roadmap, cache files, and create a new detailed work ticket.
+---
+*Previous decisions from 2025-05-12 are archived in LTM (`DECISION_LOG.md`)*

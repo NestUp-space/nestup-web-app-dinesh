@@ -4,87 +4,72 @@ import React, { useState, useEffect } from 'react';
 import { useProjectMaterials, useCreateMaterial, useUpdateMaterial, useDeleteMaterial, Material, CreateMaterialData } from '@/hooks';
 import { Button } from '@/components/dashboard/button';
 import { Plus, Edit, Trash2, Save, X } from 'lucide-react';
+import { PLY_THICKNESS_VALUES } from '@/constants/materialConstants';
 
 interface MaterialManagementProps {
   projectId: number;
 }
 
-const MaterialManagement: React.FC<MaterialManagementProps> = ({ projectId }) => {
-  // DEBUG: Log when projectId changes
-  useEffect(() => {
-    console.log('[MaterialManagement] Project ID:', projectId);
-  }, [projectId]);
+const defaultThickness = PLY_THICKNESS_VALUES[0];
 
+const MaterialManagement: React.FC<MaterialManagementProps> = ({ projectId }) => {
   const { materials, loading: materialsLoading, refetch: refetchMaterials } = useProjectMaterials(projectId);
   const { createMaterial, loading: createLoading } = useCreateMaterial(projectId);
-  const { updateMaterial: executeUpdateMaterial, loading: updateLoading } = useUpdateMaterial(); // Called unconditionally
+  const { updateMaterial: executeUpdateMaterial, loading: updateLoading } = useUpdateMaterial();
   const { deleteMaterial, loading: deleteLoading } = useDeleteMaterial();
   
   const [isAddingMaterial, setIsAddingMaterial] = useState(false);
   const [editingMaterialId, setEditingMaterialId] = useState<number | null>(null);
   const [formData, setFormData] = useState<CreateMaterialData>({
     materialId: '',
-    plyThickness: 16,
+    plyThickness: defaultThickness,
     innerLaminateCode: '',
     outerLaminateCode: '',
     plyType: 'HDHMR',
-    grainDirection: 'vertical',
-    edgebandingInnerCode: '',
-    edgebandingExposedCode: ''
+    grainDirection: 'Y'
   });
 
   // Reset form when adding new material
   useEffect(() => {
-    // DEBUG: Log form reset for adding material
-    console.log('[MaterialManagement] useEffect - isAddingMaterial changed:', isAddingMaterial);
     if (isAddingMaterial) {
-      console.log('[MaterialManagement] Resetting form for new material.');
       setFormData({
         materialId: '',
-        plyThickness: 16,
+        plyThickness: defaultThickness,
         innerLaminateCode: '',
         outerLaminateCode: '',
         plyType: 'HDHMR',
-        grainDirection: 'vertical',
-        edgebandingInnerCode: '',
-        edgebandingExposedCode: ''
+        grainDirection: 'Y'
       });
     }
   }, [isAddingMaterial]);
 
   // Set form data when editing a material
   useEffect(() => {
-    // DEBUG: Log form population for editing material
-    console.log('[MaterialManagement] useEffect - editingMaterialId or materials changed. Editing ID:', editingMaterialId);
     if (editingMaterialId !== null) {
       const materialToEdit = materials.find(m => m.id === editingMaterialId);
-      console.log('[MaterialManagement] Material to edit:', materialToEdit);
       if (materialToEdit) {
+        // Find the closest valid thickness value or default to the first one
+        const closestThickness = PLY_THICKNESS_VALUES.find(t => t === materialToEdit.plyThickness) || defaultThickness;
+        
         setFormData({
           materialId: materialToEdit.materialId,
-          plyThickness: materialToEdit.plyThickness,
+          plyThickness: closestThickness,
           innerLaminateCode: materialToEdit.innerLaminateCode,
           outerLaminateCode: materialToEdit.outerLaminateCode,
           plyType: materialToEdit.plyType,
-          grainDirection: materialToEdit.grainDirection || 'vertical',
-          edgebandingInnerCode: materialToEdit.edgebandingInnerCode,
-          edgebandingExposedCode: materialToEdit.edgebandingExposedCode
+          grainDirection: materialToEdit.grainDirection || 'Y'
         });
       }
     }
   }, [editingMaterialId, materials]);
 
-  // DEBUG: Log when materials array changes
-  useEffect(() => {
-    console.log('[MaterialManagement] Component received new materials state:', materials);
-  }, [materials]);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    
-    // Convert numeric inputs to numbers
-    if (type === 'number') {
-      setFormData(prev => ({ ...prev, [name]: parseFloat(value) }));
+    const { name, value } = e.target;
+    if (name === 'plyThickness') {
+      const numberValue = parseFloat(value);
+      // Verify that the value is one of our valid thickness options
+      const thickness = PLY_THICKNESS_VALUES.find(t => t === numberValue) || defaultThickness;
+      setFormData(prev => ({ ...prev, plyThickness: thickness }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -95,23 +80,13 @@ const MaterialManagement: React.FC<MaterialManagementProps> = ({ projectId }) =>
     
     try {
       if (editingMaterialId !== null) {
-        // Update existing material
-        console.log(`[MaterialManagement] Attempting to update material ID: ${editingMaterialId}`, formData);
         await executeUpdateMaterial(editingMaterialId, formData);
-        console.log('[MaterialManagement] Material update successful.');
         setEditingMaterialId(null);
       } else {
-        // Create new material
-        console.log('[MaterialManagement] Attempting to create new material:', formData);
         await createMaterial(formData);
-        console.log('[MaterialManagement] Material creation successful.');
         setIsAddingMaterial(false);
       }
-      
-      // Refresh materials list
-      console.log('[MaterialManagement] Calling refetchMaterials...');
       await refetchMaterials();
-      console.log('[MaterialManagement] refetchMaterials call completed.');
     } catch (error) {
       console.error('Error saving material:', error);
       alert('Failed to save material. Please try again.');
@@ -131,8 +106,7 @@ const MaterialManagement: React.FC<MaterialManagementProps> = ({ projectId }) =>
   };
 
   const calculateOverallThickness = (plyThickness: number): number => {
-    // Assuming inner and outer laminates are 1mm each
-    return plyThickness + 2;
+    return plyThickness + 2; // Assuming inner and outer laminates are 1mm each
   };
 
   return (
@@ -177,46 +151,55 @@ const MaterialManagement: React.FC<MaterialManagementProps> = ({ projectId }) =>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Ply Thickness (mm)
                   </label>
-                  <input
-                    type="number"
+                  <select
                     name="plyThickness"
                     value={formData.plyThickness}
                     onChange={handleInputChange}
                     required
-                    min="1"
-                    step="0.1"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-                  />
+                  >
+                    {PLY_THICKNESS_VALUES.map(thickness => (
+                      <option key={thickness} value={thickness}>{thickness}mm</option>
+                    ))}
+                  </select>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Inner Laminate Code
+                    Inner Material
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="innerLaminateCode"
                     value={formData.innerLaminateCode}
                     onChange={handleInputChange}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-                    placeholder="e.g., IL001"
-                  />
+                  >
+                    <option value="">Select Inner Material</option>
+                    <option value="IL001">IL001 - White</option>
+                    <option value="IL002">IL002 - Black</option>
+                    <option value="IL003">IL003 - Brown</option>
+                    <option value="IL004">IL004 - Grey</option>
+                  </select>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Outer Laminate Code
+                    Outer Material
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="outerLaminateCode"
                     value={formData.outerLaminateCode}
                     onChange={handleInputChange}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-                    placeholder="e.g., OL001"
-                  />
+                  >
+                    <option value="">Select Outer Material</option>
+                    <option value="OL001">OL001 - White</option>
+                    <option value="OL002">OL002 - Black</option>
+                    <option value="OL003">OL003 - Brown</option>
+                    <option value="OL004">OL004 - Grey</option>
+                  </select>
                 </div>
                 
                 <div>
@@ -247,39 +230,9 @@ const MaterialManagement: React.FC<MaterialManagementProps> = ({ projectId }) =>
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
                   >
-                    <option value="vertical">Vertical</option>
-                    <option value="horizontal">Horizontal</option>
+                    <option value="Y">Y</option>
+                    <option value="N">N</option>
                   </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Edgebanding Inner Code
-                  </label>
-                  <input
-                    type="text"
-                    name="edgebandingInnerCode"
-                    value={formData.edgebandingInnerCode}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-                    placeholder="e.g., EI001"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Edgebanding Exposed Code
-                  </label>
-                  <input
-                    type="text"
-                    name="edgebandingExposedCode"
-                    value={formData.edgebandingExposedCode}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-                    placeholder="e.g., EE001"
-                  />
                 </div>
                 
                 <div>
@@ -323,8 +276,7 @@ const MaterialManagement: React.FC<MaterialManagementProps> = ({ projectId }) =>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Material ID</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ply Type</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thickness</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Laminates</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Edgebanding</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Materials</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
@@ -345,10 +297,6 @@ const MaterialManagement: React.FC<MaterialManagementProps> = ({ projectId }) =>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div>Inner: {material.innerLaminateCode}</div>
                         <div>Outer: {material.outerLaminateCode}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div>Inner: {material.edgebandingInnerCode}</div>
-                        <div>Exposed: {material.edgebandingExposedCode}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">

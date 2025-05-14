@@ -234,22 +234,32 @@ model ClientMarketplace {
   client       User    @relation(fields: [clientId], references: [id])
 }
 
+enum GrainDirection {
+  Y
+  N
+}
+
+enum PlyType {
+  HDHMR
+  Blockboard
+  MDF
+  Plywood
+}
+
 // New model for project materials
 model Material {
-  id                    Int      @id @default(autoincrement())
-  projectId             Int
-  materialId            String   // User-defined unique ID within the project
-  plyThickness          Float
-  innerLaminateCode     String
-  outerLaminateCode     String
-  overallThickness      Float    // Calculated: innerLaminate + plyThickness + outerLaminate
-  plyType               String   // e.g., HDHMR, Blockboard
-  grainDirection        String?  // Optional, applicable to specific planks
-  edgebandingInnerCode  String
-  edgebandingExposedCode String
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  project               Project  @relation(fields: [projectId], references: [id])
+  id                Int           @id @default(autoincrement())
+  projectId         Int
+  materialId        String        // User-defined unique ID within the project
+  plyThickness      Float
+  innerLaminateCode String
+  outerLaminateCode String
+  overallThickness  Float         // Calculated: innerLaminate + plyThickness + outerLaminate
+  plyType          PlyType       // Using enum for type safety
+  grainDirection   GrainDirection // Using enum for type safety
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  project          Project       @relation(fields: [projectId], references: [id])
 
   @@unique([projectId, materialId]) // Ensure materialId is unique within a project
 }

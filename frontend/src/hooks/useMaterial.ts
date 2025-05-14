@@ -5,31 +5,23 @@
 
 import { useCallback, useEffect } from 'react';
 import { useGet, usePost, usePut, useDelete } from './useApi';
+import { PLY_THICKNESS_VALUES } from '@/constants/materialConstants';
 
 export interface Material {
   id: number;
   projectId: number;
   materialId: string; // User-defined unique ID within the project
-  plyThickness: number;
+  plyThickness: typeof PLY_THICKNESS_VALUES[number];
   innerLaminateCode: string;
   outerLaminateCode: string;
   overallThickness: number; // Calculated: innerLaminate + plyThickness + outerLaminate
   plyType: string; // e.g., HDHMR, Blockboard
-  grainDirection?: string; // Optional, applicable to specific planks
-  edgebandingInnerCode: string;
-  edgebandingExposedCode: string;
+  grainDirection: 'Y' | 'N'; // Updated to only allow Y/N
   createdAt: string;
   updatedAt: string;
 }
 
-// For a list of materials, the responseObject IS the array of Material objects
-// type MaterialsListPayload = Material[]; // No longer needed if responseObject is Material[]
-
-// For a single material, the responseObject IS the Material object
-// type SingleMaterialPayload = Material; // No longer needed if responseObject is Material
-// However, your create/update operations seem to return a wrapper like { material: Material } inside responseObject
-// Let's keep SingleMaterialPayload for that, assuming the POST/PUT responses are structured like:
-// { success: true, responseObject: { material: {...} }, ... }
+// For a single material, the responseObject IS the Material object wrapped
 interface SingleMaterialPayload {
   material: Material;
 }
@@ -40,32 +32,25 @@ interface ServiceResponseWrapper<Payload> {
   message: string;
   responseObject: Payload;
   statusCode: number;
-  // Add other common fields from your wrapper if any (e.g., error codes, pagination info)
 }
 
-export interface CreateMaterialData {
-}
 
 export interface CreateMaterialData {
   materialId: string;
-  plyThickness: number;
+  plyThickness: typeof PLY_THICKNESS_VALUES[number];
   innerLaminateCode: string;
   outerLaminateCode: string;
   plyType: string;
-  grainDirection?: string;
-  edgebandingInnerCode: string;
-  edgebandingExposedCode: string;
+  grainDirection: 'Y' | 'N';
 }
 
 export interface UpdateMaterialData {
   materialId?: string;
-  plyThickness?: number;
+  plyThickness?: typeof PLY_THICKNESS_VALUES[number];
   innerLaminateCode?: string;
   outerLaminateCode?: string;
   plyType?: string;
-  grainDirection?: string;
-  edgebandingInnerCode?: string;
-  edgebandingExposedCode?: string;
+  grainDirection?: 'Y' | 'N';
 }
 
 // Hook for fetching all materials for a project
@@ -120,24 +105,20 @@ export function useCreateMaterial(projectId: string | number) {
 }
 
 // Hook for updating a material
-export function useUpdateMaterial() { // No materialId in hook params
+export function useUpdateMaterial() {
   // usePut will return the ServiceResponseWrapper, and its payload is SingleMaterialPayload
   const putHook = usePut<ServiceResponseWrapper<SingleMaterialPayload>, UpdateMaterialData>();
   
-  // DEBUG: Log hook initialization
-  console.log('[useUpdateMaterial] Hook initialized.');
-
-  const updateMaterial = useCallback(async (materialId: string | number, data: UpdateMaterialData) => { // materialId as param to function
-    // DEBUG: Log execution of updateMaterial
+  const updateMaterial = useCallback(async (materialId: string | number, data: UpdateMaterialData) => {
     console.log(`[useUpdateMaterial] Executing update for materialId: ${materialId}`, data);
     const resultWrapper = await putHook.execute(`/materials/${materialId}`, data);
     console.log('[useUpdateMaterial] Update result wrapper:', resultWrapper);
     // Extract the actual material from the responseObject
     return resultWrapper?.success ? resultWrapper.responseObject?.material : undefined;
-  }, [putHook]); // materialId is no longer a dependency here
+  }, [putHook]);
   
   return {
-    updateMaterial, // This is the function to call
+    updateMaterial,
     loading: putHook.loading,
     error: putHook.error
   };
@@ -150,7 +131,7 @@ export function useDeleteMaterial() {
   
   const deleteMaterial = useCallback(async (materialId: string | number) => {
     const resultWrapper = await deleteHook.execute(`/materials/${materialId}`);
-    return resultWrapper; // Or resultWrapper?.responseObject if that's more consistent
+    return resultWrapper;
   }, [deleteHook]);
   
   return {

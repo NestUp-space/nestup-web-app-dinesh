@@ -28,9 +28,15 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
     statusId: 1,
     uploaderRole: "BIM Engineer",
     viewerRoles: ["All"],
-    actionRequired: "BIM engineer to Input site measurements.",
+    actionRequired: "BIM engineer to Input site measurements and documentation.",
     metadataJson: null, // Moved frontendComponents to subtasks
     subtasks: [
+      {
+        name: "Upload Site Photos",
+        actionRequired: "Upload site photos for documentation",
+        type: "upload",
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+      },
       {
         name: "Collect Material Details",
         actionRequired: "BIM Engineer to input material specifications observed during site visit.",
@@ -75,19 +81,8 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
       }
     ]
   },
- 
   
-
   // Design Stage
-  {
-    stage: "Design",
-    taskName: "Site photos",
-    statusId: 1,
-    uploaderRole: "Client",
-    viewerRoles: ["All"],
-    actionRequired: "Client to upload site photos. BIM Engineer to validate.",
-    subtasks: []
-  },
   {
     stage: "Design",
     taskName: "Finalise designs",

@@ -1,0 +1,170 @@
+{
+  "version": "1.0.0",
+  "excludePaths": [
+    "node_modules",
+    "dist",
+    "build",
+    ".git",
+    "coverage"
+  ],
+  "templatePath": ".long_term_memory/AUDIT_PROCESS/AUDIT_TEMPLATES",
+  "reportPath": ".long_term_memory/AUDIT_PROCESS/AUDIT_HISTORY",
+  "customRules": ".long_term_memory/AUDIT_PROCESS/rules.json",
+  "thresholds": {
+    "componentSize": {
+      "warning": 300,
+      "error": 500
+    },
+    "complexity": {
+      "warning": 10,
+      "error": 15
+    },
+    "coverage": {
+      "minimum": 80,
+      "target": 90
+    },
+    "performance": {
+      "responseTime": {
+        "warning": 300,
+        "error": 500,
+        "unit": "ms"
+      },
+      "memoryUsage": {
+        "warning": 100,
+        "error": 200,
+        "unit": "MB"
+      }
+    }
+  },
+  "security": {
+    "bannedPatterns": [
+      "eval\\(",
+      "new\\s+Function",
+      "document\\.write",
+      "innerHTML\\s*="
+    ],
+    "requiredValidations": [
+      "input",
+      "authentication",
+      "authorization"
+    ],
+    "scanners": [
+      "dependency",
+      "static",
+      "dynamic"
+    ]
+  },
+  "architecture": {
+    "patterns": {
+      "required": [
+        "repository",
+        "service",
+        "controller"
+      ],
+      "forbidden": [
+        "singleton",
+        "global-state"
+      ]
+    },
+    "maxDependencies": 5,
+    "layerOrder": [
+      "controllers",
+      "services",
+      "repositories",
+      "models"
+    ]
+  },
+  "documentation": {
+    "requiredFiles": [
+      "README.md",
+      "CONTRIBUTING.md",
+      "API.md"
+    ],
+    "requiredSections": [
+      "Overview",
+      "Installation",
+      "Usage",
+      "API Reference"
+    ],
+    "mbkValidation": {
+      "required": true,
+      "matchImplementation": true
+    }
+  },
+  "testing": {
+    "coverageThreshold": {
+      "statements": 80,
+      "branches": 80,
+      "functions": 80,
+      "lines": 80
+    },
+    "requiredTests": [
+      "unit",
+      "integration",
+      "e2e"
+    ]
+  },
+  "notifications": {
+    "slack": {
+      "enabled": true,
+      "critical": true,
+      "summary": true
+    },
+    "email": {
+      "enabled": true,
+      "recipients": [
+        "team-leads@nestup.com",
+        "security@nestup.com"
+      ]
+    }
+  },
+  "reporting": {
+    "formats": [
+      "md",
+      "html",
+      "json"
+    ],
+    "artifacts": [
+      "metrics",
+      "coverage",
+      "security-scan"
+    ],
+    "retention": {
+      "daily": 7,
+      "weekly": 4,
+      "monthly": 12
+    }
+  },
+  "automation": {
+    "preCommit": {
+      "enabled": true,
+      "checks": [
+        "lint",
+        "test",
+        "security"
+      ]
+    },
+    "prChecks": {
+      "required": true,
+      "checks": [
+        "audit-quick"
+      ]
+    }
+  },
+  "metrics": {
+    "collect": [
+      "complexity",
+      "coverage",
+      "dependencies",
+      "performance"
+    ],
+    "store": {
+      "type": "file",
+      "path": ".long_term_memory/AUDIT_PROCESS/metrics"
+    },
+    "trending": {
+      "enabled": true,
+      "period": "monthly"
+    }
+  }
+}

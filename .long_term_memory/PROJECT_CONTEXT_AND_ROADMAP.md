@@ -36,6 +36,7 @@ A significant recent development is the **Model Management System** (`backend/sr
 * **Current Capabilities (In Progress/Developed):**
   * Defining models and their parameters.
   * Defining BOM items with associated JavaScript logic for calculations.
+    * **Enhanced UI (May 2023):** Implemented a user-friendly `ExpressionInput.tsx` component for defining plank calculation logic (width, length, material code). This component simplifies logic entry with features like auto-formatting, a code preview toggle with syntax highlighting, and clickable variable chips, abstracting direct JavaScript interaction for users.
   * Generating Plank Lists (CSV output) based on model definitions and runtime inputs.
   * Generating Material Estimates based on resolved BOMs.
 * **Goal:** Increase flexibility, reduce hardcoding, improve maintainability, and allow for rapid definition and iteration of diverse furniture models.

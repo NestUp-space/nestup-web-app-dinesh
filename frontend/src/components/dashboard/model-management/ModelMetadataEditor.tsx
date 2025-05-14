@@ -52,58 +52,70 @@ export default function ModelMetadataEditor({ onFileSelect }: ModelMetadataEdito
   }, [watch]);
 
   return (
-    <div className="space-y-4">
-      <div>
-        <label htmlFor="modelType" className="block text-sm font-medium text-gray-700 mb-1">Model Name / Type</label>
-        <input
-          id="modelType"
-          type="text"
-          placeholder="e.g., Simple Box, L-Shaped Wardrobe"
-          {...register('modelType')}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-        />
-        {errors.modelType && <p className="text-sm text-red-500 mt-1">{errors.modelType.message}</p>}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Left Column: Model Info */}
+      <div className="space-y-4">
+        <div>
+          <label htmlFor="modelType" className="block text-sm font-medium text-gray-700 mb-1">Model Name / Type</label>
+          <input
+            id="modelType"
+            type="text"
+            placeholder="e.g., Simple Box, L-Shaped Wardrobe"
+            {...register('modelType')}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          />
+          {errors.modelType && <p className="text-sm text-red-500 mt-1">{errors.modelType.message}</p>}
+        </div>
+
+        <div>
+          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <textarea
+            id="description"
+            rows={4}
+            placeholder="A brief description of the model..."
+            {...register('description')}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          />
+          {errors.description && <p className="text-sm text-red-500 mt-1">{errors.description.message}</p>}
+        </div>
       </div>
 
-      <div>
-        <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-        <textarea
-          id="description"
-          rows={4} /* Increased rows from 3 to 4 */
-          placeholder="A brief description of the model..."
-          {...register('description')}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-        />
-        {errors.description && <p className="text-sm text-red-500 mt-1">{errors.description.message}</p>}
-      </div>
-
-      <div>
-        <label htmlFor="catalogueImage" className="block text-sm font-medium text-gray-700 mb-1">Catalogue Image</label>
-        <input
-          id="catalogueImage"
-          type="file"
-          accept="image/*"
-          onChange={handleFileChange}
-          className="mt-1 block w-full text-sm text-gray-500
+      {/* Right Column: Image Upload */}
+      <div className="space-y-4">
+        <div>
+          <label htmlFor="catalogueImage" className="block text-sm font-medium text-gray-700 mb-1">Catalogue Image</label>
+          <input
+            id="catalogueImage"
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="mt-1 block w-full text-sm text-gray-500
                      file:mr-4 file:py-2 file:px-4
                      file:rounded-md file:border-0
                      file:text-sm file:font-semibold
                      file:bg-indigo-50 file:text-indigo-700
                      hover:file:bg-indigo-100"
-        />
-        {/* Hidden input to store the image URL from react-hook-form */}
-        <input type="hidden" {...register('imageUrl')} />
-        
-        {previewUrl && (
-          <div className="mt-2">
-            <Image src={previewUrl} alt="Image Preview" width={100} height={100} className="rounded-md object-cover" />
+          />
+          {/* Hidden input to store the image URL from react-hook-form */}
+          <input type="hidden" {...register('imageUrl')} />
+          
+          {previewUrl && (
+            <div className="mt-2">
+              <Image 
+                src={previewUrl} 
+                alt="Image Preview" 
+                width={300} 
+                height={200} 
+                className="rounded-md object-contain w-full max-h-[200px]"
+              />
+            </div>
+          )}
+          <div className="mt-2 text-xs text-gray-500">
+            This image will be displayed in the model selector
           </div>
-        )}
-        {errors.imageUrl && <p className="text-sm text-red-500 mt-1">{errors.imageUrl.message}</p>}
+          {errors.imageUrl && <p className="text-sm text-red-500 mt-1">{errors.imageUrl.message}</p>}
+        </div>
       </div>
-      {/* <p className="text-xs text-muted-foreground">
-        This section is for basic model identification.
-      </p> */}
     </div>
   );
 }

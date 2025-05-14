@@ -321,3 +321,15 @@ Where `{documentType}` can be a subfolder (e.g., `planklabels`, `cutlists`, `inv
 **Impacted Areas:** Catalogue item management, backend API for catalogue, S3 storage for images.
 **Related LTM:** `backend/src/catalogue/routes/model.routes.ts`, `backend/src/catalogue/services/model.service.ts`
 ---
+
+## Decision_PlankLogicUI_Evolution_20250513
+
+**Date:** 2025-05-13
+**Decision:** Iteratively refined the UI for defining plank calculation logic within the Model Builder.
+    1.  **Initial Enhancement:** `CollapsibleVariables.tsx` improved for clarity. Default logic scripts updated in `plankScripts.ts`. `BillOfMaterialListEditor.tsx` set to auto-populate standard planks. `PlankLogicEditor.tsx` initially showed the full `itemLogicScript`.
+    2.  **Reversion to Individual Fields:** `PlankLogicEditor.tsx` was changed to use three separate `LogicInput.tsx` instances for Width, Length, and Material Code, pre-filled with default JavaScript. This was due to user feedback on the complexity of editing full scripts.
+    3.  **Introduction of `ExpressionInput.tsx`:** A new component, `ExpressionInput.tsx`, was created to replace `LogicInput.tsx` for these calculation fields. It offers a more user-friendly text area with a "Format" button, a "Show/Hide Code" toggle (with syntax highlighting for the preview), and clickable variable chips.
+**Rationale:** To significantly improve the user experience for defining complex calculation logic by abstracting direct JavaScript interaction while still providing transparency and control. This iterative approach responded to user feedback to find a balance between power and ease of use.
+**Impacted Areas:** `frontend/src/components/dashboard/model-management/` (specifically `PlankLogicEditor.tsx`, `CollapsibleVariables.tsx`, `BillOfMaterialListEditor.tsx`, `LogicInput.tsx`, and the new `ExpressionInput.tsx`), `frontend/src/components/dashboard/model-management/templates/plankScripts.ts`.
+**Related LTM:** `CURRENT_CONTEXT.md` (for 2025-05-13), `CURRENT_TODO.md` (for 2025-05-13).
+---
