@@ -54,9 +54,12 @@ export const register = async (req: Request, res: Response) => {
 };
 
 export const login = async (req: Request, res: Response) => {
+  console.log('Login request received:', { body: req.body });
+  
   // Validate request body
   const validationResult = LoginBodySchema.safeParse(req.body);
   if (!validationResult.success) {
+    console.log('Login validation failed:', validationResult.error.errors);
     return res.status(StatusCodes.BAD_REQUEST).json({
       success: false,
       message: 'Validation failed',
@@ -66,22 +69,32 @@ export const login = async (req: Request, res: Response) => {
 
   // Proceed with validated data
   const serviceResponse = await loginUser(validationResult.data);
+  console.log('Login service response:', {
+    success: serviceResponse.success,
+    statusCode: serviceResponse.statusCode,
+    message: serviceResponse.message,
+    hasUser: serviceResponse.responseObject ? 'yes' : 'no'
+  });
 
   // Check if serviceResponse is not null before accessing properties
   if (serviceResponse && serviceResponse.success && serviceResponse.responseObject) {
     // Successfully logged in
-    res.status(serviceResponse.statusCode).json({
+    const response = {
       success: true,
       message: serviceResponse.message,
       token: serviceResponse.responseObject.token,
-      user: serviceResponse.responseObject.user, // Contains user data without password
-    });
+      user: serviceResponse.responseObject.user
+    };
+    console.log('Sending successful login response');
+    res.status(serviceResponse.statusCode).json(response);
   } else {
     // Login failed
-    res.status(serviceResponse.statusCode).json({
+    const response = {
       success: false,
-      message: serviceResponse.message || 'Login failed', // Provide default message if needed
-    });
+      message: serviceResponse.message || 'Login failed'
+    };
+    console.log('Sending failed login response:', response);
+    res.status(serviceResponse.statusCode).json(response);
   }
 };
 

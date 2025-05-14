@@ -4,7 +4,7 @@
  */
 
 // Base URL from environment variable
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'; // Align with index.ts and .env.local variable name
 
 // Types
 interface RegisterData {
@@ -60,15 +60,23 @@ export const register = async (userData: RegisterData): Promise<AuthResponse> =>
  */
 export const login = async (loginData: LoginData): Promise<AuthResponse> => {
   try {
+    console.log('Sending login request with:', loginData);
+    console.log('Login attempt with email:', loginData.email);
     const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: {
+        'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(loginData),
+      body: JSON.stringify({ email: loginData.email, password: loginData.password }),
     });
 
     const data = await response.json();
+    console.log('Login response:', {
+      status: response.status,
+      statusText: response.statusText,
+      data
+    });
     return data;
   } catch (error) {
     console.error('Login error:', error);

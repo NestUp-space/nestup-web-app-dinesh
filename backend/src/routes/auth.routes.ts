@@ -1,13 +1,15 @@
 import { Router } from 'express';
-// Import the renamed controller function
 import { register, login, handlePasswordResetRequest } from '../controllers/auth.controller';
+import { authLogger } from '../middlewares/auth-logger.middleware';
 
 const router = Router();
 
+// Add auth logger middleware to all auth routes
+router.use(authLogger);
+
 router.post('/register', register);
 router.post('/login', login);
-// Use the renamed controller function for the route
-router.post('/reset-password-request', handlePasswordResetRequest); // Renamed route for clarity
+router.post('/reset-password-request', handlePasswordResetRequest);
 
 // TODO: Add route for handling the actual password reset link (e.g., POST /reset-password/:token)
 

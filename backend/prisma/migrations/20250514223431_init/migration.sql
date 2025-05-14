@@ -1,8 +1,19 @@
+-- CreateEnum
+CREATE TYPE "GrainDirection" AS ENUM ('Y', 'N');
+
+-- CreateEnum
+CREATE TYPE "PlyType" AS ENUM ('HDHMR', 'Blockboard', 'MDF', 'Plywood');
+
+-- CreateEnum
+CREATE TYPE "BomItemType" AS ENUM ('PLANK', 'HARDWARE', 'ADDON');
+
+-- CreateEnum
+CREATE TYPE "DocumentType" AS ENUM ('INPUT_QA_CSV', 'PRESSING_LIST_CSV', 'OUTPUT_QA_CSV', 'CUTLIST_PDF', 'PLANKLABEL_PDF', 'INSTALLATION_GUIDE_PDF', 'PROFORMA_INVOICE_PDF', 'FINAL_INVOICE_PDF', 'PROJECT_PLANK_LIST_CSV');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" SERIAL NOT NULL,
-    "firstName" TEXT NOT NULL,
-    "lastName" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "profilePicUrl" TEXT,
@@ -30,19 +41,22 @@ CREATE TABLE "Team" (
 CREATE TABLE "Project" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
-    "location" TEXT NOT NULL,
-    "sqft" INTEGER NOT NULL,
-    "statusId" INTEGER NOT NULL,
-    "clientId" INTEGER NOT NULL,
-    "engineerId" INTEGER NOT NULL,
+    "description" TEXT,
+    "address" TEXT DEFAULT 'N/A',
+    "location" TEXT DEFAULT 'N/A',
+    "sqft" INTEGER DEFAULT 0,
+    "statusId" INTEGER DEFAULT 1,
+    "clientId" INTEGER,
+    "engineerId" INTEGER,
     "createdById" INTEGER NOT NULL,
     "updatedById" INTEGER NOT NULL,
-    "estimatedTime" TIMESTAMP(3) NOT NULL,
+    "estimatedTime" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
     "startedAt" TIMESTAMP(3),
     "completedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "vbCount" INTEGER NOT NULL,
+    "vbCount" INTEGER NOT NULL DEFAULT 0,
+    "generatedPlankListFileId" INTEGER,
 
     CONSTRAINT "Project_pkey" PRIMARY KEY ("id")
 );
@@ -52,7 +66,12 @@ CREATE TABLE "Task" (
     "id" SERIAL NOT NULL,
     "projectId" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
-    "statusId" INTEGER NOT NULL,
+    "stage" TEXT,
+    "statusId" INTEGER NOT NULL DEFAULT 1,
+    "uploaderRole" TEXT,
+    "viewerRoles" TEXT,
+    "actionRequired" TEXT,
+    "metadataJson" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "updatedById" INTEGER,
@@ -60,6 +79,22 @@ CREATE TABLE "Task" (
     "completedAt" TIMESTAMP(3),
 
     CONSTRAINT "Task_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Subtask" (
+    "id" SERIAL NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "actionRequired" TEXT,
+    "type" TEXT,
+    "metadataJson" TEXT,
+    "completed" BOOLEAN NOT NULL DEFAULT false,
+    "taskId" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Subtask_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -173,6 +208,119 @@ CREATE TABLE "ClientMarketplace" (
     CONSTRAINT "ClientMarketplace_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "Material" (
+    "id" SERIAL NOT NULL,
+    "projectId" INTEGER NOT NULL,
+    "materialId" TEXT NOT NULL,
+    "plyThickness" DOUBLE PRECISION NOT NULL,
+    "innerLaminateCode" TEXT NOT NULL,
+    "outerLaminateCode" TEXT NOT NULL,
+    "overallThickness" DOUBLE PRECISION NOT NULL,
+    "plyType" "PlyType" NOT NULL,
+    "grainDirection" "GrainDirection" NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Material_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SiteVisitBox" (
+    "id" SERIAL NOT NULL,
+    "taskId" INTEGER NOT NULL,
+    "order" INTEGER NOT NULL,
+    "modelType" TEXT NOT NULL,
+    "inputs" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SiteVisitBox_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ModelDefinition" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "imageUrl" TEXT,
+    "sampleRuntimeInputsJson" JSONB,
+    "expectedOutputSchemaJson" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ModelDefinition_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ModelInputParameter" (
+    "id" TEXT NOT NULL,
+    "modelDefinitionId" TEXT NOT NULL,
+    "inputName" TEXT NOT NULL,
+    "displayLabel" TEXT,
+    "inputType" TEXT NOT NULL,
+    "defaultValue" TEXT,
+    "options" JSONB,
+    "unit" TEXT,
+    "description" TEXT,
+
+    CONSTRAINT "ModelInputParameter_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ModelBomItem" (
+    "id" TEXT NOT NULL,
+    "modelDefinitionId" TEXT NOT NULL,
+    "itemName" TEXT NOT NULL,
+    "itemType" "BomItemType" NOT NULL,
+    "itemDescription" TEXT,
+    "details" JSONB,
+    "itemLogicScript" TEXT,
+    "addonModelId" TEXT,
+
+    CONSTRAINT "ModelBomItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ProjectModelInstance" (
+    "id" TEXT NOT NULL,
+    "projectId" INTEGER NOT NULL,
+    "modelDefinitionId" TEXT NOT NULL,
+    "runtimeInputsJson" JSONB NOT NULL,
+    "uiDisplayOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ProjectModelInstance_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "GeneratedPlankList" (
+    "id" TEXT NOT NULL,
+    "projectModelInstanceId" TEXT NOT NULL,
+    "generatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "filePath" TEXT,
+    "csvContent" TEXT,
+
+    CONSTRAINT "GeneratedPlankList_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "GeneratedDocument" (
+    "id" TEXT NOT NULL,
+    "documentType" "DocumentType" NOT NULL,
+    "fileName" TEXT NOT NULL,
+    "filePath" TEXT NOT NULL,
+    "generatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "userId" INTEGER,
+    "projectId" INTEGER,
+    "projectModelInstanceId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "GeneratedDocument_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
@@ -185,6 +333,18 @@ CREATE UNIQUE INDEX "Team_managerId_key" ON "Team"("managerId");
 -- CreateIndex
 CREATE UNIQUE INDEX "ClientMarketplace_clientId_key" ON "ClientMarketplace"("clientId");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "Material_projectId_materialId_key" ON "Material"("projectId", "materialId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ModelDefinition_name_key" ON "ModelDefinition"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ModelInputParameter_modelDefinitionId_inputName_key" ON "ModelInputParameter"("modelDefinitionId", "inputName");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ModelBomItem_modelDefinitionId_itemName_key" ON "ModelBomItem"("modelDefinitionId", "itemName");
+
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "UserRole"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -195,16 +355,19 @@ ALTER TABLE "User" ADD CONSTRAINT "User_teamId_fkey" FOREIGN KEY ("teamId") REFE
 ALTER TABLE "Team" ADD CONSTRAINT "Team_managerId_fkey" FOREIGN KEY ("managerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Project" ADD CONSTRAINT "Project_statusId_fkey" FOREIGN KEY ("statusId") REFERENCES "Status"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Project" ADD CONSTRAINT "Project_statusId_fkey" FOREIGN KEY ("statusId") REFERENCES "Status"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Project" ADD CONSTRAINT "Project_engineerId_fkey" FOREIGN KEY ("engineerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Project" ADD CONSTRAINT "Project_engineerId_fkey" FOREIGN KEY ("engineerId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Project" ADD CONSTRAINT "Project_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Project" ADD CONSTRAINT "Project_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Project" ADD CONSTRAINT "Project_generatedPlankListFileId_fkey" FOREIGN KEY ("generatedPlankListFileId") REFERENCES "File"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Task" ADD CONSTRAINT "Task_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -214,6 +377,9 @@ ALTER TABLE "Task" ADD CONSTRAINT "Task_statusId_fkey" FOREIGN KEY ("statusId") 
 
 -- AddForeignKey
 ALTER TABLE "Task" ADD CONSTRAINT "Task_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Subtask" ADD CONSTRAINT "Subtask_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "File" ADD CONSTRAINT "File_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -268,3 +434,33 @@ ALTER TABLE "Comment" ADD CONSTRAINT "Comment_taskId_fkey" FOREIGN KEY ("taskId"
 
 -- AddForeignKey
 ALTER TABLE "ClientMarketplace" ADD CONSTRAINT "ClientMarketplace_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Material" ADD CONSTRAINT "Material_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SiteVisitBox" ADD CONSTRAINT "SiteVisitBox_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ModelInputParameter" ADD CONSTRAINT "ModelInputParameter_modelDefinitionId_fkey" FOREIGN KEY ("modelDefinitionId") REFERENCES "ModelDefinition"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ModelBomItem" ADD CONSTRAINT "ModelBomItem_modelDefinitionId_fkey" FOREIGN KEY ("modelDefinitionId") REFERENCES "ModelDefinition"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProjectModelInstance" ADD CONSTRAINT "ProjectModelInstance_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProjectModelInstance" ADD CONSTRAINT "ProjectModelInstance_modelDefinitionId_fkey" FOREIGN KEY ("modelDefinitionId") REFERENCES "ModelDefinition"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GeneratedPlankList" ADD CONSTRAINT "GeneratedPlankList_projectModelInstanceId_fkey" FOREIGN KEY ("projectModelInstanceId") REFERENCES "ProjectModelInstance"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GeneratedDocument" ADD CONSTRAINT "GeneratedDocument_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GeneratedDocument" ADD CONSTRAINT "GeneratedDocument_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GeneratedDocument" ADD CONSTRAINT "GeneratedDocument_projectModelInstanceId_fkey" FOREIGN KEY ("projectModelInstanceId") REFERENCES "ProjectModelInstance"("id") ON DELETE SET NULL ON UPDATE CASCADE;
