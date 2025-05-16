@@ -19,16 +19,24 @@ dotenv.config();
 const app = express();
 
 // CORS configuration
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:3001'
-];
+const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
+// Parse comma-separated origins if multiple are provided
+const allowedOrigins = corsOrigin.split(',').map(origin => origin.trim());
+
+console.log('CORS allowed origins:', allowedOrigins);
 
 const corsOptions = {
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: any) => void) => {
-    if (origin && allowedOrigins.includes(origin) || !origin) {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.warn(`CORS blocked request from origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -40,6 +48,9 @@ const corsOptions = {
 // Middleware
 app.use(helmet());
 app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(pino());
 
@@ -54,7 +65,7 @@ app.use('/api/v1/catalogue', catalogueRouter); // Mount catalogue router
 app.use('/api/bim/plank-generation', plankGenerationRouter); // Mount plank generation router
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 

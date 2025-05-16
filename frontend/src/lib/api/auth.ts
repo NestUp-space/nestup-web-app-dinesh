@@ -4,7 +4,7 @@
  */
 
 // Base URL from environment variable
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'; // Align with index.ts and .env.local variable name
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'; // Align with index.ts and .env.local variable name
 
 // Types
 interface RegisterData {

@@ -1,6 +1,6 @@
 // backend/src/utils/s3.ts
 
-import AWS from 'aws-sdk';
+// import AWS from 'aws-sdk'; // Removed unused v2 import
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';

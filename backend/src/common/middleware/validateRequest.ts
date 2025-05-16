@@ -11,7 +11,7 @@ export const validateRequest = (schema: AnyZodObject) =>
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       // Validate the entire request object (body, query, params)
-      const parsed = await schema.parseAsync({
+      await schema.parseAsync({ // Call without assigning to a variable
         body: req.body,
         query: req.query,
         params: req.params,

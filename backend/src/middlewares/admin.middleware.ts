@@ -1,10 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
-
-interface CustomRequest extends Request {
-  user?: {
-    role: string;
-  };
-}
+import { Response, NextFunction } from 'express';
+import { CustomRequest } from './auth.middleware';
 
 export const adminMiddleware = (req: CustomRequest, res: Response, next: NextFunction) => {
   console.log('User role:', req.user?.role); // Debugging log

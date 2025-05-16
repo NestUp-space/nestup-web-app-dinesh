@@ -1,382 +1,483 @@
 import { Request, Response } from 'express';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { StatusCodes } from 'http-status-codes';
-import { projectService } from '../services/project/project.service';
-import { taskService } from '../services/project/task.service';
-import { subtaskService } from '../services/project/subtask.service';
-import { CreateSubtaskDto, UpdateSubtaskDto } from '../dtos/project.dto'; // For typing controller payloads
-import { TaskTemplate } from '../types/projectTemplate.types'; // For createTask controller
-import { CustomRequest } from '../middlewares/auth.middleware'; // Import CustomRequest
+import { CustomRequest } from '../middlewares/auth.middleware';
+import { 
+  ProjectCreateInput as ProjectCreateInputDto,
+  ProjectUpdateInput as ProjectUpdateInputDto,
+  ProjectShare,
+  ProjectMaterialInput,
+  projectIncludes
+} from '../types/project.types';
+import { PlyType, GrainDirection } from '@prisma/client'; // Import enums
 
-// Extend Request type to include user
-// Assuming role might be a simple string or an object.
-// For service compatibility, we'll ensure role.name is passed.
-// interface AuthenticatedRequest extends Request { // Removed local AuthenticatedRequest
-//   user?: { id: number; role: string | { name: string; /* other role props */ } };
-// }
+const prisma = new PrismaClient();
 
-export const createProject = async (req: Request, res: Response) => {
-  const customReq = req as CustomRequest;
-  console.log('Entering createProject controller with body:', JSON.stringify(customReq.body, null, 2));
-  try {
-    if (!customReq.user || !customReq.user.role) { // Added check for customReq.user.role
-      return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized or user role missing' });
-    }
-
-    if (customReq.user.role === 'client') {
-      return res.status(StatusCodes.FORBIDDEN).json({ message: 'Client users are not allowed to create projects' });
-    }
-
-    // Extract values from request body
-    const { name, projectDescription, description, engineerId, clientId } = customReq.body;
-    
-    // Use projectDescription or description (whichever is provided)
-    const projectDesc = projectDescription || description;
-    
-    // Set default values for required fields that might be missing from frontend
-    const address = customReq.body.address || 'N/A';
-    const location = customReq.body.location || 'N/A';
-    
-    // Convert numeric values to integers
-    const sqft = parseInt(customReq.body.sqft, 10) || 0;
-    const estimatedTime = customReq.body.estimatedTime || new Date();
-    const statusId = parseInt(customReq.body.statusId, 10) || 1; // Assuming 1 is a valid status ID
-    const vbCount = parseInt(customReq.body.vbCount, 10) || 0;
-    
-    // Convert IDs to integers and handle NaN values
-    const parsedEngineerId = parseInt(engineerId, 10);
-    const finalEngineerId = !isNaN(parsedEngineerId) ? parsedEngineerId : undefined;
-
-    const parsedClientId = parseInt(clientId, 10);
-    const finalClientId = !isNaN(parsedClientId) ? parsedClientId : undefined;
-    
-    // Get the user ID for createdById and updatedById
-    const createdById = customReq.user.id; // customReq.user.id is guaranteed by CustomRequest if customReq.user exists
-
-    if (!name) {
-      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Project name is required' });
-    }
-
+export class ProjectController {
+  static async getProjects(req: Request, res: Response): Promise<Response> {
     try {
-      console.log('About to call projectService.createProject with data:', {
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = parseInt(req.query.pageSize as string) || 10;
+      const search = req.query.search as string;
+
+      const where: Prisma.ProjectWhereInput = search ? {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } }
+        ]
+      } : {};
+
+      const [projects, total] = await Promise.all([
+        prisma.project.findMany({
+          where,
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          include: {
+            createdBy: { select: { id: true, name: true } },
+            updatedBy: { select: { id: true, name: true } },
+            status: { select: { status: true } } 
+          }
+        }),
+        prisma.project.count({ where })
+      ]);
+
+      return res.status(StatusCodes.OK).json({
+        success: true,
+        data: {
+          projects,
+          total,
+          page,
+          pageSize,
+          totalPages: Math.ceil(total / pageSize)
+        }
+      });
+    } catch (err) {
+      console.error('Error fetching projects:', err);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: 'Unable to fetch projects',
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
+    }
+  }
+
+  static async createProject(req: CustomRequest, res: Response): Promise<Response> {
+    try {
+      const { name, description, projectStatus, clientId, address, location, sqft, engineerId }: ProjectCreateInputDto = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(StatusCodes.UNAUTHORIZED).json({
+          success: false,
+          message: 'User not authenticated'
+        });
+      }
+
+      const statusStringToUse = projectStatus || 'DRAFT';
+      const statusRecord = await prisma.status.findFirst({ where: { status: statusStringToUse } });
+      if (!statusRecord) {
+        return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: `Invalid project status: ${statusStringToUse}` });
+      }
+      
+      const createData = {
         name,
-        description: projectDesc || null,
-        address: address || 'N/A',
-        location: location || 'N/A',
-        sqft: sqft || 0,
-        estimatedTime: estimatedTime || new Date(),
-        vbCount: vbCount || 0,
-        statusId: statusId || 1,
-        engineerId: finalEngineerId,
-        clientId: finalClientId,
-        createdById
+        description,
+        address,
+        location,
+        sqft,
+        statusId: statusRecord.id,
+        createdById: userId,
+        updatedById: userId,
+        clientId,
+        engineerId,
+        projectStatus: statusStringToUse
+      } as any;
+
+      const project = await prisma.project.create({ data: createData });
+      
+      return res.status(StatusCodes.CREATED).json({
+        success: true,
+        message: 'Project created successfully',
+        project
+      });
+    } catch (err) {
+      console.error('Error creating project:', err);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: 'Unable to create project',
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
+    }
+  }
+
+  static async getProjectById(req: Request, res: Response): Promise<Response> {
+    try {
+      const projectId = parseInt(req.params.id);
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        include: projectIncludes 
       });
 
-      const project = await projectService.createProject({
+      if (!project) {
+        return res.status(StatusCodes.NOT_FOUND).json({
+          success: false,
+          message: 'Project not found'
+        });
+      }
+      return res.status(StatusCodes.OK).json({ success: true, project });
+    } catch (err) {
+      console.error('Error fetching project:', err);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: 'Unable to fetch project',
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
+    }
+  }
+
+  static async updateProject(req: CustomRequest, res: Response): Promise<Response> {
+    try {
+      const projectId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      const { name, description, projectStatus, clientId, address, location, sqft, engineerId }: ProjectUpdateInputDto = req.body;
+
+      if (!userId) {
+        return res.status(StatusCodes.UNAUTHORIZED).json({
+          success: false,
+          message: 'User not authenticated'
+        });
+      }
+      
+      let statusId: number | undefined;
+      if (projectStatus) {
+        const statusRecord = await prisma.status.findFirst({ where: { status: projectStatus } });
+        if (!statusRecord) {
+          return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: `Invalid project status: ${projectStatus}` });
+        }
+        statusId = statusRecord.id;
+      }
+
+      const updateData = {
         name,
-        description: projectDesc || null,
-        address: address || 'N/A',
-        location: location || 'N/A',
-        sqft: sqft || 0,
-        estimatedTime: estimatedTime || new Date(),
-        vbCount: vbCount || 0,
-        statusId: statusId || 1,
-        engineerId: finalEngineerId,
-        clientId: finalClientId,
-        createdById
+        description,
+        address,
+        location,
+        sqft,
+        updatedById: userId,
+        ...(statusId !== undefined && { statusId }),
+        ...(projectStatus !== undefined && { projectStatus }),
+        ...(clientId !== undefined && { clientId }),
+        ...(engineerId !== undefined && { engineerId })
+      } as any;
+
+      const project = await prisma.project.update({
+        where: { id: projectId },
+        data: updateData
       });
 
-      // Note: Task and subtask creation is now handled in createProjectService
-
-      res.status(StatusCodes.CREATED).json({ project, message: 'Project created with tasks and subtasks from template' });
-    } catch (serviceError) {
-      console.error('Error in projectService.createProject:', serviceError);
-      throw serviceError; // Re-throw to be caught by the outer catch block
+      return res.status(StatusCodes.OK).json({
+        success: true,
+        message: 'Project updated successfully',
+        project
+      });
+    } catch (err) {
+      console.error('Error updating project:', err);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: 'Unable to update project',
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
     }
-  } catch (error) {
-    const err = error as Error;
-    console.error('Error in createProject controller:', err); // Also log it on the backend
-    res.status(StatusCodes.BAD_REQUEST).json({ 
-      message: err.message, 
-      name: err.name, 
-      stack: err.stack, 
-      details: JSON.stringify(err, Object.getOwnPropertyNames(err)) // Attempt to serialize more details
-    });
   }
-};
 
-export const getProjects = async (req: Request, res: Response) => {
-  const customReq = req as CustomRequest;
-  try {
-    if (!customReq.user || !customReq.user.role) { // Added check for customReq.user.role
-      return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized or user role missing' });
-    }
+  static async updateProjectStatus(req: CustomRequest, res: Response): Promise<Response> {
+    try {
+      const projectId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      const { projectStatus } : { projectStatus?: string } = req.body; 
 
-    // Prepare user object for service layer
-    // The service expects role: { name: string }
-    // CustomRequest ensures customReq.user.role is a string
-    const serviceUser = {
-      id: customReq.user.id, // customReq.user.id is guaranteed by CustomRequest if customReq.user exists
-      role: { 
-        name: customReq.user.role 
+      if (!userId) {
+        return res.status(StatusCodes.UNAUTHORIZED).json({
+          success: false,
+          message: 'User not authenticated'
+        });
       }
-    };
 
-    const projectsWithRelations = await projectService.getProjects(serviceUser);
-    
-    // Transform the client data to be directly accessible
-    // Also, use the DTO transformation from the service for consistency if available,
-    // but for now, manual transformation is kept.
-    // ProjectService.transformToResponseDto could be used if we map over results here.
-    const projects = projectsWithRelations.map(p => projectService.transformToResponseDto(p));
-    
-    // The old transformation logic:
-    // const transformedProjects = projects.map(project => {
-    //   const clientData = project.client.length > 0 ? project.client[0].client : null;
-    //   return {
-    //     ...project,
-    //     client: clientData, // Replace the array with the direct client object or null
-    //   };
-    // });
-
-    res.status(StatusCodes.OK).json({ projects }); // projects are now DTOs
-  } catch (error) {
-    res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
-  }
-};
-
-export const getProjectById = async (req: Request, res: Response) => {
-  const customReq = req as CustomRequest;
-  try {
-    if (!customReq.user || !customReq.user.role) { // Added check for customReq.user.role
-      return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized or user role missing' });
-    }
-    const projectId = parseInt(customReq.params.projectId, 10);
-    if (isNaN(projectId)) {
-      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID' });
-    }
-
-    // Prepare user object for service layer
-    // CustomRequest ensures customReq.user.role is a string
-    const serviceUser = {
-      id: customReq.user.id, // customReq.user.id is guaranteed by CustomRequest if customReq.user exists
-      role: { 
-        name: customReq.user.role
+      if (!projectStatus) {
+        return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Project status is required.' });
       }
-    };
 
-    const projectWithRelations = await projectService.getProjectById(projectId, serviceUser);
+      const statusRecord = await prisma.status.findFirst({ where: { status: projectStatus } });
+      if (!statusRecord) {
+        return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: `Invalid project status: ${projectStatus}` });
+      }
 
-    if (!projectWithRelations) {
-      // Service layer now handles permission checks and returns null if not found or not permitted
-      return res.status(StatusCodes.NOT_FOUND).json({ message: 'Project not found or access denied' });
+      const updateData = {
+        statusId: statusRecord.id,
+        projectStatus,
+        updatedById: userId
+      } as any;
+
+      const project = await prisma.project.update({
+        where: { id: projectId },
+        data: updateData
+      });
+
+      return res.status(StatusCodes.OK).json({
+        success: true,
+        message: 'Project status updated successfully',
+        project
+      });
+    } catch (err) {
+      console.error('Error updating project status:', err);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: 'Unable to update project status',
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
     }
-    
-    const project = projectService.transformToResponseDto(projectWithRelations);
-
-    // Optional: Add authorization check here if needed (e.g., client can only see their own projects)
-
-    console.log('Backend controller getProjectById, project data being sent:', JSON.stringify(project, null, 2));
-    res.status(StatusCodes.OK).json({ project });
-  } catch (error) {
-    res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
   }
-};
 
-export const updateProject = async (req: Request, res: Response) => { 
-  const customReq = req as CustomRequest;
-  try {
-    // customReq.body should conform to UpdateProjectDto
-    // Ensure customReq.user is checked if logic depends on it
-    // const updatedById = customReq.user?.id; // Example: Get user ID for audit - Service does not currently support this
-    const project = await projectService.updateProject(Number(customReq.params.projectId), customReq.body); // Service currently expects 2 arguments
-    // Consider transforming to DTO if not already done by service
-    res.status(200).json({ project });
-  } catch (error) {
-    res.status(400).json({ message: (error as Error).message });
-  }
-};
+  static async deleteProject(req: Request, res: Response): Promise<Response> {
+    try {
+      const projectId = parseInt(req.params.id);
+      
+      await prisma.$transaction([
+        prisma.material.deleteMany({ where: { projectId } }), // Changed from projectMaterial
+        prisma.clientProjectMapping.deleteMany({ where: { projectId } }), // Changed from projectShare
+        prisma.comment.deleteMany({ where: { projectId } }),
+        prisma.project.delete({ where: { id: projectId } })
+      ]);
 
-export const deleteProject = async (req: Request, res: Response) => { 
-  const customReq = req as CustomRequest;
-  try {
-    // Add permission checks if necessary based on customReq.user.role or customReq.user.id
-    await projectService.deleteProject(Number(customReq.params.projectId));
-    res.status(200).json({ message: 'Project deleted successfully' });
-  } catch (error) {
-    res.status(400).json({ message: (error as Error).message });
-  }
-};
-
-export const createTask = async (req: Request, res: Response) => { 
-  const customReq = req as CustomRequest;
-  try {
-    // customReq.body should conform to TaskTemplate type
-    // Add permission checks if necessary
-    const taskTemplateItem = customReq.body as TaskTemplate;
-    const task = await taskService.createTaskFromTemplate(Number(customReq.params.projectId), taskTemplateItem);
-    // Consider transforming to DTO
-    res.status(201).json({ task });
-  } catch (error) {
-    res.status(400).json({ message: (error as Error).message });
-  }
-};
-
-export const getTasks = async (req: Request, res: Response) => { 
-  const customReq = req as CustomRequest;
-  try {
-    // Add permission checks if necessary
-    const tasksWithSubtasks = await taskService.getTasks(Number(customReq.params.projectId));
-    const tasks = tasksWithSubtasks.map(t => taskService.transformToResponseDto(t));
-    res.status(200).json({ tasks });
-  } catch (error) {
-    res.status(400).json({ message: (error as Error).message });
-  }
-};
-
-export const updateTask = async (req: Request, res: Response) => { 
-  const customReq = req as CustomRequest;
-  try {
-    // customReq.body should conform to UpdateTaskDto
-    // Add permission checks if necessary
-    const task = await taskService.updateTask(Number(customReq.params.taskId), customReq.body);
-    // Consider transforming to DTO
-    res.status(200).json({ task });
-  } catch (error) {
-    res.status(400).json({ message: (error as Error).message });
-  }
-};
-
-export const deleteTask = async (req: Request, res: Response) => { 
-  const customReq = req as CustomRequest;
-  try {
-    // Add permission checks if necessary
-    await taskService.deleteTask(Number(customReq.params.taskId));
-    res.status(200).json({ message: 'Task deleted successfully' });
-  } catch (error) {
-    res.status(400).json({ message: (error as Error).message });
-  }
-};
-
-export const updateTaskStatus = async (req: Request, res: Response) => { 
-  const customReq = req as CustomRequest;
-  try {
-    // Assuming customReq.body is { statusId: number }
-    // Add permission checks if necessary
-    const statusId = customReq.body.statusId; 
-    if (typeof statusId !== 'number') {
-      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'statusId is required and must be a number.' });
+      return res.status(StatusCodes.OK).json({
+        success: true,
+        message: 'Project deleted successfully'
+      });
+    } catch (err) {
+      console.error('Error deleting project:', err);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: 'Unable to delete project',
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
     }
-    await taskService.updateTaskStatus(Number(customReq.params.taskId), statusId);
-    res.status(StatusCodes.OK).json({ message: 'Task status updated successfully' });
-  } catch (error) {
-    res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
   }
-};
 
-// Subtask Controllers
+  static async shareProject(req: CustomRequest, res: Response): Promise<Response> {
+    try {
+      const projectId = parseInt(req.params.id);
+      const { userIds }: ProjectShare = req.body; // Removed 'permissions' from destructuring
 
-export const createSubtask = async (req: Request, res: Response) => { 
-  const customReq = req as CustomRequest;
-  try {
-    // customReq.user is available due to CustomRequest and isAuthenticated middleware
-    if (!customReq.user) { // Should not happen if isAuthenticated is used
-        return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'User not authenticated.' });
+      await prisma.$transaction(async (tx) => {
+        await tx.clientProjectMapping.deleteMany({ // Changed from projectShare
+          where: { projectId }
+        });
+        if (userIds && userIds.length > 0) {
+          await tx.clientProjectMapping.createMany({ // Changed from projectShare
+            data: userIds.map(uid => ({ // Changed userId to uid for clarity
+              projectId,
+              clientId: uid, // Mapped to clientId as per ClientProjectMapping schema
+              // permissions field is not on ClientProjectMapping model
+            }))
+          });
+        }
+      });
+
+      return res.status(StatusCodes.OK).json({
+        success: true,
+        message: 'Project shared successfully'
+      });
+    } catch (err) {
+      console.error('Error sharing project:', err);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: 'Unable to share project',
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
     }
-    // TODO: Add permission checks if necessary (e.g., only project members can add subtasks)
-    const taskId = parseInt(customReq.params.taskId, 10);
-    // customReq.body should conform to CreateSubtaskDto, excluding taskId which is from params
-    const { name, description, actionRequired, type, metadataJson } = customReq.body;
-
-
-    if (isNaN(taskId)) {
-      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task ID.' });
-    }
-    if (!name) {
-      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Subtask name is required.' });
-    }
-
-    const subtaskDto: CreateSubtaskDto = { 
-      taskId, 
-      name, 
-      description,
-      actionRequired, // Optional
-      type,           // Optional
-      metadataJson    // Optional
-    };
-    const subtask = await subtaskService.createSubtask(subtaskDto);
-    res.status(StatusCodes.CREATED).json({ subtask: subtaskService.transformToResponseDto(subtask), message: 'Subtask created successfully.' });
-  } catch (error) {
-    res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
   }
-};
 
-export const getSubtasksForTask = async (req: Request, res: Response) => { 
-  const customReq = req as CustomRequest;
-  try {
-    // Add permission checks if necessary
-    const taskId = parseInt(customReq.params.taskId, 10);
-    if (isNaN(taskId)) {
-      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task ID.' });
+  static async addComment(req: CustomRequest, res: Response): Promise<Response> {
+    try {
+      const projectId = parseInt(req.params.id);
+      const userId = req.user?.id;
+      const { content, isInternal = false } = req.body;
+
+      if (!userId) {
+        return res.status(StatusCodes.UNAUTHORIZED).json({
+          success: false,
+          message: 'User not authenticated'
+        });
+      }
+
+      const comment = await prisma.comment.create({
+        data: {
+          commentText: content,
+          isInternal,
+          projectId,
+          createdBy: userId // Using the correct foreign key name from schema
+        },
+        include: {
+          createdByUser: { // Using the correct relation name from schema
+            select: { id: true, name: true, email: true }
+          }
+        }
+      });
+
+      return res.status(StatusCodes.CREATED).json({
+        success: true,
+        message: 'Comment added successfully',
+        comment
+      });
+    } catch (err) {
+      console.error('Error adding comment:', err);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: 'Unable to add comment',
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
     }
-
-    const subtasksData = await subtaskService.getSubtasksByTaskId(taskId);
-    const subtasks = subtasksData.map(s => subtaskService.transformToResponseDto(s));
-    res.status(StatusCodes.OK).json({ subtasks });
-  } catch (error) {
-    res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
   }
-};
 
-export const updateSubtask = async (req: Request, res: Response) => { 
-  const customReq = req as CustomRequest;
-  try {
-    // TODO: Add permission checks
-    // customReq.user will be available if isAuthenticated middleware passed
-    const subtaskId = parseInt(customReq.params.subtaskId, 10);
-    // customReq.body should conform to UpdateSubtaskDto
-    const subtaskData = customReq.body as UpdateSubtaskDto;
+  static async getProjectActivity(req: Request, res: Response): Promise<Response> {
+    try {
+      const projectId = parseInt(req.params.id);
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = parseInt(req.query.pageSize as string) || 20;
 
+      const activities = await prisma.comment.findMany({
+        where: { 
+          projectId,
+          isInternal: false 
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: {
+          createdAt: 'desc'
+        },
+        include: {
+          createdByUser: { // Using the correct relation name from schema
+            select: { id: true, name: true, email: true }
+          }
+        }
+      });
 
-    if (isNaN(subtaskId)) {
-      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid subtask ID.' });
+      const total = await prisma.comment.count({
+        where: {
+          projectId,
+          isInternal: false
+        }
+      });
+
+      return res.status(StatusCodes.OK).json({
+        success: true,
+        data: {
+          activities,
+          total,
+          page,
+          pageSize,
+          totalPages: Math.ceil(total / pageSize)
+        }
+      });
+    } catch (err) {
+      console.error('Error fetching project activity:', err);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: 'Unable to fetch project activity',
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
     }
-
-    // Ensure at least one updatable field is provided
-    if (Object.keys(subtaskData).length === 0) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'No update data provided.' });
-    }
-    
-    // Use taskService to handle potential parent task status updates
-    const { task: updatedParentTask, subtask: updatedSubtask } = await taskService.updateSubtaskAndPotentiallyParent(subtaskId, subtaskData);
-    
-    res.status(StatusCodes.OK).json({ 
-      subtask: subtaskService.transformToResponseDto(updatedSubtask), 
-      // Optionally include the parent task if it was affected
-      ...(updatedParentTask && { parentTask: taskService.transformToResponseDto(updatedParentTask) }),
-      message: 'Subtask updated successfully.' 
-    });
-  } catch (error) {
-    // Handle specific error from service (e.g., parent task completion blocked)
-    if ((error as Error).message.includes('Cannot mark task as completed')) {
-        return res.status(StatusCodes.CONFLICT).json({ message: (error as Error).message });
-    }
-    res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
   }
-};
 
-export const deleteSubtask = async (req: Request, res: Response) => { 
-  const customReq = req as CustomRequest;
-  try {
-    // TODO: Add permission checks
-    // customReq.user will be available if isAuthenticated middleware passed
-    const subtaskId = parseInt(customReq.params.subtaskId, 10);
-    if (isNaN(subtaskId)) {
-      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid subtask ID.' });
+  static async getProjectMaterials(req: Request, res: Response): Promise<Response> {
+    try {
+      const projectId = parseInt(req.params.id);
+      
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { name: true } 
+      });
+
+      if (!project) {
+        return res.status(StatusCodes.NOT_FOUND).json({
+          success: false,
+          message: 'Project not found',
+        });
+      }
+
+      const projectMaterials = await prisma.material.findMany({ // Changed from projectMaterial
+        where: { projectId }
+        // No include needed here if we are fetching Material records directly
+      });
+
+      return res.status(StatusCodes.OK).json({
+        success: true,
+        materials: projectMaterials,
+        projectName: project.name
+      });
+    } catch (err) {
+      console.error('Error fetching project materials:', err);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: 'Unable to fetch project materials',
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
     }
-
-    await subtaskService.deleteSubtask(subtaskId);
-    res.status(StatusCodes.OK).json({ message: 'Subtask deleted successfully.' });
-  } catch (error) {
-    res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
   }
-};
+
+  static async updateProjectMaterials(req: CustomRequest, res: Response): Promise<Response> {
+    try {
+      const projectId = parseInt(req.params.id);
+      const userId = req.user?.id; 
+      const { materials }: { materials: ProjectMaterialInput[] } = req.body;
+
+      if (!userId) {
+        return res.status(StatusCodes.UNAUTHORIZED).json({
+          success: false,
+          message: 'User not authenticated'
+        });
+      }
+      
+      const updatedMaterials = await prisma.$transaction(async (tx) => {
+        await tx.material.deleteMany({ // Changed from projectMaterial
+          where: { projectId }
+        });
+
+        if (materials && materials.length > 0) {
+          // Ensure that the enums are correctly typed if they come as strings from the client
+          const materialData = materials.map(m => ({
+            projectId,
+            materialId: m.materialId,
+            plyThickness: m.plyThickness,
+            innerLaminateCode: m.innerLaminateCode,
+            outerLaminateCode: m.outerLaminateCode,
+            overallThickness: m.overallThickness,
+            plyType: m.plyType as PlyType, // Cast if necessary, ensure validation upstream
+            grainDirection: m.grainDirection as GrainDirection, // Cast if necessary
+            // quantity and unit are not part of the Material model for creation
+          }));
+          await tx.material.createMany({ // Changed from projectMaterial
+            data: materialData
+          });
+        }
+        return tx.material.findMany({ // Changed from projectMaterial
+          where: { projectId }
+          // No include needed here
+        });
+      });
+
+      return res.status(StatusCodes.OK).json({
+        success: true,
+        message: 'Project materials updated successfully',
+        materials: updatedMaterials
+      });
+    } catch (err) {
+      console.error('Error updating project materials:', err);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: 'Unable to update project materials',
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
+    }
+  }
+}

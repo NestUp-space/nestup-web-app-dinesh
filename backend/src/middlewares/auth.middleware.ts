@@ -20,6 +20,8 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    console.log('Auth Middleware: Decoded JWT payload:', decoded); // ADD THIS LINE
+    console.log('Auth Middleware: ID from decoded payload:', decoded.id); // ADD THIS LINE
     const userResponse = await getUserById(decoded.id);
 
     if (!userResponse || !userResponse.success || !userResponse.responseObject) {
@@ -31,8 +33,11 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
       role: userResponse.responseObject.role.role, // Extract the role name
     };
     console.log('Authenticated user role:', customReq.user?.role); // Debugging log, use customReq
-    next();
+    return next(); // Explicitly return after calling next()
   } catch (error) {
-    return res.status(401).json({ message: 'Authentication failed' });
+    // Pass the error to the Express error handling middleware
+    // Also, log the error for debugging.
+    console.error('Authentication error in middleware:', error);
+    return next(error); // Let a dedicated error handler send the response
   }
 };

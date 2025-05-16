@@ -1,4 +1,29 @@
-# Current TODOs: 2025-05-14
+# Current TODOs: 2025-05-16
+
+- **Task: Resolve API errors on user pages**
+  - **Status:** Partially Completed
+  - **Sub-Task 1: Resolve CORS errors**
+    - **Status:** Completed
+    - **Context:** API calls to `/api/roles` and `/api/users/...` were incorrectly directed to `http://localhost:8080`.
+    - **Resolution:** Refactored affected pages to use centralized `apiClient`; updated `frontend/.env`.
+    - **Files Modified:**
+      - `frontend/src/app/dashboard/users/roles/page.tsx`
+      - `frontend/src/app/dashboard/users/[id]/page.tsx` (for CORS part)
+      - `frontend/.env`
+  - **Sub-Task 2: Resolve 400 Bad Request on Create User Page (`GET /api/users/create`)**
+    - **Status:** Completed (erroneous GET request fixed)
+    - **Context:** `frontend/src/app/dashboard/users/[id]/page.tsx` was attempting to fetch user details for `userId="create"`.
+    - **Resolution:** Modified the page to bypass fetching details if `userId === "create"` and instead show a placeholder for the create user form.
+    - **Files Modified:**
+      - `frontend/src/app/dashboard/users/[id]/page.tsx`
+  - **Sub-Task 3: Implement Create User Form**
+    - **Status:** Pending
+    - **Context:** The "Create User" page (`/dashboard/users/create`) currently shows a placeholder. A form needs to be implemented to collect user data and submit it via `POST /api/users`.
+    - **File to Modify:** `frontend/src/app/dashboard/users/[id]/page.tsx` (within the `userId === 'create'` block).
+
+---
+
+# Current TODOs: 2025-05-14 (Carry-over)
 
 - **Task: Document Simple Box Test Case**
   - **Status:** Pending

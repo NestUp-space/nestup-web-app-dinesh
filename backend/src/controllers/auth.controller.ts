@@ -1,8 +1,7 @@
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { z } from 'zod'; // Import Zod
-import { registerUser, loginUser, resetPassword as resetPasswordService } from '../services/auth.service'; // Import resetPassword service
-import { ServiceResponse } from '@/common/models/serviceResponse'; // Import ServiceResponse if needed for type checking, though often inferred
+import { registerUser, loginUser, resetPassword as resetPasswordService } from '../services/auth.service';
 
 // --- Zod Schemas for Input Validation ---
 const RegisterBodySchema = z.object({
@@ -23,7 +22,7 @@ const EmailBodySchema = z.object({
 });
 // --- End Zod Schemas ---
 
-export const register = async (req: Request, res: Response) => {
+export const register = async (req: Request, res: Response): Promise<Response> => {
   // Validate request body
   const validationResult = RegisterBodySchema.safeParse(req.body);
   if (!validationResult.success) {
@@ -39,21 +38,21 @@ export const register = async (req: Request, res: Response) => {
 
   if (serviceResponse.success) {
     // Successfully registered
-    res.status(serviceResponse.statusCode).json({
+    return res.status(serviceResponse.statusCode).json({
       success: true,
       message: serviceResponse.message,
       user: serviceResponse.responseObject, // Contains user data without password
     });
-  } else {
-    // Registration failed
-    res.status(serviceResponse.statusCode).json({
-      success: false,
-      message: serviceResponse.message,
-    });
   }
+  
+  // Registration failed
+  return res.status(serviceResponse.statusCode).json({
+    success: false,
+    message: serviceResponse.message,
+  });
 };
 
-export const login = async (req: Request, res: Response) => {
+export const login = async (req: Request, res: Response): Promise<Response> => {
   console.log('Login request received:', { body: req.body });
   
   // Validate request body
@@ -86,20 +85,20 @@ export const login = async (req: Request, res: Response) => {
       user: serviceResponse.responseObject.user
     };
     console.log('Sending successful login response');
-    res.status(serviceResponse.statusCode).json(response);
-  } else {
-    // Login failed
-    const response = {
-      success: false,
-      message: serviceResponse.message || 'Login failed'
-    };
-    console.log('Sending failed login response:', response);
-    res.status(serviceResponse.statusCode).json(response);
+    return res.status(serviceResponse.statusCode).json(response);
   }
+  
+  // Login failed
+  const response = {
+    success: false,
+    message: serviceResponse.message || 'Login failed'
+  };
+  console.log('Sending failed login response:', response);
+  return res.status(serviceResponse.statusCode).json(response);
 };
 
 // Renamed to avoid conflict with the imported service function
-export const handlePasswordResetRequest = async (req: Request, res: Response) => {
+export const handlePasswordResetRequest = async (req: Request, res: Response): Promise<Response> => {
   // Validate request body
   const validationResult = EmailBodySchema.safeParse(req.body);
   if (!validationResult.success) {
@@ -113,7 +112,7 @@ export const handlePasswordResetRequest = async (req: Request, res: Response) =>
   const serviceResponse = await resetPasswordService(validationResult.data.email); // Call the imported service function with validated email
 
   // Send response based on service outcome
-  res.status(serviceResponse.statusCode).json({
+  return res.status(serviceResponse.statusCode).json({
     success: serviceResponse.success,
     message: serviceResponse.message,
   });

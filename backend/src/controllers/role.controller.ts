@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { StatusCodes } from 'http-status-codes';
+import { clearUserPermissionCache } from '../middlewares/permission.middleware';
 
 const prisma = new PrismaClient();
 
@@ -63,14 +64,14 @@ export class RoleController {
         }
       }
 
-      res.status(StatusCodes.CREATED).json({
+      return res.status(StatusCodes.CREATED).json({
         success: true,
         message: 'Role created successfully',
         role: newRole
       });
     } catch (err) {
       console.error('Error creating role:', err);
-      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: 'Unable to create role',
         error: err instanceof Error ? err.message : 'Unknown error'
@@ -78,7 +79,7 @@ export class RoleController {
     }
   }
 
-  static async getRoles(req: Request, res: Response) {
+  static async getRoles(_req: Request, res: Response) { // req prefixed with _
     try {
       const roles = await prisma.userRole.findMany({
         select: {
@@ -108,13 +109,13 @@ export class RoleController {
         }, {} as Record<string, boolean>)
       }));
 
-      res.status(StatusCodes.OK).json({
+      return res.status(StatusCodes.OK).json({
         success: true,
         roles: transformedRoles
       });
     } catch (err) {
       console.error('Error fetching roles:', err);
-      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: 'Unable to fetch roles',
         error: err instanceof Error ? err.message : 'Unknown error'
@@ -156,7 +157,7 @@ export class RoleController {
         return acc;
       }, {} as Record<string, boolean>);
 
-      res.status(StatusCodes.OK).json({
+      return res.status(StatusCodes.OK).json({
         success: true,
         role: {
           id: role.id,
@@ -167,7 +168,7 @@ export class RoleController {
       });
     } catch (err) {
       console.error('Error fetching role by ID:', err);
-      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: 'Failed to fetch role details',
         error: err instanceof Error ? err.message : 'Unknown error'
@@ -200,28 +201,43 @@ export class RoleController {
         });
       }
 
-      // Update the role name
-      const updatedRole = await prisma.userRole.update({
-        where: { id: roleId },
-        data: {
-          role: name || existingRole.role
-        },
-        select: {
-          id: true,
-          role: true,
-          roleType: true
-        }
-      });
+  // Update the role name
+  const updatedRole = await prisma.userRole.update({
+    where: { id: roleId },
+    data: {
+      role: name || existingRole.role
+    },
+    select: {
+      id: true,
+      role: true,
+      roleType: true,
+      users: {
+        select: { id: true }
+      }
+    }
+  });
+
+  // Clear permission cache for all users with this role
+  updatedRole.users.forEach(user => clearUserPermissionCache(user.id));
 
       // If permissions are provided, update them
       if (permissions) {
         // First, delete all existing permission mappings
-        await prisma.rolePermissionMapping.deleteMany({
-          where: { roleId }
-        });
+      // Get users with this role before modifying permissions
+      const usersWithRole = await prisma.user.findMany({
+        where: { roleId },
+        select: { id: true }
+      });
 
-        // Then create new mappings
-        for (const permKey in permissions) {
+      await prisma.rolePermissionMapping.deleteMany({
+        where: { roleId }
+      });
+
+      // Clear permission cache for all affected users
+      usersWithRole.forEach(user => clearUserPermissionCache(user.id));
+
+      // Then create new mappings
+      for (const permKey in permissions) {
           if (permissions[permKey]) {
             // Find or create the permission
             let permission = await prisma.userPermission.findFirst({
@@ -262,7 +278,7 @@ export class RoleController {
         return acc;
       }, {} as Record<string, boolean>);
 
-      res.status(StatusCodes.OK).json({
+      return res.status(StatusCodes.OK).json({
         success: true,
         message: 'Role updated successfully',
         role: {
@@ -274,7 +290,7 @@ export class RoleController {
       });
     } catch (err) {
       console.error('Error updating role:', err);
-      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: 'Unable to update role',
         error: err instanceof Error ? err.message : 'Unknown error'
@@ -323,13 +339,13 @@ export class RoleController {
         where: { id: roleId }
       });
 
-      res.status(StatusCodes.OK).json({
+      return res.status(StatusCodes.OK).json({
         success: true,
         message: 'Role deleted successfully'
       });
     } catch (err) {
       console.error('Error deleting role:', err);
-      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: 'Unable to delete role',
         error: err instanceof Error ? err.message : 'Unknown error'

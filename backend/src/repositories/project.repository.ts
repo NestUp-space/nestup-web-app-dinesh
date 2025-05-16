@@ -5,7 +5,7 @@
 
 import { PrismaClient, Project, Prisma } from '@prisma/client';
 import prisma from '../config/db';
-import { ProjectWithRelations } from '../types/project.types';
+import { ProjectWithDetails } from '../types/project.types'; // Changed ProjectWithRelations to ProjectWithDetails
 import { CreateProjectDto, UpdateProjectDto } from '../dtos/project.dto';
 
 export interface IProjectRepository {
@@ -14,8 +14,8 @@ export interface IProjectRepository {
     where?: Prisma.ProjectWhereInput;
     include?: Prisma.ProjectInclude;
     orderBy?: Prisma.ProjectOrderByWithRelationInput;
-  }): Promise<ProjectWithRelations[]>;
-  findById(id: number, include?: Prisma.ProjectInclude): Promise<ProjectWithRelations | null>;
+  }): Promise<ProjectWithDetails[]>; // Changed ProjectWithRelations to ProjectWithDetails
+  findById(id: number, include?: Prisma.ProjectInclude): Promise<ProjectWithDetails | null>; // Changed ProjectWithRelations to ProjectWithDetails
   update(id: number, data: UpdateProjectDto): Promise<Project>;
   delete(id: number): Promise<Project>;
 }
@@ -68,7 +68,7 @@ export class ProjectRepository implements IProjectRepository {
     where?: Prisma.ProjectWhereInput;
     include?: Prisma.ProjectInclude;
     orderBy?: Prisma.ProjectOrderByWithRelationInput;
-  }): Promise<ProjectWithRelations[]> {
+  }): Promise<ProjectWithDetails[]> { // Changed ProjectWithRelations to ProjectWithDetails
     const { where, include, orderBy } = params;
     
     const defaultInclude: Prisma.ProjectInclude = {
@@ -95,10 +95,10 @@ export class ProjectRepository implements IProjectRepository {
     });
     
     // Type assertion is necessary because Prisma's return type doesn't match our interface exactly
-    return projects as unknown as ProjectWithRelations[];
+    return projects as unknown as ProjectWithDetails[]; // Changed ProjectWithRelations to ProjectWithDetails
   }
 
-  async findById(id: number, include?: Prisma.ProjectInclude): Promise<ProjectWithRelations | null> {
+  async findById(id: number, include?: Prisma.ProjectInclude): Promise<ProjectWithDetails | null> { // Changed ProjectWithRelations to ProjectWithDetails
     const defaultInclude: Prisma.ProjectInclude = {
       status: true,
       engineer: { select: { id: true, name: true, email: true } },
@@ -122,7 +122,7 @@ export class ProjectRepository implements IProjectRepository {
     });
     
     // Type assertion is necessary because Prisma's return type doesn't match our interface exactly
-    return project as unknown as ProjectWithRelations | null;
+    return project as unknown as ProjectWithDetails | null; // Changed ProjectWithRelations to ProjectWithDetails
   }
 
   async update(id: number, data: UpdateProjectDto): Promise<Project> {

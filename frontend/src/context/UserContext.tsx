@@ -23,6 +23,7 @@ interface User {
     role: string;
     roleType: string;
   };
+  permissions?: string[];
 }
 
 const UserContext = createContext<UserContextProps | undefined>(undefined);

@@ -1,4 +1,4 @@
-import { PrismaClient, ModelDefinition, ModelInputParameter, ModelBomItem, Prisma } from '@prisma/client';
+import { PrismaClient, ModelDefinition, ModelInputParameter, ModelBomItem } from '@prisma/client'; // Removed Prisma from import
 // Import DTOs or specific types for creation/update data if needed
 // e.g., import { CreateModelDefinitionData } from '../dtos/model.dto';
 
@@ -79,7 +79,7 @@ export class ModelRepository {
     const { inputParameters, bomItems, ...modelData } = data;
 
     return prisma.$transaction(async (tx) => {
-      const updatedModel = await tx.modelDefinition.update({
+      await tx.modelDefinition.update({ // Result not assigned to unused updatedModel
         where: { id },
         data: modelData,
       });

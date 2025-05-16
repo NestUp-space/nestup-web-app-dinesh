@@ -1,35 +1,27 @@
-# Current Session Context: 2025-05-13 (Evening Update)
+## Current Task: Resolve API errors on user pages
 
-**Active Task:** UI Enhancements for Model Management - Awaiting next set of UI changes from user.
+**Summary of Work (2025-05-16):**
 
-**Summary of Progress (Today, 2025-05-13):**
+* **Initial Issue (CORS):** Frontend making API calls to `http://localhost:8080` for `/api/roles` and `/api/users/create`, resulting in CORS errors. Main backend is on `http://localhost:5001`.
+  * **Cause:** Usage of `NEXT_PUBLIC_API_BASE_URL` (from `frontend/.env`, value `http://localhost:8080`) in direct `fetch` calls in `roles/page.tsx` and `[id]/page.tsx`, instead of `NEXT_PUBLIC_API_URL` (from `frontend/.env.local`, value `http://localhost:5001`).
+  * **Resolution (Completed):**
+    * Refactored affected pages to use centralized `apiClient`.
+    * Updated `frontend/.env` to align `NEXT_PUBLIC_API_BASE_URL` with `http://localhost:5001`.
 
-* **Item Logic Script UI Overhaul (ModelBuilderForm & related components):**
-  * The primary focus of this session was to significantly improve the user experience for defining calculation logic for plank dimensions (width, length) and material codes within the model builder.
-  * **Initial Approach & Iteration:**
-    * `CollapsibleVariables.tsx` was enhanced for better display of available runtime inputs and global constants, including styling updates and removal of the "Sample Usage" section.
-    * Default calculation logic was integrated into `plankScripts.ts` to pre-fill `itemLogicScript` for various plank types (left, right, top, bottom, back, door).
-    * `BillOfMaterialListEditor.tsx` was updated to auto-populate all standard plank types (Left, Right, Top, Bottom, Back, Door) on new model creation, ensuring each uses the default logic scripts.
-    * `PlankLogicEditor.tsx` was initially modified to display the full JavaScript `itemLogicScript`.
-  * **Reversion to Individual Logic Fields:** Based on feedback that the full script was too complex, `PlankLogicEditor.tsx` was reverted to use three distinct input fields for "Width Calculation," "Length Calculation," and "Material Code Calculation," using the `LogicInput.tsx` component. Default JavaScript logic was pre-filled into these.
-  * **New User-Friendly `ExpressionInput.tsx` Component:**
-    * To further simplify logic entry, a new component `ExpressionInput.tsx` was developed.
-    * This component allows users to type or paste expressions with less strict JavaScript syntax.
-    * It features:
-      * A "Format" button to automatically clean up and structure the entered/pasted text.
-      * A "Show/Hide Code" toggle that reveals a syntax-highlighted version of the expression (keywords, variables, constants, operators, strings, numbers).
-      * Clickable chips for a subset of available runtime inputs for easy insertion.
-    * `PlankLogicEditor.tsx` was then updated to utilize this new `ExpressionInput.tsx` for each of the three calculation fields, replacing the `LogicInput.tsx` instances.
-  * **Overall Goal Achieved:** The UI for defining plank calculation logic is now significantly more user-friendly, abstracting away much of the raw JavaScript syntax while still providing a way to view the underlying code.
+* **New Issue (400 Bad Request on Create User Page):** After fixing CORS, navigating to `/dashboard/users/create` resulted in a `GET http://localhost:5001/api/users/create` call, which returned a 400 Bad Request: "Valid user ID parameter is required."
+  * **Cause:** The `frontend/src/app/dashboard/users/[id]/page.tsx` component was attempting to fetch user details even when `params.id` was "create". The backend route `GET /api/users/:id` expects a numeric ID.
+  * **Investigation:**
+    * Confirmed `frontend/src/app/dashboard/users/[id]/page.tsx` calls `apiClient.get(\`/users/\${userId}\`)` unconditionally if `userId` is present.
+    * Confirmed backend route `GET /api/users/:id` (in `backend/src/routes/user.routes.ts`) is for fetching a user by a numeric ID, and `POST /api/users` is for creating users.
+  * **Resolution (Partially Implemented):**
+    * Modified `frontend/src/app/dashboard/users/[id]/page.tsx`'s `useEffect` hook to check if `userId === 'create'`.
+    * If `userId` is "create", it now bypasses the user detail fetch and sets `loading` to `false` and `user` to `null`.
+    * Added a placeholder conditional rendering block for the "create" mode, indicating where the actual create user form should be implemented.
+  * **Outcome:** The erroneous `GET /api/users/create` call is prevented. The page now shows a placeholder for the create user form.
 
-* **Previous Multi-Box UI & Plank List Generation (from 2025-05-12, context carried over):**
-  * Work on `ModelSelector.tsx` for multi-box UI and backend integration for `ProjectModelInstance` CRUD operations was largely completed.
-  * Plank list generation API call and CSV download are functional.
-  * **Lingering Issue (from 2025-05-12, still relevant if not addressed by new logic input):** Investigation of empty plank data fields (Width, Height, Material Code, etc.) in the generated list/CSV was paused, awaiting user input on `itemLogicScript` examples. The new `ExpressionInput` and how it forms the final `itemLogicScript` might impact this.
+**Next Steps:**
 
-**Pending Actions (Cline):**
-
-1. Await user direction for the next set of UI changes.
-2. Update all relevant memory files (`CURRENT_TODO.md`, `CURRENT_DECISIONS.md`, `.work_tickets/`, LTM files) to reflect the work done in this session.
-3. Once new UI tasks are defined, proceed with planning and implementation.
-4. Re-evaluate the "empty plank values" issue in plank list generation in light of the new `ExpressionInput` and the way `itemLogicScript` will now be constructed from these simpler expressions.
+* Update `CURRENT_DECISIONS.md`.
+* Update `CURRENT_TODO.md`.
+* The full implementation of the "Create User" form (input fields, validation, POST request on submit) is a pending sub-task.
+* Attempt completion for the fix of the 400 error.

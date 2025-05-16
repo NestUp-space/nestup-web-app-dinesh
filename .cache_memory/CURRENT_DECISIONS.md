@@ -32,3 +32,35 @@
 
 ---
 *Previous decisions from 2025-05-12 are archived in LTM (`DECISION_LOG.md`)*
+
+---
+
+# Session Decisions Log: 2025-05-16
+
+## **Task: Resolve CORS errors in frontend API calls**
+
+1. **Investigation and Diagnosis (2025-05-16 Morning):**
+    * **Decision:** Investigate CORS errors occurring for API calls to `http://localhost:8080` from the frontend (`http://localhost:3000`).
+    * **Rationale:** Browser logs indicated failures for `/api/roles` and `/api/users/create` endpoints.
+    * **Finding:** The issue was traced to `frontend/src/app/dashboard/users/roles/page.tsx` and `frontend/src/app/dashboard/users/[id]/page.tsx` using direct `fetch` calls with `process.env.NEXT_PUBLIC_API_BASE_URL`. This environment variable was incorrectly sourced from `frontend/.env` (value: `http://localhost:8080`) instead of the intended `NEXT_PUBLIC_API_URL` (value: `http://localhost:5001`) from `frontend/.env.local`.
+
+2. **Resolution Strategy (2025-05-16 Morning):**
+    * **Decision:** Refactor the direct `fetch` calls in the affected page components (`roles/page.tsx`, `[id]/page.tsx`) to use the existing centralized `apiClient` (`frontend/src/lib/api/client.ts`).
+    * **Rationale:** The `apiClient` correctly uses `NEXT_PUBLIC_API_URL` and handles token authentication, ensuring consistency and correct API endpoint resolution.
+    * **Decision:** Update the `NEXT_PUBLIC_API_BASE_URL` variable in `frontend/.env` from `http://localhost:8080` to `http://localhost:5001`.
+    * **Rationale:** Align the fallback environment variable with the primary one to prevent future confusion, as per user request.
+
+## **Task: Resolve 400 Bad Request on Create User Page**
+
+1. **Investigation and Diagnosis (2025-05-16 Morning):**
+    * **Decision:** Investigate `GET http://localhost:5001/api/users/create` returning 400 Bad Request: "Valid user ID parameter is required."
+    * **Rationale:** This error occurred after fixing the previous CORS issue, indicating a problem with how the "create user" page (`/dashboard/users/create`) functions.
+    * **Finding:** The `frontend/src/app/dashboard/users/[id]/page.tsx` component (which handles `/dashboard/users/create` when `id` is "create") was incorrectly attempting to fetch user details via `GET /api/users/create`. The backend route `GET /api/users/:id` expects a numeric ID for fetching user details, while user creation should be a `POST` request to `/api/users`.
+
+2. **Resolution Strategy (2025-05-16 Morning):**
+    * **Decision:** Modify `frontend/src/app/dashboard/users/[id]/page.tsx` to differentiate between "create" mode and "edit/view" mode.
+    * **Rationale:** To prevent the erroneous `GET` request when `params.id` is "create" and to allow for the correct rendering of a create user form.
+    * **Implementation:**
+        * In the `useEffect` hook responsible for fetching user details, add a condition: if `userId === 'create'`, bypass the `apiClient.get` call and set component state appropriately for a new user form (e.g., `setUser(null)`, `setLoading(false)`).
+        * Add a conditional rendering block: if `userId === 'create'`, display a placeholder for the "Create New User" form. The actual form implementation is a subsequent task.
+    * **Rationale for Partial Fix:** The immediate goal is to stop the erroneous GET request. Full form implementation is a separate, larger effort.

@@ -1,21 +1,39 @@
 import express from 'express';
 import { RoleController } from '../controllers/role.controller';
-import { adminMiddleware } from '../middlewares/admin.middleware';
+import { hasPermission } from '../middlewares/permission.middleware';
 import { isAuthenticated } from '../middlewares/auth.middleware';
+import { PERMISSIONS } from '../constants/permissions';
 
 const router = express.Router();
 
 // Apply authentication to all routes
 router.use(isAuthenticated);
 
-// Apply admin middleware to all routes
-router.use(adminMiddleware);
+// Role management routes
+router.get('/', 
+  hasPermission(PERMISSIONS.ROLES.VIEW),
+  RoleController.getRoles
+);
 
-// Role routes
-router.post('/', RoleController.createRole);
-router.get('/', RoleController.getRoles);
-router.get('/:id', RoleController.getRoleById);
-router.put('/:id', RoleController.updateRole);
-router.delete('/:id', RoleController.deleteRole);
+router.get('/:id', 
+  hasPermission(PERMISSIONS.ROLES.VIEW),
+  RoleController.getRoleById
+);
+
+router.post('/', 
+  hasPermission([PERMISSIONS.ROLES.CREATE, PERMISSIONS.ROLES.MANAGE]),
+  RoleController.createRole
+);
+
+router.put('/:id', 
+  hasPermission([PERMISSIONS.ROLES.EDIT, PERMISSIONS.ROLES.MANAGE]),
+  RoleController.updateRole
+);
+
+// Only users with role.delete or role.manage permissions can delete roles
+router.delete('/:id', 
+  hasPermission([PERMISSIONS.ROLES.DELETE, PERMISSIONS.ROLES.MANAGE]),
+  RoleController.deleteRole
+);
 
 export default router;

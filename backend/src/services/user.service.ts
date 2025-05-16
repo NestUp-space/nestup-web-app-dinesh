@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs'; // Changed from 'bcrypt'
 import { ServiceResponse } from '../common/models/serviceResponse';
 import { StatusCodes } from 'http-status-codes';
 
@@ -166,23 +166,48 @@ export class UserService {
           profilePicUrl: true,
           createdAt: true,
           updatedAt: true,
-          role: {
-            select: {
-              id: true,
-              role: true,
-              roleType: true
-            }
-          }
-        },
-      });
+              role: {
+                select: {
+                  id: true,
+                  role: true,
+                  roleType: true,
+                  roleMappings: {
+                    select: {
+                      permission: {
+                        select: {
+                          permission: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          });
 
       if (!user) {
         return ServiceResponse.failure('User not found', null, StatusCodes.NOT_FOUND);
       }
 
-      return ServiceResponse.success('User profile retrieved successfully', user, StatusCodes.OK);
+      // Extract permissions
+      const permissions = user.role?.roleMappings?.map(
+        (mapping) => mapping.permission?.permission
+      ).filter(p => p) || [];
+
+      const userProfile = {
+        ...user,
+        permissions,
+      };
+      // Remove roleMappings from the final user object if it's not needed directly by the frontend
+      // For now, let's assume the frontend might only need the flat list of permissions
+      // and the original role object.
+      // @ts-ignore
+      delete userProfile.role?.roleMappings;
+
+
+      return ServiceResponse.success('User profile retrieved successfully', userProfile, StatusCodes.OK);
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('Error fetching user profile (Prisma Error):', error); // Enhanced logging
       return ServiceResponse.failure('Failed to fetch user profile', null, StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }

@@ -1,4 +1,4 @@
-import { ModelDefinition, ModelInputParameter, ModelBomItem, BomItemType } from '@prisma/client';
+import { ModelDefinition, ModelInputParameter, ModelBomItem } from '@prisma/client'; // Removed BomItemType
 import { ModelRepository } from '../repositories/model.repository';
 import { uploadToS3 } from '../../utils/s3'; // For S3 uploads
 import { 
@@ -10,7 +10,7 @@ import {
   UpdateModelBomItemDto,
   ModelBomItemDto
 } from '../dtos/model.dto';
-import { JavaScriptFunctionService, ExecutedScriptResult } from './javascript-function.service';
+import { JavaScriptFunctionService } from './javascript-function.service'; // Removed ExecutedScriptResult
 import { z } from 'zod';
 
 // Define the expected output schema for a plank item script
@@ -72,9 +72,12 @@ export class ModelService {
       if (scriptToExecute && scriptToExecute.trim() !== '') {
         try {
           console.log(`Testing script for BOM item: ${bomItem.itemName}`);
-          const result = await this.jsFunctionService.executeItemScript(
+          // Changed executeItemScript to executeFunction
+          // Assuming sampleRuntimeInputs is the context for the script
+          const result = await this.jsFunctionService.executeFunction( 
             scriptToExecute,
-            sampleRuntimeInputs
+            { runtimeInputs: sampleRuntimeInputs, globalConstants: {} } // Pass inputs as context
+            // TODO: Define and pass actual globalConstants if needed by scripts
           );
 
           if (!result) {

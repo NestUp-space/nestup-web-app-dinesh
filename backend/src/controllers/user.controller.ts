@@ -1,28 +1,21 @@
 import { Request, Response } from 'express';
 import { UserService } from '../services/user.service';
 import { StatusCodes } from 'http-status-codes';
-
-// Extend Request type to include user
-interface CustomRequest extends Request {
-  user?: {
-    id: number;
-    role: string;
-  };
-}
+import { CustomRequest } from '../middlewares/auth.middleware';
 
 export class UserController {
   static async createUser(req: Request, res: Response) {
     try {
       const { email, password, name, phoneNumber, roleId } = req.body;
       const newUser = await UserService.createUser({ email, password, name, phoneNumber, roleId });
-      res.status(StatusCodes.CREATED).json({
+      return res.status(StatusCodes.CREATED).json({
         success: true,
         message: 'User created successfully',
         user: newUser
       });
     } catch (err) {
       console.error('Error creating user:', err);
-      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: 'Unable to create user',
         error: err instanceof Error ? err.message : 'Unknown error'
@@ -37,7 +30,7 @@ export class UserController {
       const roleName = req.query.roleName as string | undefined;
 
       const { users, total } = await UserService.getUsers(page, pageSize, roleName);
-      res.status(StatusCodes.OK).json({
+      return res.status(StatusCodes.OK).json({
         success: true,
         data: {
           users,
@@ -46,7 +39,7 @@ export class UserController {
       });
     } catch (err) {
       console.error('Error fetching users:', err);
-      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: 'Unable to fetch users',
         error: err instanceof Error ? err.message : 'Unknown error'
@@ -61,7 +54,7 @@ export class UserController {
 
       // Prevent disabling the superadmin
       const user = await UserService.getUserById(userId);
-      if (!user || user.role.roleType !== 'superadmin') {
+      if (!user || user.role.roleType === 'superadmin') {
         return res.status(StatusCodes.FORBIDDEN).json({
           success: false,
           message: 'Superadmin cannot be disabled'
@@ -69,14 +62,14 @@ export class UserController {
       }
 
       const updatedUser = await UserService.toggleUserActiveStatus(userId, isActive);
-      res.status(StatusCodes.OK).json({
+      return res.status(StatusCodes.OK).json({
         success: true,
         message: `User ${isActive ? 'activated' : 'deactivated'} successfully`,
         user: updatedUser
       });
     } catch (err) {
       console.error('Error toggling user status:', err);
-      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: 'Unable to update user status',
         error: err instanceof Error ? err.message : 'Unknown error'
@@ -84,29 +77,20 @@ export class UserController {
     }
   }
 
-  static async updateUserPassword(req: Request, res: Response) {
+  static async updateUserPassword(req: CustomRequest, res: Response) {
     try {
       const userId = parseInt(req.params.id);
       const { newPassword } = req.body;
 
-      // Only superadmin and admin can update passwords
-      const requestingUser = (req as CustomRequest).user;
-      if (requestingUser?.role !== 'superadmin' && requestingUser?.role !== 'admin') {
-        return res.status(StatusCodes.FORBIDDEN).json({
-          success: false,
-          message: 'Only superadmin and admin can update passwords'
-        });
-      }
-
       const updatedUser = await UserService.updateUserPassword(userId, newPassword);
-      res.status(StatusCodes.OK).json({
+      return res.status(StatusCodes.OK).json({
         success: true,
         message: 'Password updated successfully',
         user: updatedUser
       });
     } catch (err) {
       console.error('Error updating user password:', err);
-      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: 'Unable to update password',
         error: err instanceof Error ? err.message : 'Unknown error'
@@ -116,22 +100,29 @@ export class UserController {
 
   static async getUserById(req: Request, res: Response) {
     try {
-      const userId = Number(req.params.id);
+      const userIdParam = req.params.id;
+      if (!userIdParam || isNaN(Number(userIdParam))) {
+        return res.status(StatusCodes.BAD_REQUEST).json({
+          success: false,
+          message: 'Valid user ID parameter is required.'
+        });
+      }
+      const userId = Number(userIdParam);
       const user = await UserService.getUserById(userId);
       if (user) {
-        res.status(StatusCodes.OK).json({
+        return res.status(StatusCodes.OK).json({
           success: true,
           user
         });
       } else {
-        res.status(StatusCodes.NOT_FOUND).json({
+        return res.status(StatusCodes.NOT_FOUND).json({
           success: false,
           message: 'User not found'
         });
       }
     } catch (err) {
       console.error('Error fetching user by ID:', err);
-      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: 'Failed to fetch user details',
         error: err instanceof Error ? err.message : 'Unknown error'
@@ -141,7 +132,6 @@ export class UserController {
   
   static async getCurrentUserProfile(req: CustomRequest, res: Response) {
     try {
-      // Get the user ID from the authenticated request
       const userId = req.user?.id;
       
       if (!userId) {
@@ -160,7 +150,7 @@ export class UserController {
       });
     } catch (err) {
       console.error('Error fetching current user profile:', err);
-      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: 'Failed to fetch user profile',
         error: err instanceof Error ? err.message : 'Unknown error'
@@ -178,13 +168,13 @@ export class UserController {
         });
       }
       const users = await UserService.getUsersByRole(roleName);
-      res.status(StatusCodes.OK).json({
+      return res.status(StatusCodes.OK).json({
         success: true,
         data: users
       });
     } catch (err) {
       console.error('Error fetching users by role:', err);
-      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: 'Unable to fetch users by role',
         error: err instanceof Error ? err.message : 'Unknown error'

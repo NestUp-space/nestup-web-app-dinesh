@@ -49,7 +49,7 @@ app.use("/api/bim", bimRouter); // BIM routes, standardized under /api
 console.log('--- [SERVER.TS] bimRouter mounted for /api/bim ---');
 
 // Inline test route for catalogue path
-app.get("/api/v1/catalogue/ping", (req, res) => {
+app.get("/api/v1/catalogue/ping", (_req, res) => { // req prefixed with _
   console.log("--- /api/v1/catalogue/ping HIT (inline in server.ts) ---");
   res.status(200).send("Catalogue ping from server.ts is OK!");
 });

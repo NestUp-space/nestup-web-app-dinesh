@@ -1,7 +1,7 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/db';
-import { PrismaClient, User, UserRole } from '@prisma/client'; // Import User type
+import type { User, UserRole } from '@prisma/client';
 import { StatusCodes } from 'http-status-codes';
 import { ServiceResponse } from '../common/models/serviceResponse';
 

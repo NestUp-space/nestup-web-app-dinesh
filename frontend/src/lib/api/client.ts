@@ -3,7 +3,7 @@
  * Provides a standardized interface for making API requests
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 interface ApiClientOptions {
   headers?: Record<string, string>;

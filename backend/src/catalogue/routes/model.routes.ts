@@ -23,12 +23,12 @@ const validateData = (schema: any) => (req: Request, res: Response, next: NextFu
     next();
   } catch (error) {
     if (error instanceof ZodError) {
-      res.status(StatusCodes.BAD_REQUEST).json({
+      return res.status(StatusCodes.BAD_REQUEST).json({ // Added return
         message: 'Validation failed',
         errors: error.errors,
       });
     } else {
-      next(error);
+      return next(error); // Added return
     }
   }
 };
@@ -38,7 +38,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ 
   storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => { // req prefixed with _
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
@@ -48,9 +48,9 @@ const upload = multer({
 });
 
 // TEST ROUTE
-router.get('/test-route', (req: Request, res: Response) => {
+router.get('/test-route', (_req: Request, res: Response) => { // req prefixed with _
   console.log('--- /api/v1/catalogue/test-route HIT ---');
-  res.status(StatusCodes.OK).send('Catalogue test route is working!');
+  return res.status(StatusCodes.OK).send('Catalogue test route is working!'); // Added return
 });
 
 // --- Model Definition (Catalogue Item) Image Upload ---
@@ -64,7 +64,7 @@ router.post('/:modelId/image-upload', isAuthenticated, upload.single('catalogueI
     
     const updatedModel = await modelService.uploadModelImage(modelId, req.file!); // Added non-null assertion for req.file as it's checked above
     
-    res.status(StatusCodes.OK).json(updatedModel);
+    return res.status(StatusCodes.OK).json(updatedModel); // Added return
   } catch (error: any) {
     console.error(`Error uploading image for model ${req.params.modelId}:`, error);
     if (error.message.includes('not found')) {
@@ -73,16 +73,16 @@ router.post('/:modelId/image-upload', isAuthenticated, upload.single('catalogueI
     if (error.message.startsWith('Not an image!')) {
       return res.status(StatusCodes.BAD_REQUEST).json({ message: error.message });
     }
-    next(error);
+    return next(error); // Added return
   }
 });
 
 
 // GET /catalogue - List all models
-router.get('/', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/', async (_req: Request, res: Response, next: NextFunction) => { // req prefixed with _
   try {
     const items = await modelService.findAllModels();
-    res.status(StatusCodes.OK).json(items);
+    return res.status(StatusCodes.OK).json(items); // Added return
   } catch (error: any) { // Explicitly type error as any to access properties
     console.error('--- ERROR IN GET /api/v1/catalogue ROUTE ---'); // Corrected log label
     console.error('Error Message:', error.message);
@@ -94,7 +94,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
         console.error('Error Data:', error.data);
     }
     console.error('Full Error Object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-    next(error);
+    return next(error); // Added return
   }
 });
 
@@ -102,7 +102,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 router.post('/', validateData(CreateModelDefinitionSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const newItem = await modelService.createModel(req.body);
-    res.status(StatusCodes.CREATED).json(newItem);
+    return res.status(StatusCodes.CREATED).json(newItem); // Added return
   } catch (error: any) { // Added enhanced logging here as well for consistency
     console.error('--- ERROR IN POST /api/v1/catalogue ROUTE ---');
     console.error('Error Message:', error.message);
@@ -114,7 +114,7 @@ router.post('/', validateData(CreateModelDefinitionSchema), async (req: Request,
         console.error('Error Data:', error.data);
     }
     console.error('Full Error Object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-    next(error);
+    return next(error); // Added return
   }
 });
 
@@ -126,10 +126,10 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
     if (!item) {
       return res.status(StatusCodes.NOT_FOUND).json({ message: 'Model not found' });
     }
-    res.status(StatusCodes.OK).json(item);
+    return res.status(StatusCodes.OK).json(item); // Added return
   } catch (error) {
     console.error(`Error fetching model ${req.params.id}:`, error);
-    next(error);
+    return next(error); // Added return
   }
 });
 
@@ -141,10 +141,10 @@ router.put('/:id', validateData(UpdateModelDefinitionSchema), async (req: Reques
     if (!updatedItem) {
       return res.status(StatusCodes.NOT_FOUND).json({ message: 'Model not found' });
     }
-    res.status(StatusCodes.OK).json(updatedItem);
+    return res.status(StatusCodes.OK).json(updatedItem); // Added return
   } catch (error) {
     console.error(`Error updating model ${req.params.id}:`, error);
-    next(error);
+    return next(error); // Added return
   }
 });
 
@@ -156,13 +156,13 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
     if (!deletedItem) {
       return res.status(StatusCodes.NOT_FOUND).json({ message: 'Model not found or already deleted' });
     }
-    res.status(StatusCodes.OK).json({ message: 'Model deleted successfully', item: deletedItem });
+    return res.status(StatusCodes.OK).json({ message: 'Model deleted successfully', item: deletedItem }); // Added return
   } catch (error) {
     console.error(`Error deleting model ${req.params.id}:`, error);
     if ((error as any).code === 'P2025') {
         return res.status(StatusCodes.NOT_FOUND).json({ message: 'Model not found' });
     }
-    next(error);
+    return next(error); // Added return
   }
 });
 
@@ -173,13 +173,13 @@ router.post('/:modelId/input-parameters', validateData(CreateModelInputParameter
   try {
     const { modelId } = req.params;
     const newInputParameter = await modelService.createInputParameter(modelId, req.body);
-    res.status(StatusCodes.CREATED).json(newInputParameter);
+    return res.status(StatusCodes.CREATED).json(newInputParameter); // Added return
   } catch (error) {
     console.error(`Error creating input parameter for model ${req.params.modelId}:`, error);
     if ((error as Error).message.includes('not found')) {
       return res.status(StatusCodes.NOT_FOUND).json({ message: (error as Error).message });
     }
-    next(error);
+    return next(error); // Added return
   }
 });
 
@@ -188,10 +188,10 @@ router.get('/:modelId/input-parameters', async (req: Request, res: Response, nex
   try {
     const { modelId } = req.params;
     const parameters = await modelService.findInputParametersByModelId(modelId);
-    res.status(StatusCodes.OK).json(parameters);
+    return res.status(StatusCodes.OK).json(parameters); // Added return
   } catch (error) {
     console.error(`Error fetching input parameters for model ${req.params.modelId}:`, error);
-    next(error);
+    return next(error); // Added return
   }
 });
 
@@ -206,10 +206,10 @@ router.get('/:modelId/input-parameters/:paramId', async (req: Request, res: Resp
     if (parameter.modelDefinitionId !== req.params.modelId) {
         return res.status(StatusCodes.NOT_FOUND).json({ message: 'Input parameter not found for this model' });
     }
-    res.status(StatusCodes.OK).json(parameter);
+    return res.status(StatusCodes.OK).json(parameter); // Added return
   } catch (error) {
     console.error(`Error fetching input parameter ${req.params.paramId}:`, error);
-    next(error);
+    return next(error); // Added return
   }
 });
 
@@ -226,10 +226,10 @@ router.put('/:modelId/input-parameters/:paramId', validateData(UpdateModelInputP
     if (!updatedParameter) {
       return res.status(StatusCodes.NOT_FOUND).json({ message: 'Input parameter not found' });
     }
-    res.status(StatusCodes.OK).json(updatedParameter);
+    return res.status(StatusCodes.OK).json(updatedParameter); // Added return
   } catch (error) {
     console.error(`Error updating input parameter ${req.params.paramId}:`, error);
-    next(error);
+    return next(error); // Added return
   }
 });
 
@@ -246,13 +246,13 @@ router.delete('/:modelId/input-parameters/:paramId', async (req: Request, res: R
     if (!deletedParameter) {
       return res.status(StatusCodes.NOT_FOUND).json({ message: 'Input parameter not found' });
     }
-    res.status(StatusCodes.OK).json({ message: 'Input parameter deleted successfully', parameter: deletedParameter });
+    return res.status(StatusCodes.OK).json({ message: 'Input parameter deleted successfully', parameter: deletedParameter }); // Added return
   } catch (error) {
      if ((error as any).code === 'P2025') {
         return res.status(StatusCodes.NOT_FOUND).json({ message: 'Input parameter not found' });
     }
     console.error(`Error deleting input parameter ${req.params.paramId}:`, error);
-    next(error);
+    return next(error); // Added return
   }
 });
 
@@ -263,13 +263,13 @@ router.post('/:modelId/bom-items', validateData(CreateModelBomItemSchema), async
   try {
     const { modelId } = req.params;
     const newBomItem = await modelService.createBomItem(modelId, req.body);
-    res.status(StatusCodes.CREATED).json(newBomItem);
+    return res.status(StatusCodes.CREATED).json(newBomItem); // Added return
   } catch (error) {
     console.error(`Error creating BOM item for model ${req.params.modelId}:`, error);
     if ((error as Error).message.includes('not found')) {
       return res.status(StatusCodes.NOT_FOUND).json({ message: (error as Error).message });
     }
-    next(error);
+    return next(error); // Added return
   }
 });
 
@@ -278,10 +278,10 @@ router.get('/:modelId/bom-items', async (req: Request, res: Response, next: Next
   try {
     const { modelId } = req.params;
     const bomItems = await modelService.findBomItemsByModelId(modelId);
-    res.status(StatusCodes.OK).json(bomItems);
+    return res.status(StatusCodes.OK).json(bomItems); // Added return
   } catch (error) {
     console.error(`Error fetching BOM items for model ${req.params.modelId}:`, error);
-    next(error);
+    return next(error); // Added return
   }
 });
 
@@ -296,10 +296,10 @@ router.get('/:modelId/bom-items/:itemId', async (req: Request, res: Response, ne
     if (bomItem.modelDefinitionId !== req.params.modelId) {
         return res.status(StatusCodes.NOT_FOUND).json({ message: 'BOM item not found for this model' });
     }
-    res.status(StatusCodes.OK).json(bomItem);
+    return res.status(StatusCodes.OK).json(bomItem); // Added return
   } catch (error) {
     console.error(`Error fetching BOM item ${req.params.itemId}:`, error);
-    next(error);
+    return next(error); // Added return
   }
 });
 
@@ -316,10 +316,10 @@ router.put('/:modelId/bom-items/:itemId', validateData(UpdateModelBomItemSchema)
     if (!updatedBomItem) {
       return res.status(StatusCodes.NOT_FOUND).json({ message: 'BOM item not found' });
     }
-    res.status(StatusCodes.OK).json(updatedBomItem);
+    return res.status(StatusCodes.OK).json(updatedBomItem); // Added return
   } catch (error) {
     console.error(`Error updating BOM item ${req.params.itemId}:`, error);
-    next(error);
+    return next(error); // Added return
   }
 });
 
@@ -336,13 +336,13 @@ router.delete('/:modelId/bom-items/:itemId', async (req: Request, res: Response,
     if (!deletedBomItem) {
       return res.status(StatusCodes.NOT_FOUND).json({ message: 'BOM item not found' });
     }
-    res.status(StatusCodes.OK).json({ message: 'BOM item deleted successfully', item: deletedBomItem });
+    return res.status(StatusCodes.OK).json({ message: 'BOM item deleted successfully', item: deletedBomItem }); // Added return
   } catch (error) {
     if ((error as any).code === 'P2025') {
         return res.status(StatusCodes.NOT_FOUND).json({ message: 'BOM item not found' });
     }
     console.error(`Error deleting BOM item ${req.params.itemId}:`, error);
-    next(error);
+    return next(error); // Added return
   }
 });
 
