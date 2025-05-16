@@ -49,14 +49,15 @@ export const createDraftProject = async (
   const placeholderEngineerId = userId;
 
   // Provide all required fields as per the updated schema
-  const projectData: Prisma.ProjectUncheckedCreateInput = {
+  const projectData = {
     name,
     description: undefined, // Explicitly set description to undefined
     address,
     location,
     sqft: 0,
     statusId: draftStatusId,
-    clientId: userId,
+    designerId: placeholderEngineerId, // Use placeholder for designer
+    projectManagerId: placeholderEngineerId, // Use placeholder for project manager
     engineerId: placeholderEngineerId, // Provide placeholder engineerId
     createdById: userId,
     updatedById: userId,

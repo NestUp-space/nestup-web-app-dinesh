@@ -346,4 +346,16 @@ router.delete('/:modelId/bom-items/:itemId', async (req: Request, res: Response,
   }
 });
 
+// GET /catalogue/project-instances/by-project/:projectId - List all project model instances for a project
+router.get('/project-instances/by-project/:projectId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { projectId } = req.params;
+    const items = await modelService.findProjectModelInstancesByProjectId(projectId);
+    return res.status(StatusCodes.OK).json(items);
+  } catch (error) {
+    console.error(`Error fetching project model instances for project ${req.params.projectId}:`, error);
+    return next(error);
+  }
+});
+
 export default router;

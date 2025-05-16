@@ -5,11 +5,13 @@ import { CustomRequest } from '../middlewares/auth.middleware';
 import { 
   ProjectCreateInput as ProjectCreateInputDto,
   ProjectUpdateInput as ProjectUpdateInputDto,
-  ProjectShare,
+  ProjectAssign,
   ProjectMaterialInput,
-  projectIncludes
+  projectIncludes,
+  ProjectUpdateWithRelations
 } from '../types/project.types';
 import { PlyType, GrainDirection } from '@prisma/client'; // Import enums
+import { projectService } from '../services/project'; // Import project service
 
 const prisma = new PrismaClient();
 
@@ -35,7 +37,13 @@ export class ProjectController {
           include: {
             createdBy: { select: { id: true, name: true } },
             updatedBy: { select: { id: true, name: true } },
-            status: { select: { status: true } } 
+            status: { select: { status: true } },
+            tasks: {
+              include: {
+                status: true,
+                subtasks: true
+              }
+            }
           }
         }),
         prisma.project.count({ where })
@@ -52,18 +60,29 @@ export class ProjectController {
         }
       });
     } catch (err) {
-      console.error('Error fetching projects:', err);
+      console.error('Error creating project:', err); // Log the full error for server-side diagnosis
+      // Send a very simple, guaranteed valid JSON response
       return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         success: false,
-        message: 'Unable to fetch projects',
-        error: err instanceof Error ? err.message : 'Unknown error'
+        message: 'An internal server error occurred while creating the project.'
+        // Avoid sending the raw error message to the client in case it's complex or causes serialization issues
       });
     }
   }
 
   static async createProject(req: CustomRequest, res: Response): Promise<Response> {
     try {
-      const { name, description, projectStatus, clientId, address, location, sqft, engineerId }: ProjectCreateInputDto = req.body;
+      const { 
+        name, 
+        description, 
+        statusId: requestedStatusId, 
+        designerId,
+        projectManagerId,
+        address, 
+        location, 
+        sqft, 
+        engineerId 
+      }: ProjectCreateInputDto = req.body;
       const userId = req.user?.id;
 
       if (!userId) {
@@ -73,39 +92,73 @@ export class ProjectController {
         });
       }
 
-      const statusStringToUse = projectStatus || 'DRAFT';
-      const statusRecord = await prisma.status.findFirst({ where: { status: statusStringToUse } });
+      // Determine the statusId to use
+      const finalStatusId = requestedStatusId ?? 1; // Default to 1 if not provided, matching Prisma schema default
+
+      // Validate the finalStatusId
+      const statusRecord = await prisma.status.findUnique({ where: { id: finalStatusId } });
       if (!statusRecord) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: `Invalid project status: ${statusStringToUse}` });
+        return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: `Invalid statusId: ${finalStatusId}` });
       }
       
-      const createData = {
+      // Validate designer exists if provided
+      if (designerId) {
+        const designerExists = await prisma.user.findFirst({
+          where: { id: designerId, role: { role: 'Designer' } }
+        });
+        if (!designerExists) {
+          return res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: 'Invalid designer ID or user is not a designer'
+          });
+        }
+      }
+
+      // Validate project manager exists if provided
+      if (projectManagerId) {
+        const projectManagerExists = await prisma.user.findFirst({
+          where: { id: projectManagerId, role: { role: 'Project Manager' } }
+        });
+        if (!projectManagerExists) {
+          return res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: 'Invalid project manager ID or user is not a project manager'
+          });
+        }
+      }
+
+      // Create project data for the service
+      const projectData = {
         name,
         description,
         address,
         location,
-        sqft,
-        statusId: statusRecord.id,
+        sqft: sqft || 0,
+        statusId: finalStatusId,
         createdById: userId,
         updatedById: userId,
-        clientId,
+        designerId,
+        projectManagerId,
         engineerId,
-        projectStatus: statusStringToUse
-      } as any;
+        estimatedTime: req.body.estimatedTime ? new Date(req.body.estimatedTime) : undefined,
+        vbCount: req.body.vbCount || 0
+      };
 
-      const project = await prisma.project.create({ data: createData });
+      // Use the project service to create the project with tasks
+      const project = await projectService.createProject(projectData);
       
       return res.status(StatusCodes.CREATED).json({
         success: true,
-        message: 'Project created successfully',
+        message: 'Project created successfully with tasks and subtasks from template',
         project
       });
     } catch (err) {
-      console.error('Error creating project:', err);
+      console.error('Error creating project:', err); // Log the full error for server-side diagnosis
+      // Send a very simple, guaranteed valid JSON response
       return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         success: false,
-        message: 'Unable to create project',
-        error: err instanceof Error ? err.message : 'Unknown error'
+        message: 'An internal server error occurred while creating the project.'
+        // Avoid sending the raw error message to the client in case it's complex or causes serialization issues
       });
     }
   }
@@ -139,7 +192,17 @@ export class ProjectController {
     try {
       const projectId = parseInt(req.params.id);
       const userId = req.user?.id;
-      const { name, description, projectStatus, clientId, address, location, sqft, engineerId }: ProjectUpdateInputDto = req.body;
+      const { 
+        name, 
+        description, 
+        statusId,
+        designerId, 
+        projectManagerId,
+        address, 
+        location, 
+        sqft, 
+        engineerId
+      }: ProjectUpdateInputDto = req.body;
 
       if (!userId) {
         return res.status(StatusCodes.UNAUTHORIZED).json({
@@ -148,31 +211,66 @@ export class ProjectController {
         });
       }
       
-      let statusId: number | undefined;
-      if (projectStatus) {
-        const statusRecord = await prisma.status.findFirst({ where: { status: projectStatus } });
+      // Validate status if provided
+      if (statusId) {
+        const statusRecord = await prisma.status.findUnique({ where: { id: statusId } });
         if (!statusRecord) {
-          return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: `Invalid project status: ${projectStatus}` });
+          return res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: `Invalid statusId: ${statusId}`
+          });
         }
-        statusId = statusRecord.id;
       }
 
-      const updateData = {
-        name,
-        description,
-        address,
-        location,
-        sqft,
-        updatedById: userId,
-        ...(statusId !== undefined && { statusId }),
-        ...(projectStatus !== undefined && { projectStatus }),
-        ...(clientId !== undefined && { clientId }),
-        ...(engineerId !== undefined && { engineerId })
-      } as any;
+      // Validate designer if provided
+      if (designerId) {
+        const designerExists = await prisma.user.findFirst({
+          where: { id: designerId, role: { role: 'Designer' } }
+        });
+        if (!designerExists) {
+          return res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: 'Invalid designer ID or user is not a designer'
+          });
+        }
+      }
+
+      // Validate project manager if provided
+      if (projectManagerId) {
+        const projectManagerExists = await prisma.user.findFirst({
+          where: { id: projectManagerId, role: { role: 'Project Manager' } }
+        });
+        if (!projectManagerExists) {
+          return res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: 'Invalid project manager ID or user is not a project manager'
+          });
+        }
+      }
+
+      const updateData: ProjectUpdateWithRelations = {
+        ...(name && { name }),
+        ...(description && { description }),
+        ...(address && { address }),
+        ...(location && { location }),
+        ...(sqft && { sqft }),
+        ...(statusId && { status: { connect: { id: statusId } } }),
+        ...(designerId !== undefined && {
+          designer: designerId === null ? { disconnect: true } : { connect: { id: designerId } }
+        }),
+        ...(projectManagerId !== undefined && {
+          projectManager: projectManagerId === null ? { disconnect: true } : { connect: { id: projectManagerId } }
+        }),
+        ...(engineerId !== undefined && {
+          engineer: engineerId === null ? { disconnect: true } : { connect: { id: engineerId } }
+        }),
+        updatedBy: { connect: { id: userId } }
+      };
 
       const project = await prisma.project.update({
         where: { id: projectId },
-        data: updateData
+        data: updateData,
+        include: projectIncludes
       });
 
       return res.status(StatusCodes.OK).json({
@@ -243,8 +341,8 @@ export class ProjectController {
       const projectId = parseInt(req.params.id);
       
       await prisma.$transaction([
-        prisma.material.deleteMany({ where: { projectId } }), // Changed from projectMaterial
-        prisma.clientProjectMapping.deleteMany({ where: { projectId } }), // Changed from projectShare
+        prisma.material.deleteMany({ where: { projectId } }),
+        prisma.engineerProjectMapping.deleteMany({ where: { projectId } }),
         prisma.comment.deleteMany({ where: { projectId } }),
         prisma.project.delete({ where: { id: projectId } })
       ]);
@@ -266,26 +364,76 @@ export class ProjectController {
   static async shareProject(req: CustomRequest, res: Response): Promise<Response> {
     try {
       const projectId = parseInt(req.params.id);
-      const { userIds }: ProjectShare = req.body; // Removed 'permissions' from destructuring
+      const { designerId, projectManagerId, engineerId }: ProjectAssign = req.body;
 
-      await prisma.$transaction(async (tx) => {
-        await tx.clientProjectMapping.deleteMany({ // Changed from projectShare
-          where: { projectId }
-        });
-        if (userIds && userIds.length > 0) {
-          await tx.clientProjectMapping.createMany({ // Changed from projectShare
-            data: userIds.map(uid => ({ // Changed userId to uid for clarity
-              projectId,
-              clientId: uid, // Mapped to clientId as per ClientProjectMapping schema
-              // permissions field is not on ClientProjectMapping model
-            }))
+      // Validate the roles first
+      const updateData: ProjectUpdateWithRelations = {};
+
+      // Validate and set designer
+      if (designerId !== undefined) {
+        if (designerId !== null) {
+          const designerExists = await prisma.user.findFirst({
+            where: { id: designerId, role: { role: 'Designer' } }
           });
+          if (!designerExists) {
+            return res.status(StatusCodes.BAD_REQUEST).json({
+              success: false,
+              message: 'Invalid designer ID or user is not a designer'
+            });
+          }
+          updateData.designer = { connect: { id: designerId } };
+        } else {
+          updateData.designer = { disconnect: true };
         }
+      }
+
+      // Validate and set project manager
+      if (projectManagerId !== undefined) {
+        if (projectManagerId !== null) {
+          const pmExists = await prisma.user.findFirst({
+            where: { id: projectManagerId, role: { role: 'Project Manager' } }
+          });
+          if (!pmExists) {
+            return res.status(StatusCodes.BAD_REQUEST).json({
+              success: false,
+              message: 'Invalid project manager ID or user is not a project manager'
+            });
+          }
+          updateData.projectManager = { connect: { id: projectManagerId } };
+        } else {
+          updateData.projectManager = { disconnect: true };
+        }
+      }
+
+      // Validate and set engineer
+      if (engineerId !== undefined) {
+        if (engineerId !== null) {
+          const engineerExists = await prisma.user.findFirst({
+            where: { id: engineerId, role: { role: 'Site Engineer' } }
+          });
+          if (!engineerExists) {
+            return res.status(StatusCodes.BAD_REQUEST).json({
+              success: false,
+              message: 'Invalid engineer ID or user is not a site engineer'
+            });
+          }
+          updateData.engineer = { connect: { id: engineerId } };
+        } else {
+          updateData.engineer = { disconnect: true };
+        }
+      }
+
+      // Update project with new assignments
+      const updatedProject = await prisma.project.update({
+        where: { id: projectId },
+        data: updateData,
+        include: projectIncludes
       });
 
       return res.status(StatusCodes.OK).json({
         success: true,
-        message: 'Project shared successfully'
+        message: 'Project shared successfully',
+        project: updatedProject
       });
     } catch (err) {
       console.error('Error sharing project:', err);

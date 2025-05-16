@@ -50,13 +50,14 @@ export class ProjectRepository implements IProjectRepository {
       projectInput.sqft = data.sqft;
     }
 
-    // Handle client connection if provided
-    if (data.clientId) {
-      projectInput.client = {
-        create: {
-          client: { connect: { id: data.clientId } }
-        }
-      };
+    // Handle designer connection if provided
+    if (data.designerId) {
+      (projectInput as any).designer = { connect: { id: data.designerId } };
+    }
+    
+    // Handle project manager connection if provided
+    if (data.projectManagerId) {
+      (projectInput as any).projectManager = { connect: { id: data.projectManagerId } };
     }
 
     return this.prisma.project.create({
@@ -71,14 +72,11 @@ export class ProjectRepository implements IProjectRepository {
   }): Promise<ProjectWithDetails[]> { // Changed ProjectWithRelations to ProjectWithDetails
     const { where, include, orderBy } = params;
     
-    const defaultInclude: Prisma.ProjectInclude = {
+    const defaultInclude = {
       status: true,
       engineer: { select: { id: true, name: true, email: true } },
-      client: {
-        select: {
-          client: { select: { id: true, name: true, email: true } }
-        }
-      },
+      designer: { select: { id: true, name: true, email: true } },
+      projectManager: { select: { id: true, name: true, email: true } },
       tasks: {
         orderBy: { createdAt: 'asc' },
         include: {
@@ -86,7 +84,7 @@ export class ProjectRepository implements IProjectRepository {
           subtasks: { orderBy: { createdAt: 'asc' } }
         }
       },
-    };
+    } as Prisma.ProjectInclude;
 
     const projects = await this.prisma.project.findMany({
       where,
@@ -99,14 +97,11 @@ export class ProjectRepository implements IProjectRepository {
   }
 
   async findById(id: number, include?: Prisma.ProjectInclude): Promise<ProjectWithDetails | null> { // Changed ProjectWithRelations to ProjectWithDetails
-    const defaultInclude: Prisma.ProjectInclude = {
+    const defaultInclude = {
       status: true,
       engineer: { select: { id: true, name: true, email: true } },
-      client: {
-        select: {
-          client: { select: { id: true, name: true, email: true } }
-        }
-      },
+      designer: { select: { id: true, name: true, email: true } },
+      projectManager: { select: { id: true, name: true, email: true } },
       tasks: {
         orderBy: { createdAt: 'asc' },
         include: {
@@ -114,7 +109,7 @@ export class ProjectRepository implements IProjectRepository {
           subtasks: { orderBy: { createdAt: 'asc' } }
         }
       },
-    };
+    } as Prisma.ProjectInclude;
 
     const project = await this.prisma.project.findUnique({
       where: { id },
@@ -150,13 +145,17 @@ export class ProjectRepository implements IProjectRepository {
       updateData.engineer = data.engineerId ? { connect: { id: data.engineerId } } : { disconnect: true };
     }
     
+    if (data.designerId !== undefined) {
+      (updateData as any).designer = data.designerId ? { connect: { id: data.designerId } } : { disconnect: true };
+    }
+    
+    if (data.projectManagerId !== undefined) {
+      (updateData as any).projectManager = data.projectManagerId ? { connect: { id: data.projectManagerId } } : { disconnect: true };
+    }
+    
     if (data.updatedById !== undefined) {
       updateData.updatedBy = { connect: { id: data.updatedById } };
     }
-    
-    // Handle client connection if provided
-    // Note: This is more complex and might require deleting existing mappings first
-    // For simplicity, we're not handling client updates here
     
     return this.prisma.project.update({
       where: { id },

@@ -43,10 +43,14 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   // Load user on initial mount
   useEffect(() => {
     const loadUser = async () => {
+      console.log('UserContext - Checking if authenticated');
       if (isAuthenticated()) {
         try {
+          console.log('UserContext - Getting user profile');
           const userData = await getUserProfile();
+          console.log('UserContext - User profile response:', userData);
           if (userData && userData.success) {
+            console.log('UserContext - Setting user with permissions:', userData.user.permissions);
             setUser(userData.user);
           }
         } catch (error) {

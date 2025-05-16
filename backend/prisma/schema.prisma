@@ -30,14 +30,16 @@ model User {
   actions             UserAction[]
   comments            Comment[]
   assignedTeams       EngineerTeamMapping[]
-  engineerProjects    Project[]                @relation("EngineerProjects")
-  createdProjects     Project[]                @relation("UserCreatedProjects")
-  updatedProjects     Project[]                @relation("UserUpdatedProjects")
-  clientProjects      ClientProjectMapping[]
+  engineerProjects         Project[]                @relation("EngineerProjects")
+  designerProjects        Project[]                @relation("DesignerProjects")
+  managedProjects         Project[]                @relation("ProjectManagerProjects")
+  createdProjects         Project[]                @relation("UserCreatedProjects")
+  updatedProjects         Project[]                @relation("UserUpdatedProjects")
   oldEngineerProjects EngineerProjectMapping[] @relation("OldEngineerProjects")
   newEngineerProjects EngineerProjectMapping[] @relation("NewEngineerProjects")
+  designerMappings    DesignerProjectMapping[] @relation("Designer")
   clientMarketplace   ClientMarketplace?
-  generatedDocuments  GeneratedDocument[] // Added back-relation
+  generatedDocuments  GeneratedDocument[]
 }
 
 // track the team details of the internal employees
@@ -61,18 +63,20 @@ model Project {
   sqft          Int?      @default(0)
   statusId      Int?      @default(1)
   status        Status?   @relation(fields: [statusId], references: [id])
-  clientId      Int?
-  engineerId    Int?
-  createdById   Int
-  updatedById   Int
-  estimatedTime DateTime? @default(now())
-  startedAt     DateTime?
-  completedAt   DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  vbCount       Int       @default(0)
+  designerId        Int?
+  designer          User?     @relation("DesignerProjects", fields: [designerId], references: [id])
+  projectManagerId  Int?
+  projectManager    User?     @relation("ProjectManagerProjects", fields: [projectManagerId], references: [id])
+  engineerId        Int?
+  createdById       Int
+  updatedById       Int
+  estimatedTime     DateTime? @default(now())
+  startedAt         DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  vbCount           Int       @default(0)
   generatedPlankListFileId Int? // Reference to the generated plank list file
-  client           ClientProjectMapping[]
   engineer         User?                    @relation("EngineerProjects", fields: [engineerId], references: [id])
   createdBy        User                     @relation("UserCreatedProjects", fields: [createdById], references: [id])
   updatedBy        User                     @relation("UserUpdatedProjects", fields: [updatedById], references: [id])
@@ -84,6 +88,7 @@ model Project {
   generatedPlankListFile File?              @relation("GeneratedPlankListFile", fields: [generatedPlankListFileId], references: [id])
   projectInstances ProjectModelInstance[]
   generatedDocuments GeneratedDocument[] // Added back-relation
+  designerMappings DesignerProjectMapping[] @relation("DesignerProjectMappings")
 }
 
 model Task {
@@ -141,12 +146,14 @@ model File {
 
 // map the projects to the clients
 
-model ClientProjectMapping {
+model DesignerProjectMapping {
   id        Int     @id @default(autoincrement())
-  clientId  Int
+  designerId Int
   projectId Int
-  client    User    @relation(fields: [clientId], references: [id])
-  project   Project @relation(fields: [projectId], references: [id])
+  designer  User    @relation(fields: [designerId], references: [id], name: "Designer")
+  project   Project @relation(fields: [projectId], references: [id], name: "DesignerProjectMappings")
+
+  @@unique([designerId, projectId])
 }
 
 //track the actions that the user is taking

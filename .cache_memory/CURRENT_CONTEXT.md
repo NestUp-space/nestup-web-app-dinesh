@@ -1,27 +1,43 @@
-## Current Task: Resolve API errors on user pages
+# Current Context: Fix Project Creation Status Errors
 
-**Summary of Work (2025-05-16):**
+**Initial Problem (RESOLVED):**
+The application was throwing a "HTTP/1.1 400 Bad Request" with "Invalid project status: DRAFT". This was addressed by:
 
-* **Initial Issue (CORS):** Frontend making API calls to `http://localhost:8080` for `/api/roles` and `/api/users/create`, resulting in CORS errors. Main backend is on `http://localhost:5001`.
-  * **Cause:** Usage of `NEXT_PUBLIC_API_BASE_URL` (from `frontend/.env`, value `http://localhost:8080`) in direct `fetch` calls in `roles/page.tsx` and `[id]/page.tsx`, instead of `NEXT_PUBLIC_API_URL` (from `frontend/.env.local`, value `http://localhost:5001`).
-  * **Resolution (Completed):**
-    * Refactored affected pages to use centralized `apiClient`.
-    * Updated `frontend/.env` to align `NEXT_PUBLIC_API_BASE_URL` with `http://localhost:5001`.
+1. Aligning `ProjectCreateInput` DTO in `project.types.ts` to expect `statusId: number`.
+2. Modifying `project.controller.ts` to use `statusId`, validate it, and remove the attempt to save a non-existent `projectStatus` string field.
 
-* **New Issue (400 Bad Request on Create User Page):** After fixing CORS, navigating to `/dashboard/users/create` resulted in a `GET http://localhost:5001/api/users/create` call, which returned a 400 Bad Request: "Valid user ID parameter is required."
-  * **Cause:** The `frontend/src/app/dashboard/users/[id]/page.tsx` component was attempting to fetch user details even when `params.id` was "create". The backend route `GET /api/users/:id` expects a numeric ID.
-  * **Investigation:**
-    * Confirmed `frontend/src/app/dashboard/users/[id]/page.tsx` calls `apiClient.get(\`/users/\${userId}\`)` unconditionally if `userId` is present.
-    * Confirmed backend route `GET /api/users/:id` (in `backend/src/routes/user.routes.ts`) is for fetching a user by a numeric ID, and `POST /api/users` is for creating users.
-  * **Resolution (Partially Implemented):**
-    * Modified `frontend/src/app/dashboard/users/[id]/page.tsx`'s `useEffect` hook to check if `userId === 'create'`.
-    * If `userId` is "create", it now bypasses the user detail fetch and sets `loading` to `false` and `user` to `null`.
-    * Added a placeholder conditional rendering block for the "create" mode, indicating where the actual create user form should be implemented.
-  * **Outcome:** The erroneous `GET /api/users/create` call is prevented. The page now shows a placeholder for the create user form.
+**Second Problem (RESOLVED):**
+Project creation was failing with a 400 Bad Request "Invalid statusId: 1". This was caused by:
 
-**Next Steps:**
+- The Status table being empty, so the validation check for `statusId: 1` was failing
+- The `seedStatus.ts` script existed but hadn't been run
 
-* Update `CURRENT_DECISIONS.md`.
-* Update `CURRENT_TODO.md`.
-* The full implementation of the "Create User" form (input fields, validation, POST request on submit) is a pending sub-task.
-* Attempt completion for the fix of the 400 error.
+**Third Problem (RESOLVED):**
+Project creation was returning a 500 Internal Server Error due to:
+
+- Missing DTO fields for data being sent by frontend (`estimatedTime`, `vbCount`)
+- Improper date handling for `estimatedTime`
+- Missing relation includes in response
+
+**Solutions Applied:**
+
+1. Ran `seedStatus.ts` to populate the Status table with required statuses:
+   - ID 1: Pending (default for new projects)
+   - ID 2: In Progress
+   - ID 3: Completed
+   - ID 4: On Hold
+   - ID 5: Cancelled
+
+2. Updated the Project creation endpoint:
+   - Added missing fields to `ProjectCreateInput` DTO
+   - Added proper date conversion for `estimatedTime`
+   - Added `projectIncludes` to include relations in response
+   - Improved error handling with guaranteed-valid JSON responses
+
+**Current Status:**
+Project creation should now work correctly with:
+
+- ✓ Proper validation against populated Status table
+- ✓ Correct handling of all frontend-sent fields
+- ✓ Proper date handling and relations in response
+- ✓ Clean error responses that won't cause JSON parsing issues

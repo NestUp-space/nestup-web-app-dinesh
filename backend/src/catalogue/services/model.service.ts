@@ -356,4 +356,12 @@ export class ModelService {
     
     return updatedModel;
   }
+
+  async findProjectModelInstancesByProjectId(projectId: string): Promise<any[]> { // Replace any[] with the actual type
+    // TODO: Implement logic to fetch project model instances by project ID
+    // This will likely involve calling a method on this.modelRepository
+    // For now, returning an empty array as a placeholder
+    console.log(`[ModelService] Finding project model instances for project ID: ${projectId}`);
+    return this.modelRepository.findProjectModelInstancesByProjectId(parseInt(projectId, 10));
+  }
 }

@@ -3,6 +3,7 @@
     "axios": "^1.9.0"
   },
   "devDependencies": {
-    "@types/node": "^22.15.17"
+    "@types/node": "^22.15.17",
+    "react-devtools": "^6.1.2"
   }
 }

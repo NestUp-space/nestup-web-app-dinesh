@@ -23,17 +23,19 @@ Differences noted previously (e.g., `updatedById` handling, `statusId` parsing, 
 
 ### Project Management
 *   **`createProject(req: CustomRequest, res: Response)`**
-    *   **Route (Assumed):** `POST /projects`
+    *   **Route (Assumed):** `POST /projects` (This is the endpoint that was failing with 400 Bad Request)
     *   **Purpose:** Creates a new project.
-    *   **Logic:**
-        *   Performs an authorization check: Client users (`req.user.role === 'client'`) are forbidden from creating projects.
-        *   Extracts project details (`name`, `projectDescription`, `description`, `engineerId`, `clientId`, `address`, `location`, `sqft`, `estimatedTime`, `statusId`, `vbCount`) from `req.body`.
-        *   Provides server-side defaults for `address`, `location`, `sqft`, `estimatedTime`, `statusId`, `vbCount` if not present in the request.
-        *   Parses numeric string inputs to integers.
-        *   Sets `createdById` from `req.user.id`.
-        *   Calls `projectService.createProject` with the processed data.
-        *   (Note: Task and subtask creation from templates is now handled within `projectService.createProject`).
-    *   **Response:** `201 CREATED` with `{ project, message }` or `400 BAD_REQUEST`/`401 UNAUTHORIZED`/`403 FORBIDDEN` on error.
+    *   **Logic (Post-Fix 2025-05-16):**
+        *   Extracts project details (`name`, `description`, `statusId`, `clientId`, `address`, `location`, `sqft`, `engineerId`) from `req.body` (as per `ProjectCreateInput` DTO in `project.types.ts`).
+        *   `statusId` (number) is now expected directly from the request, aligning with frontend.
+        *   If `statusId` is not provided in the request, it defaults to `1`.
+        *   Validates that the `finalStatusId` (either from request or default) exists in the `Status` database table. If not, returns 400 Bad Request.
+        *   Sets `createdById` and `updatedById` from `req.user.id`.
+        *   Constructs `createData` object for `prisma.project.create()`.
+            *   Crucially, it no longer attempts to write a `projectStatus: string` field, which was causing an error as this field doesn't exist on the `Project` model.
+        *   Calls `prisma.project.create({ data: createData })`.
+    *   **Error Handling (Post-Fix 2025-05-16 for 500 error):** The `catch` block now logs the full error to `console.error` for server-side diagnosis but returns a simplified, guaranteed-valid JSON response (`{ success: false, message: "An internal server error occurred..." }`) to the client. This is to prevent issues with error object serialization that might have been causing the client to receive non-JSON responses.
+    *   **Response:** `201 CREATED` with `{ success, message, project }` or `400 BAD_REQUEST`/`401 UNAUTHORIZED`/`500 INTERNAL_SERVER_ERROR` on error.
 
 *   **`getProjects(req: CustomRequest, res: Response)`**
     *   **Route (Assumed):** `GET /projects`

@@ -96,7 +96,10 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({
       <div>
         <h2 className="text-xl font-semibold text-gray-700 mb-3">Key Information</h2>
         <p className="text-gray-600 mb-2">
-          <strong>Client:</strong> {project.client?.name || 'N/A'} ({project.client?.email || 'N/A'})
+          <strong>Designer:</strong> {project.designer?.name || 'N/A'} ({project.designer?.email || 'N/A'})
+        </p>
+        <p className="text-gray-600 mb-2">
+          <strong>Project Manager:</strong> {project.projectManager?.name || 'N/A'} ({project.projectManager?.email || 'N/A'})
         </p>
         <p className="text-gray-600 mb-2">
           <strong>Engineer:</strong> {project.engineer?.name || 'N/A'} ({project.engineer?.email || 'N/A'})
@@ -112,7 +115,6 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({
         </p>
       </div>
     </div>
-
     {/* The "Furniture Models / Boxes" section and its related modal for adding an instance are removed. */}
     {/* If a general "Add Model" or similar functionality is desired elsewhere, it would need a new UI trigger. */}
     {/* The modal for viewing generated lists is also removed as it was tied to the removed section. */}

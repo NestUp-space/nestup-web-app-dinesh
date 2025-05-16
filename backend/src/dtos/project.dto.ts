@@ -11,8 +11,9 @@ export interface CreateProjectDto {
   estimatedTime?: Date | string;
   vbCount?: number;
   statusId?: number;
+  designerId?: number;
+  projectManagerId?: number;
   engineerId?: number;
-  clientId?: number;
   createdById: number;
 }
 
@@ -25,8 +26,9 @@ export interface UpdateProjectDto {
   estimatedTime?: Date | string;
   vbCount?: number;
   statusId?: number;
+  designerId?: number;
+  projectManagerId?: number;
   engineerId?: number;
-  clientId?: number;
   updatedById?: number;
 }
 
@@ -39,8 +41,9 @@ export interface ProjectResponseDto {
   sqft?: number | null;
   vbCount: number;
   status?: { id: number; status: string } | null;
+  designer?: { id: number; name: string; email: string } | null;
+  projectManager?: { id: number; name: string; email: string } | null;
   engineer?: { id: number; name: string; email: string } | null;
-  client?: { id: number; name: string; email: string } | null;
   estimatedTime?: string | null;
   createdAt: string;
   updatedAt: string;

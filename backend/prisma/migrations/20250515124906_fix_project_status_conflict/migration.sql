@@ -1,3 +1,5 @@
 -- Fix the conflicting status field in Project table
-ALTER TABLE "Project" DROP COLUMN status;
-ALTER TABLE "Project" ADD COLUMN "projectStatus" VARCHAR(255) DEFAULT 'DRAFT';
+-- ALTER TABLE "Project" DROP COLUMN status;
+-- ALTER TABLE "Project" ADD COLUMN "projectStatus" VARCHAR(255) DEFAULT 'DRAFT';
+-- These lines are commented out as the schema has evolved to use statusId (Int)
+-- and the projectStatus (String) field is no longer part of the Project model.

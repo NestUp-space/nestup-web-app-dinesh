@@ -8,7 +8,9 @@ import { PrismaClient, Material as PrismaMaterial, Prisma } from '@prisma/client
 import prisma from '../config/db';
 // Using a local Material type that should be compatible with PrismaMaterial
 // For a cleaner approach, PrismaMaterial could be used directly or mapped to this local type.
-import { CreateMaterialDto, Material, UpdateMaterialDto } from '../bim/types/bim.types';
+import { CreateMaterialDto, UpdateMaterialDto } from '../bim/types/bim.types';
+import { Material } from '../bim/types/bim.types';
+import { PlyType, GrainDirection } from '@prisma/client';
 
 // Type assertion helper (optional, for clarity if needed later)
 function assertIsMaterial(material: PrismaMaterial): Material {
@@ -58,10 +60,9 @@ export class MaterialRepository implements IMaterialRepository {
       innerLaminateCode: materialData.innerLaminateCode,
       outerLaminateCode: materialData.outerLaminateCode,
       overallThickness, // This is calculated and should be part of the model
-      plyType: materialData.plyType,
-      grainDirection: materialData.grainDirection,
-      edgebandingInnerCode: materialData.edgebandingInnerCode,
-      edgebandingExposedCode: materialData.edgebandingExposedCode,
+      plyType: materialData.plyType as PlyType,
+      grainDirection: materialData.grainDirection as GrainDirection,
+      // Note: edgebandingInnerCode and edgebandingExposedCode are not in the Prisma schema
       // Assuming createdAt and updatedAt are handled by Prisma (@default(now())/@updatedAt)
     };
     
@@ -136,16 +137,36 @@ export class MaterialRepository implements IMaterialRepository {
    * @returns The updated material (typed as local Material)
    */
   async update(id: number, materialData: UpdateMaterialDto): Promise<Material> {
-    const updateData: Prisma.MaterialUpdateInput = { ...materialData };
+    // Create a properly typed update object
+    const updateData: Prisma.MaterialUpdateInput = {};
+    
+    if (materialData.materialId !== undefined) {
+      updateData.materialId = materialData.materialId;
+    }
     
     if (materialData.plyThickness !== undefined) {
+      updateData.plyThickness = materialData.plyThickness;
       updateData.overallThickness = materialData.plyThickness + 2;
     }
     
-    // Remove projectId from updateData if present, as it shouldn't be changed here
-    if ('projectId' in updateData) {
-      delete (updateData as any).projectId;
+    if (materialData.innerLaminateCode !== undefined) {
+      updateData.innerLaminateCode = materialData.innerLaminateCode;
     }
+    
+    if (materialData.outerLaminateCode !== undefined) {
+      updateData.outerLaminateCode = materialData.outerLaminateCode;
+    }
+    
+    if (materialData.plyType !== undefined) {
+      updateData.plyType = materialData.plyType as PlyType;
+    }
+    
+    if (materialData.grainDirection !== undefined) {
+      updateData.grainDirection = materialData.grainDirection as GrainDirection;
+    }
+    
+    // Note: edgebandingInnerCode and edgebandingExposedCode are not in the Prisma schema
+    
 
     console.log(`[MaterialRepository] Updating material ID ${id} with data:`, updateData);
     const material: PrismaMaterial = await this.prisma.material.update({

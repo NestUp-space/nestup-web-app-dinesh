@@ -3,12 +3,13 @@
  * Handles business logic for projects
  */
 
-import { Project } from '@prisma/client';
-import { CreateProjectDto, ProjectResponseDto, UpdateProjectDto, CreateTaskDto, CreateSubtaskDto } from '../../dtos/project.dto';
+import { Project } from '@prisma/client'; // Removed unused Task, Subtask
+import { CreateProjectDto, ProjectResponseDto, UpdateProjectDto } from '../../dtos/project.dto';
 import { IProjectRepository, projectRepository } from '../../repositories/project.repository';
-import { ProjectWithRelations, UserContext } from '../../types/project.types';
-import { defaultProjectTaskTemplates as taskTemplate } from '../../constants/projectTaskTemplate'; // Corrected import
-import { TaskTemplate } from '../../types/projectTemplate.types'; // Import type for template items
+import { ProjectWithDetails, UserContext } from '../../types/project.types';
+import { defaultProjectTaskTemplates as taskTemplate } from '../../constants/projectTaskTemplate';
+import { TaskTemplate } from '../../types/projectTemplate.types';
+import { TaskResponseDto as TaskDto, SubtaskResponseDto as SubtaskDto } from '../../dtos/project.dto'; // For explicit typing in map
 
 export class ProjectService {
   constructor(
@@ -56,18 +57,26 @@ export class ProjectService {
   /**
    * Gets all projects, filtered by user role if provided
    */
-  async getProjects(user?: UserContext): Promise<ProjectWithRelations[]> {
+  async getProjects(user?: UserContext): Promise<ProjectWithDetails[]> {
     const whereClause: any = {};
 
     if (user) {
       const roleName = user.role.name.toLowerCase();
 
       if (roleName === 'client') {
-        // Clients see projects where they are directly assigned as the client
-        whereClause.clientId = user.id;
+        // A client might see projects where they are the designer, project manager, or engineer
+        whereClause.OR = [
+          { designerId: user.id },
+          { projectManagerId: user.id },
+          { engineerId: user.id },
+          // { createdById: user.id } // If clients can also be creators and see their created projects
+        ];
       } else if (roleName === 'engineer') {
-        // Engineers see projects where they are assigned as the engineer
         whereClause.engineerId = user.id;
+      } else if (roleName === 'designer') {
+        whereClause.designerId = user.id;
+      } else if (roleName === 'projectmanager') { // Assuming role name is 'projectmanager'
+        whereClause.projectManagerId = user.id;
       }
       // Admins/Superadmins see all projects by default
     }
@@ -78,7 +87,7 @@ export class ProjectService {
   /**
    * Gets a project by ID, with permission check based on user role
    */
-  async getProjectById(projectId: number, user?: UserContext): Promise<ProjectWithRelations | null> {
+  async getProjectById(projectId: number, user?: UserContext): Promise<ProjectWithDetails | null> {
     const project = await this.projectRepository.findById(projectId);
 
     if (!project) {
@@ -87,23 +96,30 @@ export class ProjectService {
 
     if (user) {
       const roleName = user.role.name.toLowerCase();
-      // Check if client has access
-      if (roleName === 'client') {
-        // Extract client ID from the client array
-        const clientId = project.client && project.client.length > 0 
-          ? project.client[0].client?.id 
-          : null;
-        
-        if (clientId !== user.id) {
-          return null; // Client does not have access
+      let canAccess = false;
+
+      // Admins/Superadmins can access any project
+      if (['admin', 'superadmin'].includes(roleName)) {
+        canAccess = true;
+      } else if (roleName === 'client') {
+        // Client can access if they are the designer, PM, engineer, or creator of the project
+        if (project.designerId === user.id ||
+            project.projectManagerId === user.id ||
+            project.engineerId === user.id ||
+            project.createdById === user.id) {
+          canAccess = true;
         }
+      } else if (roleName === 'engineer' && project.engineerId === user.id) {
+        canAccess = true;
+      } else if (roleName === 'designer' && project.designerId === user.id) {
+        canAccess = true;
+      } else if (roleName === 'projectmanager' && project.projectManagerId === user.id) {
+        canAccess = true;
       }
       
-      // Check if engineer has access
-      if (roleName === 'engineer' && project.engineer?.id !== user.id) {
-        return null; // Engineer does not have access
+      if (!canAccess) {
+        return null; // User does not have access
       }
-      // Admins/Superadmins can access any project by ID
     }
 
     return project;
@@ -126,11 +142,10 @@ export class ProjectService {
   /**
    * Transforms a project with relations to a response DTO
    */
-  transformToResponseDto(project: ProjectWithRelations): ProjectResponseDto {
-    // Extract client data from the client array
-    const clientData = project.client && project.client.length > 0 
-      ? project.client[0].client 
-      : null;
+  transformToResponseDto(project: ProjectWithDetails): ProjectResponseDto {
+    // Ensure tasks and subtasks are correctly typed
+    type TaskFromPayload = ProjectWithDetails['tasks'][number];
+    type SubtaskFromPayload = TaskFromPayload['subtasks'][number];
 
     return {
       id: project.id,
@@ -141,16 +156,25 @@ export class ProjectService {
       sqft: project.sqft,
       vbCount: project.vbCount,
       status: project.status,
+      designer: project.designer ? {
+        id: project.designer.id,
+        name: project.designer.name,
+        email: project.designer.email
+      } : null,
+      projectManager: project.projectManager ? {
+        id: project.projectManager.id,
+        name: project.projectManager.name,
+        email: project.projectManager.email
+      } : null,
       engineer: project.engineer ? {
         id: project.engineer.id,
         name: project.engineer.name,
         email: project.engineer.email
       } : null,
-      client: clientData,
       estimatedTime: project.estimatedTime?.toISOString(),
       createdAt: project.createdAt.toISOString(),
       updatedAt: project.updatedAt.toISOString(),
-      tasks: project.tasks?.map(task => ({
+      tasks: project.tasks?.map((task: TaskFromPayload): TaskDto => ({
         id: task.id,
         name: task.name,
         stage: task.stage,
@@ -159,7 +183,8 @@ export class ProjectService {
         status: task.status,
         createdAt: task.createdAt.toISOString(),
         updatedAt: task.updatedAt.toISOString(),
-        subtasks: task.subtasks?.map(subtask => ({
+        metadataJson: task.metadataJson,
+        subtasks: task.subtasks?.map((subtask: SubtaskFromPayload): SubtaskDto => ({
           id: subtask.id,
           name: subtask.name,
           description: subtask.description,

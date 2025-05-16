@@ -14,7 +14,12 @@ export default function UsersPage() {
   const { user, isLoading } = useUser();
 
   React.useEffect(() => {
+    console.log('UsersPage - User:', user);
+    console.log('UsersPage - User Permissions:', user?.permissions);
+    console.log('UsersPage - Has users.view permission:', user?.permissions?.includes('users.view'));
+    
     if (!isLoading && user && !user.permissions?.includes('users.view')) {
+      console.log('UsersPage - Redirecting to dashboard due to missing permission');
       router.push('/dashboard');
     }
   }, [user, isLoading, router]);

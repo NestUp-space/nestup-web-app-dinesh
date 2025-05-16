@@ -22,36 +22,40 @@ export default function ProjectsPage({ // Renamed from ProductsPage to ProjectsP
   const [projectSqft, setProjectSqft] = useState(0);
   const [projectEstimatedTime, setProjectEstimatedTime] = useState('');
   const [projectStatusId, setProjectStatusId] = useState(1); // Default to status ID 1
-  const [clients, setClients] = useState([]);
+  const [designers, setDesigners] = useState([]);
+  const [projectManagers, setProjectManagers] = useState([]);
   const [engineers, setEngineers] = useState([]);
-  const [selectedClient, setSelectedClient] = useState('');
+  const [selectedDesigner, setSelectedDesigner] = useState('');
+  const [selectedProjectManager, setSelectedProjectManager] = useState('');
   const [selectedEngineer, setSelectedEngineer] = useState('');
   const [projects, setProjects] = useState<any[]>([]); // State for projects
   const { user } = useUser();
   const token = localStorage.getItem('token');
   const router = useRouter(); // Initialize useRouter
 
-  useEffect(() => {
-    const fetchProjects = async () => {
-      if (!token) return;
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setProjects(data.projects || []);
-        } else {
-          console.error('Failed to fetch projects:', response.status);
-          setProjects([]);
-        }
-      } catch (error) {
-        console.error('Error fetching projects:', error);
+  const fetchProjects = async () => {
+    if (!token) return;
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Projects API response:', data);
+        setProjects(data.data?.projects || []);
+      } else {
+        console.error('Failed to fetch projects:', response.status);
         setProjects([]);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      setProjects([]);
+    }
+  };
+
+  useEffect(() => {
 
     const fetchUsersByRole = async (roleName: string) => {
       try {
@@ -75,17 +79,22 @@ export default function ProjectsPage({ // Renamed from ProductsPage to ProjectsP
       }
     };
 
-    const loadClientsAndEngineers = async () => {
-      // Use lowercase role names as they were working before
-      const clientsData = await fetchUsersByRole('client');
-      console.log('Client data before setting state:', clientsData);
-      setClients(clientsData);
+    const loadUsersForRoles = async () => {
+      // Fetch users for each role
+      const designersData = await fetchUsersByRole('designer');
+      console.log('Designer data before setting state:', designersData);
+      setDesigners(designersData);
+      
+      const projectManagersData = await fetchUsersByRole('project_manager');
+      console.log('Project Manager data before setting state:', projectManagersData);
+      setProjectManagers(projectManagersData);
+      
       const engineersData = await fetchUsersByRole('engineer');
       console.log('Engineer data before setting state:', engineersData);
       setEngineers(engineersData);
     };
 
-    loadClientsAndEngineers();
+    loadUsersForRoles();
     fetchProjects(); // Fetch projects on component mount
   }, [token]);
 
@@ -115,7 +124,8 @@ export default function ProjectsPage({ // Renamed from ProductsPage to ProjectsP
           estimatedTime: estimatedTime,
           statusId: projectStatusId,
           vbCount: 0, // Default value
-          clientId: selectedClient,
+          designerId: selectedDesigner,
+          projectManagerId: selectedProjectManager,
           engineerId: selectedEngineer,
           createdById: user.id, // Add the user ID as createdById
         }),
@@ -135,8 +145,12 @@ export default function ProjectsPage({ // Renamed from ProductsPage to ProjectsP
       setProjectLocation('');
       setProjectSqft(0);
       setProjectEstimatedTime('');
-      setSelectedClient('');
+      setSelectedDesigner('');
+      setSelectedProjectManager('');
       setSelectedEngineer('');
+      
+      // Refresh the projects list
+      fetchProjects();
       
       alert('Project created successfully!');
     } catch (error) {
@@ -192,11 +206,20 @@ export default function ProjectsPage({ // Renamed from ProductsPage to ProjectsP
                   {project.description ? `${project.description.substring(0, 100)}...` : 'No description available.'}
                 </p>
                 <p className="text-gray-600 text-sm mb-1">
-                  <strong>Client:</strong> {project.client?.name || 'N/A'}
+                  <strong>Designer:</strong> {project.designer?.name || 'N/A'}
+                </p>
+                <p className="text-gray-600 text-sm mb-1">
+                  <strong>Project Manager:</strong> {project.projectManager?.name || 'N/A'}
                 </p>
                 <p className="text-gray-600 text-sm mb-1">
                   <strong>Engineer:</strong> {project.engineer?.name || 'N/A'}
                 </p>
+                
+                {/* Display task count */}
+                <p className="text-gray-600 text-sm mb-1">
+                  <strong>Tasks:</strong> {project.tasks?.length || 0}
+                </p>
+                
                 <div className="mt-3">
                   <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
                     project.status?.status === 'Completed' ? 'bg-green-100 text-green-800' :
@@ -264,24 +287,45 @@ export default function ProjectsPage({ // Renamed from ProductsPage to ProjectsP
                 />
               </div>
               <div className="mt-2">
-                <label htmlFor="client" className="block text-gray-700 text-sm font-bold mb-2">Client</label>
+                <label htmlFor="designer" className="block text-gray-700 text-sm font-bold mb-2">Designer</label>
                 <select
-                  id="client"
+                  id="designer"
                   className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:shadow-outline"
-                  value={selectedClient}
-                  onChange={(e) => setSelectedClient(e.target.value)}
+                  value={selectedDesigner}
+                  onChange={(e) => setSelectedDesigner(e.target.value)}
                 >
-                  <option value="">Select Client</option>
-                  {clients && clients.length > 0 ? (
-                    clients.map((client: any) => (
-                      <option key={client.id} value={client.id}>{client.name}</option>
+                  <option value="">Select Designer</option>
+                  {designers && designers.length > 0 ? (
+                    designers.map((designer: any) => (
+                      <option key={designer.id} value={designer.id}>{designer.name}</option>
                     ))
                   ) : (
-                    <option value="" disabled>No clients available</option>
+                    <option value="" disabled>No designers available</option>
                   )}
                 </select>
                 <div className="text-xs text-left mt-1 text-gray-500">
-                  {clients && clients.length > 0 ? `${clients.length} clients available` : 'No clients available'}
+                  {designers && designers.length > 0 ? `${designers.length} designers available` : 'No designers available'}
+                </div>
+              </div>
+              <div className="mt-2">
+                <label htmlFor="projectManager" className="block text-gray-700 text-sm font-bold mb-2">Project Manager</label>
+                <select
+                  id="projectManager"
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:shadow-outline"
+                  value={selectedProjectManager}
+                  onChange={(e) => setSelectedProjectManager(e.target.value)}
+                >
+                  <option value="">Select Project Manager</option>
+                  {projectManagers && projectManagers.length > 0 ? (
+                    projectManagers.map((manager: any) => (
+                      <option key={manager.id} value={manager.id}>{manager.name}</option>
+                    ))
+                  ) : (
+                    <option value="" disabled>No project managers available</option>
+                  )}
+                </select>
+                <div className="text-xs text-left mt-1 text-gray-500">
+                  {projectManagers && projectManagers.length > 0 ? `${projectManagers.length} project managers available` : 'No project managers available'}
                 </div>
               </div>
               <div className="mt-2">

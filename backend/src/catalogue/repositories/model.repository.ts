@@ -1,4 +1,4 @@
-import { PrismaClient, ModelDefinition, ModelInputParameter, ModelBomItem } from '@prisma/client'; // Removed Prisma from import
+import { PrismaClient, ModelDefinition, ModelInputParameter, ModelBomItem, ProjectModelInstance } from '@prisma/client'; // Removed Prisma from import
 // Import DTOs or specific types for creation/update data if needed
 // e.g., import { CreateModelDefinitionData } from '../dtos/model.dto';
 
@@ -223,6 +223,17 @@ export class ModelRepository {
   async deleteBomItem(id: string): Promise<ModelBomItem | null> {
     return prisma.modelBomItem.delete({
       where: { id },
+    });
+  }
+
+  // --- ProjectModelInstance specific methods ---
+  async findProjectModelInstancesByProjectId(projectId: number): Promise<ProjectModelInstance[]> {
+    return prisma.projectModelInstance.findMany({
+      where: { projectId },
+      include: {
+        modelDefinition: true, // Include related model definition
+        // Add other relations if needed, e.g., generatedPlankLists
+      },
     });
   }
 }

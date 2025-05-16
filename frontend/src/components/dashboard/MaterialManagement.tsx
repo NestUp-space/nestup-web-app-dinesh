@@ -168,38 +168,30 @@ const MaterialManagement: React.FC<MaterialManagementProps> = ({ projectId }) =>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Inner Material
                   </label>
-                  <select
+                  <input
+                    type="text"
                     name="innerLaminateCode"
                     value={formData.innerLaminateCode}
                     onChange={handleInputChange}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-                  >
-                    <option value="">Select Inner Material</option>
-                    <option value="IL001">IL001 - White</option>
-                    <option value="IL002">IL002 - Black</option>
-                    <option value="IL003">IL003 - Brown</option>
-                    <option value="IL004">IL004 - Grey</option>
-                  </select>
+                    placeholder="Enter inner material code"
+                  />
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Outer Material
                   </label>
-                  <select
+                  <input
+                    type="text"
                     name="outerLaminateCode"
                     value={formData.outerLaminateCode}
                     onChange={handleInputChange}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-                  >
-                    <option value="">Select Outer Material</option>
-                    <option value="OL001">OL001 - White</option>
-                    <option value="OL002">OL002 - Black</option>
-                    <option value="OL003">OL003 - Brown</option>
-                    <option value="OL004">OL004 - Grey</option>
-                  </select>
+                    placeholder="Enter outer material code"
+                  />
                 </div>
                 
                 <div>

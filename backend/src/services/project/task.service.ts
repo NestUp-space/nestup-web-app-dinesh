@@ -92,7 +92,7 @@ export class TaskService {
         // Check if the task is being marked as completed
         // And if it has subtasks, ensure all are completed
         if (data.statusId === COMPLETED_STATUS_ID) {
-          const allSubtasksCompleted = taskWithSubtasks.subtasks.every(st => st.completed);
+          const allSubtasksCompleted = taskWithSubtasks.subtasks.every((st: Subtask) => st.completed);
           if (!allSubtasksCompleted) {
             throw new Error('Cannot mark task as completed: Not all subtasks are completed.');
           }
@@ -172,7 +172,7 @@ export class TaskService {
       status: task.status,
       createdAt: task.createdAt.toISOString(),
       updatedAt: task.updatedAt.toISOString(),
-      subtasks: task.subtasks?.map(subtask => ({
+      subtasks: task.subtasks?.map((subtask: Subtask) => ({
         id: subtask.id,
         name: subtask.name,
         description: subtask.description,

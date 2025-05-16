@@ -193,11 +193,11 @@ export class RoleController {
         });
       }
 
-      // Prevent updating superadmin role
-      if (existingRole.roleType === 'superadmin') {
+      // Prevent updating superadmin role (ID 1)
+      if (existingRole.id === 1) {
         return res.status(StatusCodes.FORBIDDEN).json({
           success: false,
-          message: 'Superadmin role cannot be modified'
+          message: 'The default Admin role (ID 1) cannot be modified.'
         });
       }
 
@@ -314,11 +314,11 @@ export class RoleController {
         });
       }
 
-      // Prevent deleting superadmin role
-      if (existingRole.roleType === 'superadmin') {
+      // Prevent deleting superadmin role (ID 1)
+      if (existingRole.id === 1) {
         return res.status(StatusCodes.FORBIDDEN).json({
           success: false,
-          message: 'Superadmin role cannot be deleted'
+          message: 'The default Admin role (ID 1) cannot be deleted.'
         });
       }
 

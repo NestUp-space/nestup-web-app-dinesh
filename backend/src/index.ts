@@ -9,6 +9,7 @@ import userRoutes from './routes/user.routes';
 import fileRoutes from './routes/file.routes';
 import siteVisitRoutes from './routes/site-visit.routes';
 import roleRoutes from './routes/role.routes';
+import materialRoutes from './routes/material.routes'; // Import material routes
 import catalogueRouter from "./catalogue/routes/model.routes"; // Import catalogue router
 import plankGenerationRouter from "./bim/routes/plank-generation.routes"; // Import plank generation router
 
@@ -61,7 +62,8 @@ app.use('/api/files', fileRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/site-visit', siteVisitRoutes);
 app.use('/api/roles', roleRoutes);
-app.use('/api/v1/catalogue', catalogueRouter); // Mount catalogue router
+app.use('/api', materialRoutes); // Mount material routes
+app.use('/api/catalogue', catalogueRouter); // Mount catalogue router
 app.use('/api/bim/plank-generation', plankGenerationRouter); // Mount plank generation router
 
 // Health check endpoint

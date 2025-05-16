@@ -14,7 +14,8 @@ interface Project {
   location?: string;
   sqft?: number;
   status?: { id: number; status: string };
-  client?: { id: number; name: string; email: string };
+  designer?: { id: number; name: string; email: string };
+  projectManager?: { id: number; name: string; email: string };
   engineer?: { id: number; name: string; email: string };
   estimatedTime?: string;
   createdAt: string;
@@ -29,6 +30,7 @@ interface Task {
   stage?: string;
   uploaderRole?: string;
   viewerRoles?: string;
+  actionRequired?: string;
   status: { id: number; status: string };
   createdAt: string;
   updatedAt: string;
@@ -66,8 +68,9 @@ interface CreateProjectData {
   estimatedTime?: string;
   vbCount?: number;
   statusId?: number;
+  designerId?: number;
+  projectManagerId?: number;
   engineerId?: number;
-  clientId?: number;
 }
 
 interface UpdateProjectData {
@@ -79,8 +82,9 @@ interface UpdateProjectData {
   estimatedTime?: string;
   vbCount?: number;
   statusId?: number;
+  designerId?: number;
+  projectManagerId?: number;
   engineerId?: number;
-  clientId?: number;
 }
 
 // Hook for fetching all projects

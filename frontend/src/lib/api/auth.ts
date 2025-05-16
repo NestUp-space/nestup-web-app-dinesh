@@ -119,12 +119,15 @@ export const requestPasswordReset = async (email: string): Promise<AuthResponse>
  */
 export const getUserProfile = async (): Promise<any> => {
   try {
+    console.log('getUserProfile - Getting token from localStorage');
     const token = localStorage.getItem('token');
     
     if (!token) {
+      console.error('getUserProfile - No authentication token found');
       throw new Error('No authentication token found');
     }
 
+    console.log('getUserProfile - Fetching user profile from API');
     const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
       method: 'GET',
       headers: {
@@ -134,10 +137,13 @@ export const getUserProfile = async (): Promise<any> => {
     });
 
     if (!response.ok) {
+      console.error('getUserProfile - Failed to fetch user profile, status:', response.status);
       throw new Error('Failed to fetch user profile');
     }
 
     const data = await response.json();
+    console.log('getUserProfile - User profile data:', data);
+    console.log('getUserProfile - User permissions:', data.user?.permissions);
     return data;
   } catch (error) {
     console.error('Get user profile error:', error);
