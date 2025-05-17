@@ -18,7 +18,7 @@ const ModelInputParameterSchema = z.object({
   id: z.string().optional(),
   inputName: z.string().min(1, "Parameter name is required"),
   displayLabel: z.string().min(1, "Display label is required").optional().nullable(),
-  inputType: z.enum(['NUMBER', 'TEXT', 'BOOLEAN', 'SELECT']),
+  inputType: z.enum(['NUMBER', 'TEXT', 'BOOLEAN', 'SELECT', 'SELECT_MATERIAL']),
   defaultValue: z.string().optional().nullable(),
   options: z.string().optional().nullable(), 
   unit: z.string().optional().nullable(),
@@ -88,8 +88,8 @@ const defaultModelInputParameters: Array<Omit<z.infer<typeof ModelInputParameter
   { inputName: 'boxDepth', displayLabel: 'Box Depth', inputType: 'NUMBER' as InputTypeEnum, defaultValue: '0', unit: 'mm', description: 'The overall depth of the box.', options: null },
   { inputName: 'leftAdjacency', displayLabel: 'Left Side Adjacency', inputType: 'SELECT' as InputTypeEnum, defaultValue: 'Expose', unit: null, description: 'Defines how the left side of the box is finished or if it connects to another element.', options: 'Expose,Wall,AdjacentBox' },
   { inputName: 'rightAdjacency', displayLabel: 'Right Side Adjacency', inputType: 'SELECT' as InputTypeEnum, defaultValue: 'Expose', unit: null, description: 'Defines how the right side of the box is finished or if it connects to another element.', options: 'Expose,Wall,AdjacentBox' },
-  { inputName: 'outerMaterialCode', displayLabel: 'Outer Material', inputType: 'TEXT' as InputTypeEnum, defaultValue: null, unit: null, description: 'The material code for the external surfaces of the box.', options: null },
-  { inputName: 'innerMaterialCode', displayLabel: 'Inner Material', inputType: 'TEXT' as InputTypeEnum, defaultValue: null, unit: null, description: 'The material code for the internal surfaces of the box.', options: null },
+  { inputName: 'outerMaterialCode', displayLabel: 'Outer Material', inputType: 'SELECT_MATERIAL' as InputTypeEnum, defaultValue: null, unit: null, description: 'Select the material to be used for the external surfaces of the box. You can choose from available materials during runtime.', options: null },
+  { inputName: 'innerMaterialCode', displayLabel: 'Inner Material', inputType: 'SELECT_MATERIAL' as InputTypeEnum, defaultValue: null, unit: null, description: 'Select the material to be used for the internal surfaces of the box. You can choose from available materials during runtime.', options: null },
   { inputName: 'backMaterialCode', displayLabel: 'Back Panel Material', inputType: 'TEXT' as InputTypeEnum, defaultValue: null, unit: null, description: 'The material code for the back panel of the box.', options: null },
   { inputName: 'hasDoor', displayLabel: 'Has Door?', inputType: 'BOOLEAN' as InputTypeEnum, defaultValue: 'false', unit: null, description: 'Indicates if the box includes a door.', options: null },
   { inputName: 'doorExposedSide', displayLabel: 'Door Exposed Side', inputType: 'SELECT' as InputTypeEnum, defaultValue: 'Front', unit: null, description: 'Specifies which side the door is on. Only applicable if \'Has Door?\' is true.', options: 'Front,Left,Right' },
@@ -185,9 +185,43 @@ export default function ModelBuilderForm({
       alert("Image upload functionality is not fully implemented yet. Using placeholder URL if new image selected.");
       finalImageUrl = selectedImageFile ? `/placeholder-uploads/${selectedImageFile.name}` : formData.imageUrl;
     }
+    
+    let modelName = formData.modelType;
+    if (!modelId) { // Only version name for new models
+      try {
+        const existingModels = await apiClient.get('/v1/catalogue');
+        const modelBaseName = formData.modelType.replace(/ v\d+$/, ""); // Remove existing version suffix if any
+        const versions = existingModels
+          .filter((m: any) => m.name.startsWith(modelBaseName))
+          .map((m: any) => {
+            const match = m.name.match(/ v(\d+)$/);
+            return match ? parseInt(match[1]) : (m.name === modelBaseName ? 1 : 0);
+          })
+          .filter((v: number) => v > 0) 
+          .sort((a: number, b: number) => a - b);
+        
+        if (versions.length > 0) {
+          const latestVersion = versions[versions.length -1];
+          if (existingModels.some((m:any) => m.name === modelBaseName) && !modelBaseName.endsWith(` v${latestVersion}`)) {
+             modelName = `${modelBaseName} v${latestVersion + 1}`;
+          } else if (!existingModels.some((m:any) => m.name === modelBaseName) && versions.length === 0) {
+            // This case means no "Simple Box" and no "Simple Box vX" exists, so use original name
+          } else if (versions.includes(1) && modelBaseName === formData.modelType && !formData.modelType.includes(" v")) {
+             modelName = `${modelBaseName} v${latestVersion + 1}`;
+          }
+        } else if (existingModels.some((m:any) => m.name === modelBaseName)) {
+           modelName = `${modelBaseName} v2`;
+        }
+
+
+      } catch (error) {
+        console.error("Error fetching existing models for versioning:", error);
+        // Proceed with original name if fetching fails
+      }
+    }
 
     const payload: any = { 
-      name: formData.modelType, // Changed modelType to name to match backend DTO
+      name: modelName, // Use potentially versioned name
       description: formData.description,
       imageUrl: finalImageUrl, // Use the potentially updated image URL
       inputParameters: formData.inputParameters,

@@ -97,17 +97,34 @@ export function useProjectMaterials(projectId: string | number | null) {
 // Hook for creating a material
 export function useCreateMaterial(projectId: string | number) {
   console.log(`[useCreateMaterial] Initializing for projectId: ${projectId}`);
-  // usePost will return the ServiceResponseWrapper, and its payload is SingleMaterialPayload
   // The backend POST /projects/:id/materials expects { materials: MaterialInput[] }
   // and returns ServiceResponseWrapper<Material[]>
+  // The backend replaces all existing materials with the provided list.
   const postHook = usePost<ServiceResponseWrapper<Material[]>, { materials: CreateMaterialData[] }>();
   
-  const createMaterial = useCallback(async (newMaterialData: CreateMaterialData) => {
+  const createMaterial = useCallback(async (newMaterialData: CreateMaterialData, existingMaterials: Material[]) => {
     console.log(`[useCreateMaterial] Attempting to create material for projectId: ${projectId} with data:`, newMaterialData);
-    // The backend endpoint updates all materials. To "add" one, we send it as an array.
-    // This assumes the backend replaces all materials with the ones provided in the `materials` array.
-    const payload = { materials: [newMaterialData] };
-    console.log('[useCreateMaterial] Payload for POST:', payload);
+    console.log('[useCreateMaterial] Existing materials count:', existingMaterials.length);
+
+    // Map existing materials to CreateMaterialData format if necessary, or ensure they are compatible.
+    // For now, assuming CreateMaterialData is a subset of Material or compatible.
+    // We need to ensure we don't send back fields like 'id', 'createdAt', 'updatedAt', 'overallThickness'
+    // if the backend expects only CreateMaterialData fields for existing items.
+    // Let's assume the backend can handle the full Material object for existing items if it's just updating.
+    // However, the endpoint is for "materials" plural, suggesting a full replacement.
+    // It's safer to map existing materials to the expected input structure if they differ.
+
+    const existingMaterialsAsInput = existingMaterials.map(m => ({
+      materialId: m.materialId,
+      plyThickness: m.plyThickness,
+      innerLaminateCode: m.innerLaminateCode,
+      outerLaminateCode: m.outerLaminateCode,
+      plyType: m.plyType,
+      grainDirection: m.grainDirection,
+    }));
+    
+    const payload = { materials: [...existingMaterialsAsInput, newMaterialData] };
+    console.log('[useCreateMaterial] Payload for POST (combining existing and new):', payload);
     
     const resultWrapper = await postHook.execute(`/projects/${projectId}/materials`, payload);
     console.log('[useCreateMaterial] Response from postHook.execute:', resultWrapper);

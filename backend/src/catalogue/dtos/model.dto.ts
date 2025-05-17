@@ -5,7 +5,7 @@ import { BomItemType } from '@prisma/client';
 export const ModelInputParameterDTOSchema = z.object({
   inputName: z.string().min(1, "Parameter name is required"),
   displayLabel: z.string().min(1, "Display label is required").optional().nullable(),
-  inputType: z.enum(['NUMBER', 'TEXT', 'BOOLEAN', 'SELECT']),
+  inputType: z.enum(['NUMBER', 'TEXT', 'BOOLEAN', 'SELECT', 'SELECT_MATERIAL']),
   defaultValue: z.string().optional().nullable(),
   options: z.string().optional().nullable(), // Comma-separated string for SELECT options
   unit: z.string().optional().nullable(),

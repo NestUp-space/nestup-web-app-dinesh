@@ -1,15 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { apiClient } from '@/lib/api/client';
-
-interface Material {
-  id: number;
-  materialId: string;
-  plyType: string;
-  plyThickness: number;
-  innerLaminateCode?: string;
-  outerLaminateCode?: string;
-  grainDirection?: string;
-}
+import React, { useEffect } from 'react';
+import { useProjectMaterials, Material } from '@/hooks/useMaterial'; // Import hook and Material type
 
 interface MaterialCodeSelectorProps {
   name: string;
@@ -26,55 +16,26 @@ const MaterialCodeSelector: React.FC<MaterialCodeSelectorProps> = ({
   onChange,
   projectId,
 }) => {
-  const [materials, setMaterials] = useState<Material[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  
-  // Fetch materials for the project
-  useEffect(() => {
-    const fetchMaterials = async () => {
-      setLoading(true);
-      try {
-        // Mock materials if no projectId is provided
-        if (!projectId) {
-          setMaterials([
-            { id: 1, materialId: 'M001', plyType: 'HDHMR', plyThickness: 18, grainDirection: 'Y' },
-            { id: 2, materialId: 'M002', plyType: 'MDF', plyThickness: 12, grainDirection: 'N' },
-            { id: 3, materialId: 'M003', plyType: 'Plywood', plyThickness: 19, grainDirection: 'Y' }
-          ]);
-          setLoading(false);
-          return;
-        }
-        
-        const response = await apiClient.get(`/api/projects/${projectId}/materials`);
-        setMaterials(response.data || []);
-      } catch (error) {
-        console.error('Error fetching materials:', error);
-        setError(error instanceof Error ? error : new Error('Failed to fetch materials'));
-        
-        // Fallback to mock materials on error
-        setMaterials([
-          { id: 1, materialId: 'M001', plyType: 'HDHMR', plyThickness: 18, grainDirection: 'Y' },
-          { id: 2, materialId: 'M002', plyType: 'MDF', plyThickness: 12, grainDirection: 'N' },
-          { id: 3, materialId: 'M003', plyType: 'Plywood', plyThickness: 19, grainDirection: 'Y' }
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchMaterials();
-  }, [projectId]);
-  
+  // Use the hook to fetch materials, ensuring projectId is null if undefined
+  const { materials, loading, error, refetch } = useProjectMaterials(projectId ?? null);
+
   // If no value is selected and materials are available, select the first one
+  // This also handles sorting if the hook provides sorted data or if we sort here.
+  // The useProjectMaterials hook doesn't explicitly sort, so we should sort here.
+  const sortedMaterials = React.useMemo(() => {
+    if (!materials) return [];
+    return [...materials].sort((a, b) => a.materialId.localeCompare(b.materialId));
+  }, [materials]);
+  
   useEffect(() => {
-    if (!value && materials && materials.length > 0) {
-      onChange(materials[0].materialId);
+    if (!value && sortedMaterials && sortedMaterials.length > 0) {
+      onChange(sortedMaterials[0].materialId);
     }
-  }, [materials, value, onChange]);
+  }, [sortedMaterials, value, onChange]);
   
   if (loading) return <p>Loading materials...</p>;
-  if (error) return <p>Error: {error.message}</p>;
+  // Ensure error is an instance of Error before accessing message
+  if (error) return <p>Error: {error instanceof Error ? error.message : 'Failed to load materials'}</p>;
 
   return (
     <div>
@@ -88,12 +49,18 @@ const MaterialCodeSelector: React.FC<MaterialCodeSelectorProps> = ({
         onChange={(e) => onChange(e.target.value)}
         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
       >
-        <option value="">Select a material</option>
-        {materials?.map((material) => (
-          <option key={material.materialId} value={material.materialId}>
-            {material.materialId} - {material.plyType} ({material.plyThickness}mm)
-          </option>
-        ))}
+        {sortedMaterials.length === 0 ? (
+          <option value="">No materials added - Please add materials to the project first</option>
+        ) : (
+          <>
+            <option value="">Select a material</option>
+            {sortedMaterials.map((material) => (
+              <option key={material.id} value={material.materialId}> {/* Use material.id for key if unique */}
+                {material.materialId} - {material.plyType} ({material.plyThickness}mm)
+              </option>
+            ))}
+          </>
+        )}
       </select>
     </div>
   );

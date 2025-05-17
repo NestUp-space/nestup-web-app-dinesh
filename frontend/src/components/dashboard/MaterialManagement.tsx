@@ -87,7 +87,8 @@ const MaterialManagement: React.FC<MaterialManagementProps> = ({ projectId }) =>
         setEditingMaterialId(null);
       } else {
         console.log('[MaterialManagement] Attempting to create new material.');
-        const newMaterial = await createMaterial(formData);
+        // Pass the current list of materials to createMaterial
+        const newMaterial = await createMaterial(formData, materials);
         console.log('[MaterialManagement] Material creation successful. New material:', newMaterial);
         setIsAddingMaterial(false);
       }

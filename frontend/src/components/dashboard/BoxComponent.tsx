@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/dashboard/button';
 import { AlertCircle, Trash2, ArrowUp, ArrowDown, Save, Loader2 } from 'lucide-react';
+import MaterialCodeSelector from './MaterialCodeSelector'; // Import MaterialCodeSelector
 
 interface CatalogueModel {
   id: string;
@@ -13,7 +14,7 @@ interface CatalogueModel {
     id: string;
     inputName: string;
     displayLabel?: string | null;
-    inputType: 'NUMBER' | 'TEXT' | 'BOOLEAN' | 'SELECT';
+    inputType: 'NUMBER' | 'TEXT' | 'BOOLEAN' | 'SELECT' | 'SELECT_MATERIAL'; // Added SELECT_MATERIAL
     defaultValue?: string | null;
     options?: string | null;
     unit?: string | null;
@@ -46,10 +47,12 @@ interface BoxComponentProps {
   renderInputField: (
     boxId: string,
     key: string,
-    inputType?: 'NUMBER' | 'TEXT' | 'BOOLEAN' | 'SELECT',
+    inputType?: 'NUMBER' | 'TEXT' | 'BOOLEAN' | 'SELECT' | 'SELECT_MATERIAL', // Added SELECT_MATERIAL
     options?: string | null,
-    displayLabel?: string | null
+    displayLabel?: string | null,
+    description?: string | null // Added description for prompt
   ) => React.ReactNode;
+  projectId?: string | number; // Add projectId for MaterialCodeSelector
 }
 
 const BoxComponent: React.FC<BoxComponentProps> = ({
@@ -64,6 +67,7 @@ const BoxComponent: React.FC<BoxComponentProps> = ({
   handleSaveBox,
   handleDeleteBox,
   renderInputField,
+  projectId, // Destructure projectId
 }) => {
   const currentModel = catalogueModels.find(m => m.id === box.selectedModelId);
   const isNewBox = box.id.startsWith('box-');
@@ -134,7 +138,20 @@ const BoxComponent: React.FC<BoxComponentProps> = ({
                 {param.displayLabel || param.inputName.replace(/([A-Z])/g, ' $1').trim()}
                 {param.unit ? ` (${param.unit})` : ''}
               </label>
-              {renderInputField(box.id, param.inputName, param.inputType, param.options, param.displayLabel)}
+              {param.inputType === 'SELECT_MATERIAL' ? (
+                <>
+                  <MaterialCodeSelector
+                    name={param.inputName}
+                    label="" // Label is already rendered above
+                    value={box.inputValues[param.inputName] || ''}
+                    onChange={(value) => handleBoxInputChange(box.id, param.inputName, value)}
+                    projectId={projectId}
+                  />
+                  {param.description && <p className="text-xs text-gray-500 mt-1">{param.description}</p>}
+                </>
+              ) : (
+                renderInputField(box.id, param.inputName, param.inputType, param.options, param.displayLabel, param.description)
+              )}
             </div>
           ))}
         </div>

@@ -13,7 +13,7 @@ interface ModelInputParameterField {
   id?: string; 
   inputName: string;
   displayLabel: string;
-  inputType: 'NUMBER' | 'TEXT' | 'BOOLEAN' | 'SELECT';
+  inputType: 'NUMBER' | 'TEXT' | 'BOOLEAN' | 'SELECT' | 'SELECT_MATERIAL';
   defaultValue?: string | null;
   options?: string | null; 
   unit?: string | null;
@@ -26,20 +26,34 @@ interface ModelFormData {
 }
 
 export default function ModelInputParameterListEditor() {
-  const { control, register, formState: { errors }, watch, setValue } = useFormContext<ModelFormData>(); 
+  const { control, register, formState: { errors }, watch, setValue, getValues } = useFormContext<ModelFormData>(); 
   const { fields, append, remove } = useFieldArray({
     control,
     name: "inputParameters", 
   });
 
-  const inputTypeOptions: ModelInputParameterField['inputType'][] = ['NUMBER', 'TEXT', 'BOOLEAN', 'SELECT'];
+  const inputTypeOptions: ModelInputParameterField['inputType'][] = ['NUMBER', 'TEXT', 'BOOLEAN', 'SELECT', 'SELECT_MATERIAL'];
+
+  const defaultMaterialDescription = "Users will be able to select the material for this box during run time from the list of materials added to the project.";
 
   return (
     <div className="space-y-4">
-      {fields.map((field, index) => (
-        <div key={field.id} className="p-4 border rounded-md space-y-3 relative bg-gray-50"> {/* Removed duplicate div opening tag */}
-          <button
-            type="button"
+      {fields.map((field, index) => {
+        const watchedInputType = watch(`inputParameters.${index}.inputType`);
+
+        React.useEffect(() => {
+          if (watchedInputType === 'SELECT_MATERIAL') {
+            const currentDescription = getValues(`inputParameters.${index}.description`);
+            if (!currentDescription || currentDescription.trim() === '') {
+              setValue(`inputParameters.${index}.description`, defaultMaterialDescription, { shouldValidate: true, shouldDirty: true });
+            }
+          }
+        }, [watchedInputType, index, setValue, getValues]);
+
+        return (
+          <div key={field.id} className="p-4 border rounded-md space-y-3 relative bg-gray-50">
+            <button
+              type="button"
             onClick={() => remove(index)}
             className="absolute top-2 right-2 p-1 text-red-500 hover:text-red-700"
             title="Remove Parameter"
@@ -127,8 +141,16 @@ export default function ModelInputParameterListEditor() {
               />
             </div>
           </div>
+          {/* Informational text for SELECT_MATERIAL type */}
+          {watchedInputType === 'SELECT_MATERIAL' && (
+            <p className="text-xs text-blue-600 bg-blue-50 p-2 rounded-md">
+              This input will render as a dropdown populated with materials from the current project. 
+              The description above will be shown to the end-user.
+            </p>
+          )}
         </div>
-      ))}
+        );
+      })}
       
       <button
         type="button"
