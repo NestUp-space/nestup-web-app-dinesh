@@ -553,14 +553,14 @@ export class ProjectController {
         });
       }
 
-      const projectMaterials = await prisma.material.findMany({ // Changed from projectMaterial
+      const projectMaterials = await prisma.material.findMany({
         where: { projectId }
-        // No include needed here if we are fetching Material records directly
       });
 
       return res.status(StatusCodes.OK).json({
         success: true,
-        materials: projectMaterials,
+        message: 'Project materials fetched successfully',
+        responseObject: projectMaterials,
         projectName: project.name
       });
     } catch (err) {
@@ -587,12 +587,11 @@ export class ProjectController {
       }
       
       const updatedMaterials = await prisma.$transaction(async (tx) => {
-        await tx.material.deleteMany({ // Changed from projectMaterial
+        await tx.material.deleteMany({
           where: { projectId }
         });
 
         if (materials && materials.length > 0) {
-          // Ensure that the enums are correctly typed if they come as strings from the client
           const materialData = materials.map(m => ({
             projectId,
             materialId: m.materialId,
@@ -600,24 +599,22 @@ export class ProjectController {
             innerLaminateCode: m.innerLaminateCode,
             outerLaminateCode: m.outerLaminateCode,
             overallThickness: m.overallThickness,
-            plyType: m.plyType as PlyType, // Cast if necessary, ensure validation upstream
-            grainDirection: m.grainDirection as GrainDirection, // Cast if necessary
-            // quantity and unit are not part of the Material model for creation
+            plyType: m.plyType as PlyType,
+            grainDirection: m.grainDirection as GrainDirection,
           }));
-          await tx.material.createMany({ // Changed from projectMaterial
+          await tx.material.createMany({
             data: materialData
           });
         }
-        return tx.material.findMany({ // Changed from projectMaterial
+        return tx.material.findMany({
           where: { projectId }
-          // No include needed here
         });
       });
 
       return res.status(StatusCodes.OK).json({
         success: true,
         message: 'Project materials updated successfully',
-        materials: updatedMaterials
+        responseObject: updatedMaterials
       });
     } catch (err) {
       console.error('Error updating project materials:', err);

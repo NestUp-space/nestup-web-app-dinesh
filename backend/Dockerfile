@@ -1,45 +1,47 @@
-# Stage 1: Build the application
-FROM node:18-alpine AS builder
-
+# ---- Base Node ----
+FROM node:18-slim AS base
 WORKDIR /app
+# Install openssl for Prisma
+RUN apt-get update && apt-get install -y openssl procps
 
-# Copy package.json and package-lock.json
-COPY package*.json ./
-
-# Install dependencies
-RUN npm ci
-
-# Copy the rest of the application code
-COPY . .
-
-# Generate Prisma client
+# ---- Dependencies ----
+FROM base AS deps
+COPY package.json package-lock.json* ./
+RUN npm ci --only=production --ignore-scripts
+COPY prisma ./prisma/
+# Generate Prisma client based on production dependencies
 RUN npx prisma generate
 
-# Build the application
+# ---- Builder ----
+FROM base AS builder
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json* ./
+COPY prisma ./prisma/
+COPY tsconfig.json .
+COPY src ./src
+# Ensure devDependencies are available for build, then prune
+RUN npm install --ignore-scripts
 RUN npm run build
+# Prune devDependencies after build
+RUN npm prune --production
 
-# Stage 2: Create the production image
-FROM node:18-alpine AS production
-
-WORKDIR /app
-
-# Set NODE_ENV to production
+# ---- Runner ----
+FROM base AS runner
 ENV NODE_ENV=production
-
-# Copy package.json and package-lock.json
-COPY package*.json ./
-
-# Install only production dependencies
-RUN npm ci --only=production
-
-# Copy the built application from the builder stage
+# Copy production node_modules
+COPY --from=deps /app/node_modules ./node_modules
+# Copy Prisma client
+COPY --from=deps /app/prisma ./prisma
+# Copy built application
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/prisma ./prisma
+# Copy package.json for `npm start`
+COPY package.json .
 
-# Expose the port the app will run on
-EXPOSE 5000
+# Expose the port the app runs on
+EXPOSE 8080
+
+# Set the user for security
+USER node
 
 # Command to run the application
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/src/server.js"]

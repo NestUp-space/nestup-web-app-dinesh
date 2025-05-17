@@ -1,7 +1,7 @@
 import type { Request } from "express";
 import rateLimit from "express-rate-limit"; // Try as default import
 
-import { env } from "@/common/utils/envConfig";
+import { env } from "@/config/env"; // Updated path
 
 const rateLimiter = rateLimit({
   // legacyHeaders: true, // Not available in v5.x.x
