@@ -235,47 +235,43 @@ export default function UserDetailPage() {
     }
   };
 
-  if (loading && !isCreateMode) { // Only show full page loading if not in create mode (roles might load separately)
+  if (loading && !isCreateMode) {
     return (
-      <div className="space-y-6">
-        <Card>
-          <CardContent className="flex items-center justify-center p-8">
-            <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-            <div className="text-muted-foreground">Loading User Details...</div>
-          </CardContent>
-        </Card>
+      <div className="flex items-center justify-center h-full p-8">
+        <Loader2 className="mr-2 h-6 w-6 animate-spin text-theme-color" />
+        <p className="text-dark-text-bw/70">Loading User Details...</p>
       </div>
     );
   }
   
-  if (error && !isCreateMode) { // If there's a general error and we are not in create mode
+  if (error && !isCreateMode) {
     return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Error</CardTitle>
-          </CardHeader>
-          <CardContent className="p-8">
-            <div className="text-red-500 mb-4">{error}</div>
-            <Button variant="outline" asChild>
-              <Link href="/dashboard/users">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Users
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="bg-lightest-bw border-light-bw">
+        <CardHeader>
+          <CardTitle className="text-xl text-red-600">Error</CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-2 text-red-600 mb-4">
+            <AlertCircle className="h-5 w-5" />
+            {error}
+          </div>
+          <Button variant="outline" asChild>
+            <Link href="/dashboard/users">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Users
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
   if (isCreateMode) {
-    // Render Create User Form
-    if (error && !roles.length) { // If there was an error fetching roles specifically
+    if (error && !roles.length) {
        return (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">Create New User</h1>
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-semibold text-dark-text-bw">Create New User</h1>
             <Button variant="outline" asChild>
               <Link href="/dashboard/users">
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -283,12 +279,12 @@ export default function UserDetailPage() {
               </Link>
             </Button>
           </div>
-          <Card>
+          <Card className="bg-lightest-bw border-light-bw">
             <CardHeader>
-              <CardTitle>Error</CardTitle>
+              <CardTitle className="text-xl text-red-600">Error Fetching Roles</CardTitle>
             </CardHeader>
-            <CardContent className="p-8">
-              <div className="text-red-500 mb-4">{error}</div>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 text-red-600">{error}</div>
             </CardContent>
           </Card>
         </div>
@@ -297,8 +293,8 @@ export default function UserDetailPage() {
 
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Create New User</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-semibold text-dark-text-bw">Create New User</h1>
           <Button variant="outline" asChild>
             <Link href="/dashboard/users">
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -306,38 +302,38 @@ export default function UserDetailPage() {
             </Link>
           </Button>
         </div>
-        <Card>
+        <Card className="bg-lightest-bw border-light-bw shadow-sm">
           <CardHeader>
-            <CardTitle>New User Form</CardTitle>
-            <CardDescription>Enter the details for the new user. Fields marked with * are required.</CardDescription>
+            <CardTitle className="text-xl text-dark-text-bw">New User Form</CardTitle>
+            <CardDescription className="text-dark-text-bw/70">Enter the details for the new user. Fields marked with * are required.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleCreateUser} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <div className="space-y-1.5">
                   <Label htmlFor="name">Name *</Label>
                   <Input id="name" name="name" value={formData.name} onChange={handleInputChange} required />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor="email">Email *</Label>
                   <Input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} required />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor="password">Password *</Label>
                   <Input id="password" name="password" type="password" value={formData.password} onChange={handleInputChange} required />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor="phoneNumber">Phone Number *</Label>
                   <Input id="phoneNumber" name="phoneNumber" value={formData.phoneNumber} onChange={handleInputChange} required />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor="profilePicUrl">Profile Picture URL</Label>
                   <Input id="profilePicUrl" name="profilePicUrl" value={formData.profilePicUrl} onChange={handleInputChange} />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor="roleId">Role *</Label>
                   {loading && !roles.length ? (
-                     <div className="flex items-center text-sm text-black">
+                     <div className="flex items-center text-sm text-dark-text-bw/70 h-10">
                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading roles...
                      </div>
                   ) : (
@@ -345,7 +341,7 @@ export default function UserDetailPage() {
                       <SelectTrigger>
                         <SelectValue placeholder="Select a role" />
                       </SelectTrigger>
-                      <SelectContent className="text-black">
+                      <SelectContent>
                         {roles.map(role => (
                           <SelectItem key={role.id} value={String(role.id)}>
                             {role.role} 
@@ -358,19 +354,19 @@ export default function UserDetailPage() {
               </div>
 
               {formError && (
-                <div className="flex items-center gap-2 text-red-500 text-sm bg-red-50 p-3 rounded-md">
-                  <AlertCircle className="h-4 w-4" />
+                <div className="flex items-center gap-2 text-red-600 text-sm bg-red-100 border border-red-200 p-3 rounded-md">
+                  <AlertCircle className="h-5 w-5" />
                   {formError}
                 </div>
               )}
               {formSuccess && (
-                <div className="flex items-center gap-2 text-green-500 text-sm bg-green-50 p-3 rounded-md">
-                  <CheckCircle className="h-4 w-4" />
+                <div className="flex items-center gap-2 text-green-600 text-sm bg-green-100 border border-green-200 p-3 rounded-md">
+                  <CheckCircle className="h-5 w-5" />
                   {formSuccess}
                 </div>
               )}
 
-              <div className="flex justify-end">
+              <div className="flex justify-end pt-2">
                 <Button type="submit" disabled={formSubmitting}>
                   {formSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Create User
@@ -383,30 +379,26 @@ export default function UserDetailPage() {
     );
   }
   
-  // Fallback for existing user display if user is somehow null after loading and no error, and not in create mode
   if (!user) { 
     return (
-      <div className="space-y-6">
-        <Card>
-          <CardContent className="p-8">
-            <div className="text-muted-foreground">User data is not available.</div>
-            <Button variant="outline" asChild>
-              <Link href="/dashboard/users">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Users
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="bg-lightest-bw border-light-bw">
+        <CardContent className="p-8 text-center">
+          <p className="text-dark-text-bw/70 mb-4">User data is not available.</p>
+          <Button variant="outline" asChild>
+            <Link href="/dashboard/users">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Users
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
-  // Existing User Detail Display Logic
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">User Details</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-semibold text-dark-text-bw">User Details</h1>
         <Button variant="outline" asChild>
           <Link href="/dashboard/users">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -415,40 +407,32 @@ export default function UserDetailPage() {
         </Button>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="lg:col-span-2 bg-lightest-bw border-light-bw shadow-sm">
           <CardHeader>
-            <CardTitle>User Information</CardTitle>
-            <CardDescription>View and manage user details</CardDescription>
+            <CardTitle className="text-xl text-dark-text-bw">User Information</CardTitle>
+            <CardDescription className="text-dark-text-bw/70">View and manage user details.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Name</Label>
-                <div className="p-2 border rounded-md bg-muted/20">{user.name}</div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <div className="p-2 border rounded-md bg-muted/20">{user.email}</div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Phone Number</Label>
-                <div className="p-2 border rounded-md bg-muted/20">{user.phoneNumber || "Not provided"}</div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Current Role</Label>
-                <div className="p-2 border rounded-md bg-muted/20">{user.role.role}</div>
-              </div>
+              {[
+                { label: "Name", value: user.name },
+                { label: "Email", value: user.email },
+                { label: "Phone Number", value: user.phoneNumber || "Not provided" },
+                { label: "Current Role", value: user.role.role },
+              ].map(item => (
+                <div key={item.label} className="space-y-1">
+                  <Label className="text-xs text-dark-text-bw/60">{item.label}</Label>
+                  <div className="p-2.5 border border-light-bw rounded-md bg-lightest-bw text-sm text-dark-text-bw">{item.value}</div>
+                </div>
+              ))}
               
               {loggedInUser?.permissions?.includes('users.edit') && (
-                <div className="space-y-2">
+                <div className="space-y-3 pt-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="user-status" className="text-sm font-medium">User Status</Label>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm ${user.isActive ? "text-green-600 font-medium" : "text-red-600 font-medium"}`}>
+                    <Label htmlFor="user-status" className="text-sm font-medium text-dark-text-bw">User Status</Label>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-sm font-medium ${user.isActive ? "text-green-600" : "text-red-600"}`}>
                         {user.isActive ? "Active" : "Inactive"}
                       </span>
                       <Switch
@@ -462,15 +446,15 @@ export default function UserDetailPage() {
                   </div>
                   
                   {statusSuccess && (
-                    <div className="flex items-center gap-2 text-green-600 text-sm bg-green-50 p-3 rounded-md border border-green-200">
-                      <CheckCircle className="h-4 w-4" />
+                    <div className="flex items-center gap-2 text-green-600 text-sm bg-green-100 border border-green-200 p-3 rounded-md">
+                      <CheckCircle className="h-5 w-5" />
                       {statusSuccess}
                     </div>
                   )}
                   
                   {statusError && (
-                    <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 p-3 rounded-md border border-red-200">
-                      <AlertCircle className="h-4 w-4" />
+                    <div className="flex items-center gap-2 text-red-600 text-sm bg-red-100 border border-red-200 p-3 rounded-md">
+                      <AlertCircle className="h-5 w-5" />
                       {statusError}
                     </div>
                   )}

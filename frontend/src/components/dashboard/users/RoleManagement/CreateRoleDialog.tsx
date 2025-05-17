@@ -113,63 +113,64 @@ export function CreateRoleDialog({ onRoleCreated }: CreateRoleDialogProps) {
       if (!value) resetForm();
     }}>
       <DialogTrigger asChild>
-        <Button
-          variant="outline"
-          className="bg-primary text-primary-foreground hover:bg-primary/90"
-        >
+        <Button> 
           Create Role
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle>Create New Role</DialogTitle>
+          <DialogTitle className="text-xl">Create New Role</DialogTitle>
           <DialogDescription>
-            Create a new role with predefined permissions. You can modify the permissions after creation.
+            Define a new role and select a base permission template. You can customize specific permissions later.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-4">
+        <div className="space-y-6 py-4">
           {error && (
-            <div className="flex items-center gap-2 text-red-500 text-sm bg-red-50 p-3 rounded-md">
-              <AlertCircle className="h-4 w-4" />
+            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-100 border border-red-200 p-3 rounded-md">
+              <AlertCircle className="h-5 w-5" />
               {error}
             </div>
           )}
           <div className="space-y-2">
-            <Label htmlFor="name">Role Name</Label>
+            <Label htmlFor="role-name">Role Name</Label>
             <Input
-              id="name"
-              placeholder="Enter role name"
+              id="role-name"
+              placeholder="e.g., Content Editor, Project Viewer"
               value={name}
               onChange={handleNameChange}
-              className={cn(nameError && "border-red-500")}
+              className={cn(nameError && "border-red-500 focus-visible:ring-red-500")}
             />
             {nameError && (
-              <p className="text-sm text-red-500 mt-1">{nameError}</p>
+              <p className="text-xs text-red-600 mt-1">{nameError}</p>
             )}
           </div>
           <div className="space-y-2">
             <Label>Permission Template</Label>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Button
                 type="button"
                 variant={type === 'view' ? 'default' : 'outline'}
                 onClick={() => setType('view')}
-                className="justify-start"
+                className={cn("justify-start text-left h-auto py-3", type === 'view' && 'ring-2 ring-theme-color')}
               >
                 <div className="flex flex-col items-start">
-                  <span>View Only</span>
-                  <span className="text-xs text-muted-foreground">Can view but not modify</span>
+                  <span className="font-semibold">View Only</span>
+                  <span className={cn("text-xs", type === 'view' ? 'text-white/80' : 'text-dark-text-bw/70')}>
+                    Can view records but not modify.
+                  </span>
                 </div>
               </Button>
               <Button
                 type="button"
                 variant={type === 'edit' ? 'default' : 'outline'}
                 onClick={() => setType('edit')}
-                className="justify-start"
+                className={cn("justify-start text-left h-auto py-3", type === 'edit' && 'ring-2 ring-theme-color')}
               >
                 <div className="flex flex-col items-start">
-                  <span>View & Edit</span>
-                  <span className="text-xs text-muted-foreground">Can view and modify</span>
+                  <span className="font-semibold">View & Edit</span>
+                  <span className={cn("text-xs", type === 'edit' ? 'text-white/80' : 'text-dark-text-bw/70')}>
+                    Can view and modify records.
+                  </span>
                 </div>
               </Button>
             </div>
@@ -178,7 +179,7 @@ export function CreateRoleDialog({ onRoleCreated }: CreateRoleDialogProps) {
         <DialogFooter>
           <Button
             variant="outline"
-            onClick={() => setOpen(false)}
+            onClick={() => { setOpen(false); resetForm();}}
             disabled={isCreating}
           >
             Cancel

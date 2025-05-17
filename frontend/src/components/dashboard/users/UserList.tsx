@@ -68,26 +68,23 @@ export function UserList() {
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center p-8">
-          <div className="text-muted-foreground">Loading users...</div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center h-full p-8">
+        <p className="text-dark-text-bw/70">Loading users...</p>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="p-8">
-          <div className="text-red-500">Error: {error}</div>
+      <Card className="bg-lightest-bw border-light-bw">
+        <CardContent className="p-8 text-center">
+          <p className="text-red-500 mb-4">Error: {error}</p>
           <Button 
             variant="outline" 
             onClick={() => {
               setLoading(true);
               fetchUsers();
             }}
-            className="mt-4"
           >
             Retry
           </Button>
@@ -98,47 +95,47 @@ export function UserList() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle>Users</CardTitle>
+      <Card className="bg-lightest-bw border-light-bw shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between pb-4">
+          <CardTitle className="text-2xl text-dark-text-bw">Users</CardTitle>
           {loggedInUser?.permissions?.includes('users.create') && (
             <Link href="/dashboard/users/create">
-              <Button variant="outline" className="bg-primary text-primary-foreground hover:bg-primary/90">
-                Create User
-              </Button>
+              <Button>Create User</Button>
             </Link>
           )}
         </CardHeader>
         <CardContent>
           <div className="mb-6">
-            <Label>Filter by Role</Label>
+            <Label htmlFor="roleFilter" className="mb-2 block">Filter by Role</Label>
             <Select value={selectedRole} onValueChange={setSelectedRole}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger id="roleFilter" className="w-full sm:w-[200px]">
                 <SelectValue placeholder="All Roles" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem> 
                 <SelectItem value="admin">Admin</SelectItem>
                 <SelectItem value="client">Client</SelectItem>
                 <SelectItem value="engineer">Engineer</SelectItem>
+                {/* Add other roles as needed */}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="divide-y divide-border rounded-md border">
+          <div className="divide-y divide-light-bw rounded-md border border-light-bw">
             {users.map((user) => (
               <div
                 key={user.id}
-                className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                className="flex items-center justify-between p-4 hover:bg-lighter-bw transition-colors duration-150"
               >
-                <div className="space-y-1">
-                  <p className="text-sm font-medium leading-none">{user.name}</p>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium text-dark-text-bw">{user.name}</p>
+                  <p className="text-xs text-dark-text-bw/70">{user.email}</p>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-sm text-muted-foreground">{user.role.name}</span>
+                  <span className="text-xs text-dark-text-bw/70 px-2 py-0.5 bg-lighter-bw rounded-full border border-light-bw">{user.role.name}</span>
                   {loggedInUser?.permissions?.includes('users.edit') && (
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       asChild
                     >
@@ -153,12 +150,13 @@ export function UserList() {
           </div>
 
           {users.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              No users found
+            <div className="text-center py-10 text-dark-text-bw/70">
+              No users found for the selected criteria.
             </div>
           )}
         </CardContent>
       </Card>
+      {/* TODO: Add pagination controls if totalUsers > pageSize */}
     </div>
   );
 }

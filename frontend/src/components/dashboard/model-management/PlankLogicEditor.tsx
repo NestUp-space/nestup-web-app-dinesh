@@ -1,9 +1,13 @@
 "use client";
 
 import React from 'react';
-import { useFormContext } from 'react-hook-form';
+import { useFormContext, Controller } from 'react-hook-form';
 import CollapsibleVariables from './CollapsibleVariables';
 import ExpressionInput from './ExpressionInput';
+import { Input } from '@/components/dashboard/input';
+import { Label } from '@/components/dashboard/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/dashboard/select';
+import { cn } from '@/lib/utils';
 
 interface RuntimeInput {
   inputName: string;
@@ -83,8 +87,9 @@ if (leftAdjacency === 'Expose') {
   }, [bomItemIndex, setValue, watch]);
 
   return (
-    <div className="space-y-6">
-      {/* Variables Reference */}
+    <div className="space-y-6 p-4 border border-light-bw rounded-md bg-lightest-bw/30 mt-4">
+      <h4 className="text-md font-semibold text-dark-text-bw mb-3">Plank Logic Configuration</h4>
+      
       <CollapsibleVariables
         runtimeInputs={runtimeInputs}
         globalConstants={{
@@ -93,14 +98,10 @@ if (leftAdjacency === 'Expose') {
         }}
       />
 
-      {/* Basic Properties */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Packet Number */}
-        <div>
-          <label htmlFor={`bomItems.${bomItemIndex}.details.packetNumber`} className="block text-sm font-medium text-gray-700 mb-1">
-            Packet Number
-          </label>
-          <input
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor={`bomItems.${bomItemIndex}.details.packetNumber`}>Packet Number</Label>
+          <Input
             type="number"
             min="1"
             id={`bomItems.${bomItemIndex}.details.packetNumber`}
@@ -108,42 +109,41 @@ if (leftAdjacency === 'Expose') {
               valueAsNumber: true,
               min: 1
             })}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           />
         </div>
 
-        {/* Plank Location Identifier */}
-        <div>
-          <label htmlFor={`bomItems.${bomItemIndex}.details.plankLocationIdentifier`} className="block text-sm font-medium text-gray-700 mb-1">
-            Plank Location (2 letters)
-          </label>
-          <input
+        <div className="space-y-1.5">
+          <Label htmlFor={`bomItems.${bomItemIndex}.details.plankLocationIdentifier`}>Plank Location (2 letters)</Label>
+          <Input
             type="text"
             maxLength={2}
             id={`bomItems.${bomItemIndex}.details.plankLocationIdentifier`}
             {...useFormContext().register(`bomItems.${bomItemIndex}.details.plankLocationIdentifier`)}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm uppercase"
-            style={{ textTransform: 'uppercase' }}
+            className="uppercase" // Tailwind class for uppercase
+            // style={{ textTransform: 'uppercase' }} // Redundant if using Tailwind class
           />
         </div>
 
-        {/* Edge Banding Type */}
-        <div>
-          <label htmlFor={`bomItems.${bomItemIndex}.details.edgeBandingType`} className="block text-sm font-medium text-gray-700 mb-1">
-            Edge Banding Thickness
-          </label>
-          <select
-            id={`bomItems.${bomItemIndex}.details.edgeBandingType`}
-            {...useFormContext().register(`bomItems.${bomItemIndex}.details.edgeBandingType`)}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-          >
-            <option value="CEB">Color Edge Banding - CEB - 2 mm</option>
-            <option value="IEB">Inner Edge Banding - IEB - 1 mm</option>
-          </select>
+        <div className="space-y-1.5">
+          <Label htmlFor={`bomItems.${bomItemIndex}.details.edgeBandingType`}>Edge Banding Thickness</Label>
+          <Controller
+            control={useFormContext().control}
+            name={`bomItems.${bomItemIndex}.details.edgeBandingType`}
+            render={({ field: { onChange, value } }) => (
+              <Select onValueChange={onChange} value={value}>
+                <SelectTrigger id={`bomItems.${bomItemIndex}.details.edgeBandingType`}>
+                  <SelectValue placeholder="Select edge banding" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CEB">Color Edge Banding - CEB - 2 mm</SelectItem>
+                  <SelectItem value="IEB">Inner Edge Banding - IEB - 1 mm</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
         </div>
       </div>
 
-      {/* Width Calculation */}
       <ExpressionInput
         label="Width Calculation"
         value={watch(`bomItems.${bomItemIndex}.details.widthLogic`) || ''}

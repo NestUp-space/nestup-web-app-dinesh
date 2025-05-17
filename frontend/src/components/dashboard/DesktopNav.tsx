@@ -22,78 +22,80 @@ export function DesktopNav() {
   };
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-10 hidden w-48 flex-col border-r bg-background sm:flex">
-      <div className="flex flex-col items-center gap-4 px-4 py-5">
-        <div className="group flex h-9 w-full items-center justify-between">
+    <aside className="fixed inset-y-0 left-0 z-10 hidden w-56 flex-col border-r border-light-bw bg-lightest-bw text-dark-text-bw sm:flex">
+      <nav className="flex flex-col gap-2 p-4">
+        <div className="group flex h-12 w-full items-center justify-start px-2 mb-4">
           <Image src={LogoText} alt="Nestup Logo" className="h-10" />
         </div>
 
         <NavItem href="/dashboard" label="Dashboard">
-          <Home className="h-5 w-5 mr-2" />
+          <Home className="h-5 w-5 mr-3" />
           Dashboard
         </NavItem>
 
         <NavItem href="/dashboard/projects" label="Projects">
-          <FolderKanban className="h-5 w-5 mr-2" />
+          <FolderKanban className="h-5 w-5 mr-3" />
           Projects
         </NavItem>
 
         {!isLoading && user?.role && hasPermission(user?.role.roleType, 'admin') && (
           <NavItem href="/dashboard/users" label="Users">
-            <Users className="h-5 w-5 mr-2" />
+            <Users className="h-5 w-5 mr-3" />
             Users
           </NavItem>
         )}
 
         {!isLoading && user?.role && hasPermission(user?.role.roleType, 'admin') && (
           <NavItem href="/dashboard/catalogue" label="Catalogue">
-            <BookCopy className="h-5 w-5 mr-2" /> 
+            <BookCopy className="h-5 w-5 mr-3" />
             Catalogue
           </NavItem>
         )}
 
         {!isLoading && user?.role && hasPermission(user?.role.roleType, 'admin') && ( // Assuming BIM Process has same permissions as Catalogue
           <NavItem href="/dashboard/bimProcess" label="BIM Process">
-            <Workflow className="h-5 w-5 mr-2" />
+            <Workflow className="h-5 w-5 mr-3" />
             BIM Process
           </NavItem>
         )}
 
-        <NavItem href="#" label="Analytics">
-          <LineChart className="h-5 w-5 mr-2" />
+        {/* <NavItem href="#" label="Analytics">
+          <LineChart className="h-5 w-5 mr-3" />
           Analytics
         </NavItem>
 
         <NavItem href="#" label="Support">
-          <HelpCircle className="h-5 w-5 mr-2" />
+          <HelpCircle className="h-5 w-5 mr-3" />
           Support
         </NavItem>
 
         <NavItem href="#" label="Settings">
-          <Settings className="h-5 w-5 mr-2" />
+          <Settings className="h-5 w-5 mr-3" />
           Settings
-        </NavItem>
-      </div>
+        </NavItem> */}
+      </nav>
 
-      <div className="mt-auto flex flex-col items-center gap-2 px-4 py-5">
-        <div className="border-t w-full border-border my-2" />
-        <div className="flex items-center gap-2">
-          <UserIcon className="h-4 w-4 text-muted-foreground" />
-          <div className="text-sm text-muted-foreground">
-            {user?.name}
+      <div className="mt-auto flex flex-col items-start gap-2 p-4">
+        <div className="border-t w-full border-light-bw my-2" />
+        <div className="flex items-center gap-3 px-2">
+          <UserIcon className="h-6 w-6 text-dark-text-bw" />
+          <div>
+            <div className="text-sm font-medium text-dark-text-bw">
+              {user?.name}
+            </div>
+            <div className="text-xs text-dark-text-bw/70">
+              {user?.role ? user?.role.roleType : 'Role'}
+            </div>
+            <div className="text-xs text-dark-text-bw/70">
+              {user?.email}
+            </div>
           </div>
-        </div>
-        <div className="text-xs text-muted-foreground ml-6">
-          {user?.role ? user?.role.roleType : 'Role'}
-        </div>
-        <div className="text-xs text-muted-foreground ml-6">
-          {user?.email}
         </div>
         <button
           onClick={handleLogout}
-          className="flex items-center justify-start gap-2 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+          className="flex w-full items-center justify-start gap-3 rounded-md px-2 py-2 text-sm font-medium text-dark-text-bw transition-colors hover:bg-lighter-bw hover:text-theme-color focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
         >
-          <LogOut className="h-4 w-4 mr-2" />
+          <LogOut className="h-5 w-5" />
           Log Out
         </button>
       </div>

@@ -8,6 +8,8 @@ import { MobileNav } from '@/components/dashboard/MobileNav';
 import { useUser } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import Image from 'next/image';
+import LogoText from "@img/NestupLogoText.svg";
 
 export default function DashboardLayout({
   children
@@ -34,21 +36,31 @@ export default function DashboardLayout({
 
   return (
     <Providers>
-      <main className="flex min-h-screen w-full bg-gray-100">
-        <DesktopNav />
-        <div className="flex flex-col sm:flex-row">
-          <div className="hidden sm:flex sm:w-48">
-          </div>
-          <div className="flex-1 sm:ml-8 sm:mt-8">
-            <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+      <main className="flex min-h-screen w-full bg-lightest-bw text-dark-text-bw">
+        <div className="hidden lg:block w-56 shrink-0"> {/* Adjusted width to match DesktopNav */}
+          <DesktopNav />
+        </div>
+        <div className="flex flex-1 flex-col">
+          <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-light-bw bg-lightest-bw px-6">
+            <div className="flex items-center gap-4 lg:hidden"> {/* MobileNav trigger visible only on small screens */}
               <MobileNav />
-            </header>
-            <main className="relative flex flex-col flex-1 items-start gap-2 p-4 sm:px-6 sm:py-0 md:gap-4 bg-gray-100">
-              {children}
-            </main>
+            </div>
+            <div className="flex-1 flex justify-center lg:hidden"> {/* Logo visible only on small screens and centered */}
+              <Image
+                src={LogoText}
+                alt="Nestup Logo"
+                className="h-8"
+                priority
+              />
+            </div>
+            <div className="flex items-center gap-4"> {/* Placeholder for User Profile/Actions, pushed to the right */}
+              {/* Future user profile/actions can go here */}
+            </div>
+          </header>
+          <div className="flex-1 overflow-y-auto p-6">
+            {children}
           </div>
         </div>
-        <Analytics />
       </main>
     </Providers>
   );

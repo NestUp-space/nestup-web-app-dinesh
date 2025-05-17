@@ -137,67 +137,71 @@ export function RoleTab({ role, onUpdate }: RoleTabProps) {
   };
 
   return (
-    <Card className={cn("transition-opacity duration-200", isSaving && "opacity-50")}>
+    <Card className={cn("bg-lightest-bw border-light-bw shadow-sm transition-opacity duration-200", isSaving && "opacity-60")}>
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <div className="px-6 py-4 flex items-center justify-between">
-          {isEditingName ? (
-            <div className="flex items-center gap-2 flex-grow">
-              <Input 
-                value={editingName}
-                onChange={(e) => setEditingName(e.target.value)}
-                className="text-lg font-medium h-9"
-                disabled={isSaving}
-              />
-              <Button variant="ghost" size="icon" onClick={handleNameSave} disabled={isSaving} title="Save name">
-                <Save className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={handleNameEditToggle} disabled={isSaving} title="Cancel edit">
-                <XCircle className="h-4 w-4" />
-              </Button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-medium">{role.name}</h3>
-              {canEditRole && (
-                <Button variant="ghost" size="icon" onClick={handleNameEditToggle} title="Edit name">
-                  <Edit3 className="h-4 w-4" />
+        <div className="px-6 py-4 flex items-center justify-between hover:bg-lighter-bw/50 transition-colors cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+          <div className="flex items-center gap-3 flex-grow">
+            {isEditingName && canEditRole ? (
+              <>
+                <Input 
+                  value={editingName}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  className="text-lg font-semibold h-9 flex-grow text-dark-text-bw"
+                  disabled={isSaving}
+                  onClick={(e) => e.stopPropagation()} // Prevent collapsible toggle
+                />
+                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleNameSave(); }} disabled={isSaving} title="Save name">
+                  <Save className="h-5 w-5 text-theme-color" />
                 </Button>
-              )}
-              <p className="text-sm text-muted-foreground ml-2">Type: {role.type}</p>
-            </div>
-          )}
+                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleNameEditToggle(); }} disabled={isSaving} title="Cancel edit">
+                  <XCircle className="h-5 w-5 text-red-500" />
+                </Button>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold text-dark-text-bw">{editingName}</h3>
+                {canEditRole && (
+                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleNameEditToggle(); }} title="Edit name" className="text-dark-text-bw/70 hover:text-theme-color">
+                    <Edit3 className="h-4 w-4" />
+                  </Button>
+                )}
+                <p className="text-sm text-dark-text-bw/60 ml-2">({role.type})</p>
+              </>
+            )}
+          </div>
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="w-9 p-0 ml-auto">
+            <Button variant="ghost" size="icon" className="ml-auto text-dark-text-bw/70 hover:text-theme-color">
               <ChevronDown className={cn(
-                "h-4 w-4 transition-transform duration-200 min-w-[1rem]",
+                "h-5 w-5 transition-transform duration-200",
                 isOpen && "rotate-180"
               )} />
-              <span className="sr-only">Toggle</span>
+              <span className="sr-only">Toggle permissions</span>
             </Button>
           </CollapsibleTrigger>
         </div>
         <CollapsibleContent>
-          <CardContent>
+          <CardContent className="pt-0 pb-6 px-6">
             {error && (
-              <div className="mb-4 flex items-center gap-2 text-red-500 text-sm">
-                <AlertCircle className="h-4 w-4" />
+              <div className="mb-4 flex items-center gap-2 text-red-600 text-sm p-3 bg-red-50 border border-red-200 rounded-md">
+                <AlertCircle className="h-5 w-5" />
                 {error}
               </div>
             )}
-            <div className="grid gap-6">
+            <div className="grid gap-x-8 gap-y-4 md:grid-cols-2 lg:grid-cols-3">
               {Object.entries(SECTIONS).map(([sectionKey, sectionName]) => (
-                <div key={sectionKey} className="space-y-2">
-                  <h4 className="font-medium">{sectionName}</h4>
-                  <div className="grid gap-2">
+                <div key={sectionKey} className="space-y-3 p-4 border border-light-bw rounded-md bg-lightest-bw">
+                  <h4 className="font-semibold text-md text-dark-text-bw">{sectionName}</h4>
+                  <div className="space-y-2">
                     {Object.values(ACTIONS).map((action) => {
                       const permissionKey = `${sectionName.toLowerCase()}.${action}`;
                       return (
-                        <div key={`${sectionKey}-${action}`} className="flex items-center justify-between py-2 hover:bg-muted/50 px-2 rounded-md">
-                          <span className="text-sm capitalize">{action}</span>
+                        <div key={`${sectionKey}-${action}`} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-lighter-bw transition-colors">
+                          <span className="text-sm capitalize text-dark-text-bw/90">{action}</span>
                           <Switch
                             checked={!!currentPermissions[permissionKey]}
                             onCheckedChange={() => handlePermissionChange(sectionName, action)}
                             disabled={!canEditRole || isSaving}
+                            id={`${role.id}-${sectionKey}-${action}`}
                           />
                         </div>
                       );

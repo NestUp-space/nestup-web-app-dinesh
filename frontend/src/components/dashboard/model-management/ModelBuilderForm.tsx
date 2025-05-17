@@ -12,6 +12,7 @@ import BillOfMaterialListEditor from './BillOfMaterialListEditor';
 // import SampleInputsEditor from './SampleInputsEditor'; // Removed
 import { apiClient } from '@/lib/api/client';
 import useSWR, { useSWRConfig } from 'swr';
+import { Button } from '@/components/dashboard/button'; // Added Button import
 
 // Define Zod Schemas for sub-structures
 const ModelInputParameterSchema = z.object({
@@ -271,44 +272,37 @@ export default function ModelBuilderForm({
 
   return (
     <FormProvider {...methods}>
-      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-8"> {/* Added onInvalid handler */}
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-8">
         
-        <div className="p-4 border rounded-md">
-          <h3 className="text-lg font-semibold mb-3">1. Basic Information</h3>
+        <div className="p-6 border border-light-bw rounded-lg bg-lightest-bw shadow-sm">
+          <h3 className="text-xl font-semibold text-dark-text-bw mb-4">1. Basic Information</h3>
           <ModelMetadataEditor onFileSelect={setSelectedImageFile} />
         </div>
 
-        <div className="p-4 border rounded-md">
-          <h3 className="text-lg font-semibold mb-3">2. Input Parameters (for Runtime)</h3>
+        <div className="p-6 border border-light-bw rounded-lg bg-lightest-bw shadow-sm">
+          <h3 className="text-xl font-semibold text-dark-text-bw mb-4">2. Input Parameters (for Runtime)</h3>
           <ModelInputParameterListEditor />
         </div>
         
-        {/* Section 3: Sample Runtime Inputs - REMOVED */}
-
-        <div className="p-4 border rounded-md">
-          <h3 className="text-lg font-semibold mb-3">3. Bill of Materials (Planks, Hardware, etc.)</h3> {/* Renumbered from 4 to 3 */}
+        <div className="p-6 border border-light-bw rounded-lg bg-lightest-bw shadow-sm">
+          <h3 className="text-xl font-semibold text-dark-text-bw mb-4">3. Bill of Materials (Planks, Hardware, etc.)</h3>
           <BillOfMaterialListEditor />
         </div>
         
-        {/* Section 5: Site Engineer Instructions - REMOVED */}
-
-        {/* Section 6: Sample Onsite Inputs - REMOVED */}
-
-        <div className="flex justify-end space-x-4 pt-4 mb-12"> {/* Added mb-12 for bottom margin */}
-          <button 
+        <div className="flex justify-end space-x-3 pt-6 pb-2">
+          <Button 
             type="button" 
-            className="px-4 py-2 border rounded-md hover:bg-gray-100" 
+            variant="outline"
             onClick={onCancel}
           >
             Cancel
-          </button>
-          <button 
+          </Button>
+          <Button 
             type="submit" 
-            className="px-4 py-2 border rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
-            disabled={isSubmitting} // Restored disabled state
+            disabled={isSubmitting}
           >
-            {isSubmitting ? 'Saving...' : (modelId ? 'Update Model' : 'Create Model')} {/* Restored dynamic text */}
-          </button>
+            {isSubmitting ? 'Saving...' : (modelId ? 'Update Model' : 'Create Model')}
+          </Button>
         </div>
       </form>
     </FormProvider>

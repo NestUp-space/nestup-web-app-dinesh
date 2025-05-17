@@ -122,88 +122,78 @@ export function UserRoleAssignment({ userId, userName, currentRoleId, onRoleAssi
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center p-4">
-          <div className="text-muted-foreground">Loading roles...</div>
+      <Card className="bg-lightest-bw border-light-bw shadow-sm">
+        <CardContent className="flex items-center justify-center p-6">
+          <p className="text-dark-text-bw/70">Loading roles...</p>
         </CardContent>
       </Card>
     );
   }
 
-  // Check if user has permission to assign roles
   const canAssignRoles = loggedInUser?.permissions?.includes('users.edit');
-  if (!canAssignRoles) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Role Assignment</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">You don't have permission to assign roles.</p>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
-    <Card>
+    <Card className="bg-lightest-bw border-light-bw shadow-sm">
       <CardHeader>
-        <CardTitle>Role Assignment</CardTitle>
+        <CardTitle className="text-xl text-dark-text-bw">Role Assignment</CardTitle>
       </CardHeader>
       <CardContent>
-        {error && (
-          <div className="mb-4 flex items-center gap-2 text-red-500 text-sm bg-red-50 p-3 rounded-md">
-            <AlertCircle className="h-4 w-4" />
-            {error}
-          </div>
-        )}
-        
-        {success && (
-          <div className="mb-4 flex items-center gap-2 text-green-500 text-sm bg-green-50 p-3 rounded-md">
-            <CheckCircle className="h-4 w-4" />
-            {success}
-          </div>
-        )}
+        {!canAssignRoles ? (
+          <p className="text-sm text-dark-text-bw/70">You don't have permission to assign roles.</p>
+        ) : (
+          <>
+            {error && (
+              <div className="mb-4 flex items-center gap-2 text-red-600 text-sm bg-red-100 border border-red-200 p-3 rounded-md">
+                <AlertCircle className="h-5 w-5" />
+                {error}
+              </div>
+            )}
+            
+            {success && (
+              <div className="mb-4 flex items-center gap-2 text-green-600 text-sm bg-green-100 border border-green-200 p-3 rounded-md">
+                <CheckCircle className="h-5 w-5" />
+                {success}
+              </div>
+            )}
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="user-name">User</Label>
-            <div className="p-2 border rounded-md bg-muted/20">
-              {userName}
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="user-name-display" className="text-xs text-dark-text-bw/60">User</Label>
+                <div id="user-name-display" className="p-2.5 border border-light-bw rounded-md bg-lighter-bw/30 text-sm text-dark-text-bw">
+                  {userName}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="role-select" className="text-dark-text-bw">Assign Role</Label>
+                <Select value={selectedRoleId} onValueChange={handleRoleChange} disabled={saving}>
+                  <SelectTrigger id="role-select" className="w-full">
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roles.map((role) => (
+                      <SelectItem 
+                        key={role.id} 
+                        value={role.id.toString()}
+                      >
+                        {role.role} ({role.roleType})
+                      </SelectItem>
+                    ))}
+                    {roles.length === 0 && <SelectItem value="no-roles" disabled>No roles available</SelectItem>}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button 
+                onClick={handleSave} 
+                disabled={saving || !selectedRoleId || selectedRoleId === currentRoleId?.toString()}
+                className="w-full"
+              >
+                {saving ? "Saving..." : "Assign Role"}
+              </Button>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="role" className="text-dark-text font-semibold">Role</Label>
-            <Select value={selectedRoleId} onValueChange={handleRoleChange}>
-              <SelectTrigger className="w-full bg-lighter-bg border-light-border hover:bg-light-bg focus:ring-theme-color text-dark-text placeholder:text-dark-text-bw">
-                <SelectValue placeholder="Select a role" />
-              </SelectTrigger>
-              <SelectContent className="bg-lightest-bg border-light-border">
-                {roles.map((role) => (
-                  <SelectItem 
-                    key={role.id} 
-                    value={role.id.toString()}
-                    className="text-dark-text hover:bg-lighter-bg focus:bg-lighter-bg data-[state=checked]:bg-light-interactive data-[state=checked]:text-white"
-                  >
-                    <div className="flex items-center">
-                      {selectedRoleId === role.id.toString() && <CheckCircle className="mr-2 h-4 w-4 text-white" />}
-                      {role.role}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Button 
-            onClick={handleSave} 
-            disabled={saving || !selectedRoleId || selectedRoleId === currentRoleId?.toString()}
-            className="w-full bg-theme-color hover:bg-dark-color text-white"
-          >
-            {saving ? "Saving..." : "Assign Role"}
-          </Button>
-        </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

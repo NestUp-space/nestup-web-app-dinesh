@@ -5,6 +5,7 @@ import ModelBuilderForm, { BomItemType } from '@/components/dashboard/model-mana
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation'; // Added useRouter and useParams
+import { Button } from '@/components/dashboard/button'; // Added Button import
 
 // Define a type for the form data, mirroring ModelFormData from ModelBuilderForm.tsx
 type SimpleBoxModelData = {
@@ -176,32 +177,28 @@ export default function CreateModelPage() {
   };
 
   return (
-    <div className="flex flex-col gap-4"> {/* Replaced DashboardShell */}
-      {/* Replaced DashboardHeader */}
+    <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/dashboard/catalogue" passHref>
-          <button className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 w-10 hover:bg-accent hover:text-accent-foreground">
+        <Button variant="outline" size="icon" asChild>
+          <Link href="/dashboard/catalogue">
             <ChevronLeft className="h-5 w-5" />
-            <span className="sr-only">Back</span>
-          </button>
-        </Link>
+            <span className="sr-only">Back to Catalogue</span>
+          </Link>
+        </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Create New Model</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-semibold text-dark-text-bw">Create New Model</h1>
+          <p className="text-dark-text-bw/70">
             Define the details of your new furniture model.
           </p>
         </div>
       </div>
 
-      <div className="grid gap-4 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"> {/* Added max-width, centering, and padding */}
-        {/* <p className="text-muted-foreground">
-          Model builder form will be here. (ModelBuilderForm component to be implemented)
-        </p> */}
+      <div className="max-w-full"> {/* Changed from max-w-7xl to full for better form layout */}
         <ModelBuilderForm 
           initialData={simpleBoxDefaultData} 
           onSaveSuccess={handleSaveSuccess}
           onCancel={handleCancel}
-        /> {/* Render the form with initial data and handlers */}
+        />
       </div>
     </div>
   );

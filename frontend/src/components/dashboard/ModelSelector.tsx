@@ -7,6 +7,7 @@ import { Project, Subtask } from '@/types';
 import { PlankDetails } from '@/types/plankTypes'; // Import PlankDetails
 import { AlertCircle, CheckCircle, Loader2, Download, PlusCircle, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import BoxComponent from './BoxComponent';
+import MaterialCodeSelector from './MaterialCodeSelector'; // Import MaterialCodeSelector
 
 // Define ProjectModelInstance type based on the Prisma schema
 interface ProjectModelInstanceType {
@@ -398,9 +399,10 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ subtask, project, project
   const renderInputField = (
     boxId: string,
     key: string,
-    inputType?: 'NUMBER' | 'TEXT' | 'BOOLEAN' | 'SELECT',
+    inputType?: 'NUMBER' | 'TEXT' | 'BOOLEAN' | 'SELECT' | 'SELECT_MATERIAL', // Added SELECT_MATERIAL
     options?: string | null,
-    displayLabel?: string | null
+    displayLabel?: string | null,
+    description?: string | null // Added description for consistency with BoxComponent
   ) => {
     const box = boxes.find(b => b.id === boxId);
     const currentValue = box?.inputValues[key] ?? '';
@@ -439,6 +441,21 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ subtask, project, project
             <option key={opt} value={opt}>{opt}</option>
           ))}
         </select>
+      );
+    } else if (inputType === 'SELECT_MATERIAL') {
+      // Ensure numericProjectId is valid before rendering MaterialCodeSelector
+      const currentProjectId = numericProjectId && !isNaN(numericProjectId) ? numericProjectId : undefined;
+      return (
+        <>
+          <MaterialCodeSelector
+            name={key}
+            label="" // Label is handled by the caller or can be omitted if displayLabel is used
+            value={currentValue}
+            onChange={(value) => handleBoxInputChange(boxId, key, value)}
+            projectId={currentProjectId} // Pass the projectId
+          />
+          {description && <p className="text-xs text-gray-500 mt-1">{description}</p>}
+        </>
       );
     } else {
       return (
@@ -611,19 +628,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ subtask, project, project
     <div className="mt-4 p-4 border border-gray-200 rounded-md bg-gray-50">
       <h5 className="text-lg font-semibold text-gray-800 mb-4">Configure Project Boxes</h5>
       
-      {/* Error messages */}
-      {templatesError && (
-        <div className="my-4 p-3 bg-red-100 border border-red-200 rounded-md text-red-800 text-sm">
-          <AlertCircle className="h-5 w-5 mr-2 inline-block" />
-          <span className="font-semibold">Error loading model templates:</span> {templatesError.message}
-        </div>
-      )}
-      {instancesError && (
-        <div className="my-4 p-3 bg-red-100 border border-red-200 rounded-md text-red-800 text-sm">
-          <AlertCircle className="h-5 w-5 mr-2 inline-block" />
-          <span className="font-semibold">Error loading saved box configurations:</span> {instancesError.message}
-        </div>
-      )}
+    
 
       {/* Box list */}
       {boxes.map((box, index) => (
@@ -640,6 +645,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ subtask, project, project
           handleSaveBox={handleSaveBox}
           handleDeleteBox={handleDeleteBox}
           renderInputField={renderInputField}
+          projectId={numericProjectId} // Add this line
         />
       ))}
 

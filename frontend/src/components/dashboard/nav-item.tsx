@@ -28,16 +28,16 @@ export function NavItem({
         <Link
           href={href}
           className={clsx(
-            'flex h-9 w-full items-center justify-start rounded-lg px-3 text-muted-foreground transition-colors hover:text-foreground md:h-8', 
-            {
-              'bg-accent text-accent-foreground': isActive 
-            }
+            'flex h-10 w-full items-center justify-start rounded-md px-3 text-sm font-medium transition-colors md:h-9',
+            isActive
+              ? 'bg-theme-color text-white hover:bg-dark-color'
+              : 'text-dark-text-bw hover:bg-lighter-bw hover:text-theme-color'
           )}
         >
           {children}
         </Link>
       </TooltipTrigger>
-      <TooltipContent side="right">{label}</TooltipContent>
+      <TooltipContent side="right" className="bg-dark-text-bw text-lightest-bw">{label}</TooltipContent>
     </Tooltip>
   );
 }

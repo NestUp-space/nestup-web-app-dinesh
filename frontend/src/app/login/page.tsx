@@ -2,7 +2,9 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CTAButton } from "@components/landing-page/CTAButton";
+import { Button } from "@/components/dashboard/button"; // Updated import
+import { Input } from "@/components/dashboard/input";   // Updated import
+import { Label } from "@/components/dashboard/label";   // Updated import
 import { login as loginApi, register as registerApi } from "@/lib/api/auth";
 import { useUser } from "@/context/UserContext";
 
@@ -134,92 +136,96 @@ const LoginRegister = () => {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100 py-8">
-      <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-md">
-        <h2 className="text-2xl text-theme-primary font-bold text-center mb-4">
-          {isRegister ? "Register" : "Login"}
+    <div className="flex justify-center items-center min-h-screen bg-lightest-bw py-8">
+      <div className="w-full max-w-md p-8 bg-lightest-bw rounded-lg shadow-xl border border-light-bw">
+        <h2 className="text-3xl text-theme-color font-bold text-center mb-6">
+          {isRegister ? "Create Account" : "Welcome Back"}
         </h2>
-        <form onSubmit={handleFormSubmit}>
+        <form onSubmit={handleFormSubmit} className="space-y-6">
           {isRegister && (
             <>
-              <div className="mb-4">
-                <label className="block text-theme-secondary font-bold mb-2">Name</label>
-                <input
+              <div>
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
                   type="text"
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                   ref={nameRef}
                   placeholder="Enter your full name"
+                  className="mt-1"
                 />
-                {nameError && <p className="text-red-500 text-sm mt-1">{nameError}</p>}
+                {nameError && <p className="text-red-500 text-xs mt-1">{nameError}</p>}
               </div>
-              <div className="mb-4">
-                <label className="block text-theme-secondary font-bold mb-2">Phone Number</label>
-                <input
+              <div>
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
                   type="tel"
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                   ref={phoneNumberRef}
                   placeholder="Enter your 10-digit phone number"
+                  className="mt-1"
                 />
-                {phoneError && <p className="text-red-500 text-sm mt-1">{phoneError}</p>}
+                {phoneError && <p className="text-red-500 text-xs mt-1">{phoneError}</p>}
               </div>
             </>
           )}
-          <div className="mb-4">
-            <label className="block text-theme-secondary font-bold mb-2">Email</label>
-            <input
+          <div>
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
               type="email"
-              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
               ref={emailRef}
               placeholder="Enter your email"
+              className="mt-1"
             />
-            {emailError && <p className="text-red-500 text-sm mt-1">{emailError}</p>}
+            {emailError && <p className="text-red-500 text-xs mt-1">{emailError}</p>}
           </div>
-          <div className="mb-4">
-            <label className="block text-theme-secondary font-bold mb-2">Password</label>
-            <input
+          <div>
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
               type="password"
-              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
               ref={passwordRef}
               placeholder="Enter your password"
+              className="mt-1"
             />
-            {passwordError && <p className="text-red-500 text-sm mt-1">{passwordError}</p>}
+            {passwordError && <p className="text-red-500 text-xs mt-1">{passwordError}</p>}
           </div>
           {isRegister && (
-            <div className="mb-4">
-              <label className="block text-theme-secondary font-bold mb-2">
-                Confirm Password
-              </label>
-              <input
+            <div>
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
                 type="password"
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-theme-primary"
                 ref={confirmPasswordRef}
                 placeholder="Confirm your password"
+                className="mt-1"
               />
-              {confirmPasswordError && <p className="text-red-500 text-sm mt-1">{confirmPasswordError}</p>}
+              {confirmPasswordError && <p className="text-red-500 text-xs mt-1">{confirmPasswordError}</p>}
             </div>
           )}
-          {serverError && <p className="text-red-500 text-sm mb-4">{serverError}</p>}
-          {successMessage && <p className="text-green-500 text-sm mb-4">{successMessage}</p>}
-          <div className="text-center">
-            <CTAButton 
-              type="submit" 
-              text={isLoading ? "Processing..." : (isRegister ? "Register" : "Login")} 
-              disabled={isLoading}
-            />
-          </div>
+          {serverError && <p className="text-red-500 text-sm text-center">{serverError}</p>}
+          {successMessage && <p className="text-green-500 text-sm text-center">{successMessage}</p>}
+          <Button 
+            type="submit" 
+            className="w-full"
+            disabled={isLoading}
+          >
+            {isLoading ? "Processing..." : (isRegister ? "Register" : "Login")}
+          </Button>
         </form>
-        <div className="text-center mt-4">
-          <button
+        <div className="text-center mt-6">
+          <Button
+            variant="link"
             onClick={() => {
               setIsRegister(!isRegister);
               setServerError("");
               setSuccessMessage("");
             }}
-            className="text-theme-primary hover:underline"
             disabled={isLoading}
+            className="text-sm"
           >
             {isRegister ? "Already have an account? Login" : "Don't have an account? Register"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

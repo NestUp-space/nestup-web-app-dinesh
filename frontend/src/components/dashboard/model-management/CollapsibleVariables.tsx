@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Edit3, Save } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react'; // Removed Edit3, Save as they are not used
 
 interface RuntimeInput {
   inputName: string;
@@ -15,20 +15,20 @@ interface RuntimeInput {
 
 interface MaterialConfig {
   innerMaterial: {
-    thickness: number; // IT
-    laminateCode: string; // IC
+    thickness: number; 
+    laminateCode: string; 
     hasGrain: boolean;
     plyType: string;
   };
   exposeMaterial: {
-    thickness: number; // ET
-    laminateCode: string; // EC
+    thickness: number; 
+    laminateCode: string; 
     hasGrain: boolean;
     plyType: string;
   };
   backMaterial: {
-    thickness: number; // BackPlankThickness
-    laminateCode: string; // BC
+    thickness: number; 
+    laminateCode: string; 
     hasGrain: boolean;
     plyType: string;
   };
@@ -46,133 +46,83 @@ export default function CollapsibleVariables({
   materialConfig
 }: CollapsibleVariablesProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
 
   const handleToggle = () => {
-    if (!isEditing) {
-      setIsExpanded(!isExpanded);
-    }
+    setIsExpanded(!isExpanded);
   };
 
-  const handleEditToggle = () => {
-    setIsEditing(!isEditing);
-    setIsExpanded(true);
-  };
-
-  const renderVariableCard = (name: string, details: Record<string, unknown>, type: string, bgClass: string) => (
-    <div className={`p-3 ${bgClass} rounded-md shadow-sm`}>
-      <p className="font-mono text-sm font-semibold mb-1 text-indigo-800">{name}</p>
-      {details && typeof details === 'object' && (
-        <div className="text-xs space-y-1.5 ml-2">
+  const renderVariableCard = (name: string, details: Record<string, unknown> | string | number | boolean | null, typeLabel: string, cardBgClass: string, textClass: string, titleClass: string) => (
+    <div className={`p-3 ${cardBgClass} rounded-md shadow-sm border border-light-bw`}>
+      <p className={`font-mono text-sm font-semibold mb-1 ${titleClass}`}>{name}</p>
+      {details && typeof details === 'object' ? (
+        <div className={`text-xs space-y-1 ml-2 ${textClass}`}>
           {Object.entries(details).map(([key, value]) => (
-            <p key={key} className="text-gray-700">
+            <p key={key}>
               <span className="font-medium">{key}:</span> {typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? String(value) : JSON.stringify(value)}
             </p>
           ))}
         </div>
+      ) : (
+        <p className={`text-xs ${textClass}`}>{String(details)}</p>
       )}
-      {type && <p className="text-xs text-indigo-600 mt-2 font-medium">Type: {type}</p>}
+      {/* <p className={`text-xs ${titleClass}/70 mt-2 font-medium`}>Type: {typeLabel}</p> */}
     </div>
   );
 
   return (
-    <div className="border border-indigo-100 rounded-md bg-white shadow-sm">
+    <div className="border border-light-bw rounded-lg bg-lightest-bw shadow-sm">
       <div 
-        className="flex items-center justify-between p-3 cursor-pointer hover:bg-indigo-50"
+        className="flex items-center justify-between p-3 cursor-pointer hover:bg-lighter-bw/50 transition-colors"
         onClick={handleToggle}
       >
         <div className="flex items-center space-x-2">
           {isExpanded ? 
-            <ChevronDown className="h-4 w-4 text-indigo-600" /> : 
-            <ChevronRight className="h-4 w-4 text-indigo-600" />
+            <ChevronDown className="h-5 w-5 text-dark-text-bw/80" /> : 
+            <ChevronRight className="h-5 w-5 text-dark-text-bw/80" />
           }
-          <h4 className="text-sm font-semibold text-indigo-900">Available Variables</h4>
+          <h4 className="text-sm font-semibold text-dark-text-bw">Available Variables for Logic</h4>
         </div>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleEditToggle();
-          }}
-          className="text-indigo-600 hover:text-indigo-800"
-        >
-          {isEditing ? (
-            <Save className="h-4 w-4" />
-          ) : (
-            <Edit3 className="h-4 w-4" />
-          )}
-        </button>
       </div>
 
       {isExpanded && (
-        <div className="p-4 border-t border-indigo-100 space-y-6">
-          {/* Runtime Inputs */}
-          <div className="space-y-4">
-            <h5 className="text-base font-semibold text-indigo-900">Runtime Inputs</h5>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="p-4 border-t border-light-bw space-y-6">
+          <div className="space-y-3">
+            <h5 className="text-base font-semibold text-dark-text-bw">Runtime Inputs (from Model Parameters)</h5>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {runtimeInputs.map(input => (
-                <div 
-                  key={input.inputName}
-                  className="p-3 bg-indigo-50 rounded-md text-xs border border-indigo-100"
-                  title={input.description || undefined}
-                >
-                  <span className="font-mono text-indigo-800 font-semibold block mb-2">
-                    {input.inputName}
-                  </span>
-                  <div className="space-y-1.5 text-gray-700">
-                    {input.displayLabel && (
-                      <p className="flex justify-between">
-                        <span className="font-medium">Label:</span> {input.displayLabel}
-                      </p>
-                    )}
-                    <p className="flex justify-between">
-                      <span className="font-medium">Type:</span> {input.inputType}
-                    </p>
-                    {input.unit && (
-                      <p className="flex justify-between">
-                        <span className="font-medium">Unit:</span> {input.unit}
-                      </p>
-                    )}
-                    {input.options && (
-                      <p className="flex justify-between">
-                        <span className="font-medium">Options:</span> {input.options}
-                      </p>
-                    )}
-                  </div>
-                </div>
+                renderVariableCard(
+                  input.inputName, 
+                  { 
+                    Label: input.displayLabel || 'N/A', 
+                    Type: input.inputType, 
+                    Unit: input.unit || '-',
+                    Options: input.options || '-',
+                    Default: input.defaultValue || 'None'
+                  },
+                  "Runtime Input",
+                  "bg-lightest-bw", 
+                  "text-dark-text-bw/80",
+                  "text-theme-color"
+                )
               ))}
             </div>
           </div>
 
-          {/* Material Configuration */}
-          {materialConfig && (
-            <div className="space-y-4">
-              <h5 className="text-base font-semibold text-indigo-900">Material Properties</h5>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {renderVariableCard("Inner Material", materialConfig.innerMaterial, "MaterialConfig", "bg-green-50 border border-green-100")}
-                {renderVariableCard("Expose Material", materialConfig.exposeMaterial, "MaterialConfig", "bg-green-50 border border-green-100")}
-                {renderVariableCard("Back Material", materialConfig.backMaterial, "MaterialConfig", "bg-green-50 border border-green-100")}
-              </div>
-            </div>
-          )}
-
-          {/* Global Constants */}
-          <div className="space-y-4">
-            <h5 className="text-base font-semibold text-indigo-900">Global Constants</h5>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="space-y-3">
+            <h5 className="text-base font-semibold text-dark-text-bw">Global Constants (System Defined)</h5>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {Object.entries(globalConstants).map(([category, values]) => {
-                if (typeof values !== 'object' || values === null) return null;
+                if (typeof values !== 'object' || values === null) {
+                   return renderVariableCard(category, values, "Global Constant", "bg-lightest-bw", "text-dark-text-bw/80", "text-theme-color");
+                }
                 return (
-                  <div 
-                    key={category}
-                    className="p-3 bg-purple-50 rounded-md text-xs border border-purple-100"
-                  >
-                    <div className="font-mono text-purple-800 font-semibold mb-2">
+                  <div key={category} className="p-3 bg-lightest-bw rounded-md text-xs border border-light-bw shadow-sm">
+                    <div className="font-mono text-theme-color font-semibold mb-2">
                       {category}
                     </div>
                     <div className="space-y-1.5">
                       {Object.entries(values as Record<string, unknown>).map(([key, value]) => (
-                        <div key={key} className="text-gray-700">
+                        <div key={key} className="text-dark-text-bw/80">
                           <span className="font-medium">{key}:</span> {String(value)}
                         </div>
                       ))}
@@ -182,6 +132,9 @@ export default function CollapsibleVariables({
               })}
             </div>
           </div>
+           <p className="text-xs text-dark-text-bw/60 italic">
+              Note: These variables can be used in your plank logic scripts. Runtime Inputs are dynamic based on user selection, while Global Constants are fixed system values.
+            </p>
         </div>
       )}
     </div>

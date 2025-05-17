@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useState } from 'react';
-import { CheckCircle, Wand2 } from 'lucide-react';
+import { CheckCircle, Wand2, AlertTriangle } from 'lucide-react'; // Added AlertTriangle
+import { Button } from '@/components/dashboard/button';
+import { Label } from '@/components/dashboard/label';
+import { cn } from '@/lib/utils';
 
 interface ExpressionInputProps {
   label: string;
@@ -232,81 +235,82 @@ export default function ExpressionInput({
 
 
   return (
-    <div className="space-y-3">
-      {/* Label and Buttons */}
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="block text-sm font-medium text-gray-700">
-          {label}
-        </label>
+        <Label className="text-dark-text-bw font-medium">{label}</Label>
         <div className="flex space-x-2">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={handleFormat}
-            className="flex items-center space-x-1 text-xs text-indigo-500 hover:text-indigo-700 px-2 py-1 border border-indigo-200 rounded-md"
             title="Format code"
+            className="text-xs"
           >
-            <Wand2 className="h-3 w-3" />
-            <span>Format</span>
-          </button>
-          <button
+            <Wand2 className="h-3.5 w-3.5 mr-1.5" />
+            Format
+          </Button>
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={handleValidate}
-            className="flex items-center space-x-1 text-xs text-green-500 hover:text-green-700 px-2 py-1 border border-green-200 rounded-md"
             title="Check if code works correctly"
+            className="text-xs"
           >
-            <CheckCircle className="h-3 w-3" />
-            <span>Check</span>
-          </button>
+            <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+            Check
+          </Button>
         </div>
       </div>
 
-      {/* Main Input Area */}
-      <div className="relative border rounded-md overflow-hidden bg-white">
-        <div className="code-editor relative">
-          <textarea
-            value={value}
-            onChange={(e) => {
-              onChange(e.target.value);
-              setValidationResult(null);
-            }}
-            onPaste={handlePaste}
-            className="w-full p-3 font-mono text-sm"
-            style={{ 
-              resize: 'vertical',
-              minHeight: '120px',
-              lineHeight: '1.5',
-              tabSize: 2
-            }}
-            placeholder={
-              label.toLowerCase().includes('width') ? 'Enter width calculation (use "Width =" to assign value)'
-              : label.toLowerCase().includes('length') || label.toLowerCase().includes('height') ? 'Enter height calculation (use "Height =" to assign value)'
-              : label.toLowerCase().includes('material') ? 'Enter material selection (use "Material =" to assign value)'
-              : 'Enter calculation logic...'
-            }
-          />
-        </div>
+      <div className="relative border border-light-bw rounded-md overflow-hidden bg-lightest-bw">
+        <textarea
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value);
+            setValidationResult(null);
+          }}
+          onPaste={handlePaste}
+          className="w-full p-3 font-mono text-sm bg-transparent text-dark-text-bw placeholder:text-dark-text-bw/60 focus:outline-none focus:ring-1 focus:ring-theme-color"
+          style={{ 
+            resize: 'vertical',
+            minHeight: '120px', // Adjusted min height
+            lineHeight: '1.6',  // Slightly increased line height
+            tabSize: 2
+          }}
+          placeholder={
+            label.toLowerCase().includes('width') ? 'Enter width calculation (e.g., Width = boxDepth - 20;)'
+            : label.toLowerCase().includes('length') || label.toLowerCase().includes('height') ? 'Enter height calculation (e.g., Height = boxHeight - 40;)'
+            : label.toLowerCase().includes('material') ? 'Enter material selection (e.g., Material = innerMaterialCode;)'
+            : 'Enter calculation logic...'
+          }
+        />
       </div>
 
-      {/* Validation Result */}
       {validationResult && (
         <div 
-          className={`text-sm p-2 rounded ${
-            validationResult.isValid 
-              ? validationResult.error 
-                ? 'bg-yellow-50 text-yellow-700'
-                : 'bg-green-50 text-green-700' 
-              : 'bg-red-50 text-red-700'
-          }`}
+          className={cn(
+            "text-xs p-2.5 rounded-md flex items-start gap-2",
+            validationResult.isValid && !validationResult.error && "bg-green-100 text-green-700 border border-green-200",
+            validationResult.isValid && validationResult.error && "bg-yellow-100 text-yellow-700 border border-yellow-200",
+            !validationResult.isValid && "bg-red-100 text-red-600 border border-red-200"
+          )}
         >
-          {validationResult.isValid 
-            ? validationResult.error
-              ? `✓ Code works but: ${validationResult.error}`
-              : `✓ Valid code (Sample output: ${
-                  typeof validationResult.value === 'string' 
-                    ? `"${validationResult.value}"` 
-                    : validationResult.value
-                })`
-            : `✗ Error: ${validationResult.error}`}
+          {validationResult.isValid && !validationResult.error && <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />}
+          {validationResult.isValid && validationResult.error && <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />}
+          {!validationResult.isValid && <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />}
+          <span>
+            {validationResult.isValid 
+              ? validationResult.error
+                ? `Code works but: ${validationResult.error}`
+                : `Valid code (Sample output: ${
+                    typeof validationResult.value === 'string' 
+                      ? `"${validationResult.value}"` 
+                      : validationResult.value
+                  })`
+              : `Error: ${validationResult.error}`}
+          </span>
         </div>
       )}
     </div>

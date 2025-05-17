@@ -56,19 +56,17 @@ export function RolesManagement() {
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center p-8">
-          <div className="text-muted-foreground">Loading roles...</div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center h-full p-8">
+        <p className="text-dark-text-bw/70">Loading roles...</p>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="p-8">
-          <div className="text-red-500">Error: {error}</div>
+      <Card className="bg-lightest-bw border-light-bw">
+        <CardContent className="p-8 text-center">
+          <p className="text-red-500 mb-4">Error: {error}</p>
           <Button 
             variant="outline" 
             onClick={() => {
@@ -76,7 +74,6 @@ export function RolesManagement() {
               setLoading(true);
               fetchRoles();
             }}
-            className="mt-4"
           >
             Retry
           </Button>
@@ -87,51 +84,52 @@ export function RolesManagement() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Role Management</CardTitle>
+      <Card className="bg-lightest-bw border-light-bw shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between pb-4">
+          <CardTitle className="text-2xl text-dark-text-bw">Role Management</CardTitle>
           {loggedInUser?.permissions?.includes('roles.create') && (
             <CreateRoleDialog onRoleCreated={fetchRoles} />
           )}
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {roles.map((role) => (
-              <RoleTab
-                key={role.id}
-                role={role}
-                onUpdate={() => fetchRoles()}
-              />
-            ))}
-            {roles.length === 0 && (
-              <p className="text-muted-foreground text-center py-8">
-                No roles found. Create your first role to get started.
-              </p>
-            )}
-          </div>
+          {roles.length > 0 ? (
+            <div className="space-y-4">
+              {roles.map((role) => (
+                <RoleTab
+                  key={role.id}
+                  role={role}
+                  onUpdate={() => fetchRoles()}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="text-dark-text-bw/70 text-center py-10">
+              No roles found. Create your first role to get started.
+            </p>
+          )}
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="bg-lightest-bw border-light-bw shadow-sm">
         <CardHeader>
-          <CardTitle>About Role Management</CardTitle>
+          <CardTitle className="text-xl text-dark-text-bw">About Role Management</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-muted-foreground">
+          <p className="text-sm text-dark-text-bw/80">
             Roles define what users can do in the system. Each role can have different permissions for viewing and managing various sections.
           </p>
-          <div className="grid gap-4">
-            <div className="rounded-lg border p-4">
-              <h3 className="font-medium mb-2">Managing Roles</h3>
-              <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="rounded-lg border border-light-bw p-4 bg-lightest-bw">
+              <h3 className="font-semibold text-dark-text-bw mb-2">Managing Roles</h3>
+              <ul className="list-disc pl-5 space-y-1 text-sm text-dark-text-bw/70">
                 <li>Create new roles with predefined permission templates</li>
                 <li>Customize permissions for each role</li>
                 <li>View and edit existing role permissions</li>
               </ul>
             </div>
-            <div className="rounded-lg border p-4">
-              <h3 className="font-medium mb-2">Permission Types</h3>
-              <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
+            <div className="rounded-lg border border-light-bw p-4 bg-lightest-bw">
+              <h3 className="font-semibold text-dark-text-bw mb-2">Permission Types</h3>
+              <ul className="list-disc pl-5 space-y-1 text-sm text-dark-text-bw/70">
                 <li>View - Access to read and view content</li>
                 <li>Create - Permission to add new items</li>
                 <li>Edit - Ability to modify existing content</li>

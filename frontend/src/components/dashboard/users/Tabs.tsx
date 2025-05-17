@@ -13,8 +13,8 @@ export function Tabs() {
   const pathname = usePathname();
 
   return (
-    <div className="border-b border-gray-200">
-      <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+    <div className="border-b border-light-bw mb-6">
+      <nav className="-mb-px flex space-x-6" aria-label="Tabs">
         {tabs.map((tab) => {
           const isActive = pathname === tab.href;
           return (
@@ -23,9 +23,9 @@ export function Tabs() {
               href={tab.href}
               className={cn(
                 isActive
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-foreground',
-                'group inline-flex items-center border-b-2 py-4 px-1 text-sm font-medium'
+                  ? 'border-theme-color text-theme-color'
+                  : 'border-transparent text-dark-text-bw/70 hover:border-dark-text-bw/50 hover:text-dark-text-bw',
+                'group inline-flex items-center border-b-2 py-3 px-1 text-sm font-medium transition-colors duration-150'
               )}
             >
               {tab.name}

@@ -26,11 +26,9 @@ export default function UsersPage() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center p-8">
-          <div className="text-muted-foreground">Loading...</div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center h-full p-8">
+        <p className="text-dark-text-bw/70">Loading user data...</p>
+      </div>
     );
   }
 

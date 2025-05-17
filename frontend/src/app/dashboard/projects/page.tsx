@@ -1,15 +1,18 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/dashboard/tabs';
-// import { Breadcrumb } from '@/components/dashboard/breadcrumb'; // Old primitive, replaced by DashboardBreadcrumb
-import { DashboardBreadcrumb } from '@/components/dashboard/dashboardBreadcrumb'; // Import DashboardBreadcrumb
+import { DashboardBreadcrumb } from '@/components/dashboard/dashboardBreadcrumb';
 import { PlusCircle } from 'lucide-react';
 import { Button } from '@/components/dashboard/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/dashboard/dialog'; // Import Dialog components
+import { Input } from '@/components/dashboard/input';
+import { Label } from '@/components/dashboard/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/dashboard/select'; // Import Select components
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@/context/UserContext';
-import { useRouter } from 'next/navigation'; // Import useRouter
+import { useRouter } from 'next/navigation';
 
-export default function ProjectsPage({ // Renamed from ProductsPage to ProjectsPage for clarity
+export default function ProjectsPage({
   searchParams
 }: {
   searchParams: { q: string; offset: string };
@@ -165,25 +168,139 @@ export default function ProjectsPage({ // Renamed from ProductsPage to ProjectsP
 
   return (
     <Tabs defaultValue="all">
-      <DashboardBreadcrumb /> {/* Add breadcrumb here */}
-      {/* The old Breadcrumb component was likely a placeholder or the primitives, 
-          DashboardBreadcrumb is the auto-generating one. 
-          If the old one was specifically styled and placed, adjust DashboardBreadcrumb placement or styling as needed.
-          For now, placing it at the top.
-      */}
-      <div className="flex items-center justify-between my-4"> {/* Added my-4 for spacing */}
-        <h1 className="text-2xl font-semibold">Projects</h1>
+      <DashboardBreadcrumb />
+      <div className="flex items-center justify-between my-6">
+        <h1 className="text-3xl font-semibold text-dark-text-bw">Projects</h1>
         {user?.role?.role !== 'client' && (
-          <Button size="sm" className="h-8 gap-1" onClick={() => setIsCreateProjectModalOpen(true)}>
-            <PlusCircle className="h-3.5 w-3.5" />
-            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-              Add Project
-            </span>
-          </Button>
+          <Dialog open={isCreateProjectModalOpen} onOpenChange={setIsCreateProjectModalOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="h-9 gap-1">
+                <PlusCircle className="h-4 w-4" />
+                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                  Add Project
+                </span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[525px]">
+              <DialogHeader>
+                <DialogTitle>Create New Project</DialogTitle>
+                <DialogDescription>
+                  Fill in the details below to create a new project.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="projectName" className="text-right">
+                    Name
+                  </Label>
+                  <Input
+                    id="projectName"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    className="col-span-3"
+                    placeholder="Project Name"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="projectDescription" className="text-right">
+                    Description
+                  </Label>
+                  <textarea
+                    id="projectDescription"
+                    value={projectDescription}
+                    onChange={(e) => setProjectDescription(e.target.value)}
+                    className="col-span-3 min-h-[80px] rounded-md border border-light-bw bg-lightest-bw px-3 py-2 text-sm text-dark-text-bw ring-offset-lightest-bw placeholder:text-dark-text-bw/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-color focus-visible:ring-offset-2"
+                    placeholder="Project Description"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="projectAddress" className="text-right">
+                    Address
+                  </Label>
+                  <Input
+                    id="projectAddress"
+                    value={projectAddress}
+                    onChange={(e) => setProjectAddress(e.target.value)}
+                    className="col-span-3"
+                    placeholder="Project Address"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="projectLocation" className="text-right">
+                    Location
+                  </Label>
+                  <Input
+                    id="projectLocation"
+                    value={projectLocation}
+                    onChange={(e) => setProjectLocation(e.target.value)}
+                    className="col-span-3"
+                    placeholder="Project Location (e.g., City, State)"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="designer" className="text-right">Designer</Label>
+                  <Select value={selectedDesigner} onValueChange={setSelectedDesigner}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select Designer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {designers && designers.length > 0 ? (
+                        designers.map((designer: any) => (
+                          <SelectItem key={designer.id} value={designer.id}>{designer.name}</SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-designers" disabled>No designers available</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="projectManager" className="text-right">Project Manager</Label>
+                   <Select value={selectedProjectManager} onValueChange={setSelectedProjectManager}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select Project Manager" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projectManagers && projectManagers.length > 0 ? (
+                        projectManagers.map((manager: any) => (
+                          <SelectItem key={manager.id} value={manager.id}>{manager.name}</SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-managers" disabled>No project managers available</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="engineer" className="text-right">Engineer</Label>
+                  <Select value={selectedEngineer} onValueChange={setSelectedEngineer}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select Engineer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {engineers && engineers.length > 0 ? (
+                        engineers.map((engineer: any) => (
+                          <SelectItem key={engineer.id} value={engineer.id}>{engineer.name}</SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-engineers" disabled>No engineers available</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button type="button" variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button type="button" onClick={handleCreateProject}>Create Project</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
       
-      <TabsList className="mb-4">
+      <TabsList className="mb-6">
         <TabsTrigger value="all">All</TabsTrigger>
         <TabsTrigger value="active">Active</TabsTrigger>
         <TabsTrigger value="draft">Draft</TabsTrigger>
@@ -198,34 +315,26 @@ export default function ProjectsPage({ // Renamed from ProductsPage to ProjectsP
             {projects.map((project) => (
               <div 
                 key={project.id} 
-                className="bg-white shadow-lg rounded-lg p-6 cursor-pointer hover:shadow-xl transition-shadow"
+                className="bg-lightest-bw border border-light-bw shadow-md rounded-lg p-6 cursor-pointer hover:shadow-lg transition-shadow duration-200"
                 onClick={() => router.push(`/dashboard/projects/${project.id}`)}
               >
-                <h2 className="text-xl font-semibold text-gray-800 mb-2">{project.name}</h2>
-                <p className="text-gray-600 text-sm mb-1">
-                  {project.description ? `${project.description.substring(0, 100)}...` : 'No description available.'}
+                <h2 className="text-xl font-semibold text-dark-text-bw mb-2">{project.name}</h2>
+                <p className="text-dark-text-bw/80 text-sm mb-3">
+                  {project.description ? `${project.description.substring(0, 100)}${project.description.length > 100 ? '...' : ''}` : 'No description available.'}
                 </p>
-                <p className="text-gray-600 text-sm mb-1">
-                  <strong>Designer:</strong> {project.designer?.name || 'N/A'}
-                </p>
-                <p className="text-gray-600 text-sm mb-1">
-                  <strong>Project Manager:</strong> {project.projectManager?.name || 'N/A'}
-                </p>
-                <p className="text-gray-600 text-sm mb-1">
-                  <strong>Engineer:</strong> {project.engineer?.name || 'N/A'}
-                </p>
+                <div className="space-y-1 text-sm text-dark-text-bw/70">
+                  <p><strong>Designer:</strong> {project.designer?.name || 'N/A'}</p>
+                  <p><strong>Project Manager:</strong> {project.projectManager?.name || 'N/A'}</p>
+                  <p><strong>Engineer:</strong> {project.engineer?.name || 'N/A'}</p>
+                  <p><strong>Tasks:</strong> {project.tasks?.length || 0}</p>
+                </div>
                 
-                {/* Display task count */}
-                <p className="text-gray-600 text-sm mb-1">
-                  <strong>Tasks:</strong> {project.tasks?.length || 0}
-                </p>
-                
-                <div className="mt-3">
+                <div className="mt-4">
                   <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                    project.status?.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                    project.status?.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
-                    project.status?.status === 'Pending' ? 'bg-blue-100 text-blue-800' :
-                    'bg-gray-100 text-gray-800'
+                    project.status?.status === 'Completed' ? 'bg-green-100 text-green-700 border border-green-200' :
+                    project.status?.status === 'In Progress' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
+                    project.status?.status === 'Pending' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                    'bg-lighter-bw text-dark-text-bw border border-light-bw' // Default/Unknown status
                   }`}>
                     {project.status?.status || 'Unknown Status'}
                   </span>
@@ -234,139 +343,9 @@ export default function ProjectsPage({ // Renamed from ProductsPage to ProjectsP
             ))}
           </div>
         ) : (
-          <p className="text-gray-500">No projects found.</p>
+          <p className="text-dark-text-bw/70 text-center py-10">No projects found.</p>
         )}
       </TabsContent>
-
-      {isCreateProjectModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" id="my-modal">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3 text-center">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">Create New Project</h3>
-              <div className="mt-2">
-                <label htmlFor="projectName" className="block text-gray-700 text-sm font-bold mb-2">Project Name</label>
-                <input
-                  type="text"
-                  id="projectName"
-                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:shadow-outline"
-                  placeholder="Project Name"
-                  value={projectName}
-                  onChange={(e) => setProjectName(e.target.value)}
-                />
-              </div>
-              <div className="mt-2">
-                <label htmlFor="projectDescription" className="block text-gray-700 text-sm font-bold mb-2">Project Description</label>
-                <textarea
-                  id="projectDescription"
-                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:shadow-outline"
-                  placeholder="Project Description"
-                  value={projectDescription}
-                  onChange={(e) => setProjectDescription(e.target.value)}
-                />
-              </div>
-              <div className="mt-2">
-                <label htmlFor="projectAddress" className="block text-gray-700 text-sm font-bold mb-2">Project Address</label>
-                <input
-                  type="text"
-                  id="projectAddress"
-                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:shadow-outline"
-                  placeholder="Project Address"
-                  value={projectAddress}
-                  onChange={(e) => setProjectAddress(e.target.value)}
-                />
-              </div>
-              <div className="mt-2">
-                <label htmlFor="projectLocation" className="block text-gray-700 text-sm font-bold mb-2">Project Location</label>
-                <input
-                  type="text"
-                  id="projectLocation"
-                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:shadow-outline"
-                  placeholder="Project Location"
-                  value={projectLocation}
-                  onChange={(e) => setProjectLocation(e.target.value)}
-                />
-              </div>
-              <div className="mt-2">
-                <label htmlFor="designer" className="block text-gray-700 text-sm font-bold mb-2">Designer</label>
-                <select
-                  id="designer"
-                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:shadow-outline"
-                  value={selectedDesigner}
-                  onChange={(e) => setSelectedDesigner(e.target.value)}
-                >
-                  <option value="">Select Designer</option>
-                  {designers && designers.length > 0 ? (
-                    designers.map((designer: any) => (
-                      <option key={designer.id} value={designer.id}>{designer.name}</option>
-                    ))
-                  ) : (
-                    <option value="" disabled>No designers available</option>
-                  )}
-                </select>
-                <div className="text-xs text-left mt-1 text-gray-500">
-                  {designers && designers.length > 0 ? `${designers.length} designers available` : 'No designers available'}
-                </div>
-              </div>
-              <div className="mt-2">
-                <label htmlFor="projectManager" className="block text-gray-700 text-sm font-bold mb-2">Project Manager</label>
-                <select
-                  id="projectManager"
-                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:shadow-outline"
-                  value={selectedProjectManager}
-                  onChange={(e) => setSelectedProjectManager(e.target.value)}
-                >
-                  <option value="">Select Project Manager</option>
-                  {projectManagers && projectManagers.length > 0 ? (
-                    projectManagers.map((manager: any) => (
-                      <option key={manager.id} value={manager.id}>{manager.name}</option>
-                    ))
-                  ) : (
-                    <option value="" disabled>No project managers available</option>
-                  )}
-                </select>
-                <div className="text-xs text-left mt-1 text-gray-500">
-                  {projectManagers && projectManagers.length > 0 ? `${projectManagers.length} project managers available` : 'No project managers available'}
-                </div>
-              </div>
-              <div className="mt-2">
-                <label htmlFor="engineer" className="block text-gray-700 text-sm font-bold mb-2">Engineer</label>
-                <select
-                  id="engineer"
-                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:shadow-outline"
-                  value={selectedEngineer}
-                  onChange={(e) => setSelectedEngineer(e.target.value)}
-                >
-                  <option value="">Select Engineer</option>
-                  {engineers && engineers.length > 0 ? (
-                    engineers.map((engineer: any) => (
-                      <option key={engineer.id} value={engineer.id}>{engineer.name}</option>
-                    ))
-                  ) : (
-                    <option value="" disabled>No engineers available</option>
-                  )}
-                </select>
-                <div className="text-xs text-left mt-1 text-gray-500">
-                  {engineers && engineers.length > 0 ? `${engineers.length} engineers available` : 'No engineers available'}
-                </div>
-              </div>
-              <div className="items-center px-4 py-3">
-                <Button
-                  onClick={handleCreateProject}
-                  className="transition-all px-4 py-2 bg-theme-color text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-dark-color focus:outline-none focus:ring-2 focus:ring-green-300"
-                >
-                  Create Project
-                </Button>
-                <Button
-                  onClick={() => setIsCreateProjectModalOpen(false)}
-                  className="transition-all mt-2 px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </Tabs>
   );
 }

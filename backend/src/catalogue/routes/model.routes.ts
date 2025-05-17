@@ -1,7 +1,9 @@
 import express, { Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { ModelService } from '../services/model.service';
-import { isAuthenticated } from '../../middlewares/auth.middleware'; // Assuming auth.middleware is in src/middlewares
+import { isAuthenticated } from '../../middlewares/auth.middleware';
+import { hasPermission } from '../../middlewares/permission.middleware'; // Added permission middleware
+import { PERMISSIONS } from '../../constants/permissions'; // Added permissions constants
 import { 
   CreateModelDefinitionSchema,
   UpdateModelDefinitionSchema,
@@ -274,7 +276,11 @@ router.post('/:modelId/bom-items', validateData(CreateModelBomItemSchema), async
 });
 
 // GET /catalogue/:modelId/bom-items - List all BOM items for a model
-router.get('/:modelId/bom-items', async (req: Request, res: Response, next: NextFunction) => {
+router.get(
+  '/:modelId/bom-items', 
+  isAuthenticated, 
+  hasPermission(PERMISSIONS.CATALOGUE.VIEW), 
+  async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { modelId } = req.params;
     const bomItems = await modelService.findBomItemsByModelId(modelId);
@@ -286,7 +292,11 @@ router.get('/:modelId/bom-items', async (req: Request, res: Response, next: Next
 });
 
 // GET /catalogue/:modelId/bom-items/:itemId - Get a specific BOM item
-router.get('/:modelId/bom-items/:itemId', async (req: Request, res: Response, next: NextFunction) => {
+router.get(
+  '/:modelId/bom-items/:itemId', 
+  isAuthenticated, 
+  hasPermission(PERMISSIONS.CATALOGUE.VIEW), 
+  async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { itemId } = req.params;
     const bomItem = await modelService.findBomItemById(itemId);
@@ -304,7 +314,12 @@ router.get('/:modelId/bom-items/:itemId', async (req: Request, res: Response, ne
 });
 
 // PUT /catalogue/:modelId/bom-items/:itemId - Update a BOM item
-router.put('/:modelId/bom-items/:itemId', validateData(UpdateModelBomItemSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.put(
+  '/:modelId/bom-items/:itemId', 
+  isAuthenticated, 
+  hasPermission(PERMISSIONS.CATALOGUE.EDIT), 
+  validateData(UpdateModelBomItemSchema), 
+  async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { modelId, itemId } = req.params;
     const existingBomItem = await modelService.findBomItemById(itemId);
@@ -324,7 +339,11 @@ router.put('/:modelId/bom-items/:itemId', validateData(UpdateModelBomItemSchema)
 });
 
 // DELETE /catalogue/:modelId/bom-items/:itemId - Delete a BOM item
-router.delete('/:modelId/bom-items/:itemId', async (req: Request, res: Response, next: NextFunction) => {
+router.delete(
+  '/:modelId/bom-items/:itemId', 
+  isAuthenticated, 
+  hasPermission(PERMISSIONS.CATALOGUE.EDIT), // Assuming EDIT covers deleting BOM items
+  async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { modelId, itemId } = req.params;
     const existingBomItem = await modelService.findBomItemById(itemId);
@@ -347,7 +366,11 @@ router.delete('/:modelId/bom-items/:itemId', async (req: Request, res: Response,
 });
 
 // GET /catalogue/project-instances/by-project/:projectId - List all project model instances for a project
-router.get('/project-instances/by-project/:projectId', async (req: Request, res: Response, next: NextFunction) => {
+router.get(
+  '/project-instances/by-project/:projectId', 
+  isAuthenticated, 
+  hasPermission(PERMISSIONS.PROJECTS.VIEW), // This relates to project data
+  async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { projectId } = req.params;
     const items = await modelService.findProjectModelInstancesByProjectId(projectId);

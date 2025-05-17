@@ -1,9 +1,14 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import { useFormContext, useFieldArray } from 'react-hook-form';
-import { Trash2 } from 'lucide-react';
+import { useFormContext, useFieldArray, Controller } from 'react-hook-form';
+import { Trash2, PlusCircle } from 'lucide-react';
 import PlankLogicEditor from './PlankLogicEditor';
+import { Button } from '@/components/dashboard/button';
+import { Input } from '@/components/dashboard/input';
+import { Label } from '@/components/dashboard/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/dashboard/select';
+import { cn } from '@/lib/utils';
 
 // Define BomItemType locally to avoid circular dependency
 export enum BomItemType {
@@ -128,85 +133,96 @@ export default function BillOfMaterialListEditor() {
   return (
     <div className="space-y-6">
       {fields.map((field, index) => (
-        <div key={field.id} className="p-4 border rounded-md space-y-3 relative bg-gray-50">
-          <button
+        <div key={field.id} className="p-4 border border-light-bw rounded-lg space-y-4 relative bg-lightest-bw/50 shadow-sm">
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={() => remove(index)}
-            className="absolute top-2 right-2 p-1 text-red-500 hover:text-red-700"
+            className="absolute top-3 right-3 text-red-500 hover:text-red-700 hover:bg-red-100/50"
             title="Remove BOM Item"
           >
             <Trash2 className="h-4 w-4" />
-          </button>
+          </Button>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor={`bomItems.${index}.itemName`} className="block text-sm font-medium text-gray-700 mb-1">
-                Item Name
-              </label>
-              <input
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor={`bomItems.${index}.itemName`}>Item Name</Label>
+              <Input
                 id={`bomItems.${index}.itemName`}
                 {...register(`bomItems.${index}.itemName`)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               />
             </div>
-            <div>
-              <label htmlFor={`bomItems.${index}.itemType`} className="block text-sm font-medium text-gray-700 mb-1">
-                Item Type
-              </label>
-              <select
-                id={`bomItems.${index}.itemType`}
-                {...register(`bomItems.${index}.itemType`)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              >
-                {Object.values(BomItemType).map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
+            <div className="space-y-1.5">
+              <Label htmlFor={`bomItems.${index}.itemType`}>Item Type</Label>
+              <Controller
+                control={control}
+                name={`bomItems.${index}.itemType`}
+                render={({ field: { onChange, value } }) => (
+                  <Select onValueChange={onChange} value={value}>
+                    <SelectTrigger id={`bomItems.${index}.itemType`}>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.values(BomItemType).map(type => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
           </div>
 
-          <div>
-            <label htmlFor={`bomItems.${index}.itemDescription`} className="block text-sm font-medium text-gray-700 mb-1">
-              Item Description
-            </label>
+          <div className="space-y-1.5">
+            <Label htmlFor={`bomItems.${index}.itemDescription`}>Item Description</Label>
             <textarea
               id={`bomItems.${index}.itemDescription`}
               {...register(`bomItems.${index}.itemDescription`)}
               rows={2}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className="block w-full rounded-md border border-light-bw bg-lightest-bw px-3 py-2 text-sm text-dark-text-bw ring-offset-lightest-bw placeholder:text-dark-text-bw/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-color focus-visible:ring-offset-2"
             />
           </div>
+          
+          {/* Addon Model ID Field - Conditionally Rendered */}
+          {watch(`bomItems.${index}.itemType`) === BomItemType.ADDON && (
+            <div className="space-y-1.5">
+              <Label htmlFor={`bomItems.${index}.addonModelId`}>Addon Model ID (if Item Type is ADDON)</Label>
+              <Input
+                id={`bomItems.${index}.addonModelId`}
+                placeholder="Enter ID of the addon model from catalogue"
+                {...register(`bomItems.${index}.addonModelId` as const)}
+              />
+            </div>
+          )}
+
 
           {watch(`bomItems.${index}.itemType`) === BomItemType.PLANK && (
             <PlankLogicEditor
               bomItemIndex={index}
-              runtimeInputs={watch('inputParameters') || []}
-              globalConstants={{
-                MATERIAL_THICKNESS: {
-                  expose: 18,
-                  inner: 18,
-                  back: 6
-                },
-                EDGE_BANDING: {
-                  INNER_EDGEBANDING: 1,
-                  COLOR_EDGEBANDING: 2
-                }
-              }}
-              sampleRuntimeInputsJson={JSON.stringify({
-                boxWidth: 600,
-                boxHeight: 720,
-                boxDepth: 560,
-                leftAdjacency: 'Expose',
-                rightAdjacency: 'Wall',
-                hasDoor: true,
-                skirting: 100,
-                outerMaterialCode: 'OUT001',
-                innerMaterialCode: 'IN001'
-              })}
+              // These props might need adjustment based on how ModelBuilderForm provides them
+              runtimeInputs={watch('inputParameters') || []} 
+              globalConstants={{ /* Define or pass global constants */ }}
+              sampleRuntimeInputsJson={"{}"} // Provide a valid JSON string or make optional
             />
           )}
         </div>
       ))}
+       <Button
+        type="button"
+        variant="outline"
+        onClick={() => append({ 
+          itemName: '', 
+          itemType: BomItemType.PLANK, // Default to PLANK or make it selectable
+          itemDescription: '',
+          itemLogicScript: '',
+          addonModelId: null,
+          // Initialize other fields as necessary
+        })}
+        className="mt-4"
+      >
+        <PlusCircle className="mr-2 h-4 w-4" /> Add BOM Item
+      </Button>
     </div>
   );
 }

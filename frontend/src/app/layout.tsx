@@ -9,6 +9,9 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Nestup.space",
   description: "Desiner Modular Factory",
+  icons: {
+    icon: '/img/NestupLogoOnly.svg',
+  },
 };
 
 export default function RootLayout({
