@@ -17,8 +17,8 @@ interface UserRoleAssignmentProps {
 
 interface Role {
   id: number;
-  name: string;
-  type: string;
+  role: string;  // Changed from 'name'
+  roleType: string;  // Changed from 'type'
 }
 
 export function UserRoleAssignment({ userId, userName, currentRoleId, onRoleAssigned }: UserRoleAssignmentProps) {
@@ -91,8 +91,8 @@ export function UserRoleAssignment({ userId, userName, currentRoleId, onRoleAssi
         throw new Error("No token found");
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/${userId}`, {
-        method: 'PUT',
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/${userId}/role`, {
+        method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -174,15 +174,22 @@ export function UserRoleAssignment({ userId, userName, currentRoleId, onRoleAssi
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="role">Role</Label>
+            <Label htmlFor="role" className="text-dark-text font-semibold">Role</Label>
             <Select value={selectedRoleId} onValueChange={handleRoleChange}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full bg-lighter-bg border-light-border hover:bg-light-bg focus:ring-theme-color text-dark-text placeholder:text-dark-text-bw">
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-lightest-bg border-light-border">
                 {roles.map((role) => (
-                  <SelectItem key={role.id} value={role.id.toString()}>
-                    {role.name}
+                  <SelectItem 
+                    key={role.id} 
+                    value={role.id.toString()}
+                    className="text-dark-text hover:bg-lighter-bg focus:bg-lighter-bg data-[state=checked]:bg-light-interactive data-[state=checked]:text-white"
+                  >
+                    <div className="flex items-center">
+                      {selectedRoleId === role.id.toString() && <CheckCircle className="mr-2 h-4 w-4 text-white" />}
+                      {role.role}
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -192,7 +199,7 @@ export function UserRoleAssignment({ userId, userName, currentRoleId, onRoleAssi
           <Button 
             onClick={handleSave} 
             disabled={saving || !selectedRoleId || selectedRoleId === currentRoleId?.toString()}
-            className="w-full"
+            className="w-full bg-theme-color hover:bg-dark-color text-white"
           >
             {saving ? "Saving..." : "Assign Role"}
           </Button>

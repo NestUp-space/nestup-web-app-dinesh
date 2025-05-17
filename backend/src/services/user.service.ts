@@ -233,4 +233,23 @@ export class UserService {
       },
     });
   }
+
+  static async updateUserRole(userId: number, roleId: number) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { roleId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phoneNumber: true,
+        isActive: true,
+        verified: true,
+        createdAt: true,
+        updatedAt: true,
+        role: true,
+        // Exclude password for security
+      },
+    });
+  }
 }

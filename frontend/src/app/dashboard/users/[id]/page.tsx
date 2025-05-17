@@ -337,7 +337,7 @@ export default function UserDetailPage() {
                 <div className="space-y-2">
                   <Label htmlFor="roleId">Role *</Label>
                   {loading && !roles.length ? (
-                     <div className="flex items-center text-sm text-muted-foreground">
+                     <div className="flex items-center text-sm text-black">
                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading roles...
                      </div>
                   ) : (
@@ -345,7 +345,7 @@ export default function UserDetailPage() {
                       <SelectTrigger>
                         <SelectValue placeholder="Select a role" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="text-black">
                         {roles.map(role => (
                           <SelectItem key={role.id} value={String(role.id)}>
                             {role.role} 

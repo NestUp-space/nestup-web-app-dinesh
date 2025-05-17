@@ -181,4 +181,32 @@ export class UserController {
       });
     }
   }
+
+  static async updateUserRole(req: Request, res: Response) {
+    try {
+      const userId = parseInt(req.params.id);
+      const { roleId } = req.body;
+
+      if (isNaN(userId) || roleId === undefined || isNaN(parseInt(roleId))) {
+        return res.status(StatusCodes.BAD_REQUEST).json({
+          success: false,
+          message: 'Valid user ID and role ID are required.'
+        });
+      }
+
+      const updatedUser = await UserService.updateUserRole(userId, parseInt(roleId));
+      return res.status(StatusCodes.OK).json({
+        success: true,
+        message: 'User role updated successfully',
+        user: updatedUser
+      });
+    } catch (err) {
+      console.error('Error updating user role:', err);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: 'Unable to update user role',
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
+    }
+  }
 }

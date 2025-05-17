@@ -47,4 +47,9 @@ router.patch('/:id/update-password',
   ensureCustomRequest(UserController.updateUserPassword)
 );
 
+router.patch('/:id/role',
+  hasPermission([PERMISSIONS.USERS.EDIT, PERMISSIONS.USERS.MANAGE]),
+  UserController.updateUserRole
+);
+
 export default router;
