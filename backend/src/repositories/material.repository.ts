@@ -66,15 +66,19 @@ export class MaterialRepository implements IMaterialRepository {
       // Assuming createdAt and updatedAt are handled by Prisma (@default(now())/@updatedAt)
     };
     
-    console.log('[MaterialRepository] Creating material with data:', prismaCreateData);
-    const material: PrismaMaterial = await this.prisma.material.create({
-      data: prismaCreateData,
-    });
-    console.log('[MaterialRepository] Material created:', material);
-    
-    // Assuming your local Material type is compatible with PrismaMaterial
-    // If not, a mapping function would be needed here.
-    return assertIsMaterial(material);
+    console.log('[MaterialRepository] Attempting to create material with data:', JSON.stringify(prismaCreateData, null, 2));
+    try {
+      const material: PrismaMaterial = await this.prisma.material.create({
+        data: prismaCreateData,
+      });
+      console.log('[MaterialRepository] Material successfully created in DB:', JSON.stringify(material, null, 2));
+      // Assuming your local Material type is compatible with PrismaMaterial
+      // If not, a mapping function would be needed here.
+      return assertIsMaterial(material);
+    } catch (error) {
+      console.error('[MaterialRepository] Error creating material in DB:', error);
+      throw error; // Re-throw the error to be caught by the service layer
+    }
   }
 
   /**
@@ -83,17 +87,22 @@ export class MaterialRepository implements IMaterialRepository {
    * @returns Array of materials (typed as local Material)
    */
   async findAllByProject(projectId: number): Promise<Material[]> {
-    console.log(`[MaterialRepository] Finding all materials for project ID: ${projectId}`);
-    const materials: PrismaMaterial[] = await this.prisma.material.findMany({
-      where: {
-        projectId,
-      },
-      orderBy: {
-        materialId: 'asc',
-      },
-    });
-    console.log(`[MaterialRepository] Found ${materials.length} materials for project ID: ${projectId}`, materials);
-    return assertIsMaterialArray(materials);
+    console.log(`[MaterialRepository] Attempting to find all materials for project ID: ${projectId}`);
+    try {
+      const materials: PrismaMaterial[] = await this.prisma.material.findMany({
+        where: {
+          projectId,
+        },
+        orderBy: {
+          materialId: 'asc',
+        },
+      });
+      console.log(`[MaterialRepository] Found ${materials.length} materials for project ID: ${projectId}. Materials:`, JSON.stringify(materials, null, 2));
+      return assertIsMaterialArray(materials);
+    } catch (error) {
+      console.error(`[MaterialRepository] Error finding materials for project ID ${projectId}:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -102,14 +111,19 @@ export class MaterialRepository implements IMaterialRepository {
    * @returns The material or null if not found (typed as local Material)
    */
   async findById(id: number): Promise<Material | null> {
-    console.log(`[MaterialRepository] Finding material by ID: ${id}`);
-    const material: PrismaMaterial | null = await this.prisma.material.findUnique({
-      where: {
-        id,
-      },
-    });
-    console.log(`[MaterialRepository] Material found by ID ${id}:`, material);
-    return material ? assertIsMaterial(material) : null;
+    console.log(`[MaterialRepository] Attempting to find material by ID: ${id}`);
+    try {
+      const material: PrismaMaterial | null = await this.prisma.material.findUnique({
+        where: {
+          id,
+        },
+      });
+      console.log(`[MaterialRepository] Material found by ID ${id}:`, material ? JSON.stringify(material, null, 2) : null);
+      return material ? assertIsMaterial(material) : null;
+    } catch (error) {
+      console.error(`[MaterialRepository] Error finding material by ID ${id}:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -119,15 +133,20 @@ export class MaterialRepository implements IMaterialRepository {
    * @returns The material or null if not found (typed as local Material)
    */
   async findByProjectAndMaterialId(projectId: number, materialId: string): Promise<Material | null> {
-    console.log(`[MaterialRepository] Finding material by project ID ${projectId} and materialId ${materialId}`);
-    const material: PrismaMaterial | null = await this.prisma.material.findFirst({
-      where: {
-        projectId,
-        materialId,
-      },
-    });
-    console.log(`[MaterialRepository] Material found by project/materialId:`, material);
-    return material ? assertIsMaterial(material) : null;
+    console.log(`[MaterialRepository] Attempting to find material by project ID ${projectId} and materialId ${materialId}`);
+    try {
+      const material: PrismaMaterial | null = await this.prisma.material.findFirst({
+        where: {
+          projectId,
+          materialId,
+        },
+      });
+      console.log(`[MaterialRepository] Material found by project ID ${projectId} and materialId ${materialId}:`, material ? JSON.stringify(material, null, 2) : null);
+      return material ? assertIsMaterial(material) : null;
+    } catch (error) {
+      console.error(`[MaterialRepository] Error finding material by project ID ${projectId} and materialId ${materialId}:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -168,15 +187,20 @@ export class MaterialRepository implements IMaterialRepository {
     // Note: edgebandingInnerCode and edgebandingExposedCode are not in the Prisma schema
     
 
-    console.log(`[MaterialRepository] Updating material ID ${id} with data:`, updateData);
-    const material: PrismaMaterial = await this.prisma.material.update({
-      where: {
-        id,
-      },
-      data: updateData,
-    });
-    console.log(`[MaterialRepository] Material updated:`, material);
-    return assertIsMaterial(material);
+    console.log(`[MaterialRepository] Attempting to update material ID ${id} with data:`, JSON.stringify(updateData, null, 2));
+    try {
+      const material: PrismaMaterial = await this.prisma.material.update({
+        where: {
+          id,
+        },
+        data: updateData,
+      });
+      console.log(`[MaterialRepository] Material successfully updated in DB:`, JSON.stringify(material, null, 2));
+      return assertIsMaterial(material);
+    } catch (error) {
+      console.error(`[MaterialRepository] Error updating material ID ${id} in DB:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -185,14 +209,19 @@ export class MaterialRepository implements IMaterialRepository {
    * @returns The deleted material (typed as local Material)
    */
   async delete(id: number): Promise<Material> {
-    console.log(`[MaterialRepository] Deleting material ID: ${id}`);
-    const material: PrismaMaterial = await this.prisma.material.delete({
-      where: {
-        id,
-      },
-    });
-    console.log(`[MaterialRepository] Material deleted:`, material);
-    return assertIsMaterial(material);
+    console.log(`[MaterialRepository] Attempting to delete material ID: ${id}`);
+    try {
+      const material: PrismaMaterial = await this.prisma.material.delete({
+        where: {
+          id,
+        },
+      });
+      console.log(`[MaterialRepository] Material successfully deleted from DB:`, JSON.stringify(material, null, 2));
+      return assertIsMaterial(material);
+    } catch (error) {
+      console.error(`[MaterialRepository] Error deleting material ID ${id} from DB:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -203,16 +232,21 @@ export class MaterialRepository implements IMaterialRepository {
    * @returns True if the material ID exists, false otherwise
    */
   async materialIdExists(projectId: number, materialId: string, excludeId?: number): Promise<boolean> {
-    console.log(`[MaterialRepository] Checking if materialId ${materialId} exists in project ${projectId}, excluding ID ${excludeId}`);
-    const count = await this.prisma.material.count({
-      where: {
-        projectId,
-        materialId,
-        id: excludeId ? { not: excludeId } : undefined,
-      },
-    });
-    console.log(`[MaterialRepository] Count for materialId ${materialId} in project ${projectId}: ${count}`);
-    return count > 0;
+    console.log(`[MaterialRepository] Checking if materialId '${materialId}' exists in project ${projectId}, excluding ID ${excludeId}`);
+    try {
+      const count = await this.prisma.material.count({
+        where: {
+          projectId,
+          materialId,
+          id: excludeId ? { not: excludeId } : undefined,
+        },
+      });
+      console.log(`[MaterialRepository] Count for materialId '${materialId}' in project ${projectId} (excluding ID ${excludeId}): ${count}`);
+      return count > 0;
+    } catch (error) {
+      console.error(`[MaterialRepository] Error checking if materialId '${materialId}' exists in project ${projectId}:`, error);
+      throw error;
+    }
   }
 }
 

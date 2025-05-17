@@ -77,30 +77,44 @@ const MaterialManagement: React.FC<MaterialManagementProps> = ({ projectId }) =>
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('[MaterialManagement] Form submitted. Editing ID:', editingMaterialId, 'Form Data:', formData);
     
     try {
       if (editingMaterialId !== null) {
+        console.log('[MaterialManagement] Attempting to update material ID:', editingMaterialId);
         await executeUpdateMaterial(editingMaterialId, formData);
+        console.log('[MaterialManagement] Material update successful for ID:', editingMaterialId);
         setEditingMaterialId(null);
       } else {
-        await createMaterial(formData);
+        console.log('[MaterialManagement] Attempting to create new material.');
+        const newMaterial = await createMaterial(formData);
+        console.log('[MaterialManagement] Material creation successful. New material:', newMaterial);
         setIsAddingMaterial(false);
       }
+      console.log('[MaterialManagement] Refetching materials after save.');
       await refetchMaterials();
+      console.log('[MaterialManagement] Materials refetched.');
     } catch (error) {
-      console.error('Error saving material:', error);
-      alert('Failed to save material. Please try again.');
+      console.error('[MaterialManagement] Error saving material:', error);
+      // Check if error is an instance of Error and has a message property
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      alert(`Failed to save material: ${errorMessage}. Please check console for details.`);
     }
   };
 
   const handleDelete = async (materialId: number) => {
     if (window.confirm('Are you sure you want to delete this material?')) {
+      console.log('[MaterialManagement] Attempting to delete material ID:', materialId);
       try {
         await deleteMaterial(materialId);
+        console.log('[MaterialManagement] Material deletion successful for ID:', materialId);
+        console.log('[MaterialManagement] Refetching materials after delete.');
         refetchMaterials();
+        console.log('[MaterialManagement] Materials refetched after delete.');
       } catch (error) {
-        console.error('Error deleting material:', error);
-        alert('Failed to delete material. Please try again.');
+        console.error('[MaterialManagement] Error deleting material:', error);
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        alert(`Failed to delete material: ${errorMessage}. Please check console for details.`);
       }
     }
   };

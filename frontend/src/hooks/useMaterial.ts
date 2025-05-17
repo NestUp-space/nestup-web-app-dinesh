@@ -59,7 +59,7 @@ export function useProjectMaterials(projectId: string | number | null) {
   const enabled = !!endpoint;
 
   // DEBUG: Log parameters to observe hook behavior and ensure correct fetch conditions.
-  console.log(`[useProjectMaterials] Hook params - projectId: ${projectId}, endpoint: ${endpoint}, enabled: ${enabled}`);
+  console.log(`[useProjectMaterials] Initializing for projectId: ${projectId}. Endpoint: ${endpoint}, Enabled: ${enabled}`);
 
   // useGet will return ServiceResponseWrapper<Material[]>, where Material[] is the direct payload in responseObject
   const { data, error, loading, refetch } = useGet<ServiceResponseWrapper<Material[]>>(
@@ -67,19 +67,27 @@ export function useProjectMaterials(projectId: string | number | null) {
     !enabled // Pass !enabled as the 'skip' parameter. Fetch if enabled is true (skip is false).
   );
 
-  // DEBUG: Log when the data object from useGet changes
+  // DEBUG: Log when the data object from useGet changes, and what is being returned
   useEffect(() => {
-    console.log('[useProjectMaterials] Data from useGet changed (should be ServiceResponseWrapper<Material[]>):', data);
-    if (data && data.success && Array.isArray(data.responseObject)) {
-      console.log(`[useProjectMaterials] Materials count from data.responseObject: ${data.responseObject.length}`, data.responseObject);
-    } else if (data) {
-      console.log('[useProjectMaterials] data.responseObject is not an array, or data.success is false:', data);
+    console.log('[useProjectMaterials] Data from useGet changed. Current data:', data);
+    if (data) {
+      if (data.success && Array.isArray(data.responseObject)) {
+        console.log(`[useProjectMaterials] Successfully fetched ${data.responseObject.length} materials.`, data.responseObject);
+      } else if (data.success === false) {
+        console.warn('[useProjectMaterials] API call was not successful. Message:', data.message, 'Full response:', data);
+      } else if (!Array.isArray(data.responseObject)) {
+        console.warn('[useProjectMaterials] responseObject is not an array. Full response:', data);
+      }
+    } else {
+      console.log('[useProjectMaterials] Data from useGet is currently null or undefined.');
     }
   }, [data]);
   
+  const materialsToReturn = (data?.success && Array.isArray(data.responseObject) ? data.responseObject : []) as Material[];
+  // console.log('[useProjectMaterials] Returning materials:', materialsToReturn); // Potentially very verbose
+
   return {
-    // Access the materials array directly from data.responseObject
-    materials: (data?.success && Array.isArray(data.responseObject) ? data.responseObject : []) as Material[],
+    materials: materialsToReturn,
     error,
     loading,
     refetch
@@ -88,13 +96,47 @@ export function useProjectMaterials(projectId: string | number | null) {
 
 // Hook for creating a material
 export function useCreateMaterial(projectId: string | number) {
+  console.log(`[useCreateMaterial] Initializing for projectId: ${projectId}`);
   // usePost will return the ServiceResponseWrapper, and its payload is SingleMaterialPayload
-  const postHook = usePost<ServiceResponseWrapper<SingleMaterialPayload>, CreateMaterialData>();
+  // The backend POST /projects/:id/materials expects { materials: MaterialInput[] }
+  // and returns ServiceResponseWrapper<Material[]>
+  const postHook = usePost<ServiceResponseWrapper<Material[]>, { materials: CreateMaterialData[] }>();
   
-  const createMaterial = useCallback(async (data: CreateMaterialData) => {
-    const resultWrapper = await postHook.execute(`/projects/${projectId}/materials`, data);
-    // Extract the actual material from the responseObject
-    return resultWrapper?.success ? resultWrapper.responseObject?.material : undefined;
+  const createMaterial = useCallback(async (newMaterialData: CreateMaterialData) => {
+    console.log(`[useCreateMaterial] Attempting to create material for projectId: ${projectId} with data:`, newMaterialData);
+    // The backend endpoint updates all materials. To "add" one, we send it as an array.
+    // This assumes the backend replaces all materials with the ones provided in the `materials` array.
+    const payload = { materials: [newMaterialData] };
+    console.log('[useCreateMaterial] Payload for POST:', payload);
+    
+    const resultWrapper = await postHook.execute(`/projects/${projectId}/materials`, payload);
+    console.log('[useCreateMaterial] Response from postHook.execute:', resultWrapper);
+    
+    if (resultWrapper?.success && Array.isArray(resultWrapper.responseObject) && resultWrapper.responseObject.length > 0) {
+      // Assuming the created material is the first one in the returned array,
+      // or matches the input materialId if the backend preserves it.
+      // This part might need to be more robust if the backend doesn't guarantee order or exact return.
+      const createdMaterial = resultWrapper.responseObject.find(m => m.materialId === newMaterialData.materialId);
+      if (createdMaterial) {
+        console.log('[useCreateMaterial] Material processed successfully (found in response list):', createdMaterial);
+        return createdMaterial;
+      } else {
+        console.error('[useCreateMaterial] Material creation reported success, but the new material was not found in the response list.', resultWrapper.responseObject);
+        // Fallback to first item if specific one not found, though this is less ideal
+        // return resultWrapper.responseObject[0]; 
+        throw new Error('Material created but not found in response.');
+      }
+    } else if (resultWrapper?.success && Array.isArray(resultWrapper.responseObject) && resultWrapper.responseObject.length === 0) {
+      console.warn('[useCreateMaterial] Material creation reported success, but the response list was empty. This might indicate an issue if a material was expected.', resultWrapper);
+      // This case is problematic as we don't have a material object to return.
+      // Depending on strictness, either throw an error or return undefined.
+      throw new Error('Material creation succeeded but returned an empty list.');
+    }
+    else {
+      console.error('[useCreateMaterial] Failed to create material. Wrapper:', resultWrapper);
+      const message = resultWrapper?.message || 'Unknown error during material creation.';
+      throw new Error(message);
+    }
   }, [projectId, postHook]);
   
   return {
@@ -106,15 +148,23 @@ export function useCreateMaterial(projectId: string | number) {
 
 // Hook for updating a material
 export function useUpdateMaterial() {
+  console.log('[useUpdateMaterial] Initializing.');
   // usePut will return the ServiceResponseWrapper, and its payload is SingleMaterialPayload
   const putHook = usePut<ServiceResponseWrapper<SingleMaterialPayload>, UpdateMaterialData>();
   
-  const updateMaterial = useCallback(async (materialId: string | number, data: UpdateMaterialData) => {
-    console.log(`[useUpdateMaterial] Executing update for materialId: ${materialId}`, data);
-    const resultWrapper = await putHook.execute(`/materials/${materialId}`, data);
-    console.log('[useUpdateMaterial] Update result wrapper:', resultWrapper);
-    // Extract the actual material from the responseObject
-    return resultWrapper?.success ? resultWrapper.responseObject?.material : undefined;
+  const updateMaterial = useCallback(async (materialId: string | number, materialData: UpdateMaterialData) => {
+    console.log(`[useUpdateMaterial] Attempting to update materialId: ${materialId} with data:`, materialData);
+    const resultWrapper = await putHook.execute(`/materials/${materialId}`, materialData);
+    console.log('[useUpdateMaterial] Response from putHook.execute:', resultWrapper);
+
+    if (resultWrapper?.success && resultWrapper.responseObject?.material) {
+      console.log('[useUpdateMaterial] Material updated successfully:', resultWrapper.responseObject.material);
+      return resultWrapper.responseObject.material;
+    } else {
+      console.error('[useUpdateMaterial] Failed to update material or extract from response. Wrapper:', resultWrapper);
+      const message = resultWrapper?.message || 'Unknown error during material update.';
+      throw new Error(message);
+    }
   }, [putHook]);
   
   return {
@@ -126,12 +176,23 @@ export function useUpdateMaterial() {
 
 // Hook for deleting a material
 export function useDeleteMaterial() {
+  console.log('[useDeleteMaterial] Initializing.');
   // Assuming delete returns a simple message in the wrapper
   const deleteHook = useDelete<ServiceResponseWrapper<{ message: string }>>();
   
   const deleteMaterial = useCallback(async (materialId: string | number) => {
+    console.log(`[useDeleteMaterial] Attempting to delete materialId: ${materialId}`);
     const resultWrapper = await deleteHook.execute(`/materials/${materialId}`);
-    return resultWrapper;
+    console.log('[useDeleteMaterial] Response from deleteHook.execute:', resultWrapper);
+
+    if (resultWrapper?.success) {
+      console.log('[useDeleteMaterial] Material deleted successfully. Message:', resultWrapper.message);
+      return resultWrapper; // Or perhaps just resultWrapper.success or a custom success object
+    } else {
+      console.error('[useDeleteMaterial] Failed to delete material. Wrapper:', resultWrapper);
+      const message = resultWrapper?.message || 'Unknown error during material deletion.';
+      throw new Error(message);
+    }
   }, [deleteHook]);
   
   return {

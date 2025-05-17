@@ -592,16 +592,20 @@ export class ProjectController {
         });
 
         if (materials && materials.length > 0) {
-          const materialData = materials.map(m => ({
-            projectId,
-            materialId: m.materialId,
-            plyThickness: m.plyThickness,
-            innerLaminateCode: m.innerLaminateCode,
-            outerLaminateCode: m.outerLaminateCode,
-            overallThickness: m.overallThickness,
-            plyType: m.plyType as PlyType,
-            grainDirection: m.grainDirection as GrainDirection,
-          }));
+          const materialData = materials.map(m => {
+            // Calculate overallThickness: plyThickness + 1mm inner laminate + 1mm outer laminate
+            const overallThickness = m.plyThickness + 2; 
+            return {
+              projectId,
+              materialId: m.materialId,
+              plyThickness: m.plyThickness,
+              innerLaminateCode: m.innerLaminateCode,
+              outerLaminateCode: m.outerLaminateCode,
+              overallThickness, // Use calculated value
+              plyType: m.plyType as PlyType,
+              grainDirection: m.grainDirection as GrainDirection,
+            };
+          });
           await tx.material.createMany({
             data: materialData
           });

@@ -63,7 +63,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/site-visit', siteVisitRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api', materialRoutes); // Mount material routes
-app.use('/api/catalogue', catalogueRouter); // Mount catalogue router
+app.use('/api/v1/catalogue', catalogueRouter); // Mount catalogue router with v1
 app.use('/api/bim/plank-generation', plankGenerationRouter); // Mount plank generation router
 
 // Health check endpoint
