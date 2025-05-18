@@ -267,6 +267,8 @@ model Material {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   project          Project       @relation(fields: [projectId], references: [id])
+  // edgebandingInnerCode and edgebandingExposedCode removed as per new requirements
+  // These will be handled in ModelBomItem.details for PLANK types
 
   @@unique([projectId, materialId]) // Ensure materialId is unique within a project
 }

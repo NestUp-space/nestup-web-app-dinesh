@@ -13,6 +13,9 @@ const envSchema = z.object({
   COMMON_RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(100), // Max requests per windowMs
   COMMON_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000), // 15 minutes in milliseconds
 
+  // CORS
+  CORS_ORIGIN: z.string().optional(),
+
   // JWT
   JWT_SECRET: z.string().min(1),
   JWT_EXPIRES_IN: z.string().min(1).default('1h'),

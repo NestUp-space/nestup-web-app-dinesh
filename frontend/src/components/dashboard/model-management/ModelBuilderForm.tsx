@@ -36,11 +36,58 @@ export enum BomItemType { // Keep this enum definition
 const BillOfMaterialItemSchema = z.object({ // Keep this schema definition
   id: z.string().optional(),
   itemName: z.string().min(1, "Item name is required"),
-  itemType: z.nativeEnum(BomItemType), // Use locally defined enum
+  itemType: z.nativeEnum(BomItemType),
   itemDescription: z.string().optional().nullable(),
-  itemLogicScript: z.string().optional().nullable(), // NEW: For JS logic script
+  itemLogicScript: z.string().optional().nullable(),
   addonModelId: z.string().optional().nullable(),
+  // details field will be handled by the discriminated union below
 });
+
+// Define schemas for each BOM item type's details
+const PlankDetailsSchemaFrontend = z.object({
+  edgeBanding: z.object({
+    top: z.object({ thickness: z.union([z.literal(1), z.literal(2)]), materialCode: z.string() }).optional(),
+    bottom: z.object({ thickness: z.union([z.literal(1), z.literal(2)]), materialCode: z.string() }).optional(),
+    left: z.object({ thickness: z.union([z.literal(1), z.literal(2)]), materialCode: z.string() }).optional(),
+    right: z.object({ thickness: z.union([z.literal(1), z.literal(2)]), materialCode: z.string() }).optional(),
+  }).optional().nullable(),
+  // Include other plank-specific fields from PlankLogicEditor if they are part of 'details'
+  name: z.string().optional().nullable(), // From PlankLogicEditor
+  widthLogic: z.string().optional().nullable(), // From PlankLogicEditor
+  lengthLogic: z.string().optional().nullable(), // From PlankLogicEditor
+  materialCode: z.string().optional().nullable(), // From PlankLogicEditor
+  grainDirection: z.string().optional().nullable(), // From PlankLogicEditor
+  packetNumber: z.number().optional().nullable(), // From PlankLogicEditor
+  plankLocationIdentifier: z.string().optional().nullable(), // From PlankLogicEditor
+  edgeBandingType: z.string().optional().nullable(), // From PlankLogicEditor
+}).nullable(); // Allow PlankDetails to be null as per backend
+
+const HardwareDetailsSchemaFrontend = z.any().optional().nullable();
+const AddonDetailsSchemaFrontend = z.any().optional().nullable();
+
+// Create specific schemas for each item type by extending the base and adding the correct details schema
+const PlankBomItemSchemaFrontend = BillOfMaterialItemSchema.extend({
+  itemType: z.literal(BomItemType.PLANK),
+  details: PlankDetailsSchemaFrontend,
+});
+
+const HardwareBomItemSchemaFrontend = BillOfMaterialItemSchema.extend({
+  itemType: z.literal(BomItemType.HARDWARE),
+  details: HardwareDetailsSchemaFrontend,
+});
+
+const AddonBomItemSchemaFrontend = BillOfMaterialItemSchema.extend({
+  itemType: z.literal(BomItemType.ADDON),
+  details: AddonDetailsSchemaFrontend,
+});
+
+// Create the discriminated union for bomItems
+const DiscriminatedBomItemSchema = z.discriminatedUnion("itemType", [
+  PlankBomItemSchemaFrontend,
+  HardwareBomItemSchemaFrontend,
+  AddonBomItemSchemaFrontend,
+]);
+
 
 // const SiteInstructionSchema = z.object({ // Removed
 //   id: z.string().optional(), 
@@ -65,7 +112,7 @@ const modelFormSchema = z.object({
   //   }
   // }, { message: "Sample Runtime Inputs must be a valid JSON string or empty" }).nullable(),
   inputParameters: z.array(ModelInputParameterSchema).optional(),
-  bomItems: z.array(BillOfMaterialItemSchema).optional(),
+  bomItems: z.array(DiscriminatedBomItemSchema).optional(), // Use the discriminated union here
   // siteEngineerInstructions: z.array(SiteInstructionSchema).optional(), // Removed
   // sampleOnsiteInputs: z.string().optional().refine((val) => { // Removed
   //   if (!val || val.trim() === "") return true; 
@@ -139,13 +186,23 @@ export default function ModelBuilderForm({
       const response = await apiClient.get(url); // apiClient.get returns the data directly
       // Ensure data structure matches ModelFormData, especially for nested arrays
       // The backend sends 'name', frontend form uses 'modelType'
+      // Ensure bomItems have a default details structure if missing, especially for PLANK
+      const processedBomItems = (response.bomItems || []).map((item: any) => {
+        if (item.itemType === BomItemType.PLANK && (item.details === undefined || item.details === null)) {
+          return { ...item, details: { edgeBanding: {} } }; // Default for PLANK
+        } else if ((item.itemType === BomItemType.HARDWARE || item.itemType === BomItemType.ADDON) && item.details === undefined) {
+          return { ...item, details: null }; // Default for others
+        }
+        return item;
+      });
+
       const fetchedData = {
         ...response,
-        modelType: response.name, // Map 'name' to 'modelType'
+        modelType: response.name,
         inputParameters: response.inputParameters || [],
-        bomItems: response.bomItems || [],
+        bomItems: processedBomItems,
       };
-      delete fetchedData.name; // Remove original 'name' if it's not in ModelFormData
+      delete fetchedData.name;
       return fetchedData;
     },
     {
@@ -233,6 +290,7 @@ export default function ModelBuilderForm({
         itemDescription: item.itemDescription,
         itemLogicScript: item.itemLogicScript, // Pass the script
         addonModelId: item.addonModelId,
+        details: item.details, // Include the details field
       })),
       // siteEngineerInstructions: formData.siteEngineerInstructions, // Removed
       // sampleOnsiteInputs: formData.sampleOnsiteInputs, // Removed

@@ -101,7 +101,7 @@ const DEFAULT_PLANKS: DefaultPlank[] = [
 ];
 
 export default function BillOfMaterialListEditor() {
-  const { control, register, watch } = useFormContext();
+  const { control, register, watch, setValue } = useFormContext();
   const { fields, append, remove } = useFieldArray({
     control,
     name: "bomItems",
@@ -115,20 +115,82 @@ export default function BillOfMaterialListEditor() {
           itemName: plank.itemName,
           itemType: plank.itemType,
           itemDescription: plank.itemDescription,
-          details: {
+          details: { // Ensure details are initialized for default planks
             name: plank.itemName,
-            widthLogic: '',  // Will be initialized by PlankLogicEditor
-            lengthLogic: '', // Will be initialized by PlankLogicEditor
-            materialCode: '', // Will be initialized by PlankLogicEditor
+            widthLogic: '',
+            lengthLogic: '',
+            materialCode: '',
             grainDirection: 'vertical',
             packetNumber: plank.defaultDetails.packetNumber,
             plankLocationIdentifier: plank.defaultDetails.plankLocationIdentifier,
-            edgeBandingType: plank.defaultDetails.edgeBandingType
+            edgeBandingType: plank.defaultDetails.edgeBandingType,
+            edgeBanding: {}, // Initialize edgeBanding for PLANK
           }
         });
       });
     }
   }, [append, fields.length]);
+
+  // Watch the entire bomItems array
+  const bomItemsWatcher = watch('bomItems');
+
+  useEffect(() => {
+    if (bomItemsWatcher && Array.isArray(bomItemsWatcher)) {
+      bomItemsWatcher.forEach((item: any, index: number) => { // Added types for item and index
+        const currentItemType = item.itemType;
+        const currentDetails = item.details;
+        const detailsPath = `bomItems.${index}.details`;
+        const itemNamePath = `bomItems.${index}.itemName`;
+        const currentItemName = watch(itemNamePath) || ''; // Get current name for defaulting
+
+        if (currentItemType === BomItemType.PLANK) {
+          let needsUpdate = false;
+          let newDetails: any = currentDetails; // Initialize newDetails with currentDetails
+
+          if (!currentDetails || typeof currentDetails.edgeBanding === 'undefined') {
+            needsUpdate = true;
+            newDetails = { 
+              ...(currentDetails || {}), 
+              edgeBanding: {},
+              name: currentDetails?.name || currentItemName,
+              widthLogic: currentDetails?.widthLogic || '',
+              lengthLogic: currentDetails?.lengthLogic || '',
+              materialCode: currentDetails?.materialCode || '',
+              grainDirection: currentDetails?.grainDirection || 'vertical',
+            };
+          }
+          
+          const defaultPlankDetails: any = { // Added type any for defaultPlankDetails
+            name: currentItemName,
+            widthLogic: '',
+            lengthLogic: '',
+            materialCode: '',
+            grainDirection: 'vertical',
+          };
+
+          for (const key in defaultPlankDetails) {
+            if (newDetails && newDetails[key] === undefined && defaultPlankDetails[key] !== undefined) {
+              newDetails[key] = defaultPlankDetails[key];
+              needsUpdate = true;
+            } else if (!newDetails && defaultPlankDetails[key] !== undefined) {
+              newDetails = { ...defaultPlankDetails, edgeBanding: {} };
+              needsUpdate = true;
+              break; 
+            }
+          }
+          
+          if (needsUpdate) {
+            setValue(detailsPath, newDetails, { shouldDirty: true, shouldTouch: true });
+          }
+
+        } else if (currentItemType === BomItemType.HARDWARE || currentItemType === BomItemType.ADDON) {
+          if (currentDetails !== null) {
+            setValue(detailsPath, null, { shouldDirty: true, shouldTouch: true });
+          }
+        }
+      });
+    }
+  }, [bomItemsWatcher, setValue, watch]);
 
   return (
     <div className="space-y-6">
@@ -217,7 +279,15 @@ export default function BillOfMaterialListEditor() {
           itemDescription: '',
           itemLogicScript: '',
           addonModelId: null,
-          // Initialize other fields as necessary
+          // Default details based on the default itemType (PLANK)
+          details: { 
+            edgeBanding: {},
+            name: 'New Plank Item', // Provide a default name or leave empty
+            widthLogic: '',
+            lengthLogic: '',
+            materialCode: '',
+            grainDirection: 'vertical',
+          },
         })}
         className="mt-4"
       >

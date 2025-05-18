@@ -1,4 +1,4 @@
-import { ModelDefinition, ModelInputParameter, ModelBomItem } from '@prisma/client'; // Removed BomItemType
+import { ModelDefinition, ModelInputParameter, ModelBomItem, BomItemType } from '@prisma/client';
 import { ModelRepository } from '../repositories/model.repository';
 import { uploadToS3 } from '../../utils/s3'; // For S3 uploads
 import { 
@@ -12,6 +12,7 @@ import {
 } from '../dtos/model.dto';
 import { JavaScriptFunctionService } from './javascript-function.service'; // Removed ExecutedScriptResult
 import { z } from 'zod';
+import { GLOBAL_CONSTANTS } from '../config/globalConstants';
 
 // Define the expected output schema for a plank item script
 const PlankOutputSchema = z.object({
@@ -39,6 +40,42 @@ export class ModelService {
     this.modelRepository = new ModelRepository();
     this.jsFunctionService = new JavaScriptFunctionService();
     console.log('ModelService initialized');
+  }
+
+  private generateDefaultSampleInputsFromParams(
+    inputParameters: Array<{ inputName: string; defaultValue?: string | number | boolean | null; inputType: string; [key: string]: any } | null> | undefined | null
+  ): Record<string, any> | null {
+    if (!inputParameters || inputParameters.length === 0) {
+      return null;
+    }
+    const defaultInputs: Record<string, any> = {};
+    let hasAtLeastOneDefault = false;
+    for (const param of inputParameters) {
+      if (param && param.defaultValue !== undefined && param.defaultValue !== null && param.inputName) {
+        let value = param.defaultValue;
+        // Attempt to parse based on inputType
+        if (param.inputType === 'NUMBER') {
+          const num = parseFloat(String(value));
+          if (!isNaN(num)) {
+            value = num;
+          } else {
+            // If parsing fails, skip this default value or handle as error
+            console.warn(`Could not parse defaultValue "${param.defaultValue}" as NUMBER for input "${param.inputName}". Skipping.`);
+            continue;
+          }
+        } else if (param.inputType === 'BOOLEAN') {
+          if (typeof value === 'string') {
+            value = value.toLowerCase() === 'true';
+          } else {
+            value = Boolean(value);
+          }
+        }
+        // For other types like STRING, TEXT, SELECT, etc., use the defaultValue as is.
+        defaultInputs[param.inputName] = value;
+        hasAtLeastOneDefault = true;
+      }
+    }
+    return hasAtLeastOneDefault ? defaultInputs : null;
   }
 
   private async validateBomItemScripts(
@@ -74,10 +111,15 @@ export class ModelService {
           console.log(`Testing script for BOM item: ${bomItem.itemName}`);
           // Changed executeItemScript to executeFunction
           // Assuming sampleRuntimeInputs is the context for the script
-          const result = await this.jsFunctionService.executeFunction( 
+          const result = await this.jsFunctionService.executeFunction(
             scriptToExecute,
-            { runtimeInputs: sampleRuntimeInputs, globalConstants: {} } // Pass inputs as context
-            // TODO: Define and pass actual globalConstants if needed by scripts
+            {
+              runtimeInputs: sampleRuntimeInputs,
+              globalConstants: {
+                ...GLOBAL_CONSTANTS, // Spread all global constants
+                plankDetails: bomItem.details || {} // Add plank-specific details
+              }
+            }
           );
 
           if (!result) {
@@ -181,9 +223,12 @@ export class ModelService {
     }
     
     let effectiveSampleInputs = parsedSampleRuntimeInputs;
+    // Explicitly type currentModelForInputs to include relations
+    let currentModelForInputs: (ModelDefinition & { inputParameters: ModelInputParameter[], bomItems: ModelBomItem[] }) | null = null; 
+
     if (data.bomItems && !data.hasOwnProperty('sampleRuntimeInputsJson')) {
-        const currentModel = await this.modelRepository.findById(id);
-        effectiveSampleInputs = currentModel?.sampleRuntimeInputsJson ?? null;
+        currentModelForInputs = await this.modelRepository.findById(id) as (ModelDefinition & { inputParameters: ModelInputParameter[], bomItems: ModelBomItem[] }) | null; // findById includes relations
+        effectiveSampleInputs = currentModelForInputs?.sampleRuntimeInputsJson ?? null;
     }
 
     let processedBomItemsForValidation: ModelBomItemDto[] | undefined = undefined;
@@ -200,6 +245,51 @@ export class ModelService {
         }));
       
       if (processedBomItemsForValidation && processedBomItemsForValidation.length > 0) {
+        const hasScripts = processedBomItemsForValidation.some(b => b.itemLogicScript && b.itemLogicScript.trim() !== '');
+        
+        if (hasScripts && (!effectiveSampleInputs || typeof effectiveSampleInputs !== 'object' || Object.keys(effectiveSampleInputs).length === 0)) {
+          console.warn(`[ModelService.updateModel] sampleRuntimeInputs are missing or invalid for model ${id} during update with scripts. Attempting to generate from inputParameters.`);
+          
+          let modelInputParamsForDefaults: Array<{ inputName: string; defaultValue?: any; inputType: string; [key: string]: any }> | undefined | null = undefined;
+          
+          if (data.inputParameters) { // Prefer params from payload if available
+            modelInputParamsForDefaults = data.inputParameters.map(p => ({
+              ...p,
+              inputName: p.inputName!, // Assuming inputName is required in DTO, or add filter
+              inputType: p.inputType as string, // Cast enum to string
+            }));
+          } else {
+            // If not in payload, try to get from currentModelForInputs (if fetched) or fetch model again
+            if (!currentModelForInputs) {
+              currentModelForInputs = await this.modelRepository.findById(id) as (ModelDefinition & { inputParameters: ModelInputParameter[], bomItems: ModelBomItem[] }) | null;
+            }
+            // The inputParameters on the model are stored directly as an array of objects
+            if (currentModelForInputs && currentModelForInputs.inputParameters) { // This check should now be safe
+              modelInputParamsForDefaults = currentModelForInputs.inputParameters.map(p => ({
+                inputName: p.inputName,
+                defaultValue: p.defaultValue,
+                inputType: p.inputType as string, // Cast enum to string
+                // Pass along other properties from ModelInputParameter if generateDefaultSampleInputsFromParams might use them
+                displayLabel: p.displayLabel,
+                options: p.options,
+                unit: p.unit,
+                description: p.description,
+              }));
+            }
+          }
+          
+          if (modelInputParamsForDefaults) {
+            const generatedDefaults = this.generateDefaultSampleInputsFromParams(modelInputParamsForDefaults);
+            if (generatedDefaults && Object.keys(generatedDefaults).length > 0) {
+              effectiveSampleInputs = generatedDefaults;
+              console.log(`[ModelService.updateModel] Used generated default sample inputs for validation for model ${id}:`, effectiveSampleInputs);
+            } else {
+              console.warn(`[ModelService.updateModel] Could not generate default sample inputs, or generated inputs were empty for model ${id}. Validation might still fail if scripts require inputs.`);
+            }
+          } else {
+            console.warn(`[ModelService.updateModel] No inputParameters found to generate default sample inputs for model ${id}.`);
+          }
+        }
         await this.validateBomItemScripts(processedBomItemsForValidation, effectiveSampleInputs);
       }
     }
@@ -322,14 +412,56 @@ export class ModelService {
   }
 
   async updateBomItem(id: string, data: UpdateModelBomItemDto): Promise<ModelBomItem | null> {
-    const updateData: Partial<Omit<ModelBomItem, 'id' | 'modelDefinitionId' | 'modelDefinition'>> = {};
-    
+    let itemTypeForUpdate: BomItemType;
+
+    // Explicitly narrow the type of 'data' based on 'itemType'
+    // This helps TypeScript understand the specific shape of 'data' and 'data.details'
+    switch (data.itemType) {
+      case BomItemType.PLANK:
+        itemTypeForUpdate = data.itemType; // data is UpdatePlankBomItemSchema
+        break;
+      case BomItemType.HARDWARE:
+        itemTypeForUpdate = data.itemType; // data is UpdateHardwareBomItemSchema
+        break;
+      case BomItemType.ADDON:
+        itemTypeForUpdate = data.itemType; // data is UpdateAddonBomItemSchema
+        break;
+      default:
+        // This case should be unreachable if Zod validation on itemType (as a discriminated union key) is effective.
+        // If reached, it implies an itemType not covered by the BomItemType enum/literals.
+        // data.itemType would be 'never' here if all legitimate types are handled in cases.
+        // Accessing data.itemType when data is 'never' causes a TS error.
+        throw new Error('Unhandled BOM item type encountered in service logic.');
+    }
+
+    const updateData: Partial<Omit<ModelBomItem, 'id' | 'modelDefinitionId' | 'modelDefinition'>> = {
+      itemType: itemTypeForUpdate,
+    };
+
+    // Safely access properties that are optional in the DTO
     if (data.itemName !== undefined) updateData.itemName = data.itemName;
-    if (data.itemType !== undefined) updateData.itemType = data.itemType;
     if (data.hasOwnProperty('itemDescription')) updateData.itemDescription = data.itemDescription ?? null;
-    if (data.hasOwnProperty('details')) updateData.details = data.details ?? null; // Added details
     if (data.hasOwnProperty('itemLogicScript')) updateData.itemLogicScript = data.itemLogicScript ?? null;
     if (data.hasOwnProperty('addonModelId')) updateData.addonModelId = data.addonModelId ?? null;
+    
+    if (data.hasOwnProperty('details')) {
+      if (itemTypeForUpdate === BomItemType.PLANK && data.itemType === BomItemType.PLANK) { // Double check for TS narrowing
+        const plankDetailsInput = data.details; // data.details is now correctly typed for PLANK
+        if (plankDetailsInput === null) {
+          updateData.details = null;
+        } else if (plankDetailsInput) {
+          const finalPlankDetails = { ...plankDetailsInput };
+          if (finalPlankDetails.edgeBanding === undefined) {
+            finalPlankDetails.edgeBanding = {}; // Ensure edgeBanding object exists
+          }
+          updateData.details = finalPlankDetails;
+        }
+        // If plankDetailsInput is undefined (because details was optional and not provided),
+        // updateData.details will not be set, and Prisma will not update it.
+      } else if ((itemTypeForUpdate === BomItemType.HARDWARE && data.itemType === BomItemType.HARDWARE) || (itemTypeForUpdate === BomItemType.ADDON && data.itemType === BomItemType.ADDON)) {
+        updateData.details = data.details; // data.details is any | null | undefined
+      }
+    }
 
     return this.modelRepository.updateBomItem(id, updateData);
   }

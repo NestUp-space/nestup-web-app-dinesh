@@ -195,7 +195,6 @@ export default function CreateModelPage() {
 
       <div className="max-w-full"> {/* Changed from max-w-7xl to full for better form layout */}
         <ModelBuilderForm 
-          initialData={simpleBoxDefaultData} 
           onSaveSuccess={handleSaveSuccess}
           onCancel={handleCancel}
         />
