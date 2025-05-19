@@ -204,6 +204,8 @@ export class UserService {
       // @ts-ignore
       delete userProfile.role?.roleMappings;
 
+      console.log('[UserService.getCurrentUserProfile] Final userProfile to be returned:', JSON.stringify(userProfile, null, 2));
+      console.log('[UserService.getCurrentUserProfile] Final permissions array:', JSON.stringify(userProfile.permissions, null, 2));
 
       return ServiceResponse.success('User profile retrieved successfully', userProfile, StatusCodes.OK);
     } catch (error) {

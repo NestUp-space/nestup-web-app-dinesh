@@ -1,49 +1,29 @@
 # Cline's Current TODO List
 
-## Completed Task: Fix Project Creation API Issues
+## Previous Task: Fix Project Creation API Issues (Completed)
 
-### Initial 400 Error (RESOLVED)
+*All sub-tasks completed and documented in previous versions of this file and in `CURRENT_CONTEXT.md` / `CURRENT_DECISIONS.md`.*
 
-- [x] Consult `GUARDRAILS.md`
-- [x] Examine frontend code (`frontend/src/app/dashboard/projects/page.tsx`)
-- [x] Examine backend controller (`backend/src/controllers/project.controller.ts`)
-- [x] Examine backend DTO (`backend/src/types/project.types.ts`)
-- [x] Examine Prisma schema (`backend/prisma/schema.prisma`)
-- [x] Update `.cache_memory/CURRENT_CONTEXT.md`
-- [x] Update `.cache_memory/CURRENT_DECISIONS.md`
-- [x] Update `.cache_memory/CURRENT_TODO.md`
-- [x] **Modify `backend/src/types/project.types.ts`** (fixed DTO to use statusId)
-- [x] **Modify `backend/src/controllers/project.controller.ts`** (updated createProject method)
+## Current Task: Admin User Missing Permissions - Unable to Access /dashboard/users
 
-### Status Table Issue (RESOLVED)
+**Status:** Investigation Complete. Solution Identified.
 
-- [x] Examine Status model in schema
-- [x] Find and verify `seedStatus.ts` script
-- [x] Run script to populate Status table with required statuses
-- [x] Update work ticket with resolution
+**Summary of Investigation:**
 
-### 500 Error & Field Handling (RESOLVED)
+- The admin user (`admin@nestup.com`, roleId: 1) is redirected from `/dashboard/users` due to an empty `permissions` array, failing the `users.view` check.
+- The backend script `backend/src/scripts/setupAdminRoleAndUser.ts` is designed to:
+  - Ensure all permissions from `constants/permissions.ts` exist in the `UserPermission` table.
+  - Create/update an "admin" role with `id: 1`.
+  - Grant *all* permissions to this admin role.
+  - Assign this admin role to `admin@nestup.com`.
+- The issue likely arises from this script not being run, not completing successfully, or its effects being undone.
 
-- [x] Re-examine frontend project creation request
-- [x] Update `ProjectCreateInput` DTO with missing fields
-- [x] Add proper date handling for `estimatedTime`
-- [x] Add `projectIncludes` for relations in response
-- [x] Update simplified error handling in catch block
-- [x] Update all documentation
-  - [x] Updated project.controller.mbk
-  - [x] Updated CURRENT_CONTEXT.md
-  - [x] Updated CURRENT_DECISIONS.md
-  - [x] Updated CURRENT_TODO.md (this file)
-  - [x] Updated work ticket
+**Next Steps:**
 
-## Summary of Fixes
-
-1. Fixed "Invalid project status: DRAFT" error by aligning DTO and controller with frontend's use of `statusId`.
-2. Fixed "Invalid statusId: 1" error by seeding the Status table.
-3. Fixed 500 error by:
-   - Adding missing DTO fields (`estimatedTime`, `vbCount`)
-   - Adding proper date handling
-   - Including relations in response
-   - Improving error response format
-
-All issues are now resolved and project creation should work correctly.
+1. **Advise user to run the setup script:**
+    Command: `npx ts-node backend/src/scripts/setupAdminRoleAndUser.ts`
+    (This step is pending user confirmation/action)
+2. **Verify resolution:** After the script is run, check if the admin user can access `/dashboard/users` and if their permissions array is populated correctly.
+    (This step is pending user confirmation/action)
+3. **Update LTM:** If the solution is successful, update `PROJECT_CONTEXT_AND_ROADMAP.md` or `DECISION_LOG.md` if this fix reveals a broader pattern or a permanent change in how admin permissions are managed (though it seems like an operational step rather than a design change).
+4. **Update Work Ticket:** Mark the ticket in `.work_tickets/likely.tickets.for.2025-05-18.md` as "Done" or "Resolved".

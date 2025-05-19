@@ -3,9 +3,9 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/card";
 import { Button } from "@/components/dashboard/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/dashboard/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/dashboard/select";
 import { Label } from "@/components/dashboard/label";
-import { AlertCircle, CheckCircle } from "lucide-react";
+import { AlertCircle, CheckCircle, ChevronDown } from "lucide-react";
 import { useUser } from '@/context/UserContext';
 
 interface UserRoleAssignmentProps {
@@ -17,8 +17,8 @@ interface UserRoleAssignmentProps {
 
 interface Role {
   id: number;
-  role: string;  // Changed from 'name'
-  roleType: string;  // Changed from 'type'
+  name: string; // Changed from role
+  type: string; // Changed from roleType
 }
 
 export function UserRoleAssignment({ userId, userName, currentRoleId, onRoleAssigned }: UserRoleAssignmentProps) {
@@ -141,58 +141,67 @@ export function UserRoleAssignment({ userId, userName, currentRoleId, onRoleAssi
         {!canAssignRoles ? (
           <p className="text-sm text-dark-text-bw/70">You don't have permission to assign roles.</p>
         ) : (
-          <>
+          <div className="space-y-4">
             {error && (
-              <div className="mb-4 flex items-center gap-2 text-red-600 text-sm bg-red-100 border border-red-200 p-3 rounded-md">
+              <div className="flex items-center gap-2 text-red-600 text-sm bg-red-100 border border-red-200 p-3 rounded-md">
                 <AlertCircle className="h-5 w-5" />
                 {error}
               </div>
             )}
             
             {success && (
-              <div className="mb-4 flex items-center gap-2 text-green-600 text-sm bg-green-100 border border-green-200 p-3 rounded-md">
+              <div className="flex items-center gap-2 text-green-600 text-sm bg-green-100 border border-green-200 p-3 rounded-md">
                 <CheckCircle className="h-5 w-5" />
                 {success}
               </div>
             )}
 
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="user-name-display" className="text-xs text-dark-text-bw/60">User</Label>
-                <div id="user-name-display" className="p-2.5 border border-light-bw rounded-md bg-lighter-bw/30 text-sm text-dark-text-bw">
-                  {userName}
-                </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="user-name-display" className="text-xs text-dark-text-bw/60">User</Label>
+              <div id="user-name-display" className="p-2.5 border border-light-bw rounded-md bg-lighter-bw/30 text-sm text-dark-text-bw">
+                {userName}
               </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="role-select" className="text-dark-text-bw">Assign Role</Label>
-                <Select value={selectedRoleId} onValueChange={handleRoleChange} disabled={saving}>
-                  <SelectTrigger id="role-select" className="w-full">
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {roles.map((role) => (
-                      <SelectItem 
-                        key={role.id} 
-                        value={role.id.toString()}
-                      >
-                        {role.role} ({role.roleType})
-                      </SelectItem>
-                    ))}
-                    {roles.length === 0 && <SelectItem value="no-roles" disabled>No roles available</SelectItem>}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button 
-                onClick={handleSave} 
-                disabled={saving || !selectedRoleId || selectedRoleId === currentRoleId?.toString()}
-                className="w-full"
-              >
-                {saving ? "Saving..." : "Assign Role"}
-              </Button>
             </div>
-          </>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="role-select" className="text-dark-text-bw">Assign Role</Label>
+              <Select value={selectedRoleId} onValueChange={handleRoleChange} disabled={saving}>
+                <SelectTrigger id="role-select" className="w-full bg-lightest-bw border-light-bw text-dark-text-bw hover:bg-lighter-bw/50 focus:ring-theme-color/50">
+                  <SelectValue placeholder="Select a role" />
+                  <ChevronDown className="h-4 w-4 opacity-50" />
+                </SelectTrigger>
+                <SelectContent className="bg-lightest-bw border-light-bw text-dark-text-bw shadow-lg">
+                  {roles.map((role, index) => (
+                    <React.Fragment key={role.id}>
+                      <SelectItem 
+                        value={role.id.toString()}
+                        className="hover:bg-lighter-bw/50 focus:bg-lighter-bw/70 data-[state=checked]:bg-theme-color/20 data-[state=checked]:text-theme-color-foreground py-2 px-3 cursor-pointer"
+                      >
+                        <div className="flex flex-col">
+                          <span className="font-medium">{role.name}</span>
+                          <span className="text-xs text-dark-text-bw/70">{role.type}</span>
+                        </div>
+                      </SelectItem>
+                      {index < roles.length - 1 && <SelectSeparator className="bg-light-bw/50 my-1" />}
+                    </React.Fragment>
+                  ))}
+                  {roles.length === 0 && (
+                    <div className="p-3 text-center text-sm text-dark-text-bw/70">
+                      No roles available
+                    </div>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button 
+              onClick={handleSave} 
+              disabled={saving || !selectedRoleId || selectedRoleId === currentRoleId?.toString()}
+              className="w-full bg-theme-color text-theme-color-foreground hover:bg-theme-color/90 focus:ring-theme-color/50"
+            >
+              {saving ? "Saving..." : "Assign Role"}
+            </Button>
+          </div>
         )}
       </CardContent>
     </Card>

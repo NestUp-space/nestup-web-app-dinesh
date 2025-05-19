@@ -43,31 +43,48 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   // Load user on initial mount
   useEffect(() => {
     const loadUser = async () => {
-      console.log('UserContext - Checking if authenticated');
-      if (isAuthenticated()) {
+      console.log('UserContext - useEffect triggered. Checking authentication status.');
+      const token = localStorage.getItem('token');
+      console.log('UserContext - Token from localStorage:', token);
+      const authenticated = isAuthenticated();
+      console.log('UserContext - isAuthenticated() returned:', authenticated);
+
+      if (authenticated) {
         try {
-          console.log('UserContext - Getting user profile');
+          console.log('UserContext - User is authenticated, attempting to get user profile.');
           const userData = await getUserProfile();
           console.log('UserContext - User profile response:', userData);
-          if (userData && userData.success) {
-            console.log('UserContext - Setting user with permissions:', userData.user.permissions);
+          if (userData && userData.success && userData.user) { // Added null check for userData.user
+            console.log('UserContext - Setting user. Profile data:', userData.user);
+            console.log('UserContext - Permissions from profile data:', userData.user.permissions);
             setUser(userData.user);
+          } else {
+            console.warn('UserContext - Failed to get user profile or user data is missing. Response:', userData);
+            // Optionally clear token if profile fetch fails despite being "authenticated"
+            // localStorage.removeItem("token"); 
           }
         } catch (error) {
-          console.error("Failed to load user:", error);
-          // Clear invalid token
+          console.error("UserContext - Error loading user profile:", error);
+          // Clear invalid token if there's an error during fetch
           localStorage.removeItem("token");
         }
+      } else {
+        console.log('UserContext - User is NOT authenticated. Skipping profile load.');
       }
       setIsLoading(false);
+      console.log('UserContext - setIsLoading(false) called.');
     };
 
+    console.log('UserContext - Calling loadUser()');
     loadUser();
+    console.log('UserContext - loadUser() call finished.');
   }, []);
 
   // Login function to set user and token
   const login = (userData: User, token: string) => {
     localStorage.setItem("token", token);
+    console.log('UserContext - login called. UserData received:', userData);
+    console.log('UserContext - login called. UserData permissions:', userData?.permissions);
     setUser(userData);
   };
 

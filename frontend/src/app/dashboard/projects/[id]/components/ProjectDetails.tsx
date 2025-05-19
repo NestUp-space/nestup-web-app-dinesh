@@ -51,7 +51,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({
     error: instancesError, 
     mutate: mutateInstances 
   } = useSWR<ProjectModelInstanceDisplay[]>( // Type for SWR data
-    project?.id ? `/catalogue/project-instances/by-project/${project.id}` : null, 
+    project?.id ? `/api/catalogue/project-instances/by-project/${project.id}` : null, 
     fetcher
   );
 

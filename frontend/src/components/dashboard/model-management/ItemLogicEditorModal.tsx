@@ -70,7 +70,7 @@ export default function ItemLogicEditorModal({
     }
 
     try {
-      const response = await apiClient.post('/catalogue/test-item-script', {
+      const response = await apiClient.post('/v1/catalogue/test-item-script', {
         itemLogicScript: scriptContent,
         sampleRuntimeInputs: sampleInputs,
       });

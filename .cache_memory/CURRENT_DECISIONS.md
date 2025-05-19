@@ -40,3 +40,12 @@ The combination of these two decisions resolves the project creation issues:
 1. Frontend sends `statusId: 1` (or omits it to use the default)
 2. Backend correctly validates this against the now-populated Status table
 3. Project is created with the correct status relationship in the database
+
+## 2025-05-18
+
+### Fix Admin User Missing Permissions for /dashboard/users
+
+* **Decision 1:** Identified that the admin user (`admin@nestup.com`, roleId: 1) has an empty `permissions` array, causing a redirect from `/dashboard/users` due to a failed `users.view` permission check.
+* **Decision 2:** Determined that the script `backend/src/scripts/setupAdminRoleAndUser.ts` is the correct mechanism to grant all defined permissions to the admin role (ID: 1). This script ensures all permissions from `constants/permissions.ts` are in the `UserPermission` table, creates/updates the admin role (ID: 1), and maps all permissions to this role.
+* **Rationale:** The issue likely stems from `setupAdminRoleAndUser.ts` not having been run, not completing successfully, or its effects being subsequently altered. Other seeding scripts like `seedRolesAndPermissions.ts` do not grant all permissions to a specific admin role.
+* **Solution Path:** Advise the user to run `backend/src/scripts/setupAdminRoleAndUser.ts`.

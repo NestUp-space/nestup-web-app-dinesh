@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';
+import { usePermissions } from '@/hooks/usePermissions'; // Import the new hook
+import { PERMISSIONS } from '@/constants/permissions'; // Import frontend permissions
 
 export default function ProjectsPage({
   searchParams
@@ -33,6 +35,7 @@ export default function ProjectsPage({
   const [selectedEngineer, setSelectedEngineer] = useState('');
   const [projects, setProjects] = useState<any[]>([]); // State for projects
   const { user } = useUser();
+  const { hasPermission } = usePermissions(); // Use the hook
   const token = localStorage.getItem('token');
   const router = useRouter(); // Initialize useRouter
 
@@ -61,6 +64,12 @@ export default function ProjectsPage({
   useEffect(() => {
 
     const fetchUsersByRole = async (roleName: string) => {
+      // Check permission before making the API call
+      if (!hasPermission(PERMISSIONS.USERS.VIEW)) {
+        console.log(`Missing ${PERMISSIONS.USERS.VIEW} permission to fetch ${roleName} list`);
+        return [];
+      }
+
       try {
         console.log(`Fetching users with role: ${roleName}`);
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/by-role?roleName=${roleName}`, {
@@ -83,23 +92,31 @@ export default function ProjectsPage({
     };
 
     const loadUsersForRoles = async () => {
-      // Fetch users for each role
-      const designersData = await fetchUsersByRole('designer');
-      console.log('Designer data before setting state:', designersData);
-      setDesigners(designersData);
-      
-      const projectManagersData = await fetchUsersByRole('project_manager');
-      console.log('Project Manager data before setting state:', projectManagersData);
-      setProjectManagers(projectManagersData);
-      
-      const engineersData = await fetchUsersByRole('engineer');
-      console.log('Engineer data before setting state:', engineersData);
-      setEngineers(engineersData);
+      // Fetch users for each role only if permission exists
+      if (hasPermission(PERMISSIONS.USERS.VIEW)) {
+        const designersData = await fetchUsersByRole('designer');
+        console.log('Designer data before setting state:', designersData);
+        setDesigners(designersData);
+        
+        const projectManagersData = await fetchUsersByRole('project_manager');
+        console.log('Project Manager data before setting state:', projectManagersData);
+        setProjectManagers(projectManagersData);
+        
+        const engineersData = await fetchUsersByRole('engineer');
+        console.log('Engineer data before setting state:', engineersData);
+        setEngineers(engineersData);
+      } else {
+        // If no permission, set empty arrays and potentially inform the user or adjust UI
+        console.log(`User does not have ${PERMISSIONS.USERS.VIEW} permission. Skipping fetching user lists for dropdowns.`);
+        setDesigners([]);
+        setProjectManagers([]);
+        setEngineers([]);
+      }
     };
 
     loadUsersForRoles();
     fetchProjects(); // Fetch projects on component mount
-  }, [token]);
+  }, [token, hasPermission]); // Add hasPermission to dependency array
 
   const handleCreateProject = async () => {
     try {

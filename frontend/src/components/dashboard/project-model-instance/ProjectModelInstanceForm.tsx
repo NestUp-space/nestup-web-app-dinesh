@@ -120,7 +120,7 @@ export default function ProjectModelInstanceForm({
         modelDefinitionId: data.modelDefinitionId,
         runtimeInputsJson: data.runtimeInputs, // Send as JSON object
       };
-      const response = await apiClient.post('/catalogue/project-instances', payload);
+      const response = await apiClient.post('/v1/catalogue/project-instances', payload);
       alert('Project Model Instance created successfully!');
       if (onSaveSuccess) onSaveSuccess(response.data.id);
       reset(); // Reset form after successful submission

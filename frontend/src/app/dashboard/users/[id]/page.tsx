@@ -22,14 +22,15 @@ interface UserDetails {
   isActive: boolean;
   role: {
     id: number;
-    role: string; // Changed from name to role to match schema
-    // type: string; // Type might not be directly on role, but on UserRole
+    name: string; // Changed from role
+    type?: string; // Changed from roleType
   };
 }
 
 interface Role {
   id: number;
-  role: string; // Or 'name' depending on API response
+  name: string; // Changed from role
+  type?: string; // Changed from roleType
 }
 
 export default function UserDetailPage() {
@@ -174,8 +175,36 @@ export default function UserDetailPage() {
       } else {
         throw new Error(response.message || "Failed to create user.");
       }
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : "An unexpected error occurred.");
+    } catch (error: unknown) {
+      let messageToDisplay = "An unexpected error occurred during user creation."; // Default generic message
+
+      if (typeof error === 'object' && error !== null) {
+        const errObj = error as any; // Type assertion to access potential properties
+
+        // Attempt to get the detailed error string from backend response
+        // Common patterns: err.error (if error object is the response body)
+        // or err.response.data.error (if error is a wrapper like Axios error)
+        const detailedErrorString = errObj.error || errObj.response?.data?.error;
+
+        if (typeof detailedErrorString === 'string' &&
+            (detailedErrorString.includes("Unique constraint failed") ||
+             detailedErrorString.toLowerCase().includes("email already exists"))) {
+          messageToDisplay = "This email address is already registered. Please use a different email.";
+        } else if (typeof errObj.message === 'string') {
+          // Fallback to errObj.message if specific string not found in detailedErrorString
+          // This handles cases where errObj.message might itself contain the required text,
+          // or provides a more specific message than the default.
+           if (errObj.message.includes("Unique constraint failed") || errObj.message.toLowerCase().includes("email already exists")) {
+             messageToDisplay = "This email address is already registered. Please use a different email.";
+           } else {
+             messageToDisplay = errObj.message; // Use the message from the error object
+           }
+        }
+      }
+      // If error is not an object or no specific/useful message found, 
+      // messageToDisplay remains the default "An unexpected error occurred...".
+
+      setFormError(messageToDisplay);
     } finally {
       setFormSubmitting(false);
     }
@@ -344,7 +373,7 @@ export default function UserDetailPage() {
                       <SelectContent>
                         {roles.map(role => (
                           <SelectItem key={role.id} value={String(role.id)}>
-                            {role.role} 
+                            {role.name} 
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -419,11 +448,25 @@ export default function UserDetailPage() {
                 { label: "Name", value: user.name },
                 { label: "Email", value: user.email },
                 { label: "Phone Number", value: user.phoneNumber || "Not provided" },
-                { label: "Current Role", value: user.role.role },
+                {
+                  label: "Current Role",
+                  value: user.role.type
+                           ? `${user.role.name} (${user.role.type})`
+                           : user.role.name
+                },
               ].map(item => (
                 <div key={item.label} className="space-y-1">
                   <Label className="text-xs text-dark-text-bw/60">{item.label}</Label>
-                  <div className="p-2.5 border border-light-bw rounded-md bg-lightest-bw text-sm text-dark-text-bw">{item.value}</div>
+                  <div className="p-2.5 border border-light-bw rounded-md bg-lightest-bw text-sm text-dark-text-bw">
+                    {item.label === "Current Role" ? (
+                      <>
+                        <span className="font-medium">{user.role.name}</span>
+                        {user.role.type && <span className="text-xs text-dark-text-bw/70 ml-1">({user.role.type})</span>}
+                      </>
+                    ) : (
+                      item.value
+                    )}
+                  </div>
                 </div>
               ))}
               

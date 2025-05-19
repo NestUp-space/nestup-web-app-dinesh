@@ -1,0 +1,332 @@
+# File Information & Purpose
+_fileInfo:
+  purpose: "Defines the structure and rules for a 'Simple Box' model, including its configurable dimensions, materials, and how its parts (planks) are calculated."
+  originalSource: "BasicBox.json"
+  version: "1.0.0" # Example version
+  lastUpdated: "2025-05-18" # Example date
+
+# General Model Information
+name: "Simple Box"
+description: "A basic rectangular box model with configurable dimensions and material thickness."
+catalogueImageURL: "url" # Placeholder: URL for the model's image in the catalogue. Replace with actual URL.
+
+# Example values a user might input to configure this box
+sampleInputValues:
+  boxHeight: 600
+  boxWidth: 400
+  boxDepth: 300
+  _comment: "These are example dimensions (in mm) that can be used to generate a sample box."
+
+# Model-specific internal variables and manufacturing codes
+modelScopedVariables: # Consider renaming to modelInternalParameters or advancedConfiguration
+  boxNumber: "B1"    # Unique identifier for this box instance (e.g., for labelling parts)
+  exposeEdgeBandingThickness: 2             
+  # Constant: Edge Banding thickness for Bottom edges (mm)
+  innerEdgeBandingThickness: 1             
+  # Constant: Edge Banding thickness for Internal edges (mm)
+  T3: "T3_ToolCode"  # Tool Code: Identifier for a specific manufacturing tool (e.g., for drilling standard screw holes)
+  T6: "T6_ToolCode"  # Tool Code: Identifier for a specific manufacturing tool (e.g., for VB screw holes)
+  T7: "T7_ToolCode"  # Tool Code: Identifier for a specific manufacturing tool (e.g., for 8mm back panel groove)
+  T8: "T8_ToolCode"  # Tool Code: Identifier for a specific manufacturing tool (e.g., for 10mm back panel groove)
+  T9: "T9_ToolCode"  # Tool Code: Identifier for a specific manufacturing tool (e.g., for 12mm back panel groove)
+  T10: "T10_ToolCode" # Tool Code: Identifier for a specific manufacturing tool (e.g., for 14mm back panel groove)
+  _variableGlossary: # Explanations for the codes above
+    boxNumber: "A unique identifier assigned to this box configuration, used in part labelling."
+    exposeEdgeBandingThickness: "Refers to 'Constant Edge Banding - Bottom'. Thickness in mm for edge banding applied to bottom edges."
+    innerEdgeBandingThickness: "Refers to 'Constant Edge Banding - Internal'. Thickness in mm for edge banding applied to internal edges."
+    T3: "Tool code for a standard drilling operation."
+    T6: "Tool code for creating VB (Vertical Boring) screw holes."
+    T7: "Tool code for creating a groove for an 8mm thick back panel."
+    T8: "Tool code for creating a groove for a 10mm thick back panel."
+    T9: "Tool code for creating a groove for a 12mm thick back panel."
+    T10: "Tool code for creating a groove for a 14mm thick back panel."
+
+# Parameters that users can configure for this model
+inputParameters: # Or consider renaming to configurableProperties or userSettings
+  - inputName: "boxHeight"
+    displayLabel: "Box Height"
+    inputType: "NUMBER" # Data type expected: Numerical value
+    unit: "mm"          # Unit of measurement
+    defaultValue: "700" # Default value if not specified by user
+    description: "Overall height of the box."
+    range: Minimum 250mm, Maximum 2400mm.
+  - inputName: "boxWidth"
+    displayLabel: "Box Width"
+    inputType: "NUMBER"
+    unit: "mm"
+    defaultValue: "600"
+    description: "Overall width of the box."
+    range: "(Min: 250mm, Max: 2400mm)" # Alternative way to specify range
+  - inputName: "boxDepth"
+    displayLabel: "Box Depth"
+    inputType: "NUMBER"
+    unit: "mm"
+    defaultValue: "550"
+    description: "Overall depth of the box."
+    range: "(Min: 250mm, Max: 750mm)"
+  - inputName: "leftAdjacency"
+    displayLabel: "Left Adjacency"
+    inputType: "SELECT" # User chooses from a list of options
+    defaultValue: "Expose"
+    description: "Specify what is to the left of this box. This affects panel design and material."
+    options: # Renamed from 'range' for clarity with SELECT type
+      - "Expose" # The left side is exposed (visible)
+      - "Wall"   # The left side is against a wall
+      - "Box"    # The left side is adjacent to another box
+  - inputName: "rightAdjacency"
+    displayLabel: "Right Adjacency"
+    inputType: "SELECT"
+    defaultValue: "Expose"
+    description: "Specify what is to the right of this box. This affects panel design and material."
+    options:
+      - "Expose" # The right side is exposed (visible)
+      - "Wall"   # The right side is against a wall
+      - "Box"    # The right side is adjacent to another box
+  - inputName: "exposeMaterialCode"
+    displayLabel: "Exposed Surfaces Material Code"
+    inputType: "TEXT" # User inputs a text code
+    defaultValue: "none"
+    description: "Material code for surfaces of the box that are visible from the outside. This choice determines the material's thickness (ET) and laminate code (ELC)."
+    valueHint: "Select from the list of approved materials available in the project's material library." # More descriptive than original 'range'
+  - inputName: "innerMaterialCode"
+    displayLabel: "Internal Surfaces Material Code"
+    inputType: "TEXT"
+    defaultValue: "none"
+    description: "Material code for internal surfaces of the box. This choice determines the material's thickness (IT) and laminate code (ILC)."
+    valueHint: "Select from the list of approved materials available in the project's material library."
+  - inputName: "backMaterialCode"
+    displayLabel: "Back Panel Material Code"
+    inputType: "TEXT"
+    defaultValue: "none"
+    description: "Material code for the back panel of the box. This choice determines the material's thickness (BT) and laminate code (BLC)."
+    valueHint: "Select from the list of approved materials available in the project's material library."
+
+# Available List of Add-ons: Optional features or components that can be added to the box
+availableAddons: # Consider renaming to optionalComponents or addOnFeatures
+  - addons:{
+      - Draw Set
+      - Shelf
+      - Horirontal Support
+      - 1 inner Draw
+      - Side by side draws
+      - Top and bottom draws
+      - External Draws
+      - Seater Top
+      - U shaped Draws
+      - Addional Plank expose
+      - Custom layout 1
+      - Custom layout 2
+      - Custom layout 3
+      - Custom layout 4
+      - Custom layout 5
+      - Top Dummy 
+      - Skirting 
+      }
+# Bill of Materials: List of parts (planks) required to build the box
+billOfMaterials: # Renamed from bomItems
+  - itemName: "Left Panel"
+    itemType: "PLANK" # Type of BOM item
+    itemDescription: "The vertical panel on the left side of the box."
+    plankProperties: # Specific properties if itemType is PLANK
+      packetNumber: "1" # Manufacturing packet number
+      plankLocation: "LT" # Location code (e.g., LT for Left side)
+      plankWidthLogic: > # Using folded style for long logic string
+        if (leftAdjacency === 'Expose') 
+        { plankWidth = boxDepth - doorPanel.thickness - (2 * leftPlank.edgeBandingThickness); }
+        else 
+        { plankWidth = boxDepth - doorPanel.thickness - backPanel.thickness - (2 * leftPlank.edgeBandingThickness); }
+      plankHeightLogic: "plankHeight = boxHeight - (2 * leftPlank.edgeBandingThickness);"
+      plankMaterialCodeLogic: "if (leftAdjacency === 'Expose') { plankMaterialCode = exposeMaterialCode; } else { plankMaterialCode = innerMaterialCode; }"
+      plankIdLogic: "plankId = boxNumber + ':P' + packetNumber + ':' + plankLocation;"
+      screwHolesLogic: >
+        if (leftAdjacency !== 'Expose') screwHoles = [{ ([plankWidth/4, (innerMaterialCode.thickness/2) - leftPlank.edgeBandingThickness, -0.01, T3]),
+        ([ plankWidth/2 , 0 + (innerMaterialCode.thickness/2) - leftPlank.edgeBandingThickness, -0.01, T3]),
+        ([3*plankWidth/4, 0 + (innerMaterialCode.thickness/2) - leftPlank.edgeBandingThickness, -0.01, T3]),  # Corrected W to plankWidth
+        ([plankWidth/4, plankHeight - (innerMaterialCode.thickness/2) - leftPlank.edgeBandingThickness, -0.01, T3]),
+        ([ plankWidth/2 ,plankHeight- (innerMaterialCode.thickness/2) - leftPlank.edgeBandingThickness, -0.01, T3]),
+        ([3*plankWidth/4, plankHeight - (innerMaterialCode.thickness/2) - leftPlank.edgeBandingThickness, -0.01, T3]), }]
+      vbScrewHolesLogic: >
+        let holes = [];
+        if (leftAdjacency === 'Expose') {
+          holes.push([50 - exposeMaterialCode.Thickness, plankHeight - innerMaterialCode.thickness + 9 + exposeMaterialCode.Thickness, exposeMaterialCode.thickness - 11, T6]);
+          holes.push([plankWidth - 50 + exposeMaterialCode.Thickness, plankHeight - innerMaterialCode.thickness + 9 + exposeMaterialCode.Thickness, exposeMaterialCode.thickness - 11, T6]); # Corrected W to plankWidth
+          if (plankWidth > 450) { # Corrected W to plankWidth
+            holes.push([ plankWidth/2 , plankHeight - innerMaterialCode.thickness + 9 + exposeMaterialCode.Thickness, exposeMaterialCode.thickness - 11, T6]);
+          }
+        }
+        // The original logic had 'if (0 === 0)' which is always true. Assuming this was intended for all cases or was a placeholder.
+        // If it's for non-exposed, it should be 'if (leftAdjacency !== 'Expose')'
+        // For now, replicating the always-true block:
+        holes.push([50 - exposeMaterialCode.Thickness, innerMaterialCode.thickness - 9 - exposeMaterialCode.Thickness, exposeMaterialCode.thickness - 11, T6]);
+        holes.push([plankWidth - 50 + exposeMaterialCode.Thickness, innerMaterialCode.thickness - 9 - exposeMaterialCode.Thickness, exposeMaterialCode.thickness - 11, T6]); # Corrected W to plankWidth
+        if (plankWidth > 450) { # Corrected W to plankWidth
+          holes.push([ plankWidth/2 , innerMaterialCode.thickness - 9 - exposeMaterialCode.Thickness, exposeMaterialCode.thickness - 11, T6]);
+        }
+        context.result = holes; # This 'context.result' implies the logic is run in an environment.
+      backPanelGrooveLogic: >
+        let groove = []; let tool;
+        if (backPanel.thickness === 8) tool = T7;
+        else if (backPanel.thickness === 10) tool = T8;
+        else if (backPanel.thickness === 12) tool = T9;
+        else if (backPanel.thickness === 14) tool = T10;
+        if (tool) {
+          groove = [plankWidth - (backPanel.thickness/2) + exposeMaterialCode.Thickness, 0 - exposeMaterialCode.Thickness, plankWidth - (backPanel.thickness/2) + exposeMaterialCode.Thickness, plankHeight - exposeMaterialCode.Thickness, 10, tool]; # Corrected W to plankWidth
+        }
+        context.result = groove.length > 0 ? [groove] : [];
+
+  - itemName: "Right Panel"
+    itemType: "PLANK"
+    itemDescription: "The vertical panel on the right side of the box."
+    plankProperties:
+      packetNumber: "1"
+      plankLocation: "RT" # Location code (e.g., RT for Right side)
+      plankWidthLogic: >
+        if (rightAdjacency === 'Expose') { plankWidth = boxDepth - doorPanel.thickness - (2 * rightPlank.edgeBandingThickness); }
+        else { plankWidth = boxDepth - doorPanel.thickness - backPanel.thickness - (2 * rightPlank.edgeBandingThickness); }
+      plankWidthLogic_explanation: "Calculates the width of the right panel, similar to the left panel, based on adjacency."
+      plankHeightLogic: "plankHeight = boxHeight - (2 * rightPlank.edgeBandingThickness);"
+      plankHeightLogic_explanation: "Calculates the height of the right panel."
+      plankMaterialCodeLogic: "if (rightAdjacency === 'Expose') { plankMaterialCode = exposeMaterialCode; } else { plankMaterialCode = innerMaterialCode; }"
+      plankMaterialCodeLogic_explanation: "Determines the material for the right panel based on its adjacency."
+      plankIdLogic: "plankId = boxNumber + ':P' + packetNumber + ':' + plankLocation;"
+      plankIdLogic_explanation: "Generates a unique ID for this plank (e.g., B1:P1:RT)."
+      screwHolesLogic: >
+        if (rightAdjacency !== 'Expose') screwHoles = [{ ([plankWidth/4, (innerMaterialCode.thickness/2) - rightPlank.edgeBandingThickness, -0.01, T3]),
+        ([ plankWidth/2 , 0 + (innerMaterialCode.thickness/2) - rightPlank.edgeBandingThickness, -0.01, T3]),
+        ([3*plankWidth/4, 0 + (innerMaterialCode.thickness/2) - rightPlank.edgeBandingThickness, -0.01, T3]), # Corrected W to plankWidth
+        ([plankWidth/4, plankHeight - (innerMaterialCode.thickness/2) - rightPlank.edgeBandingThickness, -0.01, T3]), # Corrected W to plankWidth
+        ([ plankWidth/2 , plankHeight - (innerMaterialCode.thickness/2) - rightPlank.edgeBandingThickness, -0.01, T3]),
+        ([3*plankWidth/4, plankHeight - (innerMaterialCode.thickness/2) - rightPlank.edgeBandingThickness, -0.01, T3]), }] # Corrected W to plankWidth
+      screwHolesLogic_explanation: "Defines screw hole positions for the right panel if not exposed. Uses Tool T3."
+      vbScrewHolesLogic: >
+        let holes = [];
+        if (rightAdjacency === 'Expose') {
+          holes.push([50 - exposeMaterialCode.Thickness, plankHeight - innerMaterialCode.thickness + 9 + exposeMaterialCode.Thickness, exposeMaterialCode.thickness - 11, T6]);
+          holes.push([plankWidth - 50 + exposeMaterialCode.Thickness, plankHeight - innerMaterialCode.thickness + 9 + exposeMaterialCode.Thickness, exposeMaterialCode.thickness - 11, T6]); # Corrected W to plankWidth
+          if (plankWidth > 450) { # Corrected W to plankWidth
+            holes.push([ plankWidth/2 , plankHeight - innerMaterialCode.thickness + 9 + exposeMaterialCode.Thickness, exposeMaterialCode.thickness - 11, T6]);
+          }
+        }
+        // Assuming similar always-true block as left panel
+        holes.push([50 - exposeMaterialCode.Thickness, innerMaterialCode.thickness - 9 - exposeMaterialCode.Thickness, exposeMaterialCode.thickness - 11, T6]);
+        holes.push([plankWidth - 50 + exposeMaterialCode.Thickness, innerMaterialCode.thickness - 9 - exposeMaterialCode.Thickness, exposeMaterialCode.thickness - 11, T6]); # Corrected W to plankWidth
+        if (plankWidth > 450) { # Corrected W to plankWidth
+          holes.push([ plankWidth/2 , innerMaterialCode.thickness - 9 - exposeMaterialCode.Thickness, exposeMaterialCode.thickness - 11, T6]);
+        }
+        context.result = holes;
+      vbScrewHolesLogic_explanation: "Defines VB screw hole positions for the right panel. Uses Tool T6."
+      backPanelGrooveLogic: >
+        let groove = []; let tool;
+        if (backPanel.thickness === 8) tool = T7;
+        else if (backPanel.thickness === 10) tool = T8;
+        else if (backPanel.thickness === 12) tool = T9;
+        else if (backPanel.thickness === 14) tool = T10;
+        if (tool) {
+          groove = [plankWidth - (backPanel.thickness/2) + exposeMaterialCode.Thickness, 0 - exposeMaterialCode.Thickness, plankWidth - (backPanel.thickness/2) + exposeMaterialCode.Thickness, plankHeight - exposeMaterialCode.Thickness, 10, tool]; # Corrected W to plankWidth
+        }
+        context.result = groove.length > 0 ? [groove] : [];
+      backPanelGrooveLogic_explanation: "Defines back panel groove for the right panel."
+
+  - itemName: "Top Panel"
+    itemType: "PLANK"
+    itemDescription: "Top panel of the box."
+    plankProperties:
+      packetNumber: "1"
+      plankLocation: "TP" # Location code (e.g., TP for Top Panel)
+      plankWidthLogic: >
+        let plankWidth;
+        if (leftAdjacency === 'Expose' && rightAdjacency === 'Expose') { plankWidth = boxWidth - innerEdgeBandingThickness - outerMaterialCode.thickness; }
+        else if (leftAdjacency === 'Expose' || rightAdjacency === 'Expose') { plankWidth = boxWidth - (2 * innerEdgeBandingThickness) - outerMaterialCode.thickness - innerMaterialCode.thickness; }
+        else { plankWidth = boxWidth - (2 * innerEdgeBandingThickness) - (2 * innerMaterialCode.thickness); }
+      plankWidthLogic_explanation: "Calculates the width of the top panel, considering adjacencies and material thicknesses."
+      plankHeightLogic: "let plankHeight = boxDepth - (2 * innerMaterialCode.thickness) - backPanel.thickness - exposeMaterialCode.thickness;" # Assuming exposeMaterialCode.thickness refers to door thickness here or similar
+      plankHeightLogic_explanation: "Calculates the depth (referred to as height here for consistency with panel orientation) of the top panel."
+      plankMaterialCodeLogic: "let plankMaterialCode = innerMaterialCode.laminateCode;"
+      plankMaterialCodeLogic_explanation: "The top panel typically uses the internal material."
+      plankIdLogic: "let plankId = boxNumber + ':P' + packetNumber + ':' + plankLocation;"
+      plankIdLogic_explanation: "Generates a unique ID for this plank (e.g., B1:P1:TP)."
+      vbMainHolesLogic: >
+        let vbMainHoles = [];
+        if (leftAdjacency === 'Expose') {
+          vbMainHoles.push([9.5 - innerMaterialCode.thickness, 50 - innerMaterialCode.thickness, innerMaterialCode.thickness - 14]);
+          vbMainHoles.push([9.5 - innerMaterialCode.thickness, plankHeight - 50 + innerMaterialCode.thickness, innerMaterialCode.thickness - 14]);
+          if (plankHeight > 450) { vbMainHoles.push([9.5 - innerMaterialCode.thickness,  plankHeight/2 , innerMaterialCode.thickness - 14]); } # Corrected H to plankHeight
+        }
+        if (rightAdjacency === 'Expose') {
+          vbMainHoles.push([plankWidth - 9.5 + innerMaterialCode.thickness, 50 - innerMaterialCode.thickness, innerMaterialCode.thickness - 14]); # Corrected W to plankWidth
+          vbMainHoles.push([plankWidth - 9.5 + innerMaterialCode.thickness, plankHeight - 50 + innerMaterialCode.thickness, innerMaterialCode.thickness - 14]); # Corrected W to plankWidth
+          if (plankHeight > 450) { vbMainHoles.push([plankWidth - 9.5 + innerMaterialCode.thickness,  plankHeight/2 , innerMaterialCode.thickness - 14]); } # Corrected W, H to plankWidth, plankHeight
+        }
+        # Note: The original logic for vbMainHolesLogic might be incomplete or assume context variables like W and H.
+        # I've replaced W with plankWidth and H with plankHeight where it seemed appropriate.
+      vbMainHolesLogic_explanation: "Defines VB main hole positions for connecting the top panel to side panels, if they are exposed."
+
+  - itemName: "Bottom Panel"
+    itemType: "PLANK"
+    itemDescription: "Bottom panel of the box."
+    plankProperties:
+      packetNumber: "1"
+      plankLocation: "BT" # Location code (e.g., BT for Bottom Panel)
+      plankWidthLogic: >
+        let plankWidth;
+        if (leftAdjacency === 'Expose' && rightAdjacency === 'Expose') { plankWidth = boxWidth - bottomPanel.edgeBandingThickness - doorPanel.thickness; }
+        else if (leftAdjacency === 'Expose' || rightAdjacency === 'Expose') { plankWidth = boxWidth - (2 * innerEdgeBandingThickness) - outerMaterialCode.thickness - innerMaterialCode.thickness; }
+        else { plankWidth = boxWidth - (2 * innerEdgeBandingThickness) - (2 * innerMaterialCode.thickness); }
+      plankWidthLogic_explanation: "Calculates the width of the bottom panel, similar to the top panel."
+      plankHeightLogic: "let plankHeight = boxDepth - (2 * innerMaterialCode.thickness) - backPanel.thickness - exposeMaterialCode.thickness;"
+      plankHeightLogic_explanation: "Calculates the depth of the bottom panel."
+      plankMaterialCodeLogic: "let plankMaterialCode = innerMaterialCode.laminateCode;"
+      plankMaterialCodeLogic_explanation: "The bottom panel typically uses the internal material."
+      plankIdLogic: "let plankId = boxNumber + ':P' + packetNumber + ':' + plankLocation;"
+      plankIdLogic_explanation: "Generates a unique ID for this plank (e.g., B1:P1:BT)."
+      vbMainHolesLogic: >
+        let vbMainHoles = [];
+        if (leftAdjacency === 'Expose') {
+          vbMainHoles.push([9.5 - innerMaterialCode.thickness, 50 - innerMaterialCode.thickness, innerMaterialCode.thickness - 14]);
+          vbMainHoles.push([9.5 - innerMaterialCode.thickness, plankHeight - 50 + innerMaterialCode.thickness, innerMaterialCode.thickness - 14]);
+          if (plankHeight > 450) { vbMainHoles.push([9.5 - innerMaterialCode.thickness,  plankHeight/2 , innerMaterialCode.thickness - 14]); } # Corrected H
+        }
+        if (rightAdjacency === 'Expose') {
+          vbMainHoles.push([plankWidth - 9.5 + innerMaterialCode.thickness, 50 - innerMaterialCode.thickness, innerMaterialCode.thickness - 14]); # Corrected W
+          vbMainHoles.push([plankWidth - 9.5 + innerMaterialCode.thickness, plankHeight - 50 + innerMaterialCode.thickness, innerMaterialCode.thickness - 14]); # Corrected W
+          if (plankHeight > 450) { vbMainHoles.push([plankWidth - 9.5 + innerMaterialCode.thickness,  plankHeight/2 , innerMaterialCode.thickness - 14]); } # Corrected W, H
+        }
+      vbMainHolesLogic_explanation: "Defines VB main hole positions for the bottom panel."
+
+  - itemName: "Back Panel"
+    itemType: "PLANK"
+    itemDescription: "Back panel of the box, typically thinner and fits into grooves."
+    plankProperties:
+      packetNumber: "1"
+      plankLocation: "BK" # Location code (e.g., BK for Back Panel)
+      plankWidthLogic: >
+        let plankWidth;
+        if (leftAdjacency === 'Expose' && rightAdjacency === 'Expose') { plankWidth = boxWidth - (2 * (outerMaterialCode.thickness - 10)); } # Assuming '10' is groove depth
+        else if (leftAdjacency === 'Expose' || rightAdjacency === 'Expose') { plankWidth = boxWidth - (outerMaterialCode.thickness - 10); }
+        else { plankWidth = boxWidth; }
+      plankWidthLogic_explanation: "Calculates the width of the back panel, accounting for how it fits into grooves in side panels."
+      plankHeightLogic: " plankHeight = boxHeight;" # Assuming it's full height or adjusted by groove depth elsewhere.
+      plankHeightLogic_explanation: "Calculates the height of the back panel."
+      plankMaterialCodeLogic: "let plankMaterialCode = innerMaterialCode.laminateCode;" # Or specific backPanelMaterialCode if different
+      plankMaterialCodeLogic_explanation: "The back panel material."
+      plankIdLogic: "let plankId = boxNumber + ':P' + packetNumber + ':' + plankLocation;"
+      plankIdLogic_explanation: "Generates a unique ID for this plank (e.g., B1:P1:BK)."
+
+  - itemName: "Door Panel"
+    itemType: "PLANK"
+    itemDescription: "Door panel of the box. Can be single or double based on width."
+    plankProperties:
+      packetNumber: "1" # Could be different if doors are separate packet
+      plankLocation: "DR" # Location code (e.g., DR for Door)
+      plankWidthLogic: >
+        let plankWidth;
+        if (boxWidth <= 600) { plankWidth = boxWidth - (2 * doorPanel.edgeBandingThickness); } # Single door logic
+        else { plankWidth = boxWidth/2 - (2 * doorPanel.edgeBandingThickness); } # Double door logic (width per door)
+      plankWidthLogic_explanation: "Calculates the width of the door panel(s). If box width is <= 600mm, it's a single door; otherwise, it's treated as one of two doors (width is per door)."
+      plankHeightLogic: "let plankHeight = boxHeight - (2 * doorPanel.edgeBandingThickness);" # Assuming '0' is a placeholder for other gaps
+      plankHeightLogic_explanation: "Calculates the height of the door panel, accounting for gaps and edge banding."
+      plankMaterialCodeLogic: "let plankMaterialCode = exposeMaterialCode.laminateCode;"
+      plankMaterialCodeLogic_explanation: "The door panel uses the exposed material."
+      plankIdLogic: "let plankId = boxNumber + ':P' + packetNumber + ':' + plankLocation;"
+      plankIdLogic_explanation: "Generates a unique ID for this plank (e.g., B1:P1:DR)."
+      # Door panels might have additional properties like hinge holes, handle holes, etc.
