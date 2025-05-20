@@ -3,7 +3,7 @@
  * Handles database operations for site visit box configurations
  */
 
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import prisma from '../config/db';
 import { CreateSiteVisitBoxDto, SiteVisitBox, UpdateSiteVisitBoxDto } from '../bim/types/bim.types';
 

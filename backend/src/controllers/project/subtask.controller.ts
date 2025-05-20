@@ -15,22 +15,25 @@ export class SubtaskController {
   /**
    * Create a new subtask
    */
-  async createSubtask(req: Request, res: Response) {
+  async createSubtask(req: Request, res: Response): Promise<void> {
     const customReq = req as CustomRequest;
     try {
       if (!customReq.user) {
-        return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        return;
       }
 
       const taskId = parseInt(customReq.params.taskId, 10);
       if (isNaN(taskId)) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task ID.' });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task ID.' });
+        return;
       }
 
       const { name, description, actionRequired, type, metadataJson } = customReq.body;
 
       if (!name) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Subtask name is required.' });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Subtask name is required.' });
+        return;
       }
 
       const subtaskData: CreateSubtaskDto = {
@@ -56,16 +59,18 @@ export class SubtaskController {
   /**
    * Get all subtasks for a task
    */
-  async getSubtasksForTask(req: Request, res: Response) {
+  async getSubtasksForTask(req: Request, res: Response): Promise<void> {
     const customReq = req as CustomRequest;
     try {
       if (!customReq.user) {
-        return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        return;
       }
 
       const taskId = parseInt(customReq.params.taskId, 10);
       if (isNaN(taskId)) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task ID.' });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task ID.' });
+        return;
       }
 
       const subtasks = await subtaskService.getSubtasksByTaskId(taskId);
@@ -84,16 +89,18 @@ export class SubtaskController {
   /**
    * Update a subtask
    */
-  async updateSubtask(req: Request, res: Response) {
+  async updateSubtask(req: Request, res: Response): Promise<void> {
     const customReq = req as CustomRequest;
     try {
       if (!customReq.user) {
-        return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        return;
       }
 
       const subtaskId = parseInt(customReq.params.subtaskId, 10);
       if (isNaN(subtaskId)) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid subtask ID.' });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid subtask ID.' });
+        return;
       }
 
       const { name, description, completed, actionRequired, type, metadataJson } = customReq.body;
@@ -101,7 +108,8 @@ export class SubtaskController {
       // Ensure at least one updatable field is provided
       if (name === undefined && description === undefined && completed === undefined && 
           actionRequired === undefined && type === undefined && metadataJson === undefined) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'No update data provided.' });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: 'No update data provided.' });
+        return;
       }
 
       const updateData: UpdateSubtaskDto = {
@@ -122,7 +130,8 @@ export class SubtaskController {
     } catch (error) {
       // Handle specific error from service (e.g., parent task completion blocked)
       if ((error as Error).message.includes('Cannot mark task as completed')) {
-        return res.status(StatusCodes.CONFLICT).json({ message: (error as Error).message });
+        res.status(StatusCodes.CONFLICT).json({ message: (error as Error).message });
+        return;
       }
       res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
     }
@@ -131,16 +140,18 @@ export class SubtaskController {
   /**
    * Delete a subtask
    */
-  async deleteSubtask(req: Request, res: Response) {
+  async deleteSubtask(req: Request, res: Response): Promise<void> {
     const customReq = req as CustomRequest;
     try {
       if (!customReq.user) {
-        return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        return;
       }
 
       const subtaskId = parseInt(customReq.params.subtaskId, 10);
       if (isNaN(subtaskId)) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid subtask ID.' });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid subtask ID.' });
+        return;
       }
 
       await subtaskService.deleteSubtask(subtaskId);

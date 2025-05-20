@@ -1,10 +1,8 @@
 import { describe, it, expect, beforeEach, vi, type MockInstance } from 'vitest';
 import { StatusCodes } from 'http-status-codes';
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 import { registerUser, loginUser, getUserById } from '../auth.service';
 import { prismaMock } from '@/test/setup/prisma.mock';
-import { ServiceResponse } from '@/common/models/serviceResponse';
 import { mockData } from '@/test/setup/test-helpers'; // Assuming mockData is in test-helpers
 
 // Mock the db import from '../config/db' as it's used by auth.service.ts

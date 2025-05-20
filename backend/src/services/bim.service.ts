@@ -1,6 +1,5 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
 // Define __dirname for ES modules
 const __dirname = path.dirname(__filename);

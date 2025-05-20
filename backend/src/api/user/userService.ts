@@ -49,7 +49,7 @@ export class UserService {
   // Creates a new user
   async create(data: Partial<User>): Promise<ServiceResponse<User | null>> {
     try {
-      const newUser = await this.userRepository.createAsync(data);
+      const newUser = await this.userRepository.createAsync(data as any);
       return ServiceResponse.success<User>("User created successfully", newUser, StatusCodes.CREATED);
     } catch (ex) {
       const errorMessage = `Error creating user: ${(ex as Error).message}`;

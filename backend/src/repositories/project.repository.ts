@@ -138,7 +138,7 @@ export class ProjectRepository implements IProjectRepository {
     
     // Handle special fields that need to be connected
     if (data.statusId !== undefined) {
-      updateData.status = data.statusId ? { connect: { id: data.statusId } } : { disconnect: true };
+      updateData.status = { connect: { id: data.statusId } };
     }
     
     if (data.engineerId !== undefined) {

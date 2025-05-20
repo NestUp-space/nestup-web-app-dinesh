@@ -4,6 +4,22 @@
 
 *All sub-tasks completed and documented in previous versions of this file and in `CURRENT_CONTEXT.md` / `CURRENT_DECISIONS.md`.*
 
+## Build Errors: Module not found for '@constants/faqData' and '@constants/navLinks' (Resolved)
+
+**Status:** Resolved.
+
+**Summary of Fixes:**
+- **faqData:**
+    - The import `import { faqData } from "@constants/faqData";` in `frontend/src/components/landing-page/Faq.tsx` was failing.
+    - The path alias `@constants/*` in `frontend/tsconfig.json` pointed to `frontend/src/constants/*`.
+    - The actual location of `faqData` was `frontend/constants/faqData/index.tsx`.
+    - **Resolution:** Moved the `frontend/constants/faqData` directory to `frontend/src/constants/faqData`.
+- **navLinks:**
+    - The import `import {links} from "@constants/navLinks";` in `frontend/src/components/landing-page/Footer.tsx` was failing.
+    - The path alias `@constants/*` in `frontend/tsconfig.json` pointed to `frontend/src/constants/*`.
+    - The actual location of `navLinks` was `frontend/constants/navLinks/index.ts`.
+    - **Resolution:** Moved the `frontend/constants/navLinks` directory to `frontend/src/constants/navLinks`.
+
 ## Current Task: Admin User Missing Permissions - Unable to Access /dashboard/users
 
 **Status:** Investigation Complete. Solution Identified.

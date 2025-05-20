@@ -5,6 +5,14 @@ interface ExecuteOptions {
   allowAsync?: boolean;
 }
 
+export interface ExecutedScriptResult {
+  // Define the structure of the script result, e.g.,
+  // success: boolean;
+  // data?: any;
+  // error?: string;
+  [key: string]: any; // Or be more specific based on expected output
+}
+
 export class JavaScriptFunctionService {
   /**
    * Validates the syntax of a JavaScript function string
@@ -27,11 +35,11 @@ export class JavaScriptFunctionService {
    * @param options Options for function execution
    * @returns The result of the function execution
    */
-  async executeFunction(
-    functionString: string, 
-    context: Record<string, any> = {}, 
+  async executeItemScript(
+    functionString: string,
+    context: Record<string, any> = {},
     options: ExecuteOptions = {}
-  ): Promise<any> {
+  ): Promise<ExecutedScriptResult> {
     const {
       timeout = 5000,
       allowAsync = false

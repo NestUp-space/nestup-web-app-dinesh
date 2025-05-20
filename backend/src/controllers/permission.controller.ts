@@ -51,16 +51,21 @@ export class PermissionController {
     }
   }
 
-  static async getUserPermissions(req: Request, res: Response) {
+  static async getUserPermissions(req: Request, res: Response): Promise<void> {
     try {
-      const userId = parseInt(req.params.userId);
+      const userId = parseInt(req.params.userId, 10);
+      if (isNaN(userId)) {
+        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid user ID' });
+        return;
+      }
       const user = await UserService.getUserById(userId);
 
-      if (!user) {
-        return res.status(StatusCodes.NOT_FOUND).json({
+      if (!user) { 
+        res.status(StatusCodes.NOT_FOUND).json({
           success: false,
           message: 'User not found'
         });
+        return;
       }
 
       const userPermissions = await prisma.user.findUnique({

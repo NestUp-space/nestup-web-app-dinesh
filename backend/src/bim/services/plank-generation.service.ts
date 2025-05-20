@@ -55,7 +55,7 @@ export class PlankGenerationService {
                 }
 
                 // Execute the script using JavaScriptFunctionService
-                const calculatedProps = await this.jsFunctionService.executeFunction(
+                const calculatedProps = await this.jsFunctionService.executeItemScript(
                     script,
                     { runtimeInputs: context.inputs, globalConstants: GLOBAL_CONSTANTS } // Use imported GLOBAL_CONSTANTS
                 );
@@ -123,7 +123,7 @@ export class PlankGenerationService {
                     }
 
                     try {
-                        const calculatedProps = await this.jsFunctionService.executeFunction(
+                        const calculatedProps = await this.jsFunctionService.executeItemScript(
                             script,
                             { 
                                 runtimeInputs: instance.runtimeInputsJson as Record<string, any>, 

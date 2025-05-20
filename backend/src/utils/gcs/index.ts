@@ -1,5 +1,4 @@
 import { Storage } from '@google-cloud/storage';
-import { Express } from 'express'; // Import Express
 import { v4 as uuidv4 } from 'uuid';
 
 const storage = new Storage({

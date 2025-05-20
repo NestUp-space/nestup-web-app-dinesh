@@ -6,7 +6,7 @@
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { taskService } from '../../services/project';
-import { CreateTaskDto, UpdateTaskDto } from '../../dtos/project.dto';
+import { UpdateTaskDto } from '../../dtos/project.dto';
 import { CustomRequest } from '../../middlewares/auth.middleware'; // Import CustomRequest
 import { TaskTemplate } from '../../types/projectTemplate.types'; // Import TaskTemplate
 
@@ -16,16 +16,18 @@ export class TaskController {
   /**
    * Create a new task
    */
-  async createTask(req: Request, res: Response) {
+  async createTask(req: Request, res: Response): Promise<void> {
     const customReq = req as CustomRequest;
     try {
       if (!customReq.user) {
-        return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        return;
       }
 
       const projectId = parseInt(customReq.params.projectId, 10);
       if (isNaN(projectId)) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID' });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID' });
+        return;
       }
 
       // Expect TaskTemplate in the body, similar to project.controller.ts (standalone)
@@ -33,7 +35,8 @@ export class TaskController {
 
       // Validate taskTemplateItem if necessary (e.g., check for taskName)
       if (!taskTemplateItem || typeof taskTemplateItem.taskName === 'undefined') {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task template data: taskName is required.' });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task template data: taskName is required.' });
+        return;
       }
       
       const task = await taskService.createTaskFromTemplate(projectId, taskTemplateItem);
@@ -50,16 +53,18 @@ export class TaskController {
   /**
    * Get all tasks for a project
    */
-  async getTasks(req: Request, res: Response) {
+  async getTasks(req: Request, res: Response): Promise<void> {
     const customReq = req as CustomRequest;
     try {
       if (!customReq.user) {
-        return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        return;
       }
 
       const projectId = parseInt(customReq.params.projectId, 10);
       if (isNaN(projectId)) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID' });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID' });
+        return;
       }
 
       const tasks = await taskService.getTasks(projectId);
@@ -78,16 +83,18 @@ export class TaskController {
   /**
    * Update a task
    */
-  async updateTask(req: Request, res: Response) {
+  async updateTask(req: Request, res: Response): Promise<void> {
     const customReq = req as CustomRequest;
     try {
       if (!customReq.user) {
-        return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        return;
       }
 
       const taskId = parseInt(customReq.params.taskId, 10);
       if (isNaN(taskId)) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task ID' });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task ID' });
+        return;
       }
 
       // Add updatedById to the request body
@@ -106,16 +113,18 @@ export class TaskController {
   /**
    * Delete a task
    */
-  async deleteTask(req: Request, res: Response) {
+  async deleteTask(req: Request, res: Response): Promise<void> {
     const customReq = req as CustomRequest;
     try {
       if (!customReq.user) {
-        return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        return;
       }
 
       const taskId = parseInt(customReq.params.taskId, 10);
       if (isNaN(taskId)) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task ID' });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task ID' });
+        return;
       }
 
       await taskService.deleteTask(taskId);
@@ -128,21 +137,24 @@ export class TaskController {
   /**
    * Update a task's status
    */
-  async updateTaskStatus(req: Request, res: Response) {
+  async updateTaskStatus(req: Request, res: Response): Promise<void> {
     const customReq = req as CustomRequest;
     try {
       if (!customReq.user) {
-        return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        return;
       }
 
       const taskId = parseInt(customReq.params.taskId, 10);
       if (isNaN(taskId)) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task ID' });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task ID' });
+        return;
       }
 
       const statusId = parseInt(customReq.body.status, 10);
       if (isNaN(statusId)) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid status ID' });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid status ID' });
+        return;
       }
 
       await taskService.updateTaskStatus(taskId, statusId);

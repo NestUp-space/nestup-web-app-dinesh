@@ -15,20 +15,22 @@ export class ProjectController {
   /**
    * Create a new project
    */
-  async createProject(req: Request, res: Response) {
+  async createProject(req: Request, res: Response): Promise<void> {
     const customReq = req as CustomRequest;
     try {
       if (!customReq.user) {
-        return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        return;
       }
 
       // Ensure customReq.user.role is treated as a simple string as per CustomRequest
       if (customReq.user.role === 'client') {
-        return res.status(StatusCodes.FORBIDDEN).json({ message: 'Client users are not allowed to create projects' });
+        res.status(StatusCodes.FORBIDDEN).json({ message: 'Client users are not allowed to create projects' });
+        return;
       }
 
       // Extract values from request body
-      const { name, projectDescription, description, engineerId, clientId } = customReq.body;
+      const { name, projectDescription, description, engineerId } = customReq.body;
       
       // Use projectDescription or description (whichever is provided)
       const projectDesc = projectDescription || description;
@@ -45,13 +47,13 @@ export class ProjectController {
       
       // Convert IDs to integers
       const engineerIdInt = engineerId ? parseInt(engineerId, 10) : undefined;
-      const clientIdInt = clientId ? parseInt(clientId, 10) : undefined;
       
       // Get the user ID for createdById
       const createdById = customReq.user.id;
 
       if (!name) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Project name is required' });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Project name is required' });
+        return;
       }
 
       const projectData: CreateProjectDto = {
@@ -64,7 +66,6 @@ export class ProjectController {
         vbCount: vbCount || 0,
         statusId: statusId || 1,
         engineerId: engineerIdInt || undefined,
-        clientId: clientIdInt || undefined,
         createdById
       };
 
@@ -79,11 +80,12 @@ export class ProjectController {
   /**
    * Get all projects
    */
-  async getProjects(req: Request, res: Response) {
+  async getProjects(req: Request, res: Response): Promise<void> {
     const customReq = req as CustomRequest;
     try {
       if (!customReq.user) {
-        return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        return;
       }
 
       // Prepare user object for service layer
@@ -110,15 +112,17 @@ export class ProjectController {
   /**
    * Get a project by ID
    */
-  async getProjectById(req: Request, res: Response) {
+  async getProjectById(req: Request, res: Response): Promise<void> {
     const customReq = req as CustomRequest;
     try {
       if (!customReq.user) {
-        return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        return;
       }
       const projectId = parseInt(customReq.params.projectId, 10);
       if (isNaN(projectId)) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID' });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID' });
+        return;
       }
 
       // Prepare user object for service layer
@@ -133,7 +137,8 @@ export class ProjectController {
 
       if (!project) {
         // Service layer now handles permission checks and returns null if not found or not permitted
-        return res.status(StatusCodes.NOT_FOUND).json({ message: 'Project not found or access denied' });
+        res.status(StatusCodes.NOT_FOUND).json({ message: 'Project not found or access denied' });
+        return;
       }
       
       // Transform project to response DTO
@@ -148,16 +153,18 @@ export class ProjectController {
   /**
    * Update a project
    */
-  async updateProject(req: Request, res: Response) {
+  async updateProject(req: Request, res: Response): Promise<void> {
     const customReq = req as CustomRequest;
     try {
       if (!customReq.user) {
-        return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        return;
       }
 
       const projectId = parseInt(customReq.params.projectId, 10);
       if (isNaN(projectId)) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID' });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID' });
+        return;
       }
 
       // Add updatedById to the request body
@@ -176,16 +183,18 @@ export class ProjectController {
   /**
    * Delete a project
    */
-  async deleteProject(req: Request, res: Response) {
+  async deleteProject(req: Request, res: Response): Promise<void> {
     const customReq = req as CustomRequest;
     try {
       if (!customReq.user) {
-        return res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        return;
       }
 
       const projectId = parseInt(customReq.params.projectId, 10);
       if (isNaN(projectId)) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID' });
+        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID' });
+        return;
       }
 
       await projectService.deleteProject(projectId);

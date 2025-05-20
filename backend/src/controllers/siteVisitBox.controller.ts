@@ -5,10 +5,10 @@
 
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
+import { CreateSiteVisitBoxDto, UpdateSiteVisitBoxDto } from '../bim/types/bim.types'; // Updated import path
+// import { formatCutListAsCsv } from '../bim/reference/CreateCutlist';
 import { siteVisitBoxService } from '../services/siteVisitBox.service';
-import { handleServiceResponse } from '../common/utils/httpHandlers'; // Assuming this utility exists
-import { CreateSiteVisitBoxDto, UpdateSiteVisitBoxDto } from '../bim/types/bim.types';
-import { formatCutListAsCsv } from '../bim/reference/CreateCutlist';
+import { handleServiceResponse } from '../common/utils/httpHandlers';
 
 export class SiteVisitBoxController {
   /**

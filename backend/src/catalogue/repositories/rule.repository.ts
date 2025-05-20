@@ -1,7 +1,5 @@
-import { PrismaClient, BillOfMaterialItem } from '@prisma/client';
+import { ModelBomItem } from '@prisma/client';
 // Import DTOs or specific types for rule data if needed
-
-const prisma = new PrismaClient();
 
 export class RuleRepository {
   constructor() {
@@ -20,7 +18,7 @@ export class RuleRepository {
    * This is a conceptual example and would require specific Prisma JSON filtering capabilities.
    * @param rulePattern - A pattern or structure to search for within the rulesJson.
    */
-  async findBomItemsWithRulePattern(modelDefinitionId: string, rulePattern: any): Promise<BillOfMaterialItem[]> {
+  async findBomItemsWithRulePattern(modelDefinitionId: string, rulePattern: any): Promise<ModelBomItem[]> {
     console.log(
       `RuleRepository.findBomItemsWithRulePattern called for modelId: ${modelDefinitionId} with pattern:`,
       rulePattern,
@@ -47,7 +45,7 @@ export class RuleRepository {
    * @param bomItemId - The ID of the BillOfMaterialItem.
    * @param newRulesJson - The new JSON object for the rules.
    */
-  async updateRulesForBomItem(bomItemId: string, newRulesJson: any): Promise<BillOfMaterialItem | null> {
+  async updateRulesForBomItem(bomItemId: string, _newRulesJson: any): Promise<ModelBomItem | null> {
     console.log(`RuleRepository.updateRulesForBomItem called for bomItemId: ${bomItemId} (placeholder)`);
     // return prisma.billOfMaterialItem.update({
     //   where: { id: bomItemId },

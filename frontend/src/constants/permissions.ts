@@ -15,7 +15,8 @@ export const ACTIONS = {
   EDIT: 'edit',
   DELETE: 'delete',
   APPROVE: 'approve',
-  MANAGE: 'manage'
+  MANAGE: 'manage',
+  CHANGE_STATUS: 'change_status' // Added CHANGE_STATUS
 } as const;
 
 export type PermissionGroup = typeof PERMISSION_GROUPS[keyof typeof PERMISSION_GROUPS];

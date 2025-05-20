@@ -39,7 +39,7 @@ export class ValidationController {
           globalConstants: globalConstants || this.globalConstants
         };
 
-        const result = await this.jsService.executeFunction(
+        const result = await this.jsService.executeItemScript(
           itemLogicScript,
           context,
           {

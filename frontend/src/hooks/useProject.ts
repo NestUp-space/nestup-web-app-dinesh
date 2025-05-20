@@ -13,6 +13,7 @@ interface Project {
   address?: string;
   location?: string;
   sqft?: number;
+  statusId: number; // Added statusId
   status?: { id: number; status: string };
   designer?: { id: number; name: string; email: string };
   projectManager?: { id: number; name: string; email: string };

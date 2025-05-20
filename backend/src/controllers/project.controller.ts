@@ -95,12 +95,6 @@ export class ProjectController {
       // Determine the statusId to use
       const finalStatusId = requestedStatusId ?? 1; // Default to 1 if not provided, matching Prisma schema default
 
-      // Validate the finalStatusId
-      const statusRecord = await prisma.status.findUnique({ where: { id: finalStatusId } });
-      if (!statusRecord) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: `Invalid statusId: ${finalStatusId}` });
-      }
-      
       // Validate designer exists if provided
       if (designerId) {
         const designerExists = await prisma.user.findFirst({
@@ -145,20 +139,19 @@ export class ProjectController {
       };
 
       // Use the project service to create the project with tasks
-      const project = await projectService.createProject(projectData);
+      // Ensure statusId is 1 (Draft) for all new projects
+      const project = await projectService.createProject({ ...projectData, statusId: 1 });
       
       return res.status(StatusCodes.CREATED).json({
         success: true,
-        message: 'Project created successfully with tasks and subtasks from template',
+        message: 'Project created successfully with tasks and subtasks from template, status set to Draft.',
         project
       });
     } catch (err) {
-      console.error('Error creating project:', err); // Log the full error for server-side diagnosis
-      // Send a very simple, guaranteed valid JSON response
+      console.error('Error creating project:', err); 
       return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: 'An internal server error occurred while creating the project.'
-        // Avoid sending the raw error message to the client in case it's complex or causes serialization issues
       });
     }
   }
@@ -292,39 +285,73 @@ export class ProjectController {
     try {
       const projectId = parseInt(req.params.id);
       const userId = req.user?.id;
-      const { projectStatus } : { projectStatus?: string } = req.body; 
+      const { status: newStatusName } : { status?: string } = req.body; // Expecting status name e.g. "Active", "Completed", "Archived"
 
       if (!userId) {
-        return res.status(StatusCodes.UNAUTHORIZED).json({
-          success: false,
-          message: 'User not authenticated'
+        return res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: 'User not authenticated' });
+      }
+      if (!newStatusName) {
+        return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'New project status is required.' });
+      }
+
+      const targetStatusRecord = await prisma.status.findFirst({ where: { status: newStatusName } });
+      if (!targetStatusRecord) {
+        return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: `Invalid target project status: ${newStatusName}` });
+      }
+
+      const currentProject = await prisma.project.findUnique({ where: { id: projectId }, include: { status: true }});
+      if (!currentProject) {
+        return res.status(StatusCodes.NOT_FOUND).json({ success: false, message: 'Project not found' });
+      }
+      
+      if (!currentProject.status) { // Add null check for status
+        return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ success: false, message: 'Project status information is missing.' });
+      }
+      const currentStatusName = currentProject.status.status;
+
+      // Define allowed transitions
+      const allowedTransitions: Record<string, string[]> = {
+        "Draft": ["Active"],
+        "Active": ["Completed", "Archived"],
+        "Completed": ["Archived"],
+        // Archived projects cannot be moved to other statuses directly by this endpoint for now
+      };
+
+      if (!allowedTransitions[currentStatusName]?.includes(newStatusName)) {
+        return res.status(StatusCodes.BAD_REQUEST).json({ 
+          success: false, 
+          message: `Cannot transition project from ${currentStatusName} to ${newStatusName}.` 
         });
       }
-
-      if (!projectStatus) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Project status is required.' });
+      
+      // Additional logic for "Completed" status (e.g., check if all tasks are done) can be added here
+      if (newStatusName === "Completed") {
+        const tasks = await prisma.task.findMany({
+          where: { projectId: projectId },
+          include: { status: true }
+        });
+        const allTasksCompleted = tasks.every(task => task.status.status === 'Completed'); // Assuming 'Completed' is a status for tasks
+        if (!allTasksCompleted && tasks.length > 0) { // only check if there are tasks
+          return res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: 'Cannot mark project as Completed. Not all tasks are completed.'
+          });
+        }
       }
 
-      const statusRecord = await prisma.status.findFirst({ where: { status: projectStatus } });
-      if (!statusRecord) {
-        return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: `Invalid project status: ${projectStatus}` });
-      }
-
-      const updateData = {
-        statusId: statusRecord.id,
-        projectStatus,
-        updatedById: userId
-      } as any;
-
-      const project = await prisma.project.update({
+      const updatedProject = await prisma.project.update({
         where: { id: projectId },
-        data: updateData
+        data: { 
+          statusId: targetStatusRecord.id,
+          updatedById: userId
+        },
+        include: projectIncludes // Ensure this includes the status relation
       });
 
       return res.status(StatusCodes.OK).json({
         success: true,
-        message: 'Project status updated successfully',
-        project
+        message: `Project status updated to ${newStatusName} successfully`,
+        project: updatedProject
       });
     } catch (err) {
       console.error('Error updating project status:', err);
@@ -336,30 +363,7 @@ export class ProjectController {
     }
   }
 
-  static async deleteProject(req: Request, res: Response): Promise<Response> {
-    try {
-      const projectId = parseInt(req.params.id);
-      
-      await prisma.$transaction([
-        prisma.material.deleteMany({ where: { projectId } }),
-        prisma.engineerProjectMapping.deleteMany({ where: { projectId } }),
-        prisma.comment.deleteMany({ where: { projectId } }),
-        prisma.project.delete({ where: { id: projectId } })
-      ]);
-
-      return res.status(StatusCodes.OK).json({
-        success: true,
-        message: 'Project deleted successfully'
-      });
-    } catch (err) {
-      console.error('Error deleting project:', err);
-      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: 'Unable to delete project',
-        error: err instanceof Error ? err.message : 'Unknown error'
-      });
-    }
-  }
+  // static async deleteProject ... (REMOVED as per requirements)
 
   static async shareProject(req: CustomRequest, res: Response): Promise<Response> {
     try {

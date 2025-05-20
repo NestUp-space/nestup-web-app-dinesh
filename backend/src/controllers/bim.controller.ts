@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { CustomRequest } from '../middlewares/auth.middleware';
 import { BimService } from '../services/bim.service'; // Corrected: ModelTemplate not directly exported for controller use here
 import { SubtaskRepository, subtaskRepository as globalSubtaskRepository } from '../repositories/subtask.repository';
 // prisma instance is not passed to repositories as they instantiate their own
@@ -39,8 +38,7 @@ export class BimController {
    *       500:
    *         description: Internal server error
    */
-  public async getModelTemplates(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const customReq = req as CustomRequest;
+  public async getModelTemplates(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       // BimService.getModelTemplates() returns Promise<ModelTemplate[]>
       // ModelTemplate is defined in BimService, ensure it's compatible or map it.
@@ -115,10 +113,9 @@ export class BimController {
    *         description: Internal server error
    */
   public async generatePlankListAndUpdateSubtask(req: Request, res: Response, next: NextFunction): Promise<void> { 
-    const customReq = req as CustomRequest; // Cast to CustomRequest
     try {
       // Note: customReq.user might be used here for role-based access or logging if needed
-      const { modelName, inputs, subtaskId, boxNumber, packetNumber } = customReq.body;
+      const { modelName, inputs, subtaskId, boxNumber, packetNumber } = req.body;
 
       if (!modelName || !inputs || subtaskId == null || !boxNumber || !packetNumber) {
         res.status(400).json({ message: 'Missing required parameters: modelName, inputs, subtaskId, boxNumber, packetNumber.' });
@@ -190,9 +187,8 @@ export class BimController {
    *         description: Internal server error
    */
   public async generatePlankListCsvForInstance(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const customReq = req as CustomRequest;
     try {
-      const { projectModelInstanceId, boxNumber = '1', packetNumber = '1' } = customReq.body;
+      const { projectModelInstanceId, boxNumber = '1', packetNumber = '1' } = req.body;
 
       if (!projectModelInstanceId) {
         res.status(400).json({ message: 'Missing required parameter: projectModelInstanceId.' });

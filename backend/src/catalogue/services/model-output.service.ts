@@ -1,14 +1,14 @@
-import { injectable, inject } from 'tsyringe';
-import { PdfGenerationService } from '../../common/services/pdf-generation.service';
+import { injectable } from 'tsyringe';
+// import { PdfGenerationService } from '../../common/services/pdf-generation.service';
 // import { FileStorageService } from '../../common/services/file-storage.service'; // Assuming a FileStorageService for S3
 // import { PrismaClient } from '@prisma/client'; // Or your specific Prisma service/repository
 
 @injectable()
 export class ModelOutputService {
   constructor(
-    @inject(PdfGenerationService) private pdfGenerationService: PdfGenerationService,
-    // @inject(FileStorageService) private fileStorageService: FileStorageService,
-    // @inject('PrismaClient') private prisma: PrismaClient, // Or your prisma service
+    // @inject(PdfGenerationService) private _pdfGenerationService: PdfGenerationService,
+    // @inject(FileStorageService) private _fileStorageService: FileStorageService,
+    // @inject('PrismaClient') private _prisma: PrismaClient, // Or your prisma service
   ) {}
 
   // Example method placeholder - to be expanded in later tasks

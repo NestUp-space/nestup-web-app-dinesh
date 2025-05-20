@@ -14,6 +14,46 @@ import { useRouter } from 'next/navigation';
 import { usePermissions } from '@/hooks/usePermissions'; // Import the new hook
 import { PERMISSIONS } from '@/constants/permissions'; // Import frontend permissions
 
+// ProjectCard component definition
+interface ProjectCardProps {
+  project: any;
+}
+
+const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
+  const router = useRouter();
+  
+  return (
+    <div 
+      key={project.id} 
+      className="bg-lightest-bw border border-light-bw shadow-md rounded-lg p-6 cursor-pointer hover:shadow-lg transition-shadow duration-200"
+      onClick={() => router.push(`/dashboard/projects/${project.id}`)}
+    >
+      <h2 className="text-xl font-semibold text-dark-text-bw mb-2">{project.name}</h2>
+      <p className="text-dark-text-bw/80 text-sm mb-3">
+        {project.description ? `${project.description.substring(0, 100)}${project.description.length > 100 ? '...' : ''}` : 'No description available.'}
+      </p>
+      <div className="space-y-1 text-sm text-dark-text-bw/70">
+        <p><strong>Designer:</strong> {project.designer?.name || 'N/A'}</p>
+        <p><strong>Project Manager:</strong> {project.projectManager?.name || 'N/A'}</p>
+        <p><strong>Engineer:</strong> {project.engineer?.name || 'N/A'}</p>
+        <p><strong>Tasks:</strong> {project.tasks?.length || 0}</p>
+      </div>
+      
+      <div className="mt-4">
+        <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+          project.status?.status === 'Completed' ? 'bg-green-100 text-green-700 border border-green-200' :
+          project.status?.status === 'Active' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+          project.status?.status === 'Draft' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
+          project.status?.status === 'Archived' ? 'bg-gray-100 text-gray-700 border border-gray-200' :
+          'bg-lighter-bw text-dark-text-bw border border-light-bw' // Default/Unknown status
+        }`}>
+          {project.status?.status || 'Unknown Status'}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 export default function ProjectsPage({
   searchParams
 }: {
@@ -39,6 +79,11 @@ export default function ProjectsPage({
   const token = localStorage.getItem('token');
   const router = useRouter(); // Initialize useRouter
 
+  // State for filtered projects by status
+  const [activeProjects, setActiveProjects] = useState<any[]>([]);
+  const [draftProjects, setDraftProjects] = useState<any[]>([]);
+  const [archivedProjects, setArchivedProjects] = useState<any[]>([]);
+
   const fetchProjects = async () => {
     if (!token) return;
     try {
@@ -50,14 +95,26 @@ export default function ProjectsPage({
       if (response.ok) {
         const data = await response.json();
         console.log('Projects API response:', data);
-        setProjects(data.data?.projects || []);
+        const allProjects = data.data?.projects || [];
+        setProjects(allProjects);
+        
+        // Filter projects by status
+        setActiveProjects(allProjects.filter((project: any) => project.status?.status === 'Active'));
+        setDraftProjects(allProjects.filter((project: any) => project.status?.status === 'Draft'));
+        setArchivedProjects(allProjects.filter((project: any) => project.status?.status === 'Archived'));
       } else {
         console.error('Failed to fetch projects:', response.status);
         setProjects([]);
+        setActiveProjects([]);
+        setDraftProjects([]);
+        setArchivedProjects([]);
       }
     } catch (error) {
       console.error('Error fetching projects:', error);
       setProjects([]);
+      setActiveProjects([]);
+      setDraftProjects([]);
+      setArchivedProjects([]);
     }
   };
 
@@ -326,41 +383,55 @@ export default function ProjectsPage({
         </TabsTrigger>
       </TabsList>
 
+      {/* All Projects Tab */}
       <TabsContent value="all">
         {projects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.map((project) => (
-              <div 
-                key={project.id} 
-                className="bg-lightest-bw border border-light-bw shadow-md rounded-lg p-6 cursor-pointer hover:shadow-lg transition-shadow duration-200"
-                onClick={() => router.push(`/dashboard/projects/${project.id}`)}
-              >
-                <h2 className="text-xl font-semibold text-dark-text-bw mb-2">{project.name}</h2>
-                <p className="text-dark-text-bw/80 text-sm mb-3">
-                  {project.description ? `${project.description.substring(0, 100)}${project.description.length > 100 ? '...' : ''}` : 'No description available.'}
-                </p>
-                <div className="space-y-1 text-sm text-dark-text-bw/70">
-                  <p><strong>Designer:</strong> {project.designer?.name || 'N/A'}</p>
-                  <p><strong>Project Manager:</strong> {project.projectManager?.name || 'N/A'}</p>
-                  <p><strong>Engineer:</strong> {project.engineer?.name || 'N/A'}</p>
-                  <p><strong>Tasks:</strong> {project.tasks?.length || 0}</p>
-                </div>
-                
-                <div className="mt-4">
-                  <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                    project.status?.status === 'Completed' ? 'bg-green-100 text-green-700 border border-green-200' :
-                    project.status?.status === 'In Progress' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
-                    project.status?.status === 'Pending' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
-                    'bg-lighter-bw text-dark-text-bw border border-light-bw' // Default/Unknown status
-                  }`}>
-                    {project.status?.status || 'Unknown Status'}
-                  </span>
-                </div>
-              </div>
+              <ProjectCard key={project.id} project={project} />
             ))}
           </div>
         ) : (
           <p className="text-dark-text-bw/70 text-center py-10">No projects found.</p>
+        )}
+      </TabsContent>
+
+      {/* Active Projects Tab */}
+      <TabsContent value="active">
+        {activeProjects.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {activeProjects.map((project) => (
+              <ProjectCard key={project.id} project={project} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-dark-text-bw/70 text-center py-10">No active projects found.</p>
+        )}
+      </TabsContent>
+
+      {/* Draft Projects Tab */}
+      <TabsContent value="draft">
+        {draftProjects.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {draftProjects.map((project) => (
+              <ProjectCard key={project.id} project={project} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-dark-text-bw/70 text-center py-10">No draft projects found.</p>
+        )}
+      </TabsContent>
+
+      {/* Archived Projects Tab */}
+      <TabsContent value="archived">
+        {archivedProjects.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {archivedProjects.map((project) => (
+              <ProjectCard key={project.id} project={project} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-dark-text-bw/70 text-center py-10">No archived projects found.</p>
         )}
       </TabsContent>
     </Tabs>

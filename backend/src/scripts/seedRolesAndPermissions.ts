@@ -10,6 +10,7 @@ const basePermissions: Record<string, string[]> = {
     'project.update',
     'project.view',
     'project.assign',
+    'project.change_status', // Add permission to change project status
     'task.create',
     'task.update',
     'task.view',
@@ -64,12 +65,21 @@ async function seedRolesAndPermissions() {
 
     // Create permissions in database
     for (const permission of allPermissions) {
-      await prisma.userPermission.upsert({
-        where: { permission },
-        update: {},
-        create: { permission }
+      // First try to find the permission
+      const existingPermission = await prisma.userPermission.findFirst({
+        where: { permission }
       });
-      console.log(`Created/Updated permission: ${permission}`);
+      
+      if (existingPermission) {
+        // If it exists, no need to update as permission name doesn't change
+        console.log(`Permission already exists: ${permission}`);
+      } else {
+        // If it doesn't exist, create it
+        await prisma.userPermission.create({
+          data: { permission }
+        });
+        console.log(`Created permission: ${permission}`);
+      }
     }
 
     // Create internal roles

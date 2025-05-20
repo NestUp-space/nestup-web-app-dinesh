@@ -1,4 +1,4 @@
-import { CutList, CutOperation, MaterialProperties, Plank, SheetLayout } from '../types/bim.types';
+import { CutList, MaterialProperties, Plank, SheetLayout } from '../types/bim.types';
 
 // Standard sheet sizes by material type (in mm)
 const STANDARD_SHEET_SIZES: Record<string, { width: number; height: number }> = {
@@ -317,7 +317,7 @@ export function visualizeCutList(cutList: CutList): string {
   ];
 
   // Generate SVG for each sheet
-  cutList.sheets.forEach((sheet, sheetIndex) => {
+  cutList.sheets.forEach((sheet) => {
     // Create SVG for this sheet
     svg += `<svg width="${sheet.width + 100}" height="${sheet.height + 100}" xmlns="http://www.w3.org/2000/svg">\n`;
 

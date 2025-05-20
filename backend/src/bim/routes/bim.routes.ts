@@ -37,7 +37,7 @@ const bimRouter = Router();
  *                     type: string
  *                   example: ["Simple Box", "L-Shaped Box"]
  */
-bimRouter.get('/models', bimController.getAvailableModelTypes);
+// bimRouter.get('/models', bimController.getAvailableModelTypes);
 
 /**
  * @openapi
@@ -79,7 +79,7 @@ bimRouter.get('/models', bimController.getAvailableModelTypes);
  *                         type: object
  *                         example: { "boxHeight": null, "boxWidth": null, "boxDepth": null }
  */
-bimRouter.get('/models/info', bimController.getAvailableModels);
+// bimRouter.get('/models/info', bimController.getAvailableModels);
 
 /**
  * @openapi
@@ -102,7 +102,7 @@ bimRouter.get('/models/info', bimController.getAvailableModels);
  *       404:
  *         description: Model type not found.
  */
-bimRouter.get('/models/:modelType/info', bimController.getModelInfo);
+// bimRouter.get('/models/:modelType/info', bimController.getModelInfo);
 
 /**
  * @openapi
@@ -173,7 +173,7 @@ bimRouter.get('/models/:modelType/info', bimController.getModelInfo);
  *       404:
  *         description: Model type not found.
  */
-bimRouter.post('/models/:modelType/validate', bimController.validateModelInputs);
+// bimRouter.post('/models/:modelType/validate', bimController.validateModelInputs);
 
 /**
  * @openapi
@@ -202,7 +202,7 @@ bimRouter.post('/models/:modelType/validate', bimController.validateModelInputs)
  *       400:
  *         description: Invalid input.
  */
-bimRouter.post('/site-measurements', bimController.processSiteMeasurements);
+// bimRouter.post('/site-measurements', bimController.processSiteMeasurements);
 
 /**
  * @openapi
@@ -231,7 +231,7 @@ bimRouter.post('/site-measurements', bimController.processSiteMeasurements);
  *       400:
  *         description: Invalid input.
  */
-bimRouter.post('/3d-design', bimController.create3DDesign);
+// bimRouter.post('/3d-design', bimController.create3DDesign);
 
 /**
  * @openapi
@@ -305,7 +305,7 @@ bimRouter.post('/plank-list/:modelType', bimController.createPlankList);
  *       400:
  *         description: Invalid input (e.g., missing plankList).
  */
-bimRouter.post('/cut-list', bimController.generateCutList);
+// bimRouter.post('/cut-list', bimController.generateCutList);
 
 /**
  * @openapi
@@ -335,7 +335,7 @@ bimRouter.post('/cut-list', bimController.generateCutList);
  *       400:
  *         description: Invalid input (e.g., missing cutList).
  */
-bimRouter.post('/cut-list/download/csv', bimController.downloadCutListCsv);
+// bimRouter.post('/cut-list/download/csv', bimController.downloadCutListCsv);
 
 /**
  * @openapi
@@ -365,7 +365,7 @@ bimRouter.post('/cut-list/download/csv', bimController.downloadCutListCsv);
  *       400:
  *         description: Invalid input (e.g., missing cutList).
  */
-bimRouter.post('/cut-list/download/json', bimController.downloadCutListJson);
+// bimRouter.post('/cut-list/download/json', bimController.downloadCutListJson);
 
 /**
  * @openapi
@@ -391,7 +391,7 @@ bimRouter.post('/cut-list/download/json', bimController.downloadCutListJson);
  *       400:
  *         description: Invalid input (e.g., missing cutList).
  */
-bimRouter.post('/g-code', bimController.generateGCode);
+// bimRouter.post('/g-code', bimController.generateGCode);
 
 /**
  * @openapi
@@ -421,7 +421,7 @@ bimRouter.post('/g-code', bimController.generateGCode);
  *       400:
  *         description: Invalid input (e.g., missing cutList).
  */
-bimRouter.post('/g-code/download', bimController.downloadGCode);
+// bimRouter.post('/g-code/download', bimController.downloadGCode);
 
 /**
  * @openapi
@@ -455,7 +455,7 @@ bimRouter.post('/g-code/download', bimController.downloadGCode);
  *       400:
  *         description: Invalid input (e.g., missing plankList).
  */
-bimRouter.post('/visualize-planks', bimController.visualizePlanks);
+// bimRouter.post('/visualize-planks', bimController.visualizePlanks);
 
 /**
  * @openapi
@@ -473,7 +473,7 @@ bimRouter.post('/visualize-planks', bimController.visualizePlanks);
  *             schema:
  *               type: object # Define structure of globalRules.json
  */
-bimRouter.get('/rules/global', bimController.getGlobalRules);
+// bimRouter.get('/rules/global', bimController.getGlobalRules);
 
 /**
  * @openapi
@@ -496,6 +496,6 @@ bimRouter.get('/rules/global', bimController.getGlobalRules);
  *       404:
  *         description: Model type not found.
  */
-bimRouter.get('/models/:modelType/template', bimController.getModelTemplate);
+// bimRouter.get('/models/:modelType/template', bimController.getModelTemplate);
 
 export default bimRouter;

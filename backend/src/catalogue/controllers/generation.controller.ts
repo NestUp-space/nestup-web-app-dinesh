@@ -1,10 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import { ProjectModelInstanceService } from '../services/project-model-instance.service'; // Updated import
 // import { RuleService } from '../services/rule.service'; // RuleService is effectively replaced by JSFunctionService for item logic
-import { JavaScriptFunctionService, ExecutedScriptResult } from '../services/javascript-function.service'; // Import ExecutedScriptResult
+import { JavaScriptFunctionService } from '../services/javascript-function.service'; // Import ExecutedScriptResult
 import { PlankListGeneratorService } from '../services/plank-list-generator.service';
 import { GeneratePlankListDto, TestItemScriptDto } from '../dtos/model.dto'; // Updated DTO path
-import { PrismaClient, ModelBomItem, BomItemType, Material, ProjectModelInstance } from '@prisma/client'; // Updated Prisma types
+import { PrismaClient, ModelBomItem, BomItemType, ProjectModelInstance } from '@prisma/client'; // Updated Prisma types
 import { z } from 'zod'; // For output validation
 
 const prisma = new PrismaClient();
@@ -48,13 +47,11 @@ const PlankOutputSchema = z.object({
 }).catchall(z.any()); // Allow other properties returned by script
 
 export class GenerationController {
-  private projectModelInstanceService: ProjectModelInstanceService; // Updated type
   // private ruleService: RuleService; // Potentially deprecated or for fallback
   private jsFunctionService: JavaScriptFunctionService;
   private plankListGeneratorService: PlankListGeneratorService;
 
   constructor() {
-    this.projectModelInstanceService = new ProjectModelInstanceService(); // Updated instantiation
     // this.ruleService = new RuleService();
     this.jsFunctionService = new JavaScriptFunctionService();
     this.plankListGeneratorService = new PlankListGeneratorService();
@@ -78,7 +75,8 @@ export class GenerationController {
       });
 
       if (!instanceWithIncludes || !instanceWithIncludes.modelDefinition || !instanceWithIncludes.modelDefinition.bomItems) {
-        return res.status(404).json({ message: 'Project model instance or its definition/BOM not found.' }); // Updated message
+        res.status(404).json({ message: 'Project model instance or its definition/BOM not found.' }); // Updated message
+        return;
       }
       const instance = instanceWithIncludes as ProjectModelInstance & { modelDefinition: { bomItems: ModelBomItem[] }}; // Updated bomItems type
       
@@ -122,7 +120,7 @@ export class GenerationController {
         }
       }
       
-      const resolvedPlanks: ExecutedScriptResult[] = [];
+      const resolvedPlanks: any[] = [];
 
       for (const bomItem of instance.modelDefinition.bomItems) { // No need to cast if instance type is correct
         if (bomItem.itemType === BomItemType.PLANK) {
@@ -167,7 +165,8 @@ export class GenerationController {
         const emptyCsvData = this.plankListGeneratorService.generatePlankListCsv([]);
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', `attachment; filename="plank_list_${instance.id}_empty.csv"`);
-        return res.status(200).send(emptyCsvData);
+        res.status(200).send(emptyCsvData);
+        return;
       }
       
       // Cast to the type expected by PlankListGeneratorService if necessary,
@@ -176,7 +175,7 @@ export class GenerationController {
 
 
       // Store the generated plank list
-      const generatedList = await prisma.generatedPlankList.create({
+      await prisma.generatedPlankList.create({
         data: {
           projectModelInstanceId: instance.id,
           csvContent: csvData, 
@@ -194,7 +193,7 @@ export class GenerationController {
   };
 
   // Placeholder for material estimate generation
-  generateMaterialEstimate = async (req: Request, res: Response, next: NextFunction) => {
+  generateMaterialEstimate = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       // Similar logic to plank list generation, but using a MaterialEstimatorService
       res.status(501).json({ message: 'Material estimate generation not implemented yet.' });
@@ -203,16 +202,18 @@ export class GenerationController {
     }
   };
 
-  testItemScript = async (req: Request, res: Response, next: NextFunction) => {
+  testItemScript = async (req: Request, res: Response, _next: NextFunction) => {
     try {
       const dto: TestItemScriptDto = req.body; // Zod validation will be done by middleware
       const { itemLogicScript, sampleRuntimeInputs } = dto;
 
       if (!itemLogicScript || itemLogicScript.trim() === '') {
-        return res.status(400).json({ message: 'itemLogicScript is required.' });
+        res.status(400).json({ message: 'itemLogicScript is required.' });
+        return;
       }
       if (!sampleRuntimeInputs || typeof sampleRuntimeInputs !== 'object') {
-        return res.status(400).json({ message: 'sampleRuntimeInputs must be a valid object.' });
+        res.status(400).json({ message: 'sampleRuntimeInputs must be a valid object.' });
+        return;
       }
 
       const result = await this.jsFunctionService.executeItemScript(
@@ -221,7 +222,8 @@ export class GenerationController {
       );
       
       if (result === null) { // Indicates script execution failed internally in service without throwing an error that controller would catch
-        return res.status(500).json({ message: 'Script execution failed to produce a result.' });
+        res.status(500).json({ message: 'Script execution failed to produce a result.' });
+        return;
       }
 
       // TODO: Add Zod validation of 'result' against expected output schema here if desired for the test endpoint
@@ -240,7 +242,8 @@ export class GenerationController {
       const { projectId } = req.body;
 
       if (!projectId || typeof projectId !== 'number') {
-        return res.status(400).json({ message: 'Valid projectId is required.' });
+        res.status(400).json({ message: 'Valid projectId is required.' });
+        return;
       }
 
       const projectInstances = await prisma.projectModelInstance.findMany({
@@ -255,10 +258,11 @@ export class GenerationController {
       });
 
       if (!projectInstances || projectInstances.length === 0) {
-        return res.status(404).json({ message: 'No model instances found for this project.' });
+        res.status(404).json({ message: 'No model instances found for this project.' });
+        return;
       }
 
-      const allResolvedPlanks: ExecutedScriptResult[] = [];
+      const allResolvedPlanks: any[] = [];
 
       for (const instance of projectInstances) {
         if (!instance.modelDefinition || !instance.modelDefinition.bomItems) {
@@ -337,7 +341,8 @@ export class GenerationController {
         const emptyCsvData = this.plankListGeneratorService.generatePlankListCsv([]);
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', `attachment; filename="project_plank_list_${projectId}_empty.csv"`);
-        return res.status(200).send(emptyCsvData);
+        res.status(200).send(emptyCsvData);
+        return;
       }
 
       const csvData = this.plankListGeneratorService.generatePlankListCsv(allResolvedPlanks as any);

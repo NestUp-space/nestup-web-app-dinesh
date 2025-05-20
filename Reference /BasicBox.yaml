@@ -2,15 +2,15 @@
 _fileInfo:
   purpose: "Defines the structure and rules for a 'Simple Box' model, including its configurable dimensions, materials, and how its parts (planks) are calculated."
   originalSource: "BasicBox.json"
-  version: "1.0.0" # Example version
-  lastUpdated: "2025-05-18" # Example date
+  version: "1.0.0" 
+  lastUpdated: "2025-05-18" 
 
 # General Model Information
 name: "Simple Box"
 description: "A basic rectangular box model with configurable dimensions and material thickness."
 catalogueImageURL: "url" # Placeholder: URL for the model's image in the catalogue. Replace with actual URL.
 
-# Example values a user might input to configure this box
+# Example values a user might input to configure this box - TODO: Add Sample values for all input parameters
 sampleInputValues:
   boxHeight: 600
   boxWidth: 400

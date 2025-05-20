@@ -15,7 +15,10 @@ export const ACTIONS = {
   EDIT: 'edit',
   DELETE: 'delete',
   APPROVE: 'approve',
-  MANAGE: 'manage'  // Higher-level permission that implies other permissions
+  MANAGE: 'manage',  // Higher-level permission that implies other permissions
+  CHANGE_STATUS: 'change_status',
+  ARCHIVE: 'archive',
+  COMPLETE: 'complete'
 } as const;
 
 export type PermissionGroup = typeof PERMISSION_GROUPS[keyof typeof PERMISSION_GROUPS];

@@ -1,18 +1,16 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
-// store the details of the users, same table for internal and external users
-
 model User {
   id                  Int                      @id @default(autoincrement())
   name                String
-  email               String                   @unique // Reverted to non-optional
+  email               String                   @unique
   password            String
   profilePicUrl       String?
   phoneNumber         String                   @unique
@@ -21,142 +19,132 @@ model User {
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
   roleId              Int
-  role                UserRole                 @relation(fields: [roleId], references: [id])
   teamId              Int?
-  team                Team?                    @relation("TeamMembers", fields: [teamId], references: [id])
-  managedTeam         Team?                    @relation("TeamManager")
-  tasksUpdated        Task[]                   @relation("TaskUpdatedBy")
-  filesUploaded       File[]                   @relation("FilesUploaded")
-  actions             UserAction[]
-  comments            Comment[]
-  assignedTeams       EngineerTeamMapping[]
-  engineerProjects         Project[]                @relation("EngineerProjects")
-  designerProjects        Project[]                @relation("DesignerProjects")
-  managedProjects         Project[]                @relation("ProjectManagerProjects")
-  createdProjects         Project[]                @relation("UserCreatedProjects")
-  updatedProjects         Project[]                @relation("UserUpdatedProjects")
-  oldEngineerProjects EngineerProjectMapping[] @relation("OldEngineerProjects")
-  newEngineerProjects EngineerProjectMapping[] @relation("NewEngineerProjects")
-  designerMappings    DesignerProjectMapping[] @relation("Designer")
   clientMarketplace   ClientMarketplace?
+  comments            Comment[]
+  designerMappings    DesignerProjectMapping[] @relation("Designer")
+  newEngineerProjects EngineerProjectMapping[] @relation("NewEngineerProjects")
+  oldEngineerProjects EngineerProjectMapping[] @relation("OldEngineerProjects")
+  assignedTeams       EngineerTeamMapping[]
+  filesUploaded       File[]                   @relation("FilesUploaded")
   generatedDocuments  GeneratedDocument[]
+  createdProjects     Project[]                @relation("UserCreatedProjects")
+  designerProjects    Project[]                @relation("DesignerProjects")
+  engineerProjects    Project[]                @relation("EngineerProjects")
+  managedProjects     Project[]                @relation("ProjectManagerProjects")
+  updatedProjects     Project[]                @relation("UserUpdatedProjects")
+  tasksUpdated        Task[]                   @relation("TaskUpdatedBy")
+  managedTeam         Team?                    @relation("TeamManager")
+  role                UserRole                 @relation(fields: [roleId], references: [id])
+  team                Team?                    @relation("TeamMembers", fields: [teamId], references: [id])
+  actions             UserAction[]
 }
 
-// track the team details of the internal employees
 model Team {
   id        Int                   @id @default(autoincrement())
   name      String
   managerId Int                   @unique
+  engineers EngineerTeamMapping[]
   manager   User                  @relation("TeamManager", fields: [managerId], references: [id])
   members   User[]                @relation("TeamMembers")
-  engineers EngineerTeamMapping[]
 }
 
-// store the details of the project 
-
 model Project {
-  id            Int       @id @default(autoincrement())
-  name          String
-  description   String?
-  address       String?   @default("N/A")
-  location      String?   @default("N/A")
-  sqft          Int?      @default(0)
-  statusId      Int?      @default(1)
-  status        Status?   @relation(fields: [statusId], references: [id])
-  designerId        Int?
-  designer          User?     @relation("DesignerProjects", fields: [designerId], references: [id])
-  projectManagerId  Int?
-  projectManager    User?     @relation("ProjectManagerProjects", fields: [projectManagerId], references: [id])
-  engineerId        Int?
-  createdById       Int
-  updatedById       Int
-  estimatedTime     DateTime? @default(now())
-  startedAt         DateTime?
-  completedAt       DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  vbCount           Int       @default(0)
-  generatedPlankListFileId Int? // Reference to the generated plank list file
-  engineer         User?                    @relation("EngineerProjects", fields: [engineerId], references: [id])
-  createdBy        User                     @relation("UserCreatedProjects", fields: [createdById], references: [id])
-  updatedBy        User                     @relation("UserUpdatedProjects", fields: [updatedById], references: [id])
-  tasks            Task[]
-  comments         Comment[]
-  engineerMappings EngineerProjectMapping[]
-  userActions      UserAction[]
-  materials        Material[]               // Relation to project materials
-  generatedPlankListFile File?              @relation("GeneratedPlankListFile", fields: [generatedPlankListFileId], references: [id])
-  projectInstances ProjectModelInstance[]
-  generatedDocuments GeneratedDocument[] // Added back-relation
-  designerMappings DesignerProjectMapping[] @relation("DesignerProjectMappings")
+  id                       Int                      @id @default(autoincrement())
+  name                     String
+  description              String?
+  address                  String?                  @default("N/A")
+  location                 String?                  @default("N/A")
+  sqft                     Int?                     @default(0)
+  statusId                 Int                      @default(1)
+  designerId               Int?
+  engineerId               Int?
+  createdById              Int
+  updatedById              Int
+  estimatedTime            DateTime?                @default(now())
+  startedAt                DateTime?
+  completedAt              DateTime?
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+  vbCount                  Int                      @default(0)
+  generatedPlankListFileId Int?
+  projectManagerId         Int?
+  comments                 Comment[]
+  designerMappings         DesignerProjectMapping[] @relation("DesignerProjectMappings")
+  engineerMappings         EngineerProjectMapping[]
+  generatedDocuments       GeneratedDocument[]
+  materials                Material[]
+  createdBy                User                     @relation("UserCreatedProjects", fields: [createdById], references: [id])
+  designer                 User?                    @relation("DesignerProjects", fields: [designerId], references: [id])
+  engineer                 User?                    @relation("EngineerProjects", fields: [engineerId], references: [id])
+  generatedPlankListFile   File?                    @relation("GeneratedPlankListFile", fields: [generatedPlankListFileId], references: [id])
+  projectManager           User?                    @relation("ProjectManagerProjects", fields: [projectManagerId], references: [id])
+  status                   Status                   @relation(fields: [statusId], references: [id])
+  updatedBy                User                     @relation("UserUpdatedProjects", fields: [updatedById], references: [id])
+  projectInstances         ProjectModelInstance[]
+  tasks                    Task[]
+  userActions              UserAction[]
 }
 
 model Task {
-  id             Int          @id @default(autoincrement())
+  id             Int            @id @default(autoincrement())
   projectId      Int
   name           String
-  stage          String? // New field for task stage
-  statusId       Int         @default(1)
-  uploaderRole   String? // New field: role expected to upload/initiate
-  viewerRoles    String? // New field: JSON string or comma-separated roles for view permissions
-  actionRequired String? // New field: description of what action is required
-  metadataJson   String? // For additional structured data like associated frontend components
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  stage          String?
+  statusId       Int            @default(1)
+  uploaderRole   String?
+  viewerRoles    String?
+  actionRequired String?
+  metadataJson   String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
   updatedById    Int?
   startedAt      DateTime?
   completedAt    DateTime?
-  project     Project      @relation(fields: [projectId], references: [id])
-  status      Status       @relation(fields: [statusId], references: [id])
-  updatedBy   User?        @relation("TaskUpdatedBy", fields: [updatedById], references: [id])
-  files       File[]
-  comments    Comment[]
-  userActions UserAction[]
-  subtasks    Subtask[] // Relation to Subtasks
-  siteVisitBoxes SiteVisitBox[] // Relation to SiteVisitBox
+  comments       Comment[]
+  files          File[]
+  siteVisitBoxes SiteVisitBox[]
+  subtasks       Subtask[]
+  project        Project        @relation(fields: [projectId], references: [id])
+  status         Status         @relation(fields: [statusId], references: [id])
+  updatedBy      User?          @relation("TaskUpdatedBy", fields: [updatedById], references: [id])
+  userActions    UserAction[]
 }
 
 model Subtask {
-  id          Int      @id @default(autoincrement())
+  id             Int      @id @default(autoincrement())
   name           String
   description    String?
-  actionRequired String?  // New field
-  type           String?  // New field (e.g., 'information', 'file_upload', 'approval')
-  metadataJson   String?  // New field for JSON metadata
+  actionRequired String?
+  type           String?
+  metadataJson   String?
   completed      Boolean  @default(false)
   taskId         Int
-  task           Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  // Optional: fields like 'order' if subtasks need specific ordering within a task
-  // Optional: 'assignedToId' if subtasks can be assigned to specific users
-  // Optional: 'dueDate'
+  task           Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 }
 
 model File {
-  id             Int      @id @default(autoincrement())
-  taskId         Int
-  fileUrl        String
-  uploadedBy     Int
-  uploadedAt     DateTime @default(now())
-  task           Task     @relation(fields: [taskId], references: [id])
-  uploadedByUser User     @relation("FilesUploaded", fields: [uploadedBy], references: [id])
+  id                  Int       @id @default(autoincrement())
+  taskId              Int
+  fileUrl             String
+  uploadedBy          Int
+  uploadedAt          DateTime  @default(now())
+  task                Task      @relation(fields: [taskId], references: [id])
+  uploadedByUser      User      @relation("FilesUploaded", fields: [uploadedBy], references: [id])
   projectsAsPlankList Project[] @relation("GeneratedPlankListFile")
 }
 
-// map the projects to the clients
-
 model DesignerProjectMapping {
-  id        Int     @id @default(autoincrement())
+  id         Int     @id @default(autoincrement())
   designerId Int
-  projectId Int
-  designer  User    @relation(fields: [designerId], references: [id], name: "Designer")
-  project   Project @relation(fields: [projectId], references: [id], name: "DesignerProjectMappings")
+  projectId  Int
+  designer   User    @relation("Designer", fields: [designerId], references: [id])
+  project    Project @relation("DesignerProjectMappings", fields: [projectId], references: [id])
 
   @@unique([designerId, projectId])
 }
-
-//track the actions that the user is taking
 
 model UserAction {
   id            Int      @id @default(autoincrement())
@@ -165,17 +153,17 @@ model UserAction {
   taskId        Int
   updatedAt     DateTime @default(now())
   comment       String
-  updatedByUser User     @relation(fields: [updatedBy], references: [id])
   project       Project  @relation(fields: [projectId], references: [id])
   task          Task     @relation(fields: [taskId], references: [id])
+  updatedByUser User     @relation(fields: [updatedBy], references: [id])
 }
 
 model UserRole {
   id           Int                     @id @default(autoincrement())
   role         String
   roleType     String
-  users        User[]
   roleMappings RolePermissionMapping[]
+  users        User[]
 }
 
 model UserPermission {
@@ -188,8 +176,8 @@ model RolePermissionMapping {
   id           Int            @id @default(autoincrement())
   roleId       Int
   permissionId Int
-  role         UserRole       @relation(fields: [roleId], references: [id])
   permission   UserPermission @relation(fields: [permissionId], references: [id])
+  role         UserRole       @relation(fields: [roleId], references: [id])
 }
 
 model Status {
@@ -205,8 +193,8 @@ model EngineerProjectMapping {
   newEngineerId Int
   projectId     Int
   handoverAt    DateTime @default(now())
-  oldEngineer   User     @relation("OldEngineerProjects", fields: [oldEngineerId], references: [id])
   newEngineer   User     @relation("NewEngineerProjects", fields: [newEngineerId], references: [id])
+  oldEngineer   User     @relation("OldEngineerProjects", fields: [oldEngineerId], references: [id])
   project       Project  @relation(fields: [projectId], references: [id])
 }
 
@@ -241,6 +229,116 @@ model ClientMarketplace {
   client       User    @relation(fields: [clientId], references: [id])
 }
 
+model Material {
+  id                Int            @id @default(autoincrement())
+  projectId         Int
+  materialId        String
+  plyThickness      Float
+  innerLaminateCode String
+  outerLaminateCode String
+  overallThickness  Float
+  plyType           PlyType
+  grainDirection    GrainDirection
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  project           Project        @relation(fields: [projectId], references: [id])
+
+  @@unique([projectId, materialId])
+}
+
+model SiteVisitBox {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  order     Int
+  modelType String
+  inputs    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  task      Task     @relation(fields: [taskId], references: [id])
+}
+
+model ModelDefinition {
+  id                       String                 @id @default(cuid())
+  name                     String                 @unique
+  description              String?
+  imageUrl                 String?
+  sampleRuntimeInputsJson  Json?
+  expectedOutputSchemaJson Json?
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
+  bomItems                 ModelBomItem[]
+  inputParameters          ModelInputParameter[]
+  projectInstances         ProjectModelInstance[]
+}
+
+model ModelInputParameter {
+  id                String          @id @default(cuid())
+  modelDefinitionId String
+  inputName         String
+  displayLabel      String?
+  inputType         String
+  defaultValue      String?
+  options           Json?
+  unit              String?
+  description       String?
+  modelDefinition   ModelDefinition @relation(fields: [modelDefinitionId], references: [id], onDelete: Cascade)
+
+  @@unique([modelDefinitionId, inputName])
+}
+
+model ModelBomItem {
+  id                String          @id @default(cuid())
+  modelDefinitionId String
+  itemName          String
+  itemType          BomItemType
+  itemDescription   String?
+  details           Json?
+  itemLogicScript   String?
+  addonModelId      String?
+  modelDefinition   ModelDefinition @relation(fields: [modelDefinitionId], references: [id], onDelete: Cascade)
+
+  @@unique([modelDefinitionId, itemName])
+}
+
+model ProjectModelInstance {
+  id                  String               @id @default(cuid())
+  projectId           Int
+  modelDefinitionId   String
+  runtimeInputsJson   Json
+  uiDisplayOrder      Int                  @default(0)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  generatedDocuments  GeneratedDocument[]
+  generatedPlankLists GeneratedPlankList[]
+  modelDefinition     ModelDefinition      @relation(fields: [modelDefinitionId], references: [id])
+  project             Project              @relation(fields: [projectId], references: [id])
+}
+
+model GeneratedPlankList {
+  id                     String               @id @default(cuid())
+  projectModelInstanceId String
+  generatedAt            DateTime             @default(now())
+  filePath               String?
+  csvContent             String?
+  projectModelInstance   ProjectModelInstance @relation(fields: [projectModelInstanceId], references: [id])
+}
+
+model GeneratedDocument {
+  id                     String                @id @default(cuid())
+  documentType           DocumentType
+  fileName               String
+  filePath               String
+  generatedAt            DateTime              @default(now())
+  userId                 Int?
+  projectId              Int?
+  projectModelInstanceId String?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  project                Project?              @relation(fields: [projectId], references: [id])
+  projectModelInstance   ProjectModelInstance? @relation(fields: [projectModelInstanceId], references: [id])
+  user                   User?                 @relation(fields: [userId], references: [id])
+}
+
 enum GrainDirection {
   Y
   N
@@ -253,148 +351,10 @@ enum PlyType {
   Plywood
 }
 
-// New model for project materials
-model Material {
-  id                Int           @id @default(autoincrement())
-  projectId         Int
-  materialId        String        // User-defined unique ID within the project
-  plyThickness      Float
-  innerLaminateCode String
-  outerLaminateCode String
-  overallThickness  Float         // Calculated: innerLaminate + plyThickness + outerLaminate
-  plyType          PlyType       // Using enum for type safety
-  grainDirection   GrainDirection // Using enum for type safety
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  project          Project       @relation(fields: [projectId], references: [id])
-  // edgebandingInnerCode and edgebandingExposedCode removed as per new requirements
-  // These will be handled in ModelBomItem.details for PLANK types
-
-  @@unique([projectId, materialId]) // Ensure materialId is unique within a project
-}
-
-// New model for site visit box configurations
-model SiteVisitBox {
-  id          Int      @id @default(autoincrement())
-  taskId      Int
-  order       Int      // To maintain sequence
-  modelType   String   // e.g., "Simple Box", "L-Shaped Box"
-  inputs      Json     // Store the specific dimensions, adjacencies, material codes, etc.
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  task        Task     @relation(fields: [taskId], references: [id])
-}
-
-// ----------------------------------------------------
-// --- Model Management System Schema Additions ---
-// ----------------------------------------------------
-
-// --- Catalogue Item Definition ---
-model ModelDefinition {
-  id          String @id @default(cuid())
-  name        String @unique
-  description String?
-  imageUrl    String?
-  sampleRuntimeInputsJson Json? // For testing itemLogicScript
-  expectedOutputSchemaJson Json? // For validating itemLogicScript output (optional for MVP)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  inputParameters ModelInputParameter[]
-  bomItems        ModelBomItem[]
-  projectInstances ProjectModelInstance[] // Instances of this model in projects
-}
-
-model ModelInputParameter {
-  id              String @id @default(cuid())
-  modelDefinitionId String 
-  modelDefinition   ModelDefinition @relation(fields: [modelDefinitionId], references: [id], onDelete: Cascade)
-
-  inputName       String // e.g., "boxWidth", "numberOfShelves", "leftAdjacency"
-  displayLabel      String? // User-friendly label for the UI
-  inputType         String // e.g., "NUMBER", "TEXT", "BOOLEAN", "SELECT"
-  defaultValue      String?
-  options           Json?    // For SELECT type, e.g., ["Expose", "Wall", "Box"]
-  unit              String?  // e.g., "mm"
-  description       String?
-
-  @@unique([modelDefinitionId, inputName]) 
-}
-
-// --- Bill of Materials & Rules ---
 enum BomItemType {
   PLANK
   HARDWARE
-  ADDON // Addons can be treated as special BOM items or link to other ModelDefinitions
-}
-
-model ModelBomItem {
-  id              String      @id @default(cuid())
-  modelDefinitionId String 
-  modelDefinition   ModelDefinition @relation(fields: [modelDefinitionId], references: [id], onDelete: Cascade)
-
-  itemName          String      // e.g., "Top Plank", "Left Side Panel", "Hinge Type A"
-  itemType          BomItemType
-  itemDescription   String?
-  details           Json?       // To store type-specific details for PLANK (width, height, holes, grooves) and HARDWARE (type, countRule)
-
-  // JavaScript function string to calculate this item's properties
-  itemLogicScript   String? @db.Text // Use @db.Text for potentially long scripts
-
-  // For ADDON type, this could link to another ModelDefinition
-  addonModelId      String?
-  // addonModel        ModelDefinition? @relation("AddonLink", fields: [addonModelId], references: [id], onDelete:Restrict) // Requires careful thought on relations
-
-  @@unique([modelDefinitionId, itemName]) 
-}
-
-// --- Project Specific Catalogue Item Instances ---
-model ProjectModelInstance {
-  id              String @id @default(cuid())
-  projectId       Int
-  project         Project @relation(fields: [projectId], references: [id])
-
-  modelDefinitionId String 
-  modelDefinition   ModelDefinition @relation(fields: [modelDefinitionId], references: [id])
-
-  // Runtime inputs provided by the user for this specific instance
-  // Example: { "boxWidth": 1200, "numberOfShelves": 2, "leftAdjacency": "Wall" }
-  runtimeInputsJson Json
-  uiDisplayOrder    Int      @default(0) // For ordering boxes in UI
-
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  generatedPlankLists GeneratedPlankList[]
-  generatedDocuments  GeneratedDocument[] // Added back-relation
-}
-
-// --- Generated Outputs ---
-model GeneratedPlankList {
-  id                      String   @id @default(cuid())
-  projectModelInstanceId  String 
-  projectModelInstance    ProjectModelInstance @relation(fields: [projectModelInstanceId], references: [id])
-  generatedAt                     DateTime @default(now())
-  filePath                        String?  // Path to the stored CSV file, or content stored directly
-  csvContent            String?  @db.Text // Alternative to filePath
-  // Add other metadata as needed
-}
-
-// --- Generated Document Tracking ---
-model GeneratedDocument {
-  id                          String    @id @default(cuid())
-  documentType                DocumentType
-  fileName                    String
-  filePath                    String // S3 path
-  generatedAt                 DateTime  @default(now())
-  userId                      Int? // User who generated
-  user                        User?     @relation(fields: [userId], references: [id])
-  projectId                   Int?
-  project                     Project?  @relation(fields: [projectId], references: [id])
-  projectModelInstanceId      String?
-  projectModelInstance        ProjectModelInstance? @relation(fields: [projectModelInstanceId], references: [id])
-  createdAt                   DateTime  @default(now())
-  updatedAt                   DateTime  @updatedAt
+  ADDON
 }
 
 enum DocumentType {
@@ -406,5 +366,5 @@ enum DocumentType {
   INSTALLATION_GUIDE_PDF
   PROFORMA_INVOICE_PDF
   FINAL_INVOICE_PDF
-  PROJECT_PLANK_LIST_CSV // Added for aggregated project plank list
+  PROJECT_PLANK_LIST_CSV
 }

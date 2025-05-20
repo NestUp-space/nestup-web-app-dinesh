@@ -47,7 +47,7 @@ export class CatalogueMetaController {
     console.log('CatalogueMetaController initialized');
   }
 
-  public async getGlobalConstants(req: Request, res: Response, next: NextFunction): Promise<void> {
+  public async getGlobalConstants(_req: Request, res: Response, _next: NextFunction): Promise<void> {
     const serviceResponse = getGlobalConstants();
     handleServiceResponse(serviceResponse, res);
   }

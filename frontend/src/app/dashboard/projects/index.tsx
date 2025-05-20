@@ -29,9 +29,15 @@ const ProjectsPage = () => {
   const [newProjectVbCount, setNewProjectVbCount] = useState('');
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [selectedEngineerId, setSelectedEngineerId] = useState<string>('');
+  const [selectedDesignerId, setSelectedDesignerId] = useState<string>('');
+  const [selectedProjectManagerId, setSelectedProjectManagerId] = useState<string>('');
+  const [selectedBimEngineerId, setSelectedBimEngineerId] = useState<string>('');
 
   const [clientsList, setClientsList] = useState<User[]>([]);
   const [engineersList, setEngineersList] = useState<User[]>([]);
+  const [designersList, setDesignersList] = useState<User[]>([]);
+  const [projectManagersList, setProjectManagersList] = useState<User[]>([]);
+  const [bimEngineersList, setBimEngineersList] = useState<User[]>([]);
   const [formError, setFormError] = useState('');
   const { user } = useUser();
 
@@ -93,7 +99,9 @@ const ProjectsPage = () => {
       location: newProjectLocation,
       vbCount: newProjectVbCount ? parseInt(newProjectVbCount, 10) : undefined,
       clientId: selectedClientId ? parseInt(selectedClientId, 10) : undefined,
-      engineerId: selectedEngineerId ? parseInt(selectedEngineerId, 10) : undefined,
+      engineerId: selectedBimEngineerId ? parseInt(selectedBimEngineerId, 10) : undefined, // Changed to selectedBimEngineerId
+      designerId: selectedDesignerId ? parseInt(selectedDesignerId, 10) : undefined,
+      projectManagerId: selectedProjectManagerId ? parseInt(selectedProjectManagerId, 10) : undefined,
       createdById: user.id
     };
 
@@ -108,7 +116,10 @@ const ProjectsPage = () => {
       setNewProjectLocation('');
       setNewProjectVbCount('');
       setSelectedClientId('');
-      setSelectedEngineerId('');
+      setSelectedEngineerId(''); // This remains for the old engineer field if it's still used or for clearing
+      setSelectedDesignerId('');
+      setSelectedProjectManagerId('');
+      setSelectedBimEngineerId('');
       fetchProjects(); // Refresh project list
     } catch (err: any) {
       setFormError(err.response?.data?.message || err.message || 'Failed to create project');
@@ -120,7 +131,10 @@ const ProjectsPage = () => {
     if (token) {
         fetchProjects();
         fetchUsersByRole('client', setClientsList);
-        fetchUsersByRole('engineer', setEngineersList);
+        fetchUsersByRole('engineer', setEngineersList); // This might be deprecated if BIM Engineer replaces general engineer
+        fetchUsersByRole('Designer', setDesignersList);
+        fetchUsersByRole('Project Manager', setProjectManagersList);
+        fetchUsersByRole('BIM Engineer', setBimEngineersList);
     } else {
         setError("Authentication required. Please log in.");
         setLoading(false);
@@ -190,12 +204,45 @@ const ProjectsPage = () => {
 
           <select 
             value={selectedEngineerId} 
-            onChange={(e) => setSelectedEngineerId(e.target.value)}
+            onChange={(e) => setSelectedEngineerId(e.target.value)} // This might be the old engineer field or a general one
             style={{ padding: '8px', marginBottom: '10px' }}
           >
-            <option value="">Select Engineer</option>
+            <option value="">Select Site Engineer (Optional)</option> 
             {engineersList.map(engineer => (
               <option key={engineer.id} value={engineer.id}>{engineer.name} ({engineer.email})</option>
+            ))}
+          </select>
+
+          <select 
+            value={selectedDesignerId} 
+            onChange={(e) => setSelectedDesignerId(e.target.value)}
+            style={{ padding: '8px', marginBottom: '10px' }}
+          >
+            <option value="">Select Designer</option>
+            {designersList.map(designer => (
+              <option key={designer.id} value={designer.id}>{designer.name} ({designer.email})</option>
+            ))}
+          </select>
+
+          <select 
+            value={selectedProjectManagerId} 
+            onChange={(e) => setSelectedProjectManagerId(e.target.value)}
+            style={{ padding: '8px', marginBottom: '10px' }}
+          >
+            <option value="">Select Project Manager</option>
+            {projectManagersList.map(pm => (
+              <option key={pm.id} value={pm.id}>{pm.name} ({pm.email})</option>
+            ))}
+          </select>
+
+          <select 
+            value={selectedBimEngineerId} 
+            onChange={(e) => setSelectedBimEngineerId(e.target.value)}
+            style={{ padding: '8px', marginBottom: '10px' }}
+          >
+            <option value="">Select BIM Engineer</option>
+            {bimEngineersList.map(bim => (
+              <option key={bim.id} value={bim.id}>{bim.name} ({bim.email})</option>
             ))}
           </select>
         </div>

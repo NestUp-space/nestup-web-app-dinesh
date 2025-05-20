@@ -8,7 +8,7 @@ const router = Router();
 const bimControllerInstance: BimController = new BimController();
 
 // PING-DEBUG TEST ROUTE
-router.get('/ping-bim-debug', (req: Request, res: Response) => {
+router.get('/ping-bim-debug', (_req: Request, res: Response) => {
   console.log('--- /api/bim/ping-bim-debug HIT ---');
   res.status(200).send('BIM router is alive! Ping-debug successful.');
 });
@@ -35,7 +35,7 @@ router.get(
 router.post(
   '/generate-plank-list',
   isAuthenticated,
-  bimControllerInstance.createPlankList.bind(bimControllerInstance)
+  bimControllerInstance.generatePlankListAndUpdateSubtask.bind(bimControllerInstance)
 );
 
 export default router;

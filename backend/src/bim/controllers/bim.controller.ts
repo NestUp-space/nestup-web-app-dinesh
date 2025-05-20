@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { BimService } from '../services/bim.service';
 import { handleServiceResponse } from '../../common/utils/httpHandlers'; // Assuming this utility exists
-import { CutList, Plank } from '../types/bim.types';
 import { subtaskRepository } from '../../repositories/subtask.repository'; // For updating subtask
 
 // TODO: Add input validation using Zod or similar

@@ -3,6 +3,7 @@ import { ProjectController } from '../controllers/project.controller';
 import { hasPermission } from '../middlewares/permission.middleware';
 import { isAuthenticated } from '../middlewares/auth.middleware';
 import { PERMISSIONS } from '../constants/permissions';
+import { validateProjectStatusTransition } from '../middlewares/validateProjectStatus';
 import type { Request, Response, NextFunction } from 'express';
 import type { CustomRequest } from '../middlewares/auth.middleware';
 
@@ -42,27 +43,28 @@ router.put('/:id',
   handleCustomRequest(ProjectController.updateProject)
 );
 
-// Delete project
-router.delete('/:id',
-  hasPermission([PERMISSIONS.PROJECTS.DELETE, PERMISSIONS.PROJECTS.MANAGE]),
-  ProjectController.deleteProject
-);
+// Delete project (REMOVED)
+// router.delete('/:id',
+//   hasPermission([PERMISSIONS.PROJECTS.DELETE, PERMISSIONS.PROJECTS.MANAGE]),
+//   ProjectController.deleteProject
+// );
 
 // Project status management
 router.patch('/:id/status',
-  hasPermission([PERMISSIONS.PROJECTS.EDIT, PERMISSIONS.PROJECTS.MANAGE]),
+  hasPermission([PERMISSIONS.PROJECTS.CHANGE_STATUS, PERMISSIONS.PROJECTS.MANAGE]), // Updated permission
+  validateProjectStatusTransition,
   handleCustomRequest(ProjectController.updateProjectStatus)
 );
 
 // Project sharing and collaboration
 router.post('/:id/share',
-  hasPermission([PERMISSIONS.PROJECTS.SHARE, PERMISSIONS.PROJECTS.MANAGE]),
+  hasPermission([PERMISSIONS.PROJECTS.MANAGE]), // Simplified, assuming MANAGE covers sharing
   handleCustomRequest(ProjectController.shareProject)
 );
 
 // Project comments and activity
 router.post('/:id/comments',
-  hasPermission([PERMISSIONS.PROJECTS.COMMENT, PERMISSIONS.PROJECTS.MANAGE]),
+  hasPermission([PERMISSIONS.PROJECTS.EDIT, PERMISSIONS.PROJECTS.MANAGE]), // Assuming EDIT implies ability to comment
   handleCustomRequest(ProjectController.addComment)
 );
 

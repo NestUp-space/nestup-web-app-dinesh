@@ -1,4 +1,4 @@
-import { BillOfMaterialItem } from '@prisma/client';
+import { ModelBomItem } from '@prisma/client';
 
 interface MaterialEstimate {
   [materialCode: string]: {
@@ -15,10 +15,10 @@ export class MaterialEstimatorService {
 
   /**
    * Estimates materials required based on a list of calculated BOM items.
-   * @param bomItems - Array of BillOfMaterialItem objects with calculated properties.
+   * @param bomItems - Array of ModelBomItem objects with calculated properties.
    * @returns An object summarizing material quantities.
    */
-  estimateMaterials(bomItems: Partial<BillOfMaterialItem>[]): MaterialEstimate {
+  estimateMaterials(bomItems: Partial<ModelBomItem>[]): MaterialEstimate {
     console.log('Estimating materials (placeholder)...');
     const estimates: MaterialEstimate = {};
 
@@ -34,8 +34,8 @@ export class MaterialEstimatorService {
       let unit = 'pcs'; // Default unit
 
       if (item.itemType === 'PLANK') {
-        const length = (item as any).length || 0; // Assuming calculated property in mm
-        const width = (item as any).width || 0;   // Assuming calculated property in mm
+        // const length = (item as any).length || 0; // Assuming calculated property in mm
+        // const width = (item as any).width || 0;   // Assuming calculated property in mm
         // Convert to square meters for area-based materials if needed
         // For now, let's assume planks are counted if not further specified
         quantity = (item as any).quantity || 1; // Assuming quantity is a calculated property or defaults to 1

@@ -107,14 +107,14 @@ export class ModelService {
     for (const bomItem of bomItems) {
       const scriptToExecute = typeof bomItem.itemLogicScript === 'string' ? bomItem.itemLogicScript : null;
       if (scriptToExecute && scriptToExecute.trim() !== '') {
-        try {
-          console.log(`Testing script for BOM item: ${bomItem.itemName}`);
-          // Changed executeItemScript to executeFunction
-          // Assuming sampleRuntimeInputs is the context for the script
-          const result = await this.jsFunctionService.executeFunction(
-            scriptToExecute,
-            {
-              runtimeInputs: sampleRuntimeInputs,
+          try {
+            console.log(`Testing script for BOM item: ${bomItem.itemName}`);
+            // Changed executeItemScript to executeFunction
+            // Assuming sampleRuntimeInputs is the context for the script
+            const result = await this.jsFunctionService.executeItemScript(
+              scriptToExecute,
+              {
+                runtimeInputs: sampleRuntimeInputs,
               globalConstants: {
                 ...GLOBAL_CONSTANTS, // Spread all global constants
                 plankDetails: bomItem.details || {} // Add plank-specific details

@@ -138,6 +138,24 @@ export class ApiClient {
     return result.data;
   }
 
+  async patch<T = any, D = any>(endpoint: string, data?: D, options?: ApiClientOptions): Promise<T> {
+    // Check if endpoint already starts with /api to avoid double /api
+    const apiPrefix = endpoint.startsWith('/api') ? '' : '/api';
+    const url = `${API_BASE_URL}${apiPrefix}${endpoint}`;
+    console.log(`API PATCH request to: ${url}`);
+    console.log("PATCH data:", data);
+    const headers = this.getHeaders(options);
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers,
+      body: data ? JSON.stringify(data) : undefined,
+    });
+
+    const result = await this.handleResponse<T>(response);
+    return result.data;
+  }
+
   async delete<T = any>(endpoint: string, options?: ApiClientOptions): Promise<T> {
     // Check if endpoint already starts with /api to avoid double /api
     const apiPrefix = endpoint.startsWith('/api') ? '' : '/api';

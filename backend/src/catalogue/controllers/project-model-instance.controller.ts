@@ -1,10 +1,4 @@
 import { Request, Response } from 'express';
-import { 
-    CreateProjectModelInstanceDTO,
-    UpdateProjectModelInstanceDTO,
-    GetProjectModelInstancesDTO,
-    BatchUpdateProjectModelInstancesDTO
-} from '../dtos/project-model-instance.dto';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -53,7 +47,7 @@ export const getAllProjectModelInstancesByProjectId = async (req: Request, res: 
 };
 
 // Get a specific project model instance by ID
-export const getProjectModelInstanceById = async (req: Request, res: Response) => {
+export const getProjectModelInstanceById = async (req: Request, res: Response): Promise<void> => {
     const { instanceId } = req.params;
 
     try {
@@ -64,7 +58,8 @@ export const getProjectModelInstanceById = async (req: Request, res: Response) =
         });
 
         if (!instance) {
-            return res.status(404).json({ message: 'Project model instance not found' });
+            res.status(404).json({ message: 'Project model instance not found' });
+            return;
         }
 
         res.json(instance);
