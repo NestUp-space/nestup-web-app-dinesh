@@ -7,7 +7,38 @@ import { ChevronLeft } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation'; // Added useRouter and useParams
 import { Button } from '@/components/dashboard/button'; // Added Button import
 
-// Define a type for the form data, mirroring ModelFormData from ModelBuilderForm.tsx
+// Define a type for the form data, aligning with ModelFormData structure for bomItems
+interface SimplePlankDetails { // Based on PlankDetailsSchemaFrontend output (nullable)
+  name?: string | null;
+  widthLogic?: string | null;
+  lengthLogic?: string | null;
+  materialCode?: string | null;
+  grainDirection?: string | null;
+  packetNumber?: number | null;
+  plankLocationIdentifier?: string | null;
+  edgeBandingType?: string | null; // 'CEB' | 'IEB'
+  edgeBanding?: {
+    top?: { thickness: 1 | 2; materialCode: string }; // Removed | null
+    bottom?: { thickness: 1 | 2; materialCode: string }; // Removed | null
+    left?: { thickness: 1 | 2; materialCode: string }; // Removed | null
+    right?: { thickness: 1 | 2; materialCode: string }; // Removed | null
+  } | null; // The whole edgeBanding object can be null or undefined
+}
+
+interface SimplePlankBomItem {
+  itemName: string;
+  itemType: BomItemType.PLANK; // Specific literal type
+  itemDescription?: string | null;
+  itemLogicScript?: string | null;
+  details: SimplePlankDetails | null;
+  // addonModelId should not be present for PLANK type
+}
+
+// If other types were used, they'd be added to this union:
+// type SimpleBomItem = SimplePlankBomItem | SimpleHardwareBomItem | SimpleAddonBomItem;
+type SimpleBomItem = SimplePlankBomItem;
+
+
 type SimpleBoxModelData = {
   modelType: string;
   description: string | null;
@@ -15,22 +46,17 @@ type SimpleBoxModelData = {
   inputParameters?: Array<{
     inputName: string;
     displayLabel?: string | null;
-    inputType: 'NUMBER' | 'TEXT' | 'BOOLEAN' | 'SELECT';
+    // Ensure this matches the Zod enum in ModelBuilderForm for inputType
+    inputType: 'NUMBER' | 'TEXT' | 'BOOLEAN' | 'SELECT' | 'SELECT_MATERIAL'; 
     defaultValue?: string | null;
     options?: string | null;
     unit?: string | null;
     description?: string | null;
   }>;
-  bomItems?: Array<{
-    itemName: string;
-    itemType: BomItemType;
-    itemDescription?: string | null;
-    itemLogicScript?: string | null;
-    details?: any | null; // Assuming details can be any JSON structure or null
-    addonModelId?: string | null;
-  }>;
+  bomItems?: SimpleBomItem[]; // Use the more specific BOM item type
 };
 
+// Ensure simpleBoxDefaultData conforms to the refined SimpleBoxModelData
 const simpleBoxDefaultData: SimpleBoxModelData = {
   modelType: 'Simple Box',
   description: 'A basic rectangular box with five planks: back, left, right, top, and bottom. Suitable for simple storage units, cabinets, and shelving.',
@@ -41,9 +67,9 @@ const simpleBoxDefaultData: SimpleBoxModelData = {
     { inputName: 'boxDepth', displayLabel: 'Box Depth', inputType: 'NUMBER', defaultValue: '550', unit: 'mm', description: 'The overall depth of the box.' },
     { inputName: 'leftAdjacency', displayLabel: 'Left Side Adjacency', inputType: 'SELECT', defaultValue: 'Expose', options: 'Expose,Wall,AdjacentBox', description: 'Defines how the left side of the box is finished.' },
     { inputName: 'rightAdjacency', displayLabel: 'Right Side Adjacency', inputType: 'SELECT', defaultValue: 'Expose', options: 'Expose,Wall,AdjacentBox', description: 'Defines how the right side of the box is finished.' },
-    { inputName: 'outerMaterialCode', displayLabel: 'Outer Material', inputType: 'SELECT', defaultValue: '', description: 'Material code for external surfaces. Will use the first available material if none selected.' },
-    { inputName: 'innerMaterialCode', displayLabel: 'Inner Material', inputType: 'SELECT', defaultValue: '', description: 'Material code for internal surfaces. Will use the first available material if none selected.' },
-    { inputName: 'backMaterialCode', displayLabel: 'Back Panel Material', inputType: 'TEXT', defaultValue: 'BACK_MAT_01', description: 'Material code for the back panel.' },
+    { inputName: 'outerMaterialCode', displayLabel: 'Outer Material', inputType: 'SELECT_MATERIAL', defaultValue: '', description: 'Material code for external surfaces. Will use the first available material if none selected.' },
+    { inputName: 'innerMaterialCode', displayLabel: 'Inner Material', inputType: 'SELECT_MATERIAL', defaultValue: '', description: 'Material code for internal surfaces. Will use the first available material if none selected.' },
+    { inputName: 'backMaterialCode', displayLabel: 'Back Panel Material', inputType: 'SELECT_MATERIAL', defaultValue: 'BACK_MAT_01', description: 'Material code for the back panel.' },
     { inputName: 'hasDoor', displayLabel: 'Has Door?', inputType: 'BOOLEAN', defaultValue: 'false', description: 'Indicates if the box includes a door.' },
     { inputName: 'doorExposedSide', displayLabel: 'Door Exposed Side', inputType: 'SELECT', defaultValue: 'Front', options: 'Front,Left,Right', description: 'Specifies which side the door is on.' },
     { inputName: 'numberOfShelves', displayLabel: 'Number of Shelves', inputType: 'NUMBER', defaultValue: '0', description: 'Number of internal shelves.' },
@@ -52,9 +78,12 @@ const simpleBoxDefaultData: SimpleBoxModelData = {
   bomItems: [
     {
       itemName: 'Left Side Panel',
-      itemType: BomItemType.PLANK,
+      itemType: BomItemType.PLANK, // Explicitly PLANK
       itemDescription: 'The main left vertical panel of the box.',
-      details: null,
+      // Initialize details to null or a minimal valid structure for PlankDetailsSchemaFrontend
+      // Since PlankLogicEditor populates details.widthLogic etc., null should be fine if schema allows.
+      // Or, provide minimal structure:
+      details: { name: 'Left Side Panel', edgeBanding: {} }, 
       itemLogicScript: `
 function calculateProperties(runtimeInputs, globalConstants) {
   const { boxHeight, boxDepth, leftAdjacency, skirting, outerMaterialDefinition, innerMaterialDefinition, backMaterialDefinition } = runtimeInputs;
@@ -77,7 +106,7 @@ function calculateProperties(runtimeInputs, globalConstants) {
       itemName: 'Right Side Panel',
       itemType: BomItemType.PLANK,
       itemDescription: 'The main right vertical panel of the box.',
-      details: null,
+      details: { name: 'Right Side Panel', edgeBanding: {} },
       itemLogicScript: `
 function calculateProperties(runtimeInputs, globalConstants) {
   const { boxHeight, boxDepth, rightAdjacency, skirting, outerMaterialDefinition, innerMaterialDefinition, backMaterialDefinition } = runtimeInputs;
@@ -100,7 +129,7 @@ function calculateProperties(runtimeInputs, globalConstants) {
       itemName: 'Top Panel',
       itemType: BomItemType.PLANK,
       itemDescription: 'The main top horizontal panel of the box.',
-      details: null,
+      details: { name: 'Top Panel', edgeBanding: {} },
       itemLogicScript: `
 function calculateProperties(runtimeInputs, globalConstants) {
   const { boxWidth, boxDepth, leftAdjacency, rightAdjacency, outerMaterialDefinition, innerMaterialDefinition, backMaterialDefinition } = runtimeInputs;
@@ -121,7 +150,7 @@ function calculateProperties(runtimeInputs, globalConstants) {
       itemName: 'Bottom Panel',
       itemType: BomItemType.PLANK,
       itemDescription: 'The main bottom horizontal panel of the box.',
-      details: null,
+      details: { name: 'Bottom Panel', edgeBanding: {} },
       itemLogicScript: `
 function calculateProperties(runtimeInputs, globalConstants) {
   const { boxWidth, boxDepth, leftAdjacency, rightAdjacency, outerMaterialDefinition, innerMaterialDefinition, backMaterialDefinition } = runtimeInputs;
@@ -142,7 +171,7 @@ function calculateProperties(runtimeInputs, globalConstants) {
       itemName: 'Back Panel',
       itemType: BomItemType.PLANK,
       itemDescription: 'The rear closing panel of the box.',
-      details: null,
+      details: { name: 'Back Panel', edgeBanding: {} },
       itemLogicScript: `
 function calculateProperties(runtimeInputs, globalConstants) {
   const { boxWidth, boxHeight, leftAdjacency, rightAdjacency, skirting, outerMaterialDefinition, innerMaterialDefinition, backMaterialDefinition } = runtimeInputs;
@@ -195,6 +224,7 @@ export default function CreateModelPage() {
 
       <div className="max-w-full"> {/* Changed from max-w-7xl to full for better form layout */}
         <ModelBuilderForm 
+          initialData={simpleBoxDefaultData} // Pass the default data for a new "Simple Box"
           onSaveSuccess={handleSaveSuccess}
           onCancel={handleCancel}
         />

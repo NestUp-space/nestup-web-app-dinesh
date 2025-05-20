@@ -77,3 +77,88 @@
 - `.cache_memory/CURRENT_DECISIONS.md`
 - `.cache_memory/CURRENT_TODO.md`
 **Timestamp (Updated):** 2025-05-20 10:14:00
+
+---
+---
+
+# Task: Full Frontend Codebase Refactor
+
+**Description:** Systematically refactor the frontend codebase to improve maintainability, efficiency, component reuse, and adherence to SOLID principles, without altering functionality or UI, as per the approved detailed plan.
+
+**Assigned to:** cline
+**Assigned by:** user
+**Timestamp (Created):** 2025-05-20 10:29:00
+
+---
+
+## Ticket F1: Refactor Core Hooks & Contexts
+
+**Status:** pending
+**Description:** Review and refactor foundational hooks (`useApi.ts`, `useForm.ts`) and contexts (`MaterialContext.tsx`). Standardize API call patterns and form handling.
+**Key Files/Areas:**
+- `frontend/src/hooks/useApi.ts` (Clarify SWR usage, enhance mutation hooks)
+- `frontend/src/hooks/useForm.ts` (Plan deprecation in favor of `react-hook-form`)
+- `frontend/src/context/MaterialContext.tsx` (Implement or remove stub)
+**Timestamp (Updated):** 2025-05-20 10:29:00
+
+---
+
+## Ticket F2: Refactor User Management Section
+
+**Status:** pending
+**Description:** Refactor components related to user and role management for SRP, API consistency, and UI consistency.
+**Key Files/Areas:**
+- `frontend/src/components/dashboard/users/UserList.tsx`
+- `frontend/src/components/dashboard/users/RoleManagement/RolesPage.tsx`
+- `frontend/src/components/dashboard/users/RoleManagement/RoleTab.tsx`
+- `frontend/src/components/dashboard/users/RoleManagement/CreateRoleDialog.tsx`
+**Timestamp (Updated):** 2025-05-20 10:29:00
+
+---
+
+## Ticket F3: Refactor Catalogue / Model Management Section
+
+**Status:** pending
+**Description:** Refactor components related to the catalogue and model building for SRP, API consistency, and better state management.
+**Key Files/Areas:**
+- `frontend/src/app/dashboard/catalogue/page.tsx`
+- `frontend/src/app/dashboard/catalogue/new/page.tsx`
+- `frontend/src/components/dashboard/model-management/ModelBuilderForm.tsx`
+- `frontend/src/components/dashboard/model-management/ModelInputParameterListEditor.tsx`
+- `frontend/src/components/dashboard/model-management/BillOfMaterialListEditor.tsx`
+- `frontend/src/components/dashboard/model-management/ExpressionInput.tsx` (Review)
+- `frontend/src/components/dashboard/model-management/CollapsibleVariables.tsx` (Minor review)
+**Timestamp (Updated):** 2025-05-20 10:29:00
+
+---
+
+## Ticket F4: Refactor Project Detail Page & Components
+
+**Status:** pending
+**Description:** Refactor the project detail page and its sub-components for API consistency, UI consistency, and SRP.
+**Key Files/Areas:**
+- `frontend/src/app/dashboard/projects/[id]/page.tsx`
+- `frontend/src/app/dashboard/projects/[id]/components/ProjectDetails.tsx`
+- `frontend/src/components/dashboard/CollapsibleTaskCard.tsx` (Shared, but heavily used here)
+- `frontend/src/app/dashboard/projects/[id]/components/EditProjectModal.tsx`
+- `frontend/src/app/dashboard/projects/[id]/components/DeleteConfirmModal.tsx`
+**Timestamp (Updated):** 2025-05-20 10:29:00
+
+---
+
+## Ticket F5: Refactor Other Shared Components (e.g., ModelSelector)
+
+**Status:** pending
+**Description:** Refactor other key shared components identified during analysis.
+**Key Files/Areas:**
+- `frontend/src/components/dashboard/ModelSelector.tsx`
+- `frontend/src/components/dashboard/BoxComponent.tsx`
+**Timestamp (Updated):** 2025-05-20 10:29:00
+
+---
+
+## Ticket F6: Ongoing - Update Memory Files & Documentation
+
+**Status:** pending
+**Description:** Continuously update relevant `.mbk` files, cache memory (`CURRENT_CONTEXT.md`, `CURRENT_DECISIONS.md`, `CURRENT_TODO.md`), and potentially LTM (`PROJECT_CONTEXT_AND_ROADMAP.md`, `TECHARCH.mbk` if structure changes significantly) as refactoring progresses.
+**Timestamp (Updated):** 2025-05-20 10:29:00

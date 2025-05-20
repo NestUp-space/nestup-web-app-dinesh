@@ -6,53 +6,13 @@ import { Button } from "@/components/dashboard/button";
 import { RoleTab } from './RoleTab';
 import { CreateRoleDialog } from './CreateRoleDialog';
 import { useUser } from '@/context/UserContext'; // Import useUser
-
-interface Role {
-  id: number;
-  name: string;
-  type: string;
-  permissions: Record<string, boolean>;
-}
+import { useRoles, Role } from '@/hooks/useRoles'; // Import the new hook and Role type
 
 export function RolesManagement() {
   const { user: loggedInUser } = useUser();
-  const [roles, setRoles] = React.useState<Role[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const { roles, loading, error, refetch } = useRoles();
 
-  const fetchRoles = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No token found");
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/roles`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch roles");
-      }
-
-      const data = await response.json();
-      if (data.success) {
-        setRoles(data.roles);
-      } else {
-        throw new Error(data.message || "Failed to fetch roles");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  React.useEffect(() => {
-    fetchRoles();
-  }, []);
+  // No explicit useEffect for fetching needed, useRoles handles it.
 
   if (loading) {
     return (
@@ -66,14 +26,10 @@ export function RolesManagement() {
     return (
       <Card className="bg-lightest-bw border-light-bw">
         <CardContent className="p-8 text-center">
-          <p className="text-red-500 mb-4">Error: {error}</p>
+          <p className="text-red-500 mb-4">Error: {error?.message || 'An unknown error occurred'}</p>
           <Button 
             variant="outline" 
-            onClick={() => {
-              setError(null);
-              setLoading(true);
-              fetchRoles();
-            }}
+            onClick={() => refetch()}
           >
             Retry
           </Button>
@@ -88,7 +44,7 @@ export function RolesManagement() {
         <CardHeader className="flex flex-row items-center justify-between pb-4">
           <CardTitle className="text-2xl text-dark-text-bw">Role Management</CardTitle>
           {loggedInUser?.permissions?.includes('roles.create') && (
-            <CreateRoleDialog onRoleCreated={fetchRoles} />
+            <CreateRoleDialog onRoleCreated={refetch} />
           )}
         </CardHeader>
         <CardContent>
@@ -98,7 +54,7 @@ export function RolesManagement() {
                 <RoleTab
                   key={role.id}
                   role={role}
-                  onUpdate={() => fetchRoles()}
+                  onUpdate={refetch}
                 />
               ))}
             </div>

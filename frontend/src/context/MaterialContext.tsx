@@ -1,7 +1,7 @@
 "use client";
 
-import React, { createContext, useContext } from 'react';
-import { Material } from '@/hooks/useMaterial';
+import React, { createContext, useContext, ReactNode } from 'react'; // Added ReactNode
+import { Material, useProjectMaterials } from '@/hooks/useMaterial'; // Added useProjectMaterials
 
 interface MaterialContextType {
   materials: Material[];
@@ -17,20 +17,19 @@ interface MaterialProviderProps {
 }
 
 export const MaterialProvider: React.FC<MaterialProviderProps> = ({ projectId, children }) => {
-  // const { materials, loading, error } = useProjectMaterials(projectId);
+  const { materials, loading, error } = useProjectMaterials(projectId);
 
-  // const value: MaterialContextType = {
-  //   materials,
-  //   loading,
-  //   error,
-  // };
+  const value: MaterialContextType = {
+    materials,
+    loading,
+    error,
+  };
 
-  // return (
-  //   <MaterialContext.Provider value={value}>
-  //     {children}
-  //   </MaterialContext.Provider>
-  // );
-  return (<MaterialContext.Provider value={{materials:[], loading:false, error:null}}>{children}</MaterialContext.Provider>);
+  return (
+    <MaterialContext.Provider value={value}>
+      {children}
+    </MaterialContext.Provider>
+  );
 };
 
 export const useMaterialContext = () => {

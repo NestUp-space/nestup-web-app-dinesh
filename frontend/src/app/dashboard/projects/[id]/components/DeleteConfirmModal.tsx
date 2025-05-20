@@ -8,9 +8,19 @@
 import React from 'react';
 import { Button } from '@/components/dashboard/button';
 import { Project } from '@/types';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from '@/components/dashboard/dialog';
 
 interface DeleteConfirmModalProps {
   project: Project;
+  isOpen: boolean; // Added to control visibility from parent
   onClose: () => void;
   onConfirm: () => Promise<void>;
   isDeleting: boolean;
@@ -18,35 +28,44 @@ interface DeleteConfirmModalProps {
 
 export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
   project,
+  isOpen,
   onClose,
   onConfirm,
   isDeleting
 }) => {
+  if (!isOpen) {
+    return null;
+  }
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
-        <h3 className="text-lg font-semibold mb-4">Confirm Deletion</h3>
-        <p className="text-gray-600 mb-6">
-          Are you sure you want to delete the project "{project.name}"? This action cannot be undone.
-        </p>
-        <div className="flex justify-end space-x-3">
-          <Button 
-            variant="outline" 
-            onClick={onClose}
-            disabled={isDeleting}
-          >
-            Cancel
-          </Button>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Confirm Deletion</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete the project "{project.name}"? This action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="mt-4">
+          <DialogClose asChild>
+            <Button 
+              variant="outline" 
+              onClick={onClose} // onClose is already handled by Dialog's onOpenChange
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+          </DialogClose>
           <Button 
             variant="destructive" 
             onClick={onConfirm}
             disabled={isDeleting}
           >
-            {isDeleting ? 'Deleting...' : 'Delete'}
+            {isDeleting ? 'Deleting...' : 'Delete Project'}
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

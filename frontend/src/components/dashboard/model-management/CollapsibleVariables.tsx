@@ -7,7 +7,7 @@ interface RuntimeInput {
   inputName: string;
   displayLabel?: string | null;
   description?: string | null;
-  inputType: 'NUMBER' | 'TEXT' | 'BOOLEAN' | 'SELECT';
+  inputType: 'NUMBER' | 'TEXT' | 'BOOLEAN' | 'SELECT' | 'SELECT_MATERIAL'; // Added SELECT_MATERIAL
   options?: string | null;
   defaultValue?: string | null;
   unit?: string | null;

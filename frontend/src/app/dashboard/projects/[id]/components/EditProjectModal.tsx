@@ -5,10 +5,32 @@
 
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react'; // Added useEffect
 import { Button } from '@/components/dashboard/button';
-import { Project, User } from '@/types';
-import { useForm } from '@/hooks';
+import { Project, User, UpdateProjectData } from '@/types'; // Added UpdateProjectData
+// import { useForm } from '@/hooks'; // To be replaced
+import { useForm, Controller } from 'react-hook-form'; // Import from react-hook-form
+import { zodResolver } from '@hookform/resolvers/zod'; // For Zod validation
+import { z } from 'zod'; // For Zod schema
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose, // Added DialogClose for cancel button
+  DialogDescription // Optional: if a description is needed
+} from '@/components/dashboard/dialog';
+import { Input } from '@/components/dashboard/input';
+import { Label } from '@/components/dashboard/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/dashboard/select';
+import { cn } from '@/lib/utils'; // For conditional class names
 
 interface EditProjectModalProps {
   project: Project;
@@ -16,138 +38,173 @@ interface EditProjectModalProps {
   engineersList: User[];
   onClose: () => void;
   onSave: (data: any) => Promise<void>;
+  // isOpen prop will be controlled by the parent page (ProjectDetailPage)
+  isOpen: boolean;
 }
+
+// Define Zod schema for form validation
+const editProjectSchema = z.object({
+  name: z.string().min(1, "Project name is required"),
+  description: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
+  sqft: z.number({ invalid_type_error: "Square footage must be a number or empty" })
+    .positive("Square footage must be a positive number")
+    .optional(), // This makes the type number | undefined
+  // clientId: z.string().optional().nullable(), // Keep commented out
+  engineerId: z.string().optional().nullable(),
+});
+
+type EditProjectFormData = z.infer<typeof editProjectSchema>;
 
 export const EditProjectModal: React.FC<EditProjectModalProps> = ({
   project,
-  clientsList,
+  clientsList, // Keep for potential future use if client field is added
   engineersList,
   onClose,
-  onSave
+  onSave,
+  isOpen
 }) => {
-  const { values, handleChange, handleSubmit, errors, isSubmitting } = useForm({
-    initialValues: {
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<EditProjectFormData>({
+    resolver: zodResolver(editProjectSchema),
+    defaultValues: {
       name: project.name,
       description: project.description || '',
       address: project.address || '',
       location: project.location || '',
-      sqft: project.sqft || '',
-      clientId: project.client?.id || '',
-      engineerId: project.engineer?.id || '',
+      sqft: project.sqft ?? undefined, // react-hook-form handles number conversion
+      // clientId: project.client?.id?.toString() || '', // Keep commented out
+      engineerId: project.engineer?.id?.toString() || '',
     },
-    validationSchema: {
-      name: (value) => !value ? 'Project name is required' : null,
-    },
-    onSubmit: onSave
   });
 
+  useEffect(() => {
+    if (isOpen) {
+      reset({
+        name: project.name,
+        description: project.description || '',
+        address: project.address || '',
+        location: project.location || '',
+        sqft: project.sqft ?? undefined,
+        engineerId: project.engineer?.id?.toString() || '',
+      });
+    }
+  }, [isOpen, project, reset]);
+
+  const onSubmitHandler = async (data: EditProjectFormData) => {
+    // Align with UpdateProjectData which expects description: string | undefined
+    // and sqft: number | undefined
+    const payload: UpdateProjectData = {
+      name: data.name,
+      description: data.description ?? undefined,
+      address: data.address ?? undefined,
+      location: data.location ?? undefined,
+      sqft: (typeof data.sqft === 'number' && !isNaN(data.sqft)) ? data.sqft : undefined,
+      engineerId: data.engineerId ? Number(data.engineerId) : undefined,
+    };
+    // Ensure nulls from Zod (for string fields) become undefined for UpdateProjectData
+    if (payload.description === null) payload.description = undefined;
+    if (payload.address === null) payload.address = undefined;
+    if (payload.location === null) payload.location = undefined;
+    if (payload.engineerId === null) payload.engineerId = undefined; // Should not happen with current Zod
+
+    await onSave(payload);
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
-      <div className="bg-white p-6 md:p-8 rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">Edit Project</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 gap-4 mb-6">
-            <div>
-              <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
-              <input
-                type="text"
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit Project</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit(onSubmitHandler)}>
+          <div className="grid grid-cols-1 gap-4 py-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-name">Project Name</Label>
+              <Input
                 id="edit-name"
-                name="name"
-                value={values.name}
-                onChange={handleChange}
-                className={`mt-1 block w-full px-3 py-2 border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm`}
-                required
+                {...register('name')}
+                className={cn(errors.name && "border-red-500 focus-visible:ring-red-500")}
               />
-              {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
+              {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name.message}</p>}
             </div>
-            <div>
-              <label htmlFor="edit-description" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-description">Description</Label>
               <textarea
                 id="edit-description"
-                name="description"
                 rows={3}
-                value={values.description}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                {...register('description')}
+                className={cn("block w-full rounded-md border border-light-bw bg-lightest-bw px-3 py-2 text-sm text-dark-text-bw ring-offset-lightest-bw placeholder:text-dark-text-bw/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-color focus-visible:ring-offset-2")}
               />
             </div>
-            <div>
-              <label htmlFor="edit-address" className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-              <input
-                type="text"
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-address">Address</Label>
+              <Input
                 id="edit-address"
-                name="address"
-                value={values.address}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                {...register('address')}
               />
             </div>
-            <div>
-              <label htmlFor="edit-location" className="block text-sm font-medium text-gray-700 mb-1">Location (Lat, Long)</label>
-              <input
-                type="text"
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-location">Location (Lat, Long)</Label>
+              <Input
                 id="edit-location"
-                name="location"
-                value={values.location}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                {...register('location')}
               />
             </div>
-            <div>
-              <label htmlFor="edit-sqft" className="block text-sm font-medium text-gray-700 mb-1">Square Footage</label>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-sqft">Square Footage</Label>
+              <Input
                 type="number"
                 id="edit-sqft"
-                name="sqft"
-                value={values.sqft}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                {...register('sqft', { setValueAs: v => (v === "" || v === null || v === undefined) ? undefined : Number(v) })}
+                className={cn(errors.sqft && "border-red-500 focus-visible:ring-red-500")}
               />
-            </div>
-            {/* Client Dropdown */}
-            <div>
-              <label htmlFor="edit-client" className="block text-sm font-medium text-gray-700 mb-1">Client</label>
-              <select
-                id="edit-client"
-                name="clientId"
-                value={values.clientId}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-              >
-                <option value="">Select Client</option>
-                {clientsList.map(client => (
-                  <option key={client.id} value={client.id}>{client.name} ({client.email})</option>
-                ))}
-              </select>
+              {errors.sqft && <p className="mt-1 text-xs text-red-500">{errors.sqft.message}</p>}
             </div>
             {/* Engineer Dropdown */}
-            <div>
-              <label htmlFor="edit-engineer" className="block text-sm font-medium text-gray-700 mb-1">Engineer</label>
-              <select
-                id="edit-engineer"
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-engineer">Engineer</Label>
+              <Controller
                 name="engineerId"
-                value={values.engineerId}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-              >
-                <option value="">Select Engineer</option>
-                {engineersList.map(engineer => (
-                  <option key={engineer.id} value={engineer.id}>{engineer.name} ({engineer.email})</option>
-                ))}
-              </select>
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value || ''}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger id="edit-engineer">
+                      <SelectValue placeholder="Select Engineer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Select Engineer</SelectItem>
+                      {engineersList.map(engineer => (
+                        <SelectItem key={engineer.id} value={engineer.id.toString()}>{engineer.name} ({engineer.email})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
           </div>
-          <div className="flex justify-end space-x-3">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-              Cancel
-            </Button>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+                Cancel
+              </Button>
+            </DialogClose>
             <Button type="submit" variant="default" disabled={isSubmitting}>
               {isSubmitting ? 'Saving...' : 'Save Changes'}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

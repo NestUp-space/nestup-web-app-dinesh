@@ -7,64 +7,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/dashboard/label";
 import Link from 'next/link';
 import { useUser } from '@/context/UserContext'; // Import useUser
-
-interface User {
-  id: number;
-  email: string;
-  isActive: boolean;
-  name: string;
-  role: {
-    name: string;
-    type: string;
-  };
-}
+import { useUsersList } from '@/hooks/useUsers'; // Import the new hook
+import { User } from '@/types'; // Use global User type
+import { UserListItem } from './UserListItem'; // Import the new component
 
 export function UserList() {
   const { user: loggedInUser } = useUser(); // Get the logged-in user's data
-  const [users, setUsers] = React.useState<User[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(10);
-  const [totalUsers, setTotalUsers] = React.useState(0);
-  const [selectedRole, setSelectedRole] = React.useState<string>('');
+  const [selectedRole, setSelectedRole] = React.useState<string>(''); // Keep 'all' or specific role type string
 
-  const fetchUsers = React.useCallback(async () => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No token found");
-      }
+  const { users, totalUsers, loading, error, refetch } = useUsersList({
+    currentPage,
+    pageSize,
+    selectedRole: selectedRole === 'all' ? '' : selectedRole, // Pass empty string if 'all'
+  });
 
-      let url = `${process.env.NEXT_PUBLIC_API_URL}/api/users?page=${currentPage}&pageSize=${pageSize}`;
-      if (selectedRole) {
-        url += `&roleType=${selectedRole}`;
-      }
-
-      const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch users");
-      }
-
-      const data = await response.json();
-      setUsers(data.data.users);
-      setTotalUsers(data.data.total);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setLoading(false);
-    }
+  // Effect to refetch when filters change
+  React.useEffect(() => {
+    // useUsersList hook handles fetching internally based on its dependencies.
+    // If currentPage, pageSize, or selectedRole change, useUsersList will re-trigger useGet.
+    // No explicit refetch() call needed here unless for a manual refresh button.
   }, [currentPage, pageSize, selectedRole]);
 
-  React.useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+  const canEditUsers = loggedInUser?.permissions?.includes('users.edit') || false;
 
   if (loading) {
     return (
@@ -78,13 +44,10 @@ export function UserList() {
     return (
       <Card className="bg-lightest-bw border-light-bw">
         <CardContent className="p-8 text-center">
-          <p className="text-red-500 mb-4">Error: {error}</p>
+          <p className="text-red-500 mb-4">Error: {error?.message || 'An unknown error occurred'}</p>
           <Button 
             variant="outline" 
-            onClick={() => {
-              setLoading(true);
-              fetchUsers();
-            }}
+            onClick={() => refetch()}
           >
             Retry
           </Button>
@@ -99,7 +62,7 @@ export function UserList() {
         <CardHeader className="flex flex-row items-center justify-between pb-4">
           <CardTitle className="text-2xl text-dark-text-bw">Users</CardTitle>
           {loggedInUser?.permissions?.includes('users.create') && (
-            <Link href="/dashboard/users/create">
+            <Link href="/dashboard/users/create-user"> {/* Corrected Link based on file structure */}
               <Button>Create User</Button>
             </Link>
           )}
@@ -107,7 +70,10 @@ export function UserList() {
         <CardContent>
           <div className="mb-6">
             <Label htmlFor="roleFilter" className="mb-2 block">Filter by Role</Label>
-            <Select value={selectedRole} onValueChange={setSelectedRole}>
+            <Select value={selectedRole} onValueChange={(value) => {
+              setSelectedRole(value);
+              setCurrentPage(1); // Reset to first page on filter change
+            }}>
               <SelectTrigger id="roleFilter" className="w-full sm:w-[200px]">
                 <SelectValue placeholder="All Roles" />
               </SelectTrigger>
@@ -116,36 +82,14 @@ export function UserList() {
                 <SelectItem value="admin">Admin</SelectItem>
                 <SelectItem value="client">Client</SelectItem>
                 <SelectItem value="engineer">Engineer</SelectItem>
-                {/* Add other roles as needed */}
+                {/* TODO: Fetch roles dynamically for this filter if needed */}
               </SelectContent>
             </Select>
           </div>
 
           <div className="divide-y divide-light-bw rounded-md border border-light-bw">
             {users.map((user) => (
-              <div
-                key={user.id}
-                className="flex items-center justify-between p-4 hover:bg-lighter-bw transition-colors duration-150"
-              >
-                <div className="space-y-0.5">
-                  <p className="text-sm font-medium text-dark-text-bw">{user.name}</p>
-                  <p className="text-xs text-dark-text-bw/70">{user.email}</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-xs text-dark-text-bw/70 px-2 py-0.5 bg-lighter-bw rounded-full border border-light-bw">{user.role.name}</span>
-                  {loggedInUser?.permissions?.includes('users.edit') && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      asChild
-                    >
-                      <Link href={`/dashboard/users/${user.id}`}>
-                        Manage
-                      </Link>
-                    </Button>
-                  )}
-                </div>
-              </div>
+              <UserListItem key={user.id} user={user} canEdit={canEditUsers} />
             ))}
           </div>
 

@@ -106,12 +106,15 @@ export function usePost<T = any, P = any>() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const execute = useCallback(async (endpoint: string, data?: P): Promise<T | null> => {
+  const execute = useCallback(async (endpoint: string, data?: P, onSuccess?: (data: T) => void): Promise<T | null> => {
     setLoading(true);
     setError(null);
 
     try {
       const result = await apiClient.post<T, P>(endpoint, data);
+      if (onSuccess) {
+        onSuccess(result);
+      }
       return result;
     } catch (err) {
       const error = err instanceof Error ? err : new Error('An unknown error occurred');
@@ -129,12 +132,15 @@ export function usePut<T = any, P = any>() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const execute = useCallback(async (endpoint: string, data?: P): Promise<T | null> => {
+  const execute = useCallback(async (endpoint: string, data?: P, onSuccess?: (data: T) => void): Promise<T | null> => {
     setLoading(true);
     setError(null);
 
     try {
       const result = await apiClient.put<T, P>(endpoint, data);
+      if (onSuccess) {
+        onSuccess(result);
+      }
       return result;
     } catch (err) {
       const error = err instanceof Error ? err : new Error('An unknown error occurred');
@@ -152,12 +158,15 @@ export function useDelete<T = any>() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const execute = useCallback(async (endpoint: string): Promise<T | null> => {
+  const execute = useCallback(async (endpoint: string, onSuccess?: (data: T) => void): Promise<T | null> => {
     setLoading(true);
     setError(null);
 
     try {
       const result = await apiClient.delete<T>(endpoint);
+      if (onSuccess) {
+        onSuccess(result);
+      }
       return result;
     } catch (err) {
       const error = err instanceof Error ? err : new Error('An unknown error occurred');

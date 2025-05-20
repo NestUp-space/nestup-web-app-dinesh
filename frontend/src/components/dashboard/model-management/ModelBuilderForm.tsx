@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react'; // Added useEffect
 import { useForm, FormProvider, SubmitHandler, SubmitErrorHandler } from 'react-hook-form'; // Added SubmitErrorHandler
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,11 +11,13 @@ import BillOfMaterialListEditor from './BillOfMaterialListEditor';
 // import SiteInstructionsEditor from './SiteInstructionsEditor'; // Removed
 // import SampleInputsEditor from './SampleInputsEditor'; // Removed
 import { apiClient } from '@/lib/api/client';
-import useSWR, { useSWRConfig } from 'swr';
+// import useSWR, { useSWRConfig } from 'swr'; // Replaced by useModelData for fetching
+// import { useSWRConfig } from 'swr'; // Not needed here if useSaveModel handles mutation
 import { Button } from '@/components/dashboard/button'; // Added Button import
+import { useModelData, useSaveModel, SaveModelPayload } from '@/hooks/useCatalogue'; // Import the new hooks
 
 // Define Zod Schemas for sub-structures
-const ModelInputParameterSchema = z.object({
+export const ModelInputParameterSchema = z.object({ // Exported
   id: z.string().optional(),
   inputName: z.string().min(1, "Parameter name is required"),
   displayLabel: z.string().min(1, "Display label is required").optional().nullable(),
@@ -125,7 +127,10 @@ const modelFormSchema = z.object({
   // }, { message: "Invalid JSON format for Sample Onsite Inputs" }).nullable(),
 });
 
-type ModelFormData = z.infer<typeof modelFormSchema>;
+export type ModelFormData = z.infer<typeof modelFormSchema>; // Exported ModelFormData
+
+// Align ModelFormData with HookModelData if possible, or ensure compatibility
+// For now, ModelFormData is the form's internal shape. HookModelData is what useModelData returns.
 
 // Explicitly type the inputType to match the Zod enum
 type InputTypeEnum = z.infer<typeof ModelInputParameterSchema>['inputType'];
@@ -171,52 +176,32 @@ export default function ModelBuilderForm({
     },
   });
 
-  const { control, register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue, watch } = methods;
-  const { mutate } = useSWRConfig();
+  const { control, register, handleSubmit, formState: { errors /*, isSubmitting: isFormSubmitting (use hook's loading) */ }, reset, setValue, watch } = methods;
+  // const { mutate } = useSWRConfig(); // useSaveModel will handle mutations
   const [selectedImageFile, setSelectedImageFile] = React.useState<File | null>(null);
+
+  const { model: fetchedModelData, isLoading: isLoadingModel, error: fetchError } = useModelData(modelId);
+  const { saveModel, isSaving: isApiSaving, error: apiSaveError } = useSaveModel();
+
+  useEffect(() => {
+    if (fetchedModelData) {
+      // Map HookModelData to ModelFormData if they differ significantly, or ensure they are compatible
+      // For now, assuming HookModelData is compatible enough with ModelFormData for reset
+      const formDataFromFetched: Partial<ModelFormData> = {
+        ...fetchedModelData,
+        // modelType is already mapped in useModelData's fetcher
+      };
+      reset(formDataFromFetched);
+      if (onDataFetched && fetchedModelData.modelType) {
+        onDataFetched(fetchedModelData.modelType);
+      }
+    }
+  }, [fetchedModelData, reset, onDataFetched]);
 
   const onInvalid: SubmitErrorHandler<ModelFormData> = (validationErrors) => {
     console.error('--- FORM VALIDATION FAILED (onInvalid) ---', validationErrors);
     // You can add more detailed logging or UI feedback here if needed
   };
-
-  const { data: existingModelData, isLoading: isLoadingModel } = useSWR<ModelFormData>(
-    modelId ? `/v1/catalogue/${modelId}` : null, // Removed /api prefix
-    async (url: string) => {
-      const response = await apiClient.get(url); // apiClient.get returns the data directly
-      // Ensure data structure matches ModelFormData, especially for nested arrays
-      // The backend sends 'name', frontend form uses 'modelType'
-      // Ensure bomItems have a default details structure if missing, especially for PLANK
-      const processedBomItems = (response.bomItems || []).map((item: any) => {
-        if (item.itemType === BomItemType.PLANK && (item.details === undefined || item.details === null)) {
-          return { ...item, details: { edgeBanding: {} } }; // Default for PLANK
-        } else if ((item.itemType === BomItemType.HARDWARE || item.itemType === BomItemType.ADDON) && item.details === undefined) {
-          return { ...item, details: null }; // Default for others
-        }
-        return item;
-      });
-
-      const fetchedData = {
-        ...response,
-        modelType: response.name,
-        inputParameters: response.inputParameters || [],
-        bomItems: processedBomItems,
-      };
-      delete fetchedData.name;
-      return fetchedData;
-    },
-    {
-      onSuccess: (data) => {
-        if (data) {
-          reset(data);
-          if (onDataFetched && data.modelType) {
-            onDataFetched(data.modelType); // Call the callback with the model name (modelType)
-          }
-        }
-      },
-      revalidateOnFocus: false,
-    }
-  );
   
   const onSubmit: SubmitHandler<ModelFormData> = async (formData) => {
     // console.log('--- onSubmit CALLED ---'); // Diagnostic log removed
@@ -296,34 +281,40 @@ export default function ModelBuilderForm({
       // sampleOnsiteInputs: formData.sampleOnsiteInputs, // Removed
     };
     // Clean up undefined fields from payload that were removed
-    if (payload.sampleRuntimeInputsJson === undefined) delete payload.sampleRuntimeInputsJson;
-    if (payload.siteEngineerInstructions === undefined) delete payload.siteEngineerInstructions;
-    if (payload.sampleOnsiteInputs === undefined) delete payload.sampleOnsiteInputs;
-
+    // These fields are already removed from the Zod schema, so they won't be in formData.
+    // if (payload.sampleRuntimeInputsJson === undefined) delete payload.sampleRuntimeInputsJson;
+    // if (payload.siteEngineerInstructions === undefined) delete payload.siteEngineerInstructions;
+    // if (payload.sampleOnsiteInputs === undefined) delete payload.sampleOnsiteInputs;
 
     try {
-      // console.log('--- Attempting API call ---'); // Diagnostic log removed
-      let response;
-      if (modelId) { // Update mode
-        response = await apiClient.put(`/v1/catalogue/${modelId}`, payload); 
-        alert(`Model "${formData.modelType}" (ID: ${modelId}) updated successfully.`);
-        mutate(`/v1/catalogue/${modelId}`); 
-        if (onSaveSuccess) onSaveSuccess(modelId); // Call onSaveSuccess for updates too
-      } else { // Create mode
-        response = await apiClient.post('/v1/catalogue', payload); 
-        alert(`Model "${formData.modelType}" (ID: ${response.id}) created successfully.`); 
-        if (onSaveSuccess) onSaveSuccess(response.id); 
+      const result = await saveModel(payload, modelId);
+      if (result) {
+        const successMessage = modelId 
+          ? `Model "${formData.modelType}" (ID: ${modelId}) updated successfully.`
+          : `Model "${formData.modelType}" (ID: ${result.id}) created successfully.`;
+        alert(successMessage);
+        if (onSaveSuccess) {
+          onSaveSuccess(modelId || result.id!);
+        }
+      } else {
+        // Error is handled by useSaveModel hook and exposed via apiSaveError
+        // Alert is shown by the hook or can be shown here based on apiSaveError
+        if (apiSaveError) {
+           alert(`Error saving model: ${apiSaveError.message}`);
+        } else {
+           alert("An unknown error occurred while saving the model.");
+        }
       }
-      mutate('/api/v1/catalogue'); // Revalidate the list for both create and update
-      
-    } catch (apiError: any) {
-      const operation = modelId ? 'updating' : 'creating';
-      const modelNameInfo = formData.modelType ? `model "${formData.modelType}"` : 'the model';
-      const errorMessage = apiError.response?.data?.errors?.[0]?.message || apiError.response?.data?.message || apiError.message || 'An unknown error occurred.';
-      alert(`Error ${operation} ${modelNameInfo}: ${errorMessage}`);
+    } catch (err) {
+      // This catch block might be redundant if useSaveModel handles errors and sets apiSaveError
+      console.error("Submit Handler - Error saving model:", err);
+      alert(`Submit Handler - Error: ${err instanceof Error ? err.message : 'Failed to save model'}`);
     }
   };
   
+  // Use isApiSaving for the form's submitting state
+  const isCurrentlySubmitting = methods.formState.isSubmitting || isApiSaving;
+
   if (modelId && isLoadingModel) {
     return <p>Loading model data...</p>;
   }
@@ -357,11 +348,14 @@ export default function ModelBuilderForm({
           </Button>
           <Button 
             type="submit" 
-            disabled={isSubmitting}
+            disabled={isCurrentlySubmitting}
           >
-            {isSubmitting ? 'Saving...' : (modelId ? 'Update Model' : 'Create Model')}
+            {isCurrentlySubmitting ? 'Saving...' : (modelId ? 'Update Model' : 'Create Model')}
           </Button>
         </div>
+        {apiSaveError && (
+          <p className="text-sm text-red-500 mt-2 text-center">Save failed: {apiSaveError.message}</p>
+        )}
       </form>
     </FormProvider>
   );
