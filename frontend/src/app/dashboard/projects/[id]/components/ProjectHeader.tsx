@@ -13,13 +13,11 @@ import { Project } from '@/types';
 interface ProjectHeaderProps {
   project: Project;
   onEdit: () => void;
-  onDelete: () => void;
 }
 
 export const ProjectHeader: React.FC<ProjectHeaderProps> = ({ 
   project, 
-  onEdit, 
-  onDelete 
+  onEdit 
 }) => {
   return (
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
@@ -27,9 +25,6 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({
       <div className="flex space-x-2">
         <Button variant="outline" size="sm" onClick={onEdit}>
           <Edit3 className="mr-2 h-4 w-4" /> Edit
-        </Button>
-        <Button variant="destructive" size="sm" onClick={onDelete}>
-          <Trash2 className="mr-2 h-4 w-4" /> Delete
         </Button>
       </div>
     </div>

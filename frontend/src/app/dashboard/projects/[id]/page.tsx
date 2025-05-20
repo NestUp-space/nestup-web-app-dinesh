@@ -5,13 +5,12 @@ import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import Breadcrumbs from '@/components/dashboard/Breadcrumbs';
 import { Project, User, UpdateProjectData } from '@/types';
-import { useProject, useDeleteProject, useUpdateProject } from '@/hooks';
+import { useProject, useUpdateProject } from '@/hooks';
 import {
   ProjectHeader,
   ProjectDetails,
   ProjectTasks,
-  EditProjectModal,
-  DeleteConfirmModal
+  EditProjectModal
 } from './components';
 
 export default function ProjectDetailPage() {
@@ -21,7 +20,6 @@ export default function ProjectDetailPage() {
   const { user } = useUser();
   
   // State for modals
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   
   // State for users lists (for dropdowns)
@@ -30,7 +28,6 @@ export default function ProjectDetailPage() {
   
   // Custom hooks for data fetching and operations
   const { project, loading, error, refetch } = useProject(projectId);
-  const { deleteProject, loading: isDeleting } = useDeleteProject();
   const { updateProject, loading: isUpdating } = useUpdateProject(projectId);
   
   // Format date helper function
@@ -66,18 +63,6 @@ export default function ProjectDetailPage() {
     fetchUsersByRole('engineer', setEngineersList);
   }, []);
   
-  // Handle project deletion
-  const handleDelete = async () => {
-    try {
-      await deleteProject(projectId);
-      router.push('/dashboard/projects');
-    } catch (err) {
-      console.error('Error deleting project:', err);
-    } finally {
-      setShowDeleteConfirm(false);
-    }
-  };
-  
   // Handle project update
   const handleUpdate = async (data: UpdateProjectData) => {
     try {
@@ -109,12 +94,12 @@ export default function ProjectDetailPage() {
         <ProjectHeader 
           project={project} 
           onEdit={() => setShowEditModal(true)} 
-          onDelete={() => setShowDeleteConfirm(true)} 
         />
         
         <ProjectDetails 
           project={project} 
-          formatDate={formatDate} 
+          formatDate={formatDate}
+          onProjectUpdate={refetch} 
         />
       </div>
 
@@ -125,17 +110,9 @@ export default function ProjectDetailPage() {
       />
 
       {/* Modals */}
-      {showDeleteConfirm && (
-        <DeleteConfirmModal 
-          project={project} 
-          onClose={() => setShowDeleteConfirm(false)} 
-          onConfirm={handleDelete} 
-          isDeleting={isDeleting} 
-        />
-      )}
-
       {showEditModal && (
-        <EditProjectModal 
+        <EditProjectModal
+          isOpen={showEditModal}
           project={project} 
           clientsList={clientsList} 
           engineersList={engineersList} 

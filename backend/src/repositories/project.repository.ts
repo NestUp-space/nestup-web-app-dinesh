@@ -17,7 +17,6 @@ export interface IProjectRepository {
   }): Promise<ProjectWithDetails[]>; // Changed ProjectWithRelations to ProjectWithDetails
   findById(id: number, include?: Prisma.ProjectInclude): Promise<ProjectWithDetails | null>; // Changed ProjectWithRelations to ProjectWithDetails
   update(id: number, data: UpdateProjectDto): Promise<Project>;
-  delete(id: number): Promise<Project>;
 }
 
 export class ProjectRepository implements IProjectRepository {
@@ -160,12 +159,6 @@ export class ProjectRepository implements IProjectRepository {
     return this.prisma.project.update({
       where: { id },
       data: updateData,
-    });
-  }
-
-  async delete(id: number): Promise<Project> {
-    return this.prisma.project.delete({
-      where: { id },
     });
   }
 }

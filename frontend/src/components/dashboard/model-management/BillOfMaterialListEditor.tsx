@@ -6,7 +6,7 @@ import { PlusCircle } from 'lucide-react'; // Removed Trash2 as it's in BomItem
 // import PlankLogicEditor from './PlankLogicEditor'; // PlankLogicEditor is used by BomItem
 import { Button } from '@/components/dashboard/button';
 // import { cn } from '@/lib/utils'; // cn might not be needed here anymore
-import { BomItemType } from './ModelBuilderForm'; // Import from ModelBuilderForm
+import { BomItemType } from './modelSchemas'; // Import from modelSchemas.ts
 import BomItem from './BomItem'; // Import the new BomItem component
 
 type PlankPosition = 'left' | 'right' | 'top' | 'bottom' | 'back' | 'door';

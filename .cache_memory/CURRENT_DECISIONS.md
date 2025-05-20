@@ -1,68 +1,56 @@
-# Session Decisions Log
+## Cline's Session Decision Log
 
-## 2025-05-16
+**Session Date:** 2025-05-20
 
-### Fix Project Creation Status Error (400 Bad Request)
+---
 
-* **Decision 1:** Modify backend DTO (`project.types.ts`) and Controller (`project.controller.ts`) to correctly handle `statusId` (number) sent by the frontend, instead of expecting `projectStatus` (string).
-* **Rationale:**
-  * Aligns backend with frontend's existing data structure for project creation.
-  * Corrects the lookup logic for project status in the database.
-  * Prevents an attempt to save a non-existent `projectStatus` string field to the `Project` model, which violates the Prisma schema.
-* **Details:**
-    1. In `backend/src/types/project.types.ts`:
-        * Change `ProjectCreateInput` interface: replace `projectStatus?: string;` with `statusId?: number;`.
-    2. In `backend/src/controllers/project.controller.ts` (`createProject` method):
-        * Update request body destructuring from `projectStatus` to `statusId`.
-        * Use the provided `statusId`, defaulting to `1` if not sent by the client (matching Prisma schema default for `Project.statusId`).
-        * Validate the `statusId` against the `Status` table using `prisma.status.findUnique({ where: { id: finalStatusId } })`.
-        * Remove the line `projectStatus: statusStringToUse` from the `createData` object before calling `prisma.project.create()`.
+**Decision ID:** 20250520-001
+**Timestamp:** 2025-05-20, 18:57
+**Task/Issue:** `TypeError: BomItemType is undefined` in `BillOfMaterialListEditor.tsx`
+**Decision Made:**
+Refactor shared Zod schemas and enums into `frontend/src/components/dashboard/model-management/modelSchemas.ts`.
+**Rationale:** Resolve circular dependency.
+**(Details omitted for brevity, see previous logs)**
 
-### Seed Status Table for Project Creation
+---
 
-* **Decision 2:** Run the existing `seedStatus.ts` script to populate the Status table with required status records.
-* **Rationale:**
-  * The Status table was empty, causing the validation check for `statusId: 1` to fail even after fixing the DTO and controller.
-  * The seed script already existed with the correct status definitions but hadn't been run.
-* **Details:**
-  * Executed `npx ts-node src/scripts/seedStatus.ts` to populate the Status table with:
-        1. "Pending" (ID: 1) - Default status for new projects
-        2. "In Progress" (ID: 2)
-        3. "Completed" (ID: 3)
-        4. "On Hold" (ID: 4)
-        5. "Cancelled" (ID: 5)
-  * The script uses `upsert` operations, making it safe to run multiple times without duplicating records.
+**Decision ID:** 20250520-002
+**Timestamp:** 2025-05-20, 20:07
+**Task/Issue:** Fix 404 Error for Project Instances API (`GET /api/catalogue/project-instances/by-project/1`) on project details page.
+**Decision Made:**
+Update API endpoint in `frontend/src/app/dashboard/projects/[id]/components/ProjectDetails.tsx` to `/api/projects/:projectId/model-instances`.
+**Rationale:** Align frontend with correct backend route.
+**(Details omitted for brevity, see previous logs)**
 
-### Overall Resolution
+---
 
-The combination of these two decisions resolves the project creation issues:
+**Decision ID:** 20250520-003
+**Timestamp:** 2025-05-20, 20:24
+**Task/Issue:** Resolve 404 Error for Model Instance API Endpoint (`GET` and `POST` to `/api/projects/1/model-instances`) on catalogue new page.
+**Decision Made:**
+Mount `projectModelInstanceRouter` within `projectRouter` in `backend/src/routes/project.routes.ts`.
+**Rationale:** The sub-router for model instances was defined but not connected to the main project routes, causing 404s.
+**Follow-up Actions:** Implemented the router mounting. This led to a new 400 Bad Request error.
+**(Details omitted for brevity, see previous logs)**
 
-1. Frontend sends `statusId: 1` (or omits it to use the default)
-2. Backend correctly validates this against the now-populated Status table
-3. Project is created with the correct status relationship in the database
+---
 
-## 2025-05-18
+**Decision ID:** 20250520-004
+**Timestamp:** 2025-05-20, 20:57
+**Task/Issue:** Resolve 400 Bad Request for Model Instance API Endpoint (`GET` and `POST` to `/api/projects/1/model-instances`) on catalogue new page.
+**Decision Made:**
+Initiate investigation into backend input validation failure.
+**Rationale:**
+The 400 error with message "Input validation failed" indicates a mismatch between the data sent by the frontend and the expectations defined in the backend's DTO validation schemas.
+**Affected Files/Modules (Initial Investigation Scope):**
+*   `backend/src/catalogue/dtos/project-model-instance.dto.ts` (to check Zod schemas)
+*   `backend/src/catalogue/routes/project-model-instance.routes.ts` (to see how `validateRequest` middleware is used)
+*   Frontend code sending the request (e.g., `ModelSelector.tsx`)
+**Follow-up Actions:**
+*   Request detailed validation error messages from the user.
+*   Read `project-model-instance.dto.ts`.
+*   Compare frontend payload with backend schemas.
+*   Formulate and implement a fix.
+*   Archive this decision to `DECISION_LOG.md` in LTM upon successful resolution.
 
-### Fix Admin User Missing Permissions for /dashboard/users
-
-* **Decision 1:** Identified that the admin user (`admin@nestup.com`, roleId: 1) has an empty `permissions` array, causing a redirect from `/dashboard/users` due to a failed `users.view` permission check.
-* **Decision 2:** Determined that the script `backend/src/scripts/setupAdminRoleAndUser.ts` is the correct mechanism to grant all defined permissions to the admin role (ID: 1). This script ensures all permissions from `constants/permissions.ts` are in the `UserPermission` table, creates/updates the admin role (ID: 1), and maps all permissions to this role.
-* **Rationale:** The issue likely stems from `setupAdminRoleAndUser.ts` not having been run, not completing successfully, or its effects being subsequently altered. Other seeding scripts like `seedRolesAndPermissions.ts` do not grant all permissions to a specific admin role.
-* **Solution Path:** Advise the user to run `backend/src/scripts/setupAdminRoleAndUser.ts`.
-
-## 2025-05-20
-
-### Refactor `frontend/src/app/dashboard/projects/page.tsx`
-
-* **Decision:** Refactor the `ProjectsPage` component into smaller, more specialized components to improve maintainability, readability, and reusability, adhering to `GUARDRAILS.md`.
-* **Rationale:** The original `ProjectsPage` was becoming large and handling multiple concerns (project listing, creation dialog, tabbed views). Breaking it down simplifies each part.
-* **Chosen Component Structure:**
-    1. **`frontend/src/components/dashboard/projects/ProjectCard.tsx`**: Displays individual project information.
-    2. **`frontend/src/components/dashboard/projects/CreateProjectDialog.tsx`**: Manages the "Create New Project" modal, form, and submission logic.
-    3. **`frontend/src/components/dashboard/projects/ProjectList.tsx`**: Renders a grid of `ProjectCard` components.
-    4. **`frontend/src/components/dashboard/projects/ProjectTabs.tsx`**: Manages the tabbed interface (All, Active, Draft, Archived) using `ProjectList` for content.
-    5. **`frontend/src/app/dashboard/projects/page.tsx` (Updated)**: Acts as a container, fetching data and passing it to `CreateProjectDialog` and `ProjectTabs`.
-* **Impact:**
-  * Improved code organization within `frontend/src/components/dashboard/projects/`.
-  * Simplified logic in the main `page.tsx`.
-  * Enhanced testability of individual UI pieces.
+---

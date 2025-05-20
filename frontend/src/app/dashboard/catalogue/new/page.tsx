@@ -1,7 +1,8 @@
 "use client";
 
 import React from 'react';
-import ModelBuilderForm, { BomItemType } from '@/components/dashboard/model-management/ModelBuilderForm'; // Assuming BomItemType is exported
+import ModelBuilderForm from '@/components/dashboard/model-management/ModelBuilderForm';
+import { BomItemType } from '@/components/dashboard/model-management/modelSchemas'; // Import BomItemType from modelSchemas
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation'; // Added useRouter and useParams
@@ -18,11 +19,11 @@ interface SimplePlankDetails { // Based on PlankDetailsSchemaFrontend output (nu
   plankLocationIdentifier?: string | null;
   edgeBandingType?: string | null; // 'CEB' | 'IEB'
   edgeBanding?: {
-    top?: { thickness: 1 | 2; materialCode: string }; // Removed | null
-    bottom?: { thickness: 1 | 2; materialCode: string }; // Removed | null
-    left?: { thickness: 1 | 2; materialCode: string }; // Removed | null
-    right?: { thickness: 1 | 2; materialCode: string }; // Removed | null
-  } | null; // The whole edgeBanding object can be null or undefined
+    top?: { thickness: 1 | 2; materialCode: string };
+    bottom?: { thickness: 1 | 2; materialCode: string };
+    left?: { thickness: 1 | 2; materialCode: string };
+    right?: { thickness: 1 | 2; materialCode: string };
+  } | null;
 }
 
 interface SimplePlankBomItem {
@@ -31,13 +32,9 @@ interface SimplePlankBomItem {
   itemDescription?: string | null;
   itemLogicScript?: string | null;
   details: SimplePlankDetails | null;
-  // addonModelId should not be present for PLANK type
 }
 
-// If other types were used, they'd be added to this union:
-// type SimpleBomItem = SimplePlankBomItem | SimpleHardwareBomItem | SimpleAddonBomItem;
 type SimpleBomItem = SimplePlankBomItem;
-
 
 type SimpleBoxModelData = {
   modelType: string;
@@ -46,146 +43,453 @@ type SimpleBoxModelData = {
   inputParameters?: Array<{
     inputName: string;
     displayLabel?: string | null;
-    // Ensure this matches the Zod enum in ModelBuilderForm for inputType
-    inputType: 'NUMBER' | 'TEXT' | 'BOOLEAN' | 'SELECT' | 'SELECT_MATERIAL'; 
+    inputType: 'NUMBER' | 'TEXT' | 'BOOLEAN' | 'SELECT' | 'SELECT_MATERIAL';
     defaultValue?: string | null;
     options?: string | null;
     unit?: string | null;
     description?: string | null;
   }>;
-  bomItems?: SimpleBomItem[]; // Use the more specific BOM item type
+  bomItems?: SimpleBomItem[];
 };
 
-// Ensure simpleBoxDefaultData conforms to the refined SimpleBoxModelData
 const simpleBoxDefaultData: SimpleBoxModelData = {
-  modelType: 'Simple Box',
-  description: 'A basic rectangular box with five planks: back, left, right, top, and bottom. Suitable for simple storage units, cabinets, and shelving.',
-  imageUrl: null, // Changed from '/img/models/simple-box.png' to null as the image is missing
-  inputParameters: [ // Based on defaultModelInputParameters from ModelBuilderForm
-    { inputName: 'boxHeight', displayLabel: 'Box Height', inputType: 'NUMBER', defaultValue: '600', unit: 'mm', description: 'The overall height of the box.' },
-    { inputName: 'boxWidth', displayLabel: 'Box Width', inputType: 'NUMBER', defaultValue: '700', unit: 'mm', description: 'The overall width of the box.' },
-    { inputName: 'boxDepth', displayLabel: 'Box Depth', inputType: 'NUMBER', defaultValue: '550', unit: 'mm', description: 'The overall depth of the box.' },
-    { inputName: 'leftAdjacency', displayLabel: 'Left Side Adjacency', inputType: 'SELECT', defaultValue: 'Expose', options: 'Expose,Wall,AdjacentBox', description: 'Defines how the left side of the box is finished.' },
-    { inputName: 'rightAdjacency', displayLabel: 'Right Side Adjacency', inputType: 'SELECT', defaultValue: 'Expose', options: 'Expose,Wall,AdjacentBox', description: 'Defines how the right side of the box is finished.' },
-    { inputName: 'outerMaterialCode', displayLabel: 'Outer Material', inputType: 'SELECT_MATERIAL', defaultValue: '', description: 'Material code for external surfaces. Will use the first available material if none selected.' },
-    { inputName: 'innerMaterialCode', displayLabel: 'Inner Material', inputType: 'SELECT_MATERIAL', defaultValue: '', description: 'Material code for internal surfaces. Will use the first available material if none selected.' },
-    { inputName: 'backMaterialCode', displayLabel: 'Back Panel Material', inputType: 'SELECT_MATERIAL', defaultValue: 'BACK_MAT_01', description: 'Material code for the back panel.' },
-    { inputName: 'hasDoor', displayLabel: 'Has Door?', inputType: 'BOOLEAN', defaultValue: 'false', description: 'Indicates if the box includes a door.' },
-    { inputName: 'doorExposedSide', displayLabel: 'Door Exposed Side', inputType: 'SELECT', defaultValue: 'Front', options: 'Front,Left,Right', description: 'Specifies which side the door is on.' },
-    { inputName: 'numberOfShelves', displayLabel: 'Number of Shelves', inputType: 'NUMBER', defaultValue: '0', description: 'Number of internal shelves.' },
-    { inputName: 'skirting', displayLabel: 'Skirting', inputType: 'NUMBER', defaultValue: '0', description: 'Type of skirting.' }
+  modelType: "Simple Box",
+  description: "A basic rectangular box model with configurable dimensions and material thickness.",
+  imageUrl: null, // Assuming "url" from YAML is a placeholder
+  inputParameters: [
+    {
+      inputName: "boxHeight",
+      displayLabel: "Box Height",
+      inputType: "NUMBER",
+      unit: "mm",
+      defaultValue: "700",
+      description: "Overall height of the box. Range: Minimum 250mm, Maximum 2400mm.",
+      options: null,
+    },
+    {
+      inputName: "boxWidth",
+      displayLabel: "Box Width",
+      inputType: "NUMBER",
+      unit: "mm",
+      defaultValue: "600",
+      description: "Overall width of the box. Range: (Min: 250mm, Max: 2400mm)",
+      options: null,
+    },
+    {
+      inputName: "boxDepth",
+      displayLabel: "Box Depth",
+      inputType: "NUMBER",
+      unit: "mm",
+      defaultValue: "550",
+      description: "Overall depth of the box. Range: (Min: 250mm, Max: 750mm)",
+      options: null,
+    },
+    {
+      inputName: "leftAdjacency",
+      displayLabel: "Left Adjacency",
+      inputType: "SELECT",
+      defaultValue: "Expose",
+      description: "Specify what is to the left of this box. This affects panel design and material.",
+      options: "Expose,Wall,Box",
+      unit: null,
+    },
+    {
+      inputName: "rightAdjacency",
+      displayLabel: "Right Adjacency",
+      inputType: "SELECT",
+      defaultValue: "Expose",
+      description: "Specify what is to the right of this box. This affects panel design and material.",
+      options: "Expose,Wall,Box",
+      unit: null,
+    },
+    {
+      inputName: "exposeMaterialCode",
+      displayLabel: "Exposed Surfaces Material Code",
+      inputType: "SELECT_MATERIAL",
+      defaultValue: "none",
+      description: "Material code for surfaces of the box that are visible from the outside. This choice determines the material's thickness (ET) and laminate code (ELC). ValueHint: Select from the list of approved materials available in the project's material library.",
+      options: null,
+      unit: null,
+    },
+    {
+      inputName: "innerMaterialCode",
+      displayLabel: "Internal Surfaces Material Code",
+      inputType: "SELECT_MATERIAL",
+      defaultValue: "none",
+      description: "Material code for internal surfaces of the box. This choice determines the material's thickness (IT) and laminate code (ILC). ValueHint: Select from the list of approved materials available in the project's material library.",
+      options: null,
+      unit: null,
+    },
+    {
+      inputName: "backMaterialCode",
+      displayLabel: "Back Panel Material Code",
+      inputType: "SELECT_MATERIAL",
+      defaultValue: "none",
+      description: "Material code for the back panel of the box. This choice determines the material's thickness (BT) and laminate code (BLC). ValueHint: Select from the list of approved materials available in the project's material library.",
+      options: null,
+      unit: null,
+    }
   ],
   bomItems: [
     {
-      itemName: 'Left Side Panel',
-      itemType: BomItemType.PLANK, // Explicitly PLANK
-      itemDescription: 'The main left vertical panel of the box.',
-      // Initialize details to null or a minimal valid structure for PlankDetailsSchemaFrontend
-      // Since PlankLogicEditor populates details.widthLogic etc., null should be fine if schema allows.
-      // Or, provide minimal structure:
-      details: { name: 'Left Side Panel', edgeBanding: {} }, 
+      itemName: "Left Panel",
+      itemType: BomItemType.PLANK,
+      itemDescription: "The vertical panel on the left side of the box.",
+      details: { name: "Left Panel", edgeBanding: {} },
       itemLogicScript: `
 function calculateProperties(runtimeInputs, globalConstants) {
-  const { boxHeight, boxDepth, leftAdjacency, skirting, outerMaterialDefinition, innerMaterialDefinition, backMaterialDefinition } = runtimeInputs;
-  const { edgeBandingExposedThickness, edgeBandingInternalThickness } = globalConstants;
-  const BH = boxHeight; const BD = boxDepth; const LE = leftAdjacency; const SKT = skirting || 0;
-  const ET = outerMaterialDefinition.overallMaterialThickness_mm; const IT = innerMaterialDefinition.overallMaterialThickness_mm; const BT = backMaterialDefinition.overallMaterialThickness_mm;
-  const ELC = outerMaterialDefinition.code; const ILC = innerMaterialDefinition.code;
-  const CEB = edgeBandingExposedThickness; const IEB = edgeBandingInternalThickness;
-  let plankWidth, plankHeight, materialCode, plankThickness, grainDirection;
-  const name = 'Left Plank'; const plankId = 'B1P1_L';
-  if (LE === 'Expose') {
-    plankWidth = BD - ET - (2 * CEB); plankHeight = BH - (2 * CEB); materialCode = ELC; plankThickness = ET; grainDirection = outerMaterialDefinition.grainDirection;
+  const { boxHeight, boxDepth, leftAdjacency, exposeMaterialCode, innerMaterialCode, backMaterialCode, exposeMaterialDefinition, innerMaterialDefinition, backMaterialDefinition, doorMaterialDefinition } = runtimeInputs;
+  const boxNumber = "B1";
+  const exposeEdgeBandingThickness = 2;
+  const innerEdgeBandingThickness = 1;
+  const T3 = "T3_ToolCode";
+  const T6 = "T6_ToolCode";
+  const T7 = "T7_ToolCode";
+  const T8 = "T8_ToolCode";
+  const T9 = "T9_ToolCode";
+  const T10 = "T10_ToolCode";
+
+  const ET = exposeMaterialDefinition?.overallMaterialThickness_mm || 0;
+  const IT = innerMaterialDefinition?.overallMaterialThickness_mm || 0;
+  const BT = backMaterialDefinition?.overallMaterialThickness_mm || 0;
+  const doorPanel_thickness = doorMaterialDefinition?.overallMaterialThickness_mm || ET; // Assume door uses expose material if not specified
+
+  const ELC = exposeMaterialDefinition?.code || exposeMaterialCode;
+  const ILC = innerMaterialDefinition?.code || innerMaterialCode;
+  
+  let plankWidth, plankHeight, materialCodeToUse, plankThicknessActual, grainDirection;
+  const itemName = "Left Panel";
+  const packetNumber = "1";
+  const plankLocation = "LT";
+  const leftPlank_edgeBandingThickness = (leftAdjacency === 'Expose') ? exposeEdgeBandingThickness : innerEdgeBandingThickness;
+
+  if (leftAdjacency === 'Expose') {
+    plankWidth = boxDepth - doorPanel_thickness - (2 * leftPlank_edgeBandingThickness);
+    materialCodeToUse = ELC;
+    plankThicknessActual = ET;
+    grainDirection = exposeMaterialDefinition?.grainDirection || 'Vertical';
   } else {
-    plankWidth = BD - IT - BT - (2 * IEB); plankHeight = BH - SKT - (2 * IEB); materialCode = ILC; plankThickness = IT; grainDirection = innerMaterialDefinition.grainDirection;
+    plankWidth = boxDepth - doorPanel_thickness - BT - (2 * leftPlank_edgeBandingThickness);
+    materialCodeToUse = ILC;
+    plankThicknessActual = IT;
+    grainDirection = innerMaterialDefinition?.grainDirection || 'Vertical';
   }
-  return { plankId, name, width: parseFloat(plankWidth.toFixed(2)), height: parseFloat(plankHeight.toFixed(2)), thickness: plankThickness, materialCode, grainDirection, screwHoles: [], vbScrewHoles: [], backPanelGroove: null };
+  plankHeight = boxHeight - (2 * leftPlank_edgeBandingThickness);
+  const plankId = boxNumber + ':P' + packetNumber + ':' + plankLocation;
+
+  let screwHoles = [];
+  if (leftAdjacency !== 'Expose') {
+    screwHoles = [
+      { x: plankWidth / 4, y: (IT / 2) - leftPlank_edgeBandingThickness, z: -0.01, toolCode: T3 },
+      { x: plankWidth / 2, y: (IT / 2) - leftPlank_edgeBandingThickness, z: -0.01, toolCode: T3 },
+      { x: 3 * plankWidth / 4, y: (IT / 2) - leftPlank_edgeBandingThickness, z: -0.01, toolCode: T3 },
+      { x: plankWidth / 4, y: plankHeight - (IT / 2) - leftPlank_edgeBandingThickness, z: -0.01, toolCode: T3 },
+      { x: plankWidth / 2, y: plankHeight - (IT / 2) - leftPlank_edgeBandingThickness, z: -0.01, toolCode: T3 },
+      { x: 3 * plankWidth / 4, y: plankHeight - (IT / 2) - leftPlank_edgeBandingThickness, z: -0.01, toolCode: T3 },
+    ];
+  }
+
+  let vbScrewHoles = [];
+  if (leftAdjacency === 'Expose') {
+    vbScrewHoles.push({ x: 50 - ET, y: plankHeight - IT + 9 + ET, z: ET - 11, toolCode: T6 });
+    vbScrewHoles.push({ x: plankWidth - 50 + ET, y: plankHeight - IT + 9 + ET, z: ET - 11, toolCode: T6 });
+    if (plankWidth > 450) {
+      vbScrewHoles.push({ x: plankWidth / 2, y: plankHeight - IT + 9 + ET, z: ET - 11, toolCode: T6 });
+    }
+  }
+  vbScrewHoles.push({ x: 50 - ET, y: IT - 9 - ET, z: ET - 11, toolCode: T6 });
+  vbScrewHoles.push({ x: plankWidth - 50 + ET, y: IT - 9 - ET, z: ET - 11, toolCode: T6 });
+  if (plankWidth > 450) {
+    vbScrewHoles.push({ x: plankWidth / 2, y: IT - 9 - ET, z: ET - 11, toolCode: T6 });
+  }
+
+  let backPanelGroove = [];
+  let toolForGroove;
+  if (BT === 8) toolForGroove = T7;
+  else if (BT === 10) toolForGroove = T8;
+  else if (BT === 12) toolForGroove = T9;
+  else if (BT === 14) toolForGroove = T10;
+  if (toolForGroove) {
+    backPanelGroove = [{ 
+      startX: plankWidth - (BT / 2) + ET, 
+      startY: 0 - ET, 
+      endX: plankWidth - (BT / 2) + ET, 
+      endY: plankHeight - ET, 
+      depth: 10, 
+      toolCode: toolForGroove 
+    }];
+  }
+
+  return { plankId, name: itemName, width: parseFloat(plankWidth.toFixed(2)), height: parseFloat(plankHeight.toFixed(2)), thickness: plankThicknessActual, materialCode: materialCodeToUse, grainDirection, screwHoles, vbScrewHoles, backPanelGroove };
 }`.trim(),
     },
     {
-      itemName: 'Right Side Panel',
+      itemName: "Right Panel",
       itemType: BomItemType.PLANK,
-      itemDescription: 'The main right vertical panel of the box.',
-      details: { name: 'Right Side Panel', edgeBanding: {} },
+      itemDescription: "The vertical panel on the right side of the box.",
+      details: { name: "Right Panel", edgeBanding: {} },
       itemLogicScript: `
 function calculateProperties(runtimeInputs, globalConstants) {
-  const { boxHeight, boxDepth, rightAdjacency, skirting, outerMaterialDefinition, innerMaterialDefinition, backMaterialDefinition } = runtimeInputs;
-  const { edgeBandingExposedThickness, edgeBandingInternalThickness } = globalConstants;
-  const BH = boxHeight; const BD = boxDepth; const RE = rightAdjacency; const SKT = skirting || 0;
-  const ET = outerMaterialDefinition.overallMaterialThickness_mm; const IT = innerMaterialDefinition.overallMaterialThickness_mm; const BT = backMaterialDefinition.overallMaterialThickness_mm;
-  const ELC = outerMaterialDefinition.code; const ILC = innerMaterialDefinition.code;
-  const CEB = edgeBandingExposedThickness; const IEB = edgeBandingInternalThickness;
-  let plankWidth, plankHeight, materialCode, plankThickness, grainDirection;
-  const name = 'Right Plank'; const plankId = 'B1P1_R';
-  if (RE === 'Expose') {
-    plankWidth = BD - ET - (2 * CEB); plankHeight = BH - (2 * CEB); materialCode = ELC; plankThickness = ET; grainDirection = outerMaterialDefinition.grainDirection;
+  const { boxHeight, boxDepth, rightAdjacency, exposeMaterialCode, innerMaterialCode, backMaterialCode, exposeMaterialDefinition, innerMaterialDefinition, backMaterialDefinition, doorMaterialDefinition } = runtimeInputs;
+  const boxNumber = "B1";
+  const exposeEdgeBandingThickness = 2;
+  const innerEdgeBandingThickness = 1;
+  const T3 = "T3_ToolCode";
+  const T6 = "T6_ToolCode";
+  const T7 = "T7_ToolCode";
+  const T8 = "T8_ToolCode";
+  const T9 = "T9_ToolCode";
+  const T10 = "T10_ToolCode";
+
+  const ET = exposeMaterialDefinition?.overallMaterialThickness_mm || 0;
+  const IT = innerMaterialDefinition?.overallMaterialThickness_mm || 0;
+  const BT = backMaterialDefinition?.overallMaterialThickness_mm || 0;
+  const doorPanel_thickness = doorMaterialDefinition?.overallMaterialThickness_mm || ET;
+
+  const ELC = exposeMaterialDefinition?.code || exposeMaterialCode;
+  const ILC = innerMaterialDefinition?.code || innerMaterialCode;
+
+  let plankWidth, plankHeight, materialCodeToUse, plankThicknessActual, grainDirection;
+  const itemName = "Right Panel";
+  const packetNumber = "1";
+  const plankLocation = "RT";
+  const rightPlank_edgeBandingThickness = (rightAdjacency === 'Expose') ? exposeEdgeBandingThickness : innerEdgeBandingThickness;
+
+  if (rightAdjacency === 'Expose') {
+    plankWidth = boxDepth - doorPanel_thickness - (2 * rightPlank_edgeBandingThickness);
+    materialCodeToUse = ELC;
+    plankThicknessActual = ET;
+    grainDirection = exposeMaterialDefinition?.grainDirection || 'Vertical';
   } else {
-    plankWidth = BD - IT - BT - (2 * IEB); plankHeight = BH - SKT - (2 * IEB); materialCode = ILC; plankThickness = IT; grainDirection = innerMaterialDefinition.grainDirection;
+    plankWidth = boxDepth - doorPanel_thickness - BT - (2 * rightPlank_edgeBandingThickness);
+    materialCodeToUse = ILC;
+    plankThicknessActual = IT;
+    grainDirection = innerMaterialDefinition?.grainDirection || 'Vertical';
   }
-  return { plankId, name, width: parseFloat(plankWidth.toFixed(2)), height: parseFloat(plankHeight.toFixed(2)), thickness: plankThickness, materialCode, grainDirection, screwHoles: [], vbScrewHoles: [], backPanelGroove: null };
+  plankHeight = boxHeight - (2 * rightPlank_edgeBandingThickness);
+  const plankId = boxNumber + ':P' + packetNumber + ':' + plankLocation;
+
+  let screwHoles = [];
+  if (rightAdjacency !== 'Expose') {
+    screwHoles = [
+      { x: plankWidth / 4, y: (IT / 2) - rightPlank_edgeBandingThickness, z: -0.01, toolCode: T3 },
+      { x: plankWidth / 2, y: (IT / 2) - rightPlank_edgeBandingThickness, z: -0.01, toolCode: T3 },
+      { x: 3 * plankWidth / 4, y: (IT / 2) - rightPlank_edgeBandingThickness, z: -0.01, toolCode: T3 },
+      { x: plankWidth / 4, y: plankHeight - (IT / 2) - rightPlank_edgeBandingThickness, z: -0.01, toolCode: T3 },
+      { x: plankWidth / 2, y: plankHeight - (IT / 2) - rightPlank_edgeBandingThickness, z: -0.01, toolCode: T3 },
+      { x: 3 * plankWidth / 4, y: plankHeight - (IT / 2) - rightPlank_edgeBandingThickness, z: -0.01, toolCode: T3 },
+    ];
+  }
+
+  let vbScrewHoles = [];
+  if (rightAdjacency === 'Expose') {
+    vbScrewHoles.push({ x: 50 - ET, y: plankHeight - IT + 9 + ET, z: ET - 11, toolCode: T6 });
+    vbScrewHoles.push({ x: plankWidth - 50 + ET, y: plankHeight - IT + 9 + ET, z: ET - 11, toolCode: T6 });
+    if (plankWidth > 450) {
+      vbScrewHoles.push({ x: plankWidth / 2, y: plankHeight - IT + 9 + ET, z: ET - 11, toolCode: T6 });
+    }
+  }
+  vbScrewHoles.push({ x: 50 - ET, y: IT - 9 - ET, z: ET - 11, toolCode: T6 });
+  vbScrewHoles.push({ x: plankWidth - 50 + ET, y: IT - 9 - ET, z: ET - 11, toolCode: T6 });
+  if (plankWidth > 450) {
+    vbScrewHoles.push({ x: plankWidth / 2, y: IT - 9 - ET, z: ET - 11, toolCode: T6 });
+  }
+  
+  let backPanelGroove = [];
+  let toolForGroove;
+  if (BT === 8) toolForGroove = T7;
+  else if (BT === 10) toolForGroove = T8;
+  else if (BT === 12) toolForGroove = T9;
+  else if (BT === 14) toolForGroove = T10;
+  if (toolForGroove) {
+    backPanelGroove = [{ 
+      startX: plankWidth - (BT / 2) + ET, 
+      startY: 0 - ET, 
+      endX: plankWidth - (BT / 2) + ET, 
+      endY: plankHeight - ET, 
+      depth: 10, 
+      toolCode: toolForGroove 
+    }];
+  }
+
+  return { plankId, name: itemName, width: parseFloat(plankWidth.toFixed(2)), height: parseFloat(plankHeight.toFixed(2)), thickness: plankThicknessActual, materialCode: materialCodeToUse, grainDirection, screwHoles, vbScrewHoles, backPanelGroove };
 }`.trim(),
     },
     {
-      itemName: 'Top Panel',
+      itemName: "Top Panel",
       itemType: BomItemType.PLANK,
-      itemDescription: 'The main top horizontal panel of the box.',
-      details: { name: 'Top Panel', edgeBanding: {} },
+      itemDescription: "Top panel of the box.",
+      details: { name: "Top Panel", edgeBanding: {} },
       itemLogicScript: `
 function calculateProperties(runtimeInputs, globalConstants) {
-  const { boxWidth, boxDepth, leftAdjacency, rightAdjacency, outerMaterialDefinition, innerMaterialDefinition, backMaterialDefinition } = runtimeInputs;
-  const { edgeBandingInternalThickness } = globalConstants;
-  const BW = boxWidth; const BD = boxDepth; const LE = leftAdjacency; const RE = rightAdjacency;
-  const ET = outerMaterialDefinition.overallMaterialThickness_mm; const IT = innerMaterialDefinition.overallMaterialThickness_mm; const BT = backMaterialDefinition.overallMaterialThickness_mm;
-  const ILC = innerMaterialDefinition.code; const IEB = edgeBandingInternalThickness;
-  let plankWidth, plankHeight;
-  const name = 'Top Plank'; const plankId = 'B1P1_T'; const materialCode = ILC; const plankThickness = IT; const grainDirection = innerMaterialDefinition.grainDirection;
-  if (LE === 'Expose' && RE === 'Expose') { plankWidth = BW - (2 * ET) - (2 * IEB); }
-  else if (LE === 'Expose' || RE === 'Expose') { plankWidth = BW - ET - IT - (2 * IEB); }
-  else { plankWidth = BW - (2 * IT) - (2 * IEB); }
-  plankHeight = BD - BT - (2 * IEB);
-  return { plankId, name, width: parseFloat(plankWidth.toFixed(2)), height: parseFloat(plankHeight.toFixed(2)), thickness: plankThickness, materialCode, grainDirection, screwHoles: [], vbScrewHoles: [], backPanelGroove: null };
+  const { boxWidth, boxDepth, leftAdjacency, rightAdjacency, exposeMaterialCode, innerMaterialCode, backMaterialCode, exposeMaterialDefinition, innerMaterialDefinition, backMaterialDefinition, doorMaterialDefinition } = runtimeInputs;
+  // Assuming leftPanel.thickness and rightPanel.thickness are effectively ET or IT based on adjacency
+  const leftPanel_thickness = (leftAdjacency === 'Expose') ? (exposeMaterialDefinition?.overallMaterialThickness_mm || 0) : (innerMaterialDefinition?.overallMaterialThickness_mm || 0);
+  const rightPanel_thickness = (rightAdjacency === 'Expose') ? (exposeMaterialDefinition?.overallMaterialThickness_mm || 0) : (innerMaterialDefinition?.overallMaterialThickness_mm || 0);
+
+  const boxNumber = "B1";
+  const innerEdgeBandingThickness = 1; // From YAML modelScopedVariables for internal edges
+
+  const IT = innerMaterialDefinition?.overallMaterialThickness_mm || 0;
+  const BT = backMaterialDefinition?.overallMaterialThickness_mm || 0;
+  const doorPanel_thickness = doorMaterialDefinition?.overallMaterialThickness_mm || (exposeMaterialDefinition?.overallMaterialThickness_mm || 0);
+  const ILC = innerMaterialDefinition?.code || innerMaterialCode;
+
+  const itemName = "Top Panel";
+  const packetNumber = "1";
+  const plankLocation = "TP";
+  
+  let plankWidth = boxDepth - (2 * innerEdgeBandingThickness) - BT - doorPanel_thickness;
+  let plankHeight = boxWidth - (2 * innerEdgeBandingThickness) - leftPanel_thickness - rightPanel_thickness;
+  
+  const plankMaterialCodeToUse = ILC;
+  const plankThicknessActual = IT;
+  const grainDirection = innerMaterialDefinition?.grainDirection || 'Horizontal'; // Typically horizontal for top/bottom
+  const plankId = boxNumber + ':P' + packetNumber + ':' + plankLocation;
+
+  let vbMainHoles = [];
+  // Logic from YAML for vbMainHolesLogic (Top Panel)
+  // Note: YAML logic for vbMainHoles seems to be for connecting to side panels.
+  // The coordinates are relative to the Top Panel itself.
+  if (leftAdjacency === 'Expose') { // Holes for connection to Left Exposed Panel
+    vbMainHoles.push({ x: 9.5 - IT, y: 50 - IT, z: IT - 14, toolCode: 'T6' }); // Assuming T6 for VB
+    vbMainHoles.push({ x: 9.5 - IT, y: plankHeight - 50 + IT, z: IT - 14, toolCode: 'T6' });
+    if (plankHeight > 450) { vbMainHoles.push({ x: 9.5 - IT, y: plankHeight / 2, z: IT - 14, toolCode: 'T6' }); }
+  }
+  if (rightAdjacency === 'Expose') { // Holes for connection to Right Exposed Panel
+    vbMainHoles.push({ x: plankWidth - 9.5 + IT, y: 50 - IT, z: IT - 14, toolCode: 'T6' });
+    vbMainHoles.push({ x: plankWidth - 9.5 + IT, y: plankHeight - 50 + IT, z: IT - 14, toolCode: 'T6' });
+    if (plankHeight > 450) { vbMainHoles.push({ x: plankWidth - 9.5 + IT, y: plankHeight / 2, z: IT - 14, toolCode: 'T6' }); }
+  }
+  // If adjacency is not 'Expose', different hole patterns or no holes might be needed.
+  // The YAML logic only shows 'Expose' cases. For simplicity, only implementing these.
+
+  return { plankId, name: itemName, width: parseFloat(plankWidth.toFixed(2)), height: parseFloat(plankHeight.toFixed(2)), thickness: plankThicknessActual, materialCode: plankMaterialCodeToUse, grainDirection, screwHoles: [], vbScrewHoles: vbMainHoles, backPanelGroove: [] };
 }`.trim(),
     },
     {
-      itemName: 'Bottom Panel',
+      itemName: "Bottom Panel",
       itemType: BomItemType.PLANK,
-      itemDescription: 'The main bottom horizontal panel of the box.',
-      details: { name: 'Bottom Panel', edgeBanding: {} },
+      itemDescription: "Bottom panel of the box.",
+      details: { name: "Bottom Panel", edgeBanding: {} },
       itemLogicScript: `
 function calculateProperties(runtimeInputs, globalConstants) {
-  const { boxWidth, boxDepth, leftAdjacency, rightAdjacency, outerMaterialDefinition, innerMaterialDefinition, backMaterialDefinition } = runtimeInputs;
-  const { edgeBandingInternalThickness } = globalConstants;
-  const BW = boxWidth; const BD = boxDepth; const LE = leftAdjacency; const RE = rightAdjacency;
-  const ET = outerMaterialDefinition.overallMaterialThickness_mm; const IT = innerMaterialDefinition.overallMaterialThickness_mm; const BT = backMaterialDefinition.overallMaterialThickness_mm;
-  const ILC = innerMaterialDefinition.code; const IEB = edgeBandingInternalThickness;
-  let plankWidth, plankHeight;
-  const name = 'Bottom Plank'; const plankId = 'B1P1_B'; const materialCode = ILC; const plankThickness = IT; const grainDirection = innerMaterialDefinition.grainDirection;
-  if (LE === 'Expose' && RE === 'Expose') { plankWidth = BW - (2 * ET) - (2 * IEB); }
-  else if (LE === 'Expose' || RE === 'Expose') { plankWidth = BW - ET - IT - (2 * IEB); }
-  else { plankWidth = BW - (2 * IT) - (2 * IEB); }
-  plankHeight = BD - BT - (2 * IEB);
-  return { plankId, name, width: parseFloat(plankWidth.toFixed(2)), height: parseFloat(plankHeight.toFixed(2)), thickness: plankThickness, materialCode, grainDirection, screwHoles: [], vbScrewHoles: [], backPanelGroove: null };
+  const { boxWidth, boxDepth, leftAdjacency, rightAdjacency, exposeMaterialCode, innerMaterialCode, backMaterialCode, exposeMaterialDefinition, innerMaterialDefinition, backMaterialDefinition, doorMaterialDefinition } = runtimeInputs;
+  const leftPanel_thickness = (leftAdjacency === 'Expose') ? (exposeMaterialDefinition?.overallMaterialThickness_mm || 0) : (innerMaterialDefinition?.overallMaterialThickness_mm || 0);
+  const rightPanel_thickness = (rightAdjacency === 'Expose') ? (exposeMaterialDefinition?.overallMaterialThickness_mm || 0) : (innerMaterialDefinition?.overallMaterialThickness_mm || 0);
+
+  const boxNumber = "B1";
+  const innerEdgeBandingThickness = 1;
+
+  const IT = innerMaterialDefinition?.overallMaterialThickness_mm || 0;
+  const BT = backMaterialDefinition?.overallMaterialThickness_mm || 0;
+  const doorPanel_thickness = doorMaterialDefinition?.overallMaterialThickness_mm || (exposeMaterialDefinition?.overallMaterialThickness_mm || 0);
+  const ILC = innerMaterialDefinition?.code || innerMaterialCode;
+
+  const itemName = "Bottom Panel";
+  const packetNumber = "1";
+  const plankLocation = "BT";
+
+  let plankWidth = boxDepth - (2 * innerEdgeBandingThickness) - BT - doorPanel_thickness;
+  let plankHeight = boxWidth - (2 * innerEdgeBandingThickness) - leftPanel_thickness - rightPanel_thickness;
+  
+  const plankMaterialCodeToUse = ILC;
+  const plankThicknessActual = IT;
+  const grainDirection = innerMaterialDefinition?.grainDirection || 'Horizontal';
+  const plankId = boxNumber + ':P' + packetNumber + ':' + plankLocation;
+  
+  let vbMainHoles = []; // Same logic as Top Panel for VB holes
+  if (leftAdjacency === 'Expose') {
+    vbMainHoles.push({ x: 9.5 - IT, y: 50 - IT, z: IT - 14, toolCode: 'T6' });
+    vbMainHoles.push({ x: 9.5 - IT, y: plankHeight - 50 + IT, z: IT - 14, toolCode: 'T6' });
+    if (plankHeight > 450) { vbMainHoles.push({ x: 9.5 - IT, y: plankHeight / 2, z: IT - 14, toolCode: 'T6' }); }
+  }
+  if (rightAdjacency === 'Expose') {
+    vbMainHoles.push({ x: plankWidth - 9.5 + IT, y: 50 - IT, z: IT - 14, toolCode: 'T6' });
+    vbMainHoles.push({ x: plankWidth - 9.5 + IT, y: plankHeight - 50 + IT, z: IT - 14, toolCode: 'T6' });
+    if (plankHeight > 450) { vbMainHoles.push({ x: plankWidth - 9.5 + IT, y: plankHeight / 2, z: IT - 14, toolCode: 'T6' }); }
+  }
+
+  return { plankId, name: itemName, width: parseFloat(plankWidth.toFixed(2)), height: parseFloat(plankHeight.toFixed(2)), thickness: plankThicknessActual, materialCode: plankMaterialCodeToUse, grainDirection, screwHoles: [], vbScrewHoles: vbMainHoles, backPanelGroove: [] };
 }`.trim(),
     },
     {
-      itemName: 'Back Panel',
+      itemName: "Back Panel",
       itemType: BomItemType.PLANK,
-      itemDescription: 'The rear closing panel of the box.',
-      details: { name: 'Back Panel', edgeBanding: {} },
+      itemDescription: "Back panel of the box, typically thinner and fits into grooves.",
+      details: { name: "Back Panel", edgeBanding: {} },
       itemLogicScript: `
 function calculateProperties(runtimeInputs, globalConstants) {
-  const { boxWidth, boxHeight, leftAdjacency, rightAdjacency, skirting, outerMaterialDefinition, innerMaterialDefinition, backMaterialDefinition } = runtimeInputs;
-  const BW = boxWidth; const BH = boxHeight; const LE = leftAdjacency; const RE = rightAdjacency; const SKT = skirting || 0;
-  const ET = outerMaterialDefinition.overallMaterialThickness_mm; const IT = innerMaterialDefinition.overallMaterialThickness_mm; const BT = backMaterialDefinition.overallMaterialThickness_mm;
-  const BLC = backMaterialDefinition.code;
-  let plankWidth, plankHeight;
-  const name = 'Back Plank'; const plankId = 'B1P1_BP'; const materialCode = BLC; const plankThickness = BT; const grainDirection = backMaterialDefinition.grainDirection;
-  const grooveDepthInSidePanel = 10;
-  if (LE === 'Expose' && RE === 'Expose') { plankWidth = BW - 2 * ET + 2 * grooveDepthInSidePanel; }
-  else if (LE === 'Expose' || RE === 'Expose') { plankWidth = BW - ET - IT + 2 * grooveDepthInSidePanel; }
-  else { plankWidth = BW - 2 * IT + 2 * grooveDepthInSidePanel; }
-  plankHeight = BH - SKT - (2 * IT) + (2 * grooveDepthInSidePanel);
-  return { plankId, name, width: parseFloat(plankWidth.toFixed(2)), height: parseFloat(plankHeight.toFixed(2)), thickness: plankThickness, materialCode, grainDirection, screwHoles: [], vbScrewHoles: [], backPanelGroove: null };
+  const { boxWidth, boxHeight, leftAdjacency, rightAdjacency, exposeMaterialCode, innerMaterialCode, backMaterialCode, exposeMaterialDefinition, innerMaterialDefinition, backMaterialDefinition } = runtimeInputs;
+  const boxNumber = "B1";
+  
+  const ET = exposeMaterialDefinition?.overallMaterialThickness_mm || 0; // outerMaterialCode.thickness in YAML
+  const IT = innerMaterialDefinition?.overallMaterialThickness_mm || 0;
+  const BT = backMaterialDefinition?.overallMaterialThickness_mm || 0;
+  const BLC = backMaterialDefinition?.code || backMaterialCode; // innerMaterialCode.laminateCode in YAML, but back panel should use its own material
+
+  const itemName = "Back Panel";
+  const packetNumber = "1";
+  const plankLocation = "BK";
+  const grooveDepth = 10; // Assuming '10' is groove depth from YAML logic
+
+  let plankWidth;
+  if (leftAdjacency === 'Expose' && rightAdjacency === 'Expose') { 
+    plankWidth = boxWidth - (2 * (ET - grooveDepth)); 
+  } else if (leftAdjacency === 'Expose' || rightAdjacency === 'Expose') { 
+    plankWidth = boxWidth - (ET - grooveDepth) - (IT - grooveDepth); // Adjusted for one exposed, one internal
+  } else { 
+    plankWidth = boxWidth - (2 * (IT - grooveDepth)); 
+  }
+  
+  let plankHeight = boxHeight; // YAML: boxHeight, assuming full height before grooving.
+                               // If it fits into grooves in top/bottom, this might need adjustment.
+                               // For now, using full boxHeight.
+
+  const plankMaterialCodeToUse = BLC;
+  const plankThicknessActual = BT;
+  const grainDirection = backMaterialDefinition?.grainDirection || 'Vertical';
+  const plankId = boxNumber + ':P' + packetNumber + ':' + plankLocation;
+
+  return { plankId, name: itemName, width: parseFloat(plankWidth.toFixed(2)), height: parseFloat(plankHeight.toFixed(2)), thickness: plankThicknessActual, materialCode: plankMaterialCodeToUse, grainDirection, screwHoles: [], vbScrewHoles: [], backPanelGroove: [] };
+}`.trim(),
+    },
+    {
+      itemName: "Door Panel",
+      itemType: BomItemType.PLANK,
+      itemDescription: "Door panel of the box. Can be single or double based on width.",
+      details: { name: "Door Panel", edgeBanding: {} },
+      itemLogicScript: `
+function calculateProperties(runtimeInputs, globalConstants) {
+  const { boxWidth, boxHeight, exposeMaterialCode, exposeMaterialDefinition } = runtimeInputs;
+  const boxNumber = "B1";
+  const exposeEdgeBandingThickness = 2; // Assuming door uses exposed edge banding
+
+  const ET = exposeMaterialDefinition?.overallMaterialThickness_mm || 0;
+  const ELC = exposeMaterialDefinition?.code || exposeMaterialCode;
+
+  const itemName = "Door Panel";
+  const packetNumber = "1"; // Could be different
+  const plankLocation = "DR";
+  const doorPanel_edgeBandingThickness = exposeEdgeBandingThickness; // from YAML assumption
+
+  let plankWidth;
+  if (boxWidth <= 600) { // Single door
+    plankWidth = boxWidth - (2 * doorPanel_edgeBandingThickness);
+  } else { // Double door (width per door)
+    plankWidth = (boxWidth / 2) - (2 * doorPanel_edgeBandingThickness);
+  }
+  
+  let plankHeight = boxHeight - (2 * doorPanel_edgeBandingThickness);
+
+  const plankMaterialCodeToUse = ELC;
+  const plankThicknessActual = ET;
+  const grainDirection = exposeMaterialDefinition?.grainDirection || 'Vertical';
+  const plankId = boxNumber + ':P' + packetNumber + ':' + plankLocation;
+
+  // Door panels typically don't have screw holes/VB holes/grooves in this context,
+  // but depend on hinge hardware. Leaving these empty.
+  return { plankId, name: itemName, width: parseFloat(plankWidth.toFixed(2)), height: parseFloat(plankHeight.toFixed(2)), thickness: plankThicknessActual, materialCode: plankMaterialCodeToUse, grainDirection, screwHoles: [], vbScrewHoles: [], backPanelGroove: [] };
 }`.trim(),
     },
   ],
@@ -194,7 +498,7 @@ function calculateProperties(runtimeInputs, globalConstants) {
 export default function CreateModelPage() {
   const router = useRouter();
   const params = useParams();
-  const projectId = params.id as string;
+  // const projectId = params.id as string; // projectId not used in this component directly
 
   const handleSaveSuccess = (modelId: string) => {
     console.log(`Model created with ID: ${modelId}, redirecting...`);
@@ -223,7 +527,7 @@ export default function CreateModelPage() {
       </div>
 
       <div className="max-w-full"> {/* Changed from max-w-7xl to full for better form layout */}
-        <ModelBuilderForm 
+        <ModelBuilderForm
           initialData={simpleBoxDefaultData} // Pass the default data for a new "Simple Box"
           onSaveSuccess={handleSaveSuccess}
           onCancel={handleCancel}

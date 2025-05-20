@@ -133,13 +133,6 @@ export class ProjectService {
   }
 
   /**
-   * Deletes a project by ID
-   */
-  async deleteProject(projectId: number): Promise<Project> {
-    return this.projectRepository.delete(projectId);
-  }
-
-  /**
    * Transforms a project with relations to a response DTO
    */
   transformToResponseDto(project: ProjectWithDetails): ProjectResponseDto {

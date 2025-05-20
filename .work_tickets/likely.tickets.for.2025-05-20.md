@@ -1,169 +1,97 @@
-# Task: Refactor frontend/src/app/dashboard/projects/page.tsx
+# Work Tickets for 2025-05-20
 
-**Description:** Refactor the ProjectsPage into smaller, more maintainable components as per the approved plan.
+## Ticket 1: Fix `next/image` src parsing error in ModelCatalogueCard
 
-**Assigned to:** cline
-**Assigned by:** user
-**Timestamp (Created):** 2025-05-20 10:10:00
+**Description:**
+A runtime error "Error: Failed to parse src "url" on `next/image`..." was occurring on the `/dashboard/catalogue` page. This was due to the `model.imageUrl` prop in `frontend/src/components/dashboard/catalogue/ModelCatalogueCard.tsx` not always being a correctly formatted path (i.e., relative paths not starting with a leading `/`).
 
----
+**Task:**
+Modify `ModelCatalogueCard.tsx` to preprocess `model.imageUrl`. If it's a relative path not starting with `/` (and not an absolute HTTP/HTTPS URL), prepend a `/`. Use this corrected URL for the `next/image` component.
 
-## Ticket 1: Create ProjectCard Component
+**Timestamps:**
+- Created: 2025-05-20 18:52:00
+- Updated: 2025-05-20 18:52:00
 
-**Status:** Done
-**Description:** Extract the `ProjectCard` component from `page.tsx` and move it to `frontend/src/components/dashboard/projects/ProjectCard.tsx`.
-**Files to be created/modified:**
-
-- `frontend/src/components/dashboard/projects/ProjectCard.tsx` (new)
-- `frontend/src/app/dashboard/projects/page.tsx` (modified - remove ProjectCard, import new one)
-**Timestamp (Updated):** 2025-05-20 10:14:00
-
----
-
-## Ticket 2: Create CreateProjectDialog Component
-
-**Status:** Done
-**Description:** Create the `CreateProjectDialog.tsx` component at `frontend/src/components/dashboard/projects/CreateProjectDialog.tsx`. This component will manage the project creation modal, form, and submission logic.
-**Files to be created/modified:**
-
-- `frontend/src/components/dashboard/projects/CreateProjectDialog.tsx` (new)
-- `frontend/src/app/dashboard/projects/page.tsx` (modified - remove dialog logic, import new component)
-**Timestamp (Updated):** 2025-05-20 10:14:00
-
----
-
-## Ticket 3: Create ProjectList Component
-
-**Status:** Done
-**Description:** Create the `ProjectList.tsx` component at `frontend/src/components/dashboard/projects/ProjectList.tsx`. This component will render a grid of `ProjectCard` components.
-**Files to be created/modified:**
-
-- `frontend/src/components/dashboard/projects/ProjectList.tsx` (new)
-**Timestamp (Updated):** 2025-05-20 10:14:00
-
----
-
-## Ticket 4: Create ProjectTabs Component
-
-**Status:** Done
-**Description:** Create the `ProjectTabs.tsx` component at `frontend/src/components/dashboard/projects/ProjectTabs.tsx`. This component will manage the tabbed interface for displaying projects.
-**Files to be created/modified:**
-
-- `frontend/src/components/dashboard/projects/ProjectTabs.tsx` (new)
-**Timestamp (Updated):** 2025-05-20 10:14:00
-
----
-
-## Ticket 5: Refactor ProjectsPage (page.tsx)
-
-**Status:** Done
-**Description:** Update `frontend/src/app/dashboard/projects/page.tsx` to use the newly created components (`ProjectCard`, `CreateProjectDialog`, `ProjectList`, `ProjectTabs`).
-**Files to be created/modified:**
-
-- `frontend/src/app/dashboard/projects/page.tsx` (modified)
-**Timestamp (Updated):** 2025-05-20 10:14:00
-
----
-
-## Ticket 6: Update Memory Files
-
-**Status:** Done
-**Description:** Update relevant `.mbk` files, cache memory, and LTM as per `GUARDRAILS.md` after refactoring is complete.
-**Files to be created/modified:**
-
-- `.memory_bank/frontend_src_components_dashboard_projects.mbk` (new, for the new components directory)
-- `TECHARCH.mbk` (if high-level changes, likely minor updates)
-- `.cache_memory/CURRENT_CONTEXT.md`
-- `.cache_memory/CURRENT_DECISIONS.md`
-- `.cache_memory/CURRENT_TODO.md`
-**Timestamp (Updated):** 2025-05-20 10:14:00
-
----
----
-
-## Task: Full Frontend Codebase Refactor
-
-**Description:** Systematically refactor the frontend codebase to improve maintainability, efficiency, component reuse, and adherence to SOLID principles, without altering functionality or UI, as per the approved detailed plan.
+**Status:** In-Progress (Code fix applied, pending testing and completion)
 
 **Assigned to:** cline
-**Assigned by:** user
-**Timestamp (Created):** 2025-05-20 10:29:00
+**Assigned by:** user (via error report)
+
+**Updates:**
+- 2025-05-20 18:51:56: Code modification applied to `frontend/src/components/dashboard/catalogue/ModelCatalogueCard.tsx`.
 
 ---
 
-## Ticket F1: Refactor Core Hooks & Contexts
+## Ticket 2: Fix `TypeError: BomItemType is undefined` in Model Management
 
-**Status:** pending
-**Description:** Review and refactor foundational hooks (`useApi.ts`, `useForm.ts`) and contexts (`MaterialContext.tsx`). Standardize API call patterns and form handling.
-**Key Files/Areas:**
+**Description:**
+A runtime error `TypeError: _ModelBuilderForm__WEBPACK_IMPORTED_MODULE_3__.BomItemType is undefined` was occurring on the `/dashboard/catalogue/new` page. This was caused by a circular dependency where `ModelBuilderForm.tsx` imported `BillOfMaterialListEditor.tsx`, which in turn imported `BomItemType` from `ModelBuilderForm.tsx`. Subsequent import errors also appeared in other files (`useCatalogue.ts`, `app/.../new/page.tsx`) due to incorrect import paths after `BomItemType` was moved.
 
-- `frontend/src/hooks/useApi.ts` (Clarify SWR usage, enhance mutation hooks)
-- `frontend/src/hooks/useForm.ts` (Plan deprecation in favor of `react-hook-form`)
-- `frontend/src/context/MaterialContext.tsx` (Implement or remove stub)
-**Timestamp (Updated):** 2025-05-20 10:29:00
+**Task:**
+1.  Create a new file `frontend/src/components/dashboard/model-management/modelSchemas.ts`.
+2.  Move shared Zod schemas and enums (including `BomItemType`, `ModelInputParameterSchema`, `DiscriminatedBomItemSchema`, etc.) from `ModelBuilderForm.tsx` to `modelSchemas.ts`.
+3.  Update import statements in `ModelBuilderForm.tsx`, `BillOfMaterialListEditor.tsx`, `BomItem.tsx`, `frontend/src/app/dashboard/catalogue/new/page.tsx`, and `frontend/src/hooks/useCatalogue.ts` to reference `modelSchemas.ts` for these shared definitions.
 
----
+**Timestamps:**
+- Created: 2025-05-20 19:15:00
+- Updated: 2025-05-20 19:15:00
 
-## Ticket F2: Refactor User Management Section
+**Status:** Done (Fix applied and verified by successful compilation. User to verify functionality on `/dashboard/catalogue/new` page.)
 
-**Status:** pending
-**Description:** Refactor components related to user and role management for SRP, API consistency, and UI consistency.
-**Key Files/Areas:**
+**Assigned to:** cline
+**Assigned by:** user (via error report)
 
-- `frontend/src/components/dashboard/users/UserList.tsx`
-- `frontend/src/components/dashboard/users/RoleManagement/RolesPage.tsx`
-- `frontend/src/components/dashboard/users/RoleManagement/RoleTab.tsx`
-- `frontend/src/components/dashboard/users/RoleManagement/CreateRoleDialog.tsx`
-**Timestamp (Updated):** 2025-05-20 10:29:00
+**Updates:**
+- 2025-05-20 18:55 - 19:15: Identified root cause, planned solution, created `modelSchemas.ts`, moved definitions, and updated all affected import paths. Frontend dev server compiled successfully after changes.
 
 ---
 
-## Ticket F3: Refactor Catalogue / Model Management Section
+## Ticket 3: Fix 404 Error for Project Instances API (ProjectDetails Page)
 
-**Status:** pending
-**Description:** Refactor components related to the catalogue and model building for SRP, API consistency, and better state management.
-**Key Files/Areas:**
+**Description:**
+A 404 Not Found error was occurring for the API endpoint `GET /api/catalogue/project-instances/by-project/1` on the page `http://localhost:3000/dashboard/projects/1`. This was caused by an incorrect API path being used in `frontend/src/app/dashboard/projects/[id]/components/ProjectDetails.tsx`. The correct backend route is `GET /api/projects/:projectId/model-instances`.
 
-- `frontend/src/app/dashboard/catalogue/page.tsx`
-- `frontend/src/app/dashboard/catalogue/new/page.tsx`
-- `frontend/src/components/dashboard/model-management/ModelBuilderForm.tsx`
-- `frontend/src/components/dashboard/model-management/ModelInputParameterListEditor.tsx`
-- `frontend/src/components/dashboard/model-management/BillOfMaterialListEditor.tsx`
-- `frontend/src/components/dashboard/model-management/ExpressionInput.tsx` (Review)
-- `frontend/src/components/dashboard/model-management/CollapsibleVariables.tsx` (Minor review)
-**Timestamp (Updated):** 2025-05-20 10:29:00
+**Task:**
+Modify `frontend/src/app/dashboard/projects/[id]/components/ProjectDetails.tsx` to use the correct API endpoint: `/api/projects/${project.id}/model-instances`.
 
----
+**Timestamps:**
+- Created: 2025-05-20 20:03:00
+- Updated: 2025-05-20 20:03:00
 
-## Ticket F4: Refactor Project Detail Page & Components
+**Status:** Done (Fix applied, user to verify functionality on project details page)
 
-**Status:** pending
-**Description:** Refactor the project detail page and its sub-components for API consistency, UI consistency, and SRP.
-**Key Files/Areas:**
+**Assigned to:** cline
+**Assigned by:** user (via error report)
 
-- `frontend/src/app/dashboard/projects/[id]/page.tsx`
-- `frontend/src/app/dashboard/projects/[id]/components/ProjectDetails.tsx`
-- `frontend/src/components/dashboard/CollapsibleTaskCard.tsx` (Shared, but heavily used here)
-- `frontend/src/app/dashboard/projects/[id]/components/EditProjectModal.tsx`
-- `frontend/src/app/dashboard/projects/[id]/components/DeleteConfirmModal.tsx`
-**Timestamp (Updated):** 2025-05-20 10:29:00
+**Updates:**
+- 2025-05-20 20:05: Corrected API endpoint in `frontend/src/app/dashboard/projects/[id]/components/ProjectDetails.tsx`.
 
 ---
 
-## Ticket F5: Refactor Other Shared Components (e.g., ModelSelector)
+## Ticket 4: Fix 400 Bad Request for Model Instance API (Catalogue New Page) - Previously 404
 
-**Status:** pending
-**Description:** Refactor other key shared components identified during analysis.
-**Key Files/Areas:**
+**Description:**
+Initially a 404, now a 400 Bad Request ("Input validation failed: params.projectId is Required") occurs for `GET` and `POST` to `http://localhost:5001/api/projects/1/model-instances`.
+The 404 was due to `projectModelInstanceRouter` not being mounted.
+The 400 is due to a mismatch between the route parameter name (`:id`) defined in `project.routes.ts` and what the DTOs/controller for model instances expected (`projectId`).
 
-- `frontend/src/components/dashboard/ModelSelector.tsx`
-- `frontend/src/components/dashboard/BoxComponent.tsx`
-**Timestamp (Updated):** 2025-05-20 10:29:00
+**Task:**
+1.  Modify `backend/src/routes/project.routes.ts` to mount `projectModelInstanceRouter`. (Done - led to 400 error)
+2.  Modify `backend/src/catalogue/dtos/project-model-instance.dto.ts`: Change `params: z.object({ projectId: ... })` to `params: z.object({ id: ... })` in relevant schemas.
+3.  Modify `backend/src/catalogue/controllers/project-model-instance.controller.ts`: Update controller functions to use `req.params.id` (parsed as `projectIdStr`) instead of `req.params.projectId`.
+
+**Timestamps:**
+- Created: 2025-05-20 20:28:00 (as 404 fix)
+- Updated: 2025-05-20 21:00:00 (to reflect 400 error and subsequent fixes)
+
+**Status:** In-Progress (DTO and Controller changes applied, pending verification)
+
+**Assigned to:** cline
+**Assigned by:** user (via error report)
+
+**Updates:**
+- 2025-05-20 20:41: Mounted `projectModelInstanceRouter` in `project.routes.ts`.
+- 2025-05-20 21:00: Updated DTOs in `project-model-instance.dto.ts` to expect `params.id`.
+- 2025-05-20 21:00: Updated controller `project-model-instance.controller.ts` to use `req.params.id`.
 
 ---
-
-## Ticket F6: Ongoing - Update Memory Files & Documentation
-
-**Status:** pending
-**Description:** Continuously update relevant `.mbk` files, cache memory (`CURRENT_CONTEXT.md`, `CURRENT_DECISIONS.md`, `CURRENT_TODO.md`), and potentially LTM (`PROJECT_CONTEXT_AND_ROADMAP.md`, `TECHARCH.mbk` if structure changes significantly) as refactoring progresses.
-**Timestamp (Updated):** 2025-05-20 10:29:00

@@ -69,7 +69,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({
     error: instancesError, 
     // mutate: mutateInstances // Mutate will be handled by onProjectUpdate
   } = useSWR<ProjectModelInstanceDisplay[]>( 
-    project?.id ? `/api/catalogue/project-instances/by-project/${project.id}` : null, 
+    project?.id ? `/api/projects/${project.id}/model-instances` : null, 
     fetcher
   );
 
@@ -111,7 +111,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({
               {hasPermission(PERMISSIONS.PROJECTS.CHANGE_STATUS) ? (
                 <div className="flex items-center space-x-2">
                   <Select
-                    value={selectedStatusId?.toString()}
+                    value={selectedStatusId?.toString() || ""}
                     onValueChange={(value) => setSelectedStatusId(parseInt(value, 10))}
                     disabled={isUpdatingStatus}
                   >
@@ -120,7 +120,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = ({
                     </SelectTrigger>
                     <SelectContent>
                       {STATUS_OPTIONS.map(option => (
-                        <SelectItem key={option.id} value={option.id.toString()}>
+                        <SelectItem key={option.id} value={String(option.id)}>
                           {option.name}
                         </SelectItem>
                       ))}

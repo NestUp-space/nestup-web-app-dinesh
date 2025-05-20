@@ -1,6 +1,6 @@
 import useSWR from 'swr';
 import { apiClient } from '@/lib/api/client';
-import { BomItemType } from '@/components/dashboard/model-management/ModelBuilderForm'; // Assuming this is where BomItemType is now canonical
+import { BomItemType } from '@/components/dashboard/model-management/modelSchemas'; // Import BomItemType from modelSchemas
 
 // Define structure for BOM item details for use in ModelData
 interface HookPlankDetails {

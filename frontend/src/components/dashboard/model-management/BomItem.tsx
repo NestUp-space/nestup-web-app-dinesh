@@ -8,8 +8,8 @@ import { Label } from '@/components/dashboard/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/dashboard/select';
 import { Trash2 } from 'lucide-react';
 import PlankLogicEditor from './PlankLogicEditor';
-import { BomItemType, ModelFormData } from './ModelBuilderForm'; // Import ModelFormData and BomItemType
-import { ModelInputParameterSchema } from './ModelBuilderForm'; // Assuming this is also exported or its type is needed
+import { ModelFormData } from './ModelBuilderForm'; // Import ModelFormData
+import { BomItemType, ModelInputParameterSchema } from './modelSchemas'; // Import from modelSchemas
 import { z } from 'zod'; // For inferring sub-types if needed
 
 // Define a type for the input parameters that PlankLogicEditor expects

@@ -5,13 +5,13 @@ const prisma = new PrismaClient();
 
 // Create a new project model instance
 export const createProjectModelInstance = async (req: Request, res: Response) => {
-    const { projectId } = req.params;
+    const { id: projectIdStr } = req.params; // Changed to id
     const { modelDefinitionId, runtimeInputsJson, uiDisplayOrder } = req.body;
 
     try {
         const instance = await prisma.projectModelInstance.create({
             data: {
-                projectId: parseInt(projectId),
+                projectId: parseInt(projectIdStr), // Use parsed id
                 modelDefinitionId,
                 runtimeInputsJson,
                 uiDisplayOrder: uiDisplayOrder || 0,
@@ -27,12 +27,12 @@ export const createProjectModelInstance = async (req: Request, res: Response) =>
 
 // Get all project model instances for a project
 export const getAllProjectModelInstancesByProjectId = async (req: Request, res: Response) => {
-    const { projectId } = req.params;
+    const { id: projectIdStr } = req.params; // Changed to id
 
     try {
         const instances = await prisma.projectModelInstance.findMany({
             where: {
-                projectId: parseInt(projectId),
+                projectId: parseInt(projectIdStr), // Use parsed id
             },
             orderBy: {
                 uiDisplayOrder: 'asc',
@@ -134,7 +134,7 @@ export const getGeneratedPlankListsForInstance = async (req: Request, res: Respo
 
 // Batch update project model instances
 export const batchUpdateProjectModelInstances = async (req: Request, res: Response) => {
-    const { projectId } = req.params;
+    const { id: projectIdStr } = req.params; // Changed to id
     const { boxes } = req.body;
 
     try {
@@ -160,7 +160,7 @@ export const batchUpdateProjectModelInstances = async (req: Request, res: Respon
                     // Create new instance
                     const instance = await tx.projectModelInstance.create({
                         data: {
-                            projectId: parseInt(projectId),
+                            projectId: parseInt(projectIdStr), // Use parsed id
                             modelDefinitionId,
                             runtimeInputsJson,
                             uiDisplayOrder,

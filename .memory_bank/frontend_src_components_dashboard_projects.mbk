@@ -1,6 +1,6 @@
 # Module: frontend/src/components/dashboard/projects/
 
-**Purpose:** This module houses reusable React components specifically designed for the projects section of the dashboard. These components help in displaying project information, managing project creation, and organizing project views.
+**Purpose:** This module houses reusable React components specifically designed for the projects section of the dashboard. These components help in displaying project information, managing project creation, and organizing project views. This also includes components for displaying individual project details.
 
 **Last Updated:** 2025-05-20
 
@@ -51,6 +51,21 @@
    - **Outputs:** JSX for the tabbed interface.
    - **Key Dependencies:** `react`, `@/components/dashboard/tabs`, `./ProjectList.tsx`.
 
+### 5. `frontend/src/app/dashboard/projects/[id]/components/ProjectDetails.tsx`
+   - **Purpose:** Displays detailed information about a specific project, including its attributes, status, and associated personnel. It also fetches and displays related "Project Model Instances" (catalogue items linked to the project).
+   - **Functionality:**
+     - Receives `project` data, a `formatDate` utility, and an `onProjectUpdate` callback as props.
+     - Manages state for project status updates.
+     - Allows users with appropriate permissions (`PERMISSIONS.PROJECTS.CHANGE_STATUS`) to change the project's status via a dropdown and an update button.
+     - Fetches `ProjectModelInstanceDisplay[]` data using SWR from the `/api/projects/${project.id}/model-instances` endpoint.
+     - Displays project description, address, location, sqft, status, designer, project manager, engineer, estimated completion, creation date, and last update date.
+     - **API Interaction (as of 2025-05-20):**
+       - `GET /api/projects/${project.id}/model-instances`: Fetches model instances linked to the project. (Path corrected from `/api/catalogue/project-instances/by-project/...`)
+       - `PATCH /api/projects/${project.id}/status`: Updates the project's status.
+   - **Inputs:** `ProjectDetailsProps` (containing `project`, `formatDate`, `onProjectUpdate`).
+   - **Outputs:** JSX displaying the detailed project information.
+   - **Key Dependencies:** `react`, `swr`, `@/lib/api/client`, `@/hooks/usePermissions`, `@/constants/permissions`, `@/components/dashboard/button`, `@/components/dashboard/select`, `@/constants/project`.
+
 ---
 
 ## Workflow/Interaction:
@@ -59,6 +74,8 @@
 - It then passes these lists to `ProjectTabs` and `CreateProjectDialog`.
 - `ProjectTabs` uses `ProjectList` to display the projects in different filtered views.
 - `ProjectList` uses `ProjectCard` to render each individual project.
+- When a `ProjectCard` is clicked, the user navigates to `frontend/src/app/dashboard/projects/[id]/page.tsx`. This page fetches the specific project data and renders components like `ProjectHeader.tsx` and `ProjectDetails.tsx` (located in `frontend/src/app/dashboard/projects/[id]/components/`).
+- `ProjectDetails.tsx` displays the comprehensive details of the selected project and handles status updates and fetching of related model instances.
 - `CreateProjectDialog` handles the UI and logic for adding new projects. When a project is created successfully, it calls a callback provided by `ProjectsPage` to refresh the main project list.
 
 This modular structure enhances maintainability and readability of the projects dashboard feature.

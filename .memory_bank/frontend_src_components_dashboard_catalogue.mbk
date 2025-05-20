@@ -1,0 +1,179 @@
+# Memory Bank: Frontend Catalogue Components
+
+**Module Path:** `frontend/src/components/dashboard/catalogue/` and `frontend/src/components/dashboard/model-management/`
+
+**Date:** 2025-05-20
+
+## Overview
+
+This module contains React components used for displaying, creating, and managing catalogue items (models) within the Nestup dashboard. This includes components for the model creation/editing form and its sub-parts.
+
+---
+
+## Component: `ModelCatalogueCard.tsx`
+
+**Path:** `frontend/src/components/dashboard/catalogue/ModelCatalogueCard.tsx`
+
+**Purpose:**
+Displays a single catalogue model item as a card in a list or grid view. It shows the model's image, name, description, and provides a link to edit the model.
+
+**Key Features:**
+- Displays model image using `next/image`.
+  - **Update (2025-05-20):** Added logic to prepend a leading slash (`/`) to relative `imageUrl` props if they don't already have one and are not absolute URLs. This is to ensure compatibility with `next/image`'s `src` prop requirements and fix a runtime parsing error.
+- Shows model name and description.
+- Provides an "Edit Model" button linking to the model's edit page.
+- Shows a placeholder icon if no image URL is provided.
+
+**Props:**
+- `model: ListedModelData`
+  - `id: string`
+  - `name: string`
+  - `description: string | null`
+  - `imageUrl: string | null`
+
+**Internal Logic:**
+- The component receives a `model` object.
+- It checks if `model.imageUrl` is provided.
+  - If yes, it preprocesses the `imageUrl` to ensure it's a valid path for `next/image` (prepends `/` to relative paths if needed). Then, it renders an `Image` component.
+  - If no, it displays a placeholder (an `Eye` icon).
+- It displays the model's name and description.
+- It includes a link to `/dashboard/catalogue/{model.id}/edit`.
+
+**Dependencies:**
+- `react`
+- `next/link`
+- `next/image`
+- `lucide-react` (for icons)
+
+**How it Works:**
+The component is a presentational component that takes model data and renders it in a card format. The key logic addition on 2025-05-20 was the `correctedImageUrl` derivation to handle potentially malformed relative image paths before passing them to `next/image`.
+
+**Input/Output:**
+- **Input:** `model` prop of type `ListedModelData`.
+- **Output:** A React element representing the catalogue model card.
+
+---
+
+## Module/File: `modelSchemas.ts`
+
+**Path:** `frontend/src/components/dashboard/model-management/modelSchemas.ts`
+
+**Purpose:**
+This file centralizes shared Zod schemas and enums used across the model management components (e.g., `ModelBuilderForm`, `BillOfMaterialListEditor`, `BomItem`). Its creation was primarily to resolve circular dependencies that arose from defining these schemas within `ModelBuilderForm.tsx` while child components also imported by `ModelBuilderForm.tsx` needed them.
+
+**Key Definitions (as of 2025-05-20):**
+- `ModelInputParameterSchema`: Zod schema for individual input parameters of a model.
+- `BomItemType`: Enum (`PLANK`, `HARDWARE`, `ADDON`) for categorizing Bill of Material items.
+- `BillOfMaterialItemSchema`: Base Zod schema for a BOM item.
+- `PlankDetailsSchemaFrontend`, `HardwareDetailsSchemaFrontend`, `AddonDetailsSchemaFrontend`: Zod schemas for the `details` field of different BOM item types.
+- `PlankBomItemSchemaFrontend`, `HardwareBomItemSchemaFrontend`, `AddonBomItemSchemaFrontend`: Zod schemas extending `BillOfMaterialItemSchema` for specific BOM item types.
+- `DiscriminatedBomItemSchema`: Zod discriminated union for `bomItems` array, using `itemType` as the discriminator.
+
+**How it Works:**
+Exports these Zod schemas and enums so other components can import them directly, breaking circular import chains.
+
+**Dependencies:**
+- `zod`
+
+**Input/Output:**
+- **Input:** None (defines and exports schemas).
+- **Output:** Exported Zod schemas and enums.
+
+**Update (2025-05-20):**
+- Created this file to resolve a `TypeError: BomItemType is undefined` caused by circular dependencies. Schemas previously in `ModelBuilderForm.tsx` were moved here.
+
+---
+
+## Component: `ModelBuilderForm.tsx`
+
+**Path:** `frontend/src/components/dashboard/model-management/ModelBuilderForm.tsx`
+
+**Purpose:**
+Provides the main form structure for creating and editing catalogue models. It orchestrates various sub-components for metadata, input parameters, and bill of materials.
+
+**Key Features:**
+- Uses `react-hook-form` for form management and `zod` for validation.
+- Composes `ModelMetadataEditor`, `ModelInputParameterListEditor`, and `BillOfMaterialListEditor`.
+- Handles form submission, including API calls for saving/updating model data via `useSaveModel` hook.
+- Fetches existing model data for editing via `useModelData` hook.
+
+**Internal Logic:**
+- Defines the top-level Zod schema (`modelFormSchema`) for the entire model form.
+- Initializes the form with default values or fetched data.
+- Manages form state (submission, errors, loading).
+
+**Dependencies:**
+- `react`, `react-hook-form`, `zod`, `@hookform/resolvers/zod`
+- `@/lib/api/client`
+- `@/hooks/useCatalogue` (for `useModelData`, `useSaveModel`)
+- Sub-components: `ModelMetadataEditor`, `ModelInputParameterListEditor`, `BillOfMaterialListEditor`.
+- **Update (2025-05-20):** Imports `ModelInputParameterSchema`, `BomItemType`, `DiscriminatedBomItemSchema` from the new `./modelSchemas.ts` file instead of defining them locally.
+
+**Input/Output:**
+- **Input Props:** `modelId` (optional, for editing), `initialData` (optional), `onSaveSuccess`, `onCancel`, `onDataFetched`.
+- **Output:** A React form element for model creation/editing.
+
+---
+
+## Component: `BillOfMaterialListEditor.tsx`
+
+**Path:** `frontend/src/components/dashboard/model-management/BillOfMaterialListEditor.tsx`
+
+**Purpose:**
+Manages a list of Bill of Material (BOM) items within the `ModelBuilderForm`. Allows adding, removing, and editing individual BOM items using the `BomItem` sub-component.
+
+**Key Features:**
+- Uses `useFieldArray` from `react-hook-form` to manage the dynamic list of BOM items.
+- Allows adding new BOM items with default values.
+- Renders a `BomItem` component for each item in the array.
+- Initializes with default planks if the BOM list is empty.
+
+**Internal Logic:**
+- Retrieves form context using `useFormContext`.
+- Manages the `bomItems` field array.
+- **Update (2025-05-20):** Imports `BomItemType` from `./modelSchemas.ts` instead of `./ModelBuilderForm.tsx` to resolve the original `TypeError`.
+
+**Dependencies:**
+- `react`, `react-hook-form`, `lucide-react`
+- `@/components/dashboard/button`
+- `./modelSchemas` (for `BomItemType`)
+- `./BomItem` (sub-component)
+
+**Input/Output:**
+- **Input:** Implicitly uses form context from `ModelBuilderForm`.
+- **Output:** A React element rendering the list of BOM items and an "Add" button.
+
+---
+
+## Component: `BomItem.tsx`
+
+**Path:** `frontend/src/components/dashboard/model-management/BomItem.tsx`
+
+**Purpose:**
+Renders the form fields for a single Bill of Material (BOM) item within the `BillOfMaterialListEditor`. Adapts its fields based on the selected `itemType` (e.g., PLANK, HARDWARE, ADDON).
+
+**Key Features:**
+- Uses `react-hook-form` (`useFormContext`, `Controller`) for field registration and state.
+- Displays fields for item name, type, description.
+- Conditionally displays fields for `addonModelId` (if type is ADDON).
+- Conditionally renders `PlankLogicEditor` (if type is PLANK).
+- Provides a button to remove the BOM item from the list.
+- Includes an effect to set default/reset `details` based on `itemType`.
+
+**Internal Logic:**
+- Watches the `itemType` for the current BOM item to conditionally render UI.
+- Registers fields like `itemName`, `itemType`, `itemDescription`, `addonModelId`, and `details`.
+- **Update (2025-05-20):** Imports `BomItemType` and `ModelInputParameterSchema` from `./modelSchemas.ts` instead of `./ModelBuilderForm.tsx`.
+
+**Dependencies:**
+- `react`, `react-hook-form`, `lucide-react`
+- UI components: `@/components/dashboard/button`, `input`, `label`, `select`.
+- `./PlankLogicEditor` (sub-component)
+- `./ModelBuilderForm` (for `ModelFormData` type, which is the form's root type)
+- `./modelSchemas` (for `BomItemType`, `ModelInputParameterSchema`)
+
+**Input/Output:**
+- **Input Props:** `index` (of the item in the array), `remove` (function from `useFieldArray`).
+- **Output:** A React element rendering the form for a single BOM item.
+
+---

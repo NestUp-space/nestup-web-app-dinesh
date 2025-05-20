@@ -106,7 +106,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
       address: data.address ?? undefined,
       location: data.location ?? undefined,
       sqft: (typeof data.sqft === 'number' && !isNaN(data.sqft)) ? data.sqft : undefined,
-      engineerId: data.engineerId ? Number(data.engineerId) : undefined,
+      engineerId: (data.engineerId && data.engineerId !== "__NO_ENGINEER__") ? Number(data.engineerId) : undefined,
     };
     // Ensure nulls from Zod (for string fields) become undefined for UpdateProjectData
     if (payload.description === null) payload.description = undefined;
@@ -182,7 +182,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
                       <SelectValue placeholder="Select Engineer" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Select Engineer</SelectItem>
+                      <SelectItem value="__NO_ENGINEER__">Select Engineer</SelectItem>
                       {engineersList.map(engineer => (
                         <SelectItem key={engineer.id} value={engineer.id.toString()}>{engineer.name} ({engineer.email})</SelectItem>
                       ))}

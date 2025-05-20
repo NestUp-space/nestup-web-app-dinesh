@@ -8,7 +8,7 @@ export const createProjectModelInstanceSchema = z.object({
         uiDisplayOrder: z.number().optional(),
     }),
     params: z.object({
-        projectId: z.string().transform(val => parseInt(val, 10)),
+        id: z.string().transform(val => parseInt(val, 10)), // Changed projectId to id
     }),
 });
 
@@ -20,7 +20,7 @@ export const updateProjectModelInstanceSchema = z.object({
         uiDisplayOrder: z.number().optional(),
     }),
     params: z.object({
-        projectId: z.string().transform(val => parseInt(val, 10)),
+        id: z.string().transform(val => parseInt(val, 10)), // Changed projectId to id
         instanceId: z.string(),
     }),
 });
@@ -28,7 +28,7 @@ export const updateProjectModelInstanceSchema = z.object({
 // Schema for getting model instances
 export const getProjectModelInstancesSchema = z.object({
     params: z.object({
-        projectId: z.string().transform(val => parseInt(val, 10)),
+        id: z.string().transform(val => parseInt(val, 10)), // Changed projectId to id
     }),
     query: z.object({}).optional(),
 });
@@ -44,7 +44,7 @@ export const batchUpdateProjectModelInstancesSchema = z.object({
         })),
     }),
     params: z.object({
-        projectId: z.string().transform(val => parseInt(val, 10)),
+        id: z.string().transform(val => parseInt(val, 10)), // Changed projectId to id
     }),
 });
 

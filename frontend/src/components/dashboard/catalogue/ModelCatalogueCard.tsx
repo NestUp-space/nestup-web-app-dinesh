@@ -19,11 +19,16 @@ interface ModelCatalogueCardProps {
 }
 
 const ModelCatalogueCard: React.FC<ModelCatalogueCardProps> = ({ model }) => {
+  let correctedImageUrl = model.imageUrl;
+  if (model.imageUrl && !model.imageUrl.startsWith('http') && !model.imageUrl.startsWith('/')) {
+    correctedImageUrl = `/${model.imageUrl}`;
+  }
+
   return (
     <div key={model.id} className="bg-white rounded-lg border border-border shadow-sm overflow-hidden flex flex-col">
       <div className="relative w-full h-48 bg-gray-200">
-        {model.imageUrl ? (
-          <Image src={model.imageUrl} alt={model.name} layout="fill" objectFit="cover" />
+        {correctedImageUrl ? (
+          <Image src={correctedImageUrl} alt={model.name} layout="fill" objectFit="cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-400">
             <Eye className="w-12 h-12" /> {/* Placeholder Icon */}

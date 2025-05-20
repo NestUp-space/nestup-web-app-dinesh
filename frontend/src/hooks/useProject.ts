@@ -148,20 +148,5 @@ export function useUpdateProject(projectId: string | number) {
   };
 }
 
-// Hook for deleting a project
-export function useDeleteProject() {
-  const deleteHook = useDelete<{ message: string }>();
-  
-  const deleteProject = useCallback(async (projectId: string | number) => {
-    return await deleteHook.execute(`/projects/${projectId}`);
-  }, [deleteHook]);
-  
-  return {
-    deleteProject,
-    loading: deleteHook.loading,
-    error: deleteHook.error
-  };
-}
-
 // Export types for use in components
 export type { Project, Task, Subtask, CreateProjectData, UpdateProjectData };

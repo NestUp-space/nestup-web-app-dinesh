@@ -1,63 +1,60 @@
 # Memory Bank: project.routes.ts
 
-**Last Updated:** 2025-05-11
+**Last Updated:** 2025-05-20
 
 ## 1. Purpose
-This file defines the Express router for API endpoints related to Projects, Tasks, Subtasks, and Materials (within a project context). It maps HTTP request paths and methods to specific controller actions and applies authentication middleware.
+This file defines the Express router for API endpoints related to Projects. It maps HTTP request paths and methods to specific controller actions from `ProjectController` and applies necessary middleware like authentication (`isAuthenticated`) and authorization (`hasPermission`). It also mounts a sub-router for project-specific model instances.
 
 ## 2. Key Information
 - **Authentication**: All routes defined in this file are protected by the `isAuthenticated` middleware, ensuring only authenticated users can access them.
+- **Authorization**: Specific permissions (from `PERMISSIONS` constant) are checked for most routes using the `hasPermission` middleware.
 - **Controller Usage**:
-    - **Project-specific routes** (`/`, `/:projectId`): Handled by the **nested, class-based `projectController`** from `../controllers/project/index.ts` (which exports from `../controllers/project/project.controller.ts`).
-    - **Task-specific routes** (`/:projectId/tasks`, `/tasks/:taskId`, `/tasks/:taskId/status`): Handled by the **nested, class-based `taskController`** from `../controllers/project/index.ts` (which exports from `../controllers/project/task.controller.ts`).
-    - **Subtask-specific routes** (`/tasks/:taskId/subtasks`, `/subtasks/:subtaskId`): Handled by the **nested, class-based `subtaskController`** from `../controllers/project/index.ts` (which exports from `../controllers/project/subtask.controller.ts`).
-    - **Material routes** (`/:projectId/materials`, `/materials/:materialId`): Handled by the top-level, class-based `materialController` from `../controllers/material.controller.ts`.
-- **Method Binding:** For class-based controller methods, `.bind(controllerInstance)` is used to ensure `this` context is correctly maintained when the method is called by the Express router.
+    - All primary project-related routes are handled by the functional `ProjectController` imported from `../controllers/project.controller.ts`.
+    - The `handleCustomRequest` helper is used to wrap async controller functions for consistent error handling.
+- **Sub-Router**:
+    - `projectModelInstanceRouter` (from `../catalogue/routes/project-model-instance.routes`) is mounted at `/:id/model-instances` to handle CRUD operations for model instances associated with a specific project.
 
 ## 3. Route Definitions (Summary from `project.routes.ts`)
 
-### Project Routes (Handled by nested `projectController`)
-- `POST /`: `projectController.createProject`
-- `GET /`: `projectController.getProjects`
-- `GET /:projectId`: `projectController.getProjectById`
-- `PUT /:projectId`: `projectController.updateProject`
-- `DELETE /:projectId`: `projectController.deleteProject`
+### Base Project Routes (Handled by `ProjectController`)
+- `GET /`: `ProjectController.getProjects` (View projects)
+- `POST /`: `ProjectController.createProject` (Create a new project)
+- `GET /:id`: `ProjectController.getProjectById` (View a specific project)
+- `PUT /:id`: `ProjectController.updateProject` (Update project details)
+- `PATCH /:id/status`: `ProjectController.updateProjectStatus` (Update project status, uses `validateProjectStatusTransition` middleware)
+- `POST /:id/share`: `ProjectController.shareProject` (Share project)
+- `POST /:id/comments`: `ProjectController.addComment` (Add comment to project)
+- `GET /:id/activity`: `ProjectController.getProjectActivity` (Get project activity log)
 
-### Task Routes (Handled by nested `taskController`)
-- `POST /:projectId/tasks`: `taskController.createTask`
-- `GET /:projectId/tasks`: `taskController.getTasks`
-- `PUT /tasks/:taskId`: `taskController.updateTask`
-- `DELETE /tasks/:taskId`: `taskController.deleteTask`
-- `PUT /tasks/:taskId/status`: `taskController.updateTaskStatus`
+### Project Materials Routes (Handled by `ProjectController`)
+- `GET /:id/materials`: `ProjectController.getProjectMaterials` (View project materials)
+- `POST /:id/materials`: `ProjectController.updateProjectMaterials` (Update project materials)
 
-### Subtask Routes (Handled by nested `subtaskController`)
-- `POST /tasks/:taskId/subtasks`: `subtaskController.createSubtask`
-- `GET /tasks/:taskId/subtasks`: `subtaskController.getSubtasksForTask`
-- `PUT /subtasks/:subtaskId`: `subtaskController.updateSubtask`
-- `DELETE /subtasks/:subtaskId`: `subtaskController.deleteSubtask`
+### Project Model Instances Routes (Handled by `projectModelInstanceRouter`)
+- `router.use('/:id/model-instances', projectModelInstanceRouter);`
+    - This sub-router handles routes like:
+        - `POST /api/projects/:id/model-instances/` (Create model instance for project)
+        - `GET /api/projects/:id/model-instances/` (Get all model instances for project)
+        - `GET /api/projects/:id/model-instances/:instanceId` (Get specific model instance)
+        - `PUT /api/projects/:id/model-instances/:instanceId` (Update specific model instance)
+        - `DELETE /api/projects/:id/model-instances/:instanceId` (Delete specific model instance)
+        - `GET /api/projects/:id/model-instances/:instanceId/generated-plank-lists` (Get generated plank lists)
+        - `PUT /api/projects/:id/model-instances/batch` (Batch update model instances)
 
-### Material Routes (Handled by `materialController`)
-- `POST /:projectId/materials`: `materialController.createMaterial`
-- `GET /:projectId/materials`: `materialController.getMaterialsByProject`
-- `GET /materials/:materialId`: `materialController.getMaterialById`
-- `PUT /materials/:materialId`: `materialController.updateMaterial`
-- `DELETE /materials/:materialId`: `materialController.deleteMaterial`
-
-*(All routes above are preceded by `isAuthenticated` middleware).*
+*(All routes above are preceded by `isAuthenticated` middleware. Most also have `hasPermission` middleware.)*
 
 ## 4. Dependencies
-- `express` (Router, Request, Response types)
-- `../controllers/project` (barrel file for nested `projectController`, `taskController`, `subtaskController`)
-- `../controllers/material.controller` (`materialController`)
-- `../middlewares/auth.middleware` (`isAuthenticated`)
+- `express` (Router, Request, Response, NextFunction types)
+- `../controllers/project.controller` (`ProjectController`)
+- `../middlewares/permission.middleware` (`hasPermission`)
+- `../middlewares/auth.middleware` (`isAuthenticated`, `CustomRequest` type)
+- `../constants/permissions` (`PERMISSIONS`)
+- `../middlewares/validateProjectStatus` (`validateProjectStatusTransition`)
+- `../catalogue/routes/project-model-instance.routes` (`projectModelInstanceRouter`)
 
-## 5. Clarification on Controller Usage
-The import `import { projectController, taskController, subtaskController } from '../controllers/project';` points to the `index.ts` within the `controllers/project/` directory. This `index.ts` exports the singleton instances of the class-based controllers:
-- `ProjectController` from `./project.controller.ts`
-- `TaskController` from `./task.controller.ts`
-- `SubtaskController` from `./subtask.controller.ts`
-
-Therefore, the top-level functional controller `backend/src/controllers/project.controller.ts` is **not** used by these routes for project, task, or subtask management.
+## 5. Notes
+- The `handleCustomRequest` is a local type helper to simplify async route handler definitions and ensure `catch(next)` is applied.
+- The route for deleting a project (`DELETE /:id`) has been commented out/removed in the source file.
 
 ---
 *This MBK should be kept in sync with `backend/src/routes/project.routes.ts`.*

@@ -6,6 +6,7 @@ import { PERMISSIONS } from '../constants/permissions';
 import { validateProjectStatusTransition } from '../middlewares/validateProjectStatus';
 import type { Request, Response, NextFunction } from 'express';
 import type { CustomRequest } from '../middlewares/auth.middleware';
+import projectModelInstanceRouter from '../catalogue/routes/project-model-instance.routes';
 
 const router = express.Router();
 
@@ -83,5 +84,8 @@ router.post('/:id/materials',
   hasPermission([PERMISSIONS.PROJECTS.EDIT, PERMISSIONS.MATERIALS.EDIT]),
   handleCustomRequest(ProjectController.updateProjectMaterials)
 );
+
+// Project model instances management
+router.use('/:id/model-instances', projectModelInstanceRouter);
 
 export default router;
