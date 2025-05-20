@@ -96,9 +96,17 @@ export class ProjectController {
       const finalStatusId = requestedStatusId ?? 1; // Default to 1 if not provided, matching Prisma schema default
 
       // Validate designer exists if provided
-      if (designerId) {
+      let numDesignerId: number | undefined = undefined;
+      if (designerId !== null && designerId !== undefined) {
+        numDesignerId = typeof designerId === 'string' ? parseInt(designerId, 10) : designerId;
+        if (isNaN(numDesignerId)) {
+          return res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: 'Invalid designer ID format'
+          });
+        }
         const designerExists = await prisma.user.findFirst({
-          where: { id: designerId, role: { role: 'Designer' } }
+          where: { id: numDesignerId, role: { role: 'Designer' } }
         });
         if (!designerExists) {
           return res.status(StatusCodes.BAD_REQUEST).json({
@@ -109,9 +117,17 @@ export class ProjectController {
       }
 
       // Validate project manager exists if provided
-      if (projectManagerId) {
+      let numProjectManagerId: number | undefined = undefined;
+      if (projectManagerId !== null && projectManagerId !== undefined) {
+        numProjectManagerId = typeof projectManagerId === 'string' ? parseInt(projectManagerId, 10) : projectManagerId;
+        if (isNaN(numProjectManagerId)) {
+          return res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: 'Invalid project manager ID format'
+          });
+        }
         const projectManagerExists = await prisma.user.findFirst({
-          where: { id: projectManagerId, role: { role: 'Project Manager' } }
+          where: { id: numProjectManagerId, role: { role: 'Project Manager' } }
         });
         if (!projectManagerExists) {
           return res.status(StatusCodes.BAD_REQUEST).json({
@@ -131,9 +147,9 @@ export class ProjectController {
         statusId: finalStatusId,
         createdById: userId,
         updatedById: userId,
-        designerId,
-        projectManagerId,
-        engineerId,
+        designerId: numDesignerId,
+        projectManagerId: numProjectManagerId,
+        engineerId: (typeof engineerId === 'string' && !isNaN(parseInt(engineerId,10))) ? parseInt(engineerId,10) : (typeof engineerId === 'number' && !isNaN(engineerId) ? engineerId : undefined),
         estimatedTime: req.body.estimatedTime ? new Date(req.body.estimatedTime) : undefined,
         vbCount: req.body.vbCount || 0
       };
@@ -216,30 +232,50 @@ export class ProjectController {
       }
 
       // Validate designer if provided
-      if (designerId) {
-        const designerExists = await prisma.user.findFirst({
-          where: { id: designerId, role: { role: 'Designer' } }
-        });
-        if (!designerExists) {
-          return res.status(StatusCodes.BAD_REQUEST).json({
-            success: false,
-            message: 'Invalid designer ID or user is not a designer'
+      let numDesignerIdToUpdate: number | null | undefined = undefined; // undefined means no change, null means disconnect
+      if (designerId !== undefined) {
+        if (designerId === null) {
+          numDesignerIdToUpdate = null;
+        } else {
+          const parsed = typeof designerId === 'string' ? parseInt(designerId, 10) : designerId;
+          if (isNaN(parsed)) {
+            return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Invalid designer ID format for update' });
+          }
+          numDesignerIdToUpdate = parsed;
+          const designerExists = await prisma.user.findFirst({
+            where: { id: numDesignerIdToUpdate, role: { role: 'Designer' } }
           });
+          if (!designerExists) {
+            return res.status(StatusCodes.BAD_REQUEST).json({
+              success: false,
+              message: 'Invalid designer ID or user is not a designer'
+            });
+          }
         }
-      }
+      } // Closing brace for if (designerId !== undefined)
 
       // Validate project manager if provided
-      if (projectManagerId) {
-        const projectManagerExists = await prisma.user.findFirst({
-          where: { id: projectManagerId, role: { role: 'Project Manager' } }
-        });
-        if (!projectManagerExists) {
-          return res.status(StatusCodes.BAD_REQUEST).json({
-            success: false,
-            message: 'Invalid project manager ID or user is not a project manager'
+      let numProjectManagerIdToUpdate: number | null | undefined = undefined;
+      if (projectManagerId !== undefined) {
+        if (projectManagerId === null) {
+          numProjectManagerIdToUpdate = null;
+        } else {
+          const parsed = typeof projectManagerId === 'string' ? parseInt(projectManagerId, 10) : projectManagerId;
+          if (isNaN(parsed)) {
+            return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Invalid project manager ID format for update' });
+          }
+          numProjectManagerIdToUpdate = parsed;
+          const projectManagerExists = await prisma.user.findFirst({
+            where: { id: numProjectManagerIdToUpdate, role: { role: 'Project Manager' } }
           });
+          if (!projectManagerExists) {
+            return res.status(StatusCodes.BAD_REQUEST).json({
+              success: false,
+              message: 'Invalid project manager ID or user is not a project manager'
+            });
+          }
         }
-      }
+      } // Closing brace for if (projectManagerId !== undefined)
 
       const updateData: ProjectUpdateWithRelations = {
         ...(name && { name }),
@@ -248,17 +284,27 @@ export class ProjectController {
         ...(location && { location }),
         ...(sqft && { sqft }),
         ...(statusId && { status: { connect: { id: statusId } } }),
-        ...(designerId !== undefined && {
-          designer: designerId === null ? { disconnect: true } : { connect: { id: designerId } }
-        }),
-        ...(projectManagerId !== undefined && {
-          projectManager: projectManagerId === null ? { disconnect: true } : { connect: { id: projectManagerId } }
-        }),
+        ...(designerId !== undefined && (numDesignerIdToUpdate === null ? { designer: { disconnect: true } } : { designer: { connect: { id: numDesignerIdToUpdate as number } } })),
+        ...(projectManagerId !== undefined && (numProjectManagerIdToUpdate === null ? { projectManager: { disconnect: true } } : { projectManager: { connect: { id: numProjectManagerIdToUpdate as number } } })),
         ...(engineerId !== undefined && {
-          engineer: engineerId === null ? { disconnect: true } : { connect: { id: engineerId } }
+          engineer: engineerId === null 
+            ? { disconnect: true } 
+            : { connect: { id: (typeof engineerId === 'string' ? parseInt(engineerId, 10) : engineerId) as number } } // Assuming engineerId is validated if not null
         }),
         updatedBy: { connect: { id: userId } }
       };
+
+      // Ensure engineerId is parsed and validated if provided for connection
+      if (engineerId !== undefined && engineerId !== null) {
+        const numEngineerIdToUpdate = typeof engineerId === 'string' ? parseInt(engineerId, 10) : engineerId;
+        if (isNaN(numEngineerIdToUpdate)) {
+          return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Invalid engineer ID format for update' });
+        }
+        // Optional: Validate engineer role if needed, similar to designer/pm
+        updateData.engineer = { connect: { id: numEngineerIdToUpdate } };
+      } else if (engineerId === null) {
+         updateData.engineer = { disconnect: true };
+      }
 
       const project = await prisma.project.update({
         where: { id: projectId },
@@ -375,55 +421,40 @@ export class ProjectController {
 
       // Validate and set designer
       if (designerId !== undefined) {
-        if (designerId !== null) {
-          const designerExists = await prisma.user.findFirst({
-            where: { id: designerId, role: { role: 'Designer' } }
-          });
-          if (!designerExists) {
-            return res.status(StatusCodes.BAD_REQUEST).json({
-              success: false,
-              message: 'Invalid designer ID or user is not a designer'
-            });
-          }
-          updateData.designer = { connect: { id: designerId } };
-        } else {
+        if (designerId === null) {
           updateData.designer = { disconnect: true };
+        } else {
+          const numDesignerIdShare = typeof designerId === 'string' ? parseInt(designerId, 10) : designerId;
+          if (isNaN(numDesignerIdShare as number)) { return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Invalid designer ID format for share' }); }
+          const designerExists = await prisma.user.findFirst({ where: { id: numDesignerIdShare as number, role: { role: 'Designer' } } });
+          if (!designerExists) { return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Invalid designer ID or user is not a designer' });}
+          updateData.designer = { connect: { id: numDesignerIdShare as number } };
         }
       }
 
       // Validate and set project manager
       if (projectManagerId !== undefined) {
-        if (projectManagerId !== null) {
-          const pmExists = await prisma.user.findFirst({
-            where: { id: projectManagerId, role: { role: 'Project Manager' } }
-          });
-          if (!pmExists) {
-            return res.status(StatusCodes.BAD_REQUEST).json({
-              success: false,
-              message: 'Invalid project manager ID or user is not a project manager'
-            });
-          }
-          updateData.projectManager = { connect: { id: projectManagerId } };
-        } else {
+        if (projectManagerId === null) {
           updateData.projectManager = { disconnect: true };
+        } else {
+          const numProjectManagerIdShare = typeof projectManagerId === 'string' ? parseInt(projectManagerId, 10) : projectManagerId;
+          if (isNaN(numProjectManagerIdShare as number)) { return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Invalid project manager ID format for share' }); }
+          const pmExists = await prisma.user.findFirst({ where: { id: numProjectManagerIdShare as number, role: { role: 'Project Manager' } } });
+          if (!pmExists) { return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Invalid project manager ID or user is not a project manager' });}
+          updateData.projectManager = { connect: { id: numProjectManagerIdShare as number } };
         }
       }
 
       // Validate and set engineer
       if (engineerId !== undefined) {
-        if (engineerId !== null) {
-          const engineerExists = await prisma.user.findFirst({
-            where: { id: engineerId, role: { role: 'Site Engineer' } }
-          });
-          if (!engineerExists) {
-            return res.status(StatusCodes.BAD_REQUEST).json({
-              success: false,
-              message: 'Invalid engineer ID or user is not a site engineer'
-            });
-          }
-          updateData.engineer = { connect: { id: engineerId } };
-        } else {
+        if (engineerId === null) {
           updateData.engineer = { disconnect: true };
+        } else {
+          const numEngineerIdShare = typeof engineerId === 'string' ? parseInt(engineerId, 10) : engineerId;
+          if (isNaN(numEngineerIdShare as number)) { return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Invalid engineer ID format for share' }); }
+          const engineerExists = await prisma.user.findFirst({ where: { id: numEngineerIdShare as number, role: { role: 'Site Engineer' } } });
+          if (!engineerExists) { return res.status(StatusCodes.BAD_REQUEST).json({ success: false, message: 'Invalid engineer ID or user is not a site engineer' });}
+          updateData.engineer = { connect: { id: numEngineerIdShare as number } };
         }
       }
 

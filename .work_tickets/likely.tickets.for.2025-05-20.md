@@ -81,7 +81,7 @@
 ---
 ---
 
-# Task: Full Frontend Codebase Refactor
+## Task: Full Frontend Codebase Refactor
 
 **Description:** Systematically refactor the frontend codebase to improve maintainability, efficiency, component reuse, and adherence to SOLID principles, without altering functionality or UI, as per the approved detailed plan.
 
@@ -96,6 +96,7 @@
 **Status:** pending
 **Description:** Review and refactor foundational hooks (`useApi.ts`, `useForm.ts`) and contexts (`MaterialContext.tsx`). Standardize API call patterns and form handling.
 **Key Files/Areas:**
+
 - `frontend/src/hooks/useApi.ts` (Clarify SWR usage, enhance mutation hooks)
 - `frontend/src/hooks/useForm.ts` (Plan deprecation in favor of `react-hook-form`)
 - `frontend/src/context/MaterialContext.tsx` (Implement or remove stub)
@@ -108,6 +109,7 @@
 **Status:** pending
 **Description:** Refactor components related to user and role management for SRP, API consistency, and UI consistency.
 **Key Files/Areas:**
+
 - `frontend/src/components/dashboard/users/UserList.tsx`
 - `frontend/src/components/dashboard/users/RoleManagement/RolesPage.tsx`
 - `frontend/src/components/dashboard/users/RoleManagement/RoleTab.tsx`
@@ -121,6 +123,7 @@
 **Status:** pending
 **Description:** Refactor components related to the catalogue and model building for SRP, API consistency, and better state management.
 **Key Files/Areas:**
+
 - `frontend/src/app/dashboard/catalogue/page.tsx`
 - `frontend/src/app/dashboard/catalogue/new/page.tsx`
 - `frontend/src/components/dashboard/model-management/ModelBuilderForm.tsx`
@@ -137,6 +140,7 @@
 **Status:** pending
 **Description:** Refactor the project detail page and its sub-components for API consistency, UI consistency, and SRP.
 **Key Files/Areas:**
+
 - `frontend/src/app/dashboard/projects/[id]/page.tsx`
 - `frontend/src/app/dashboard/projects/[id]/components/ProjectDetails.tsx`
 - `frontend/src/components/dashboard/CollapsibleTaskCard.tsx` (Shared, but heavily used here)
@@ -151,6 +155,7 @@
 **Status:** pending
 **Description:** Refactor other key shared components identified during analysis.
 **Key Files/Areas:**
+
 - `frontend/src/components/dashboard/ModelSelector.tsx`
 - `frontend/src/components/dashboard/BoxComponent.tsx`
 **Timestamp (Updated):** 2025-05-20 10:29:00

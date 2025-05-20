@@ -70,11 +70,19 @@ export const loginUser = async (data: LoginUserData): Promise<ServiceResponse<{ 
   const user = await prisma.user.findUnique({
     where: { email: data.email },
     include: {
-      role: true,
+      role: {
+        include: {
+          roleMappings: {
+            include: {
+              permission: true,
+            },
+          },
+        },
+      },
     },
   });
 
-  console.log('User found:', user ? {
+  console.log('User found (with role mappings):', user ? {
     id: user.id,
     email: user.email,
     isActive: user.isActive,
@@ -113,10 +121,28 @@ export const loginUser = async (data: LoginUserData): Promise<ServiceResponse<{ 
   };
 
   const token = jwt.sign(payload, jwtSecret, { expiresIn: '1h' });
-  const { password, ...userWithoutPassword } = user;
+
+  // Extract permissions similar to UserService.getCurrentUserProfile
+  const permissions = user.role?.roleMappings?.map(
+    (mapping) => mapping.permission?.permission
+  ).filter(p => p) || [];
+
+  // Create a user object for the response that includes the flat permissions array
+  // and excludes the password and the detailed roleMappings.
+  const { password, role, ...userBasicInfo } = user;
+  const userForResponse = {
+    ...userBasicInfo,
+    role: { // Include basic role info
+      id: role.id,
+      role: role.role,
+      roleType: role.roleType,
+    },
+    permissions, // Add the flat permissions array
+  };
 
   console.log('Login successful for:', user.email);
-  return ServiceResponse.success('Login successful', { token, user: userWithoutPassword }, StatusCodes.OK);
+  console.log('User object being sent in login response:', JSON.stringify(userForResponse, null, 2));
+  return ServiceResponse.success('Login successful', { token, user: userForResponse }, StatusCodes.OK);
 };
 
 export const resetPassword = async (email: string): Promise<ServiceResponse<null>> => {

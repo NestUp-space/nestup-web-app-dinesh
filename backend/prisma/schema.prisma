@@ -160,7 +160,7 @@ model UserAction {
 
 model UserRole {
   id           Int                     @id @default(autoincrement())
-  role         String
+  role         String                  @unique
   roleType     String
   roleMappings RolePermissionMapping[]
   users        User[]
@@ -168,7 +168,7 @@ model UserRole {
 
 model UserPermission {
   id           Int                     @id @default(autoincrement())
-  permission   String
+  permission   String                  @unique
   roleMappings RolePermissionMapping[]
 }
 
@@ -178,6 +178,8 @@ model RolePermissionMapping {
   permissionId Int
   permission   UserPermission @relation(fields: [permissionId], references: [id])
   role         UserRole       @relation(fields: [roleId], references: [id])
+
+  @@unique([roleId, permissionId])
 }
 
 model Status {
@@ -262,13 +264,14 @@ model ModelDefinition {
   name                     String                 @unique
   description              String?
   imageUrl                 String?
-  sampleRuntimeInputsJson  Json?
+  sampleRuntimeInputsJson  Json? // Field to potentially store modelScopedVariables if appropriate
   expectedOutputSchemaJson Json?
   createdAt                DateTime               @default(now())
   updatedAt                DateTime               @updatedAt
   bomItems                 ModelBomItem[]
   inputParameters          ModelInputParameter[]
   projectInstances         ProjectModelInstance[]
+  // availableAddons relation would need to be defined here if used in seed
 }
 
 model ModelInputParameter {
@@ -292,7 +295,7 @@ model ModelBomItem {
   itemName          String
   itemType          BomItemType
   itemDescription   String?
-  details           Json?
+  details           Json? // This field will store plankProperties
   itemLogicScript   String?
   addonModelId      String?
   modelDefinition   ModelDefinition @relation(fields: [modelDefinitionId], references: [id], onDelete: Cascade)

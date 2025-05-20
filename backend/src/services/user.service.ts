@@ -154,6 +154,7 @@ export class UserService {
 
   static async getCurrentUserProfile(userId: number): Promise<ServiceResponse<any>> {
     try {
+      console.log(`[UserService.getCurrentUserProfile] Fetching profile for userId: ${userId}`);
       const user = await prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -185,7 +186,10 @@ export class UserService {
             },
           });
 
+      console.log('[UserService.getCurrentUserProfile] Raw user data from DB:', JSON.stringify(user, null, 2));
+
       if (!user) {
+        console.log('[UserService.getCurrentUserProfile] User not found in DB.');
         return ServiceResponse.failure('User not found', null, StatusCodes.NOT_FOUND);
       }
 
@@ -193,6 +197,8 @@ export class UserService {
       const permissions = user.role?.roleMappings?.map(
         (mapping) => mapping.permission?.permission
       ).filter(p => p) || [];
+      
+      console.log('[UserService.getCurrentUserProfile] Extracted permissions:', JSON.stringify(permissions, null, 2));
 
       const userProfile = {
         ...user,
@@ -205,11 +211,11 @@ export class UserService {
       delete userProfile.role?.roleMappings;
 
       console.log('[UserService.getCurrentUserProfile] Final userProfile to be returned:', JSON.stringify(userProfile, null, 2));
-      console.log('[UserService.getCurrentUserProfile] Final permissions array:', JSON.stringify(userProfile.permissions, null, 2));
+      console.log('[UserService.getCurrentUserProfile] Final permissions array in userProfile:', JSON.stringify(userProfile.permissions, null, 2));
 
       return ServiceResponse.success('User profile retrieved successfully', userProfile, StatusCodes.OK);
     } catch (error) {
-      console.error('Error fetching user profile (Prisma Error):', error); // Enhanced logging
+      console.error('[UserService.getCurrentUserProfile] Error fetching user profile (Prisma Error):', error); // Enhanced logging
       return ServiceResponse.failure('Failed to fetch user profile', null, StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }

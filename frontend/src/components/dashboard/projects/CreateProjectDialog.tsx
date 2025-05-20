@@ -39,9 +39,6 @@ const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
   const [projectName, setProjectName] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
   const [projectAddress, setProjectAddress] = useState('');
-  const [projectLocation, setProjectLocation] = useState('');
-  const [projectSqft, setProjectSqft] = useState(0);
-  const [projectEstimatedTime, setProjectEstimatedTime] = useState('');
   const [projectStatusId, setProjectStatusId] = useState(1); // Default to status ID 1, consider making this configurable or passed as prop
   const [selectedDesigner, setSelectedDesigner] = useState('');
   const [selectedProjectManager, setSelectedProjectManager] = useState('');
@@ -51,9 +48,6 @@ const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
     setProjectName('');
     setProjectDescription('');
     setProjectAddress('');
-    setProjectLocation('');
-    setProjectSqft(0);
-    setProjectEstimatedTime('');
     // setProjectStatusId(1); // Reset if needed, or keep default
     setSelectedDesigner('');
     setSelectedProjectManager('');
@@ -71,8 +65,6 @@ const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
         return;
       }
 
-      const estimatedTime = projectEstimatedTime ? new Date(projectEstimatedTime) : new Date();
-
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects`, {
         method: 'POST',
         headers: {
@@ -83,9 +75,6 @@ const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
           name: projectName,
           description: projectDescription,
           address: projectAddress,
-          location: projectLocation,
-          sqft: projectSqft,
-          estimatedTime: estimatedTime.toISOString(), // Ensure ISO string format
           statusId: projectStatusId,
           vbCount: 0, // Default value
           designerId: selectedDesigner || null, // Send null if empty
@@ -111,7 +100,7 @@ const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={onOpenChange} modal={false}>
       <DialogTrigger asChild>
         <Button size="sm" className="h-9 gap-1">
           <PlusCircle className="h-4 w-4" />
@@ -162,43 +151,6 @@ const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
               onChange={(e) => setProjectAddress(e.target.value)}
               className="col-span-3"
               placeholder="Project Address"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="projectLocation" className="text-right">
-              Location
-            </Label>
-            <Input
-              id="projectLocation"
-              value={projectLocation}
-              onChange={(e) => setProjectLocation(e.target.value)}
-              className="col-span-3"
-              placeholder="Project Location (e.g., City, State)"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="projectSqft" className="text-right">
-              Sqft
-            </Label>
-            <Input
-              id="projectSqft"
-              type="number"
-              value={projectSqft}
-              onChange={(e) => setProjectSqft(Number(e.target.value))}
-              className="col-span-3"
-              placeholder="Square Footage"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="projectEstimatedTime" className="text-right">
-              Est. Date
-            </Label>
-            <Input
-              id="projectEstimatedTime"
-              type="date"
-              value={projectEstimatedTime}
-              onChange={(e) => setProjectEstimatedTime(e.target.value)}
-              className="col-span-3"
             />
           </div>
           {/* TODO: Add Project Status Selector if needed, or manage it internally */}

@@ -54,15 +54,15 @@ The combination of these two decisions resolves the project creation issues:
 
 ### Refactor `frontend/src/app/dashboard/projects/page.tsx`
 
-*   **Decision:** Refactor the `ProjectsPage` component into smaller, more specialized components to improve maintainability, readability, and reusability, adhering to `GUARDRAILS.md`.
-*   **Rationale:** The original `ProjectsPage` was becoming large and handling multiple concerns (project listing, creation dialog, tabbed views). Breaking it down simplifies each part.
-*   **Chosen Component Structure:**
-    1.  **`frontend/src/components/dashboard/projects/ProjectCard.tsx`**: Displays individual project information.
-    2.  **`frontend/src/components/dashboard/projects/CreateProjectDialog.tsx`**: Manages the "Create New Project" modal, form, and submission logic.
-    3.  **`frontend/src/components/dashboard/projects/ProjectList.tsx`**: Renders a grid of `ProjectCard` components.
-    4.  **`frontend/src/components/dashboard/projects/ProjectTabs.tsx`**: Manages the tabbed interface (All, Active, Draft, Archived) using `ProjectList` for content.
-    5.  **`frontend/src/app/dashboard/projects/page.tsx` (Updated)**: Acts as a container, fetching data and passing it to `CreateProjectDialog` and `ProjectTabs`.
-*   **Impact:**
-    *   Improved code organization within `frontend/src/components/dashboard/projects/`.
-    *   Simplified logic in the main `page.tsx`.
-    *   Enhanced testability of individual UI pieces.
+* **Decision:** Refactor the `ProjectsPage` component into smaller, more specialized components to improve maintainability, readability, and reusability, adhering to `GUARDRAILS.md`.
+* **Rationale:** The original `ProjectsPage` was becoming large and handling multiple concerns (project listing, creation dialog, tabbed views). Breaking it down simplifies each part.
+* **Chosen Component Structure:**
+    1. **`frontend/src/components/dashboard/projects/ProjectCard.tsx`**: Displays individual project information.
+    2. **`frontend/src/components/dashboard/projects/CreateProjectDialog.tsx`**: Manages the "Create New Project" modal, form, and submission logic.
+    3. **`frontend/src/components/dashboard/projects/ProjectList.tsx`**: Renders a grid of `ProjectCard` components.
+    4. **`frontend/src/components/dashboard/projects/ProjectTabs.tsx`**: Manages the tabbed interface (All, Active, Draft, Archived) using `ProjectList` for content.
+    5. **`frontend/src/app/dashboard/projects/page.tsx` (Updated)**: Acts as a container, fetching data and passing it to `CreateProjectDialog` and `ProjectTabs`.
+* **Impact:**
+  * Improved code organization within `frontend/src/components/dashboard/projects/`.
+  * Simplified logic in the main `page.tsx`.
+  * Enhanced testability of individual UI pieces.

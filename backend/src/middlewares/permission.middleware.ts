@@ -49,31 +49,44 @@ export function hasPermission(
   options: PermissionOptions = {}
 ): RequestHandler {
   const handler = async (req: CustomRequest, res: Response, next: NextFunction) => {
+    console.log('[PermissionMiddleware] Entered hasPermission handler.');
     try {
       if (!req.user?.id) {
+        console.log('[PermissionMiddleware] User not authenticated or user ID missing.');
         return res.status(StatusCodes.UNAUTHORIZED).json({
           success: false,
           message: 'User not authenticated'
         });
       }
+      
+      console.log(`[PermissionMiddleware] Authenticated user ID: ${req.user.id}`);
 
       const perms = Array.isArray(requiredPermissions)
         ? requiredPermissions
         : [requiredPermissions];
+      
+      console.log('[PermissionMiddleware] Required permissions:', perms);
+      console.log('[PermissionMiddleware] Permission options:', options);
 
       const userPerms = await getUserPermissions(req.user.id);
+      console.log('[PermissionMiddleware] User permissions from getUserPermissions:', Array.from(userPerms));
 
-      if (!hasRequiredPermissions(userPerms, perms, options)) {
+      const hasPerms = hasRequiredPermissions(userPerms, perms, options);
+      console.log('[PermissionMiddleware] hasRequiredPermissions result:', hasPerms);
+
+      if (!hasPerms) {
+        console.log(`[PermissionMiddleware] Insufficient permissions. Required: ${perms.join(', ')}, User has: ${Array.from(userPerms).join(', ')}`);
         return res.status(StatusCodes.FORBIDDEN).json({
           success: false,
           message: `Insufficient permissions. Required: ${perms.join(', ')}`
         });
       }
 
+      console.log('[PermissionMiddleware] Permission check passed. Proceeding to next middleware.');
       // If all checks pass, proceed to the next middleware
       return next(); // Explicitly return after calling next()
     } catch (error) {
-      console.error('Error in permission middleware:', error);
+      console.error('[PermissionMiddleware] Error in permission middleware:', error);
       // Pass the error to the Express error handling middleware
       return next(error); 
     }

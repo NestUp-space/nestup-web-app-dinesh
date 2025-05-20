@@ -1,255 +1,215 @@
 import { PrismaClient, BomItemType } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+import { getAllPermissions as getAllPermissionStrings } from '../src/constants/permissions';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('Start seeding ...');
 
-  // Seed User Roles and Permissions (example, adapt if already exists or handled elsewhere)
-  // This is often a prerequisite for other data that might reference users/roles.
-  // For simplicity, I'm assuming roles like 'BIM_ENGINEER' might be relevant for who defines models.
-  // If your role seeding is separate, this part can be omitted or adapted.
-  let bimEngineerRole = await prisma.userRole.findFirst({ where: { role: 'BIM_ENGINEER' } });
-  if (!bimEngineerRole) {
-    bimEngineerRole = await prisma.userRole.create({
-      data: {
-        role: 'BIM_ENGINEER',
-        roleType: 'INTERNAL',
-      },
+  // --- Seed Permissions ---
+  const allPermissionNames = getAllPermissionStrings();
+  console.log(`Found ${allPermissionNames.length} permissions to seed.`);
+  for (const permName of allPermissionNames) {
+    await prisma.userPermission.upsert({ // Corrected model name
+      where: { permission: permName },
+      update: {},
+      create: { permission: permName },
     });
   }
+  console.log('Permissions seeded/ensured.');
+  const allPermissionsInDb = await prisma.userPermission.findMany(); // Corrected model name
 
-  // --- Seed "Simple Box" ModelDefinition ---
+  // --- Seed Admin UserRole ---
+  const adminRoleName = 'admin';
+  const adminRoleType = 'admin';
+  // Assuming UserRole.role is now @unique
+  const adminRole = await prisma.userRole.upsert({
+    where: { role: adminRoleName },
+    update: { roleType: adminRoleType },
+    create: {
+      role: adminRoleName,
+      roleType: adminRoleType,
+    },
+  });
+  console.log(`UserRole '${adminRole.role}' (ID: ${adminRole.id}) ensured with roleType '${adminRole.roleType}'.`);
+
+
+  // --- Map all permissions to Admin Role ---
+  // Assuming RolePermissionMapping has @@unique([roleId, permissionId])
+  if (adminRole && allPermissionsInDb.length > 0) {
+    console.log(`Mapping ${allPermissionsInDb.length} permissions to role '${adminRole.role}' (ID: ${adminRole.id}).`);
+    for (const perm of allPermissionsInDb) {
+      await prisma.rolePermissionMapping.upsert({
+        where: {
+          roleId_permissionId: { // Default name for compound unique constraint
+            roleId: adminRole.id,
+            permissionId: perm.id,
+          },
+        },
+        update: {},
+        create: {
+          roleId: adminRole.id,
+          permissionId: perm.id,
+        },
+      });
+    }
+    console.log(`All permissions mapped to '${adminRole.role}'.`);
+  }
+
+  // --- Seed Admin User ---
+  const adminUserEmail = 'admin@nestup.com';
+  const adminUserName = 'Admin User';
+  const adminUserPassword = 'DefaultAdminPassword123!'; 
+  const adminUserPhoneNumber = '0000000000_seed'; // Placeholder for required phoneNumber
+  const hashedAdminPassword = await bcrypt.hash(adminUserPassword, 10);
+
+  let dbAdminUser = await prisma.user.findUnique({ // Renamed variable to avoid conflict
+    where: { email: adminUserEmail },
+  });
+
+  if (!dbAdminUser) {
+    if (!adminRole) {
+        console.error("Admin role not found, cannot create admin user without it.");
+    } else {
+        dbAdminUser = await prisma.user.create({
+            data: {
+              email: adminUserEmail,
+              name: adminUserName,
+              password: hashedAdminPassword,
+              phoneNumber: adminUserPhoneNumber, // Added required field
+              roleId: adminRole.id,
+              verified: true, 
+              isActive: true,   
+            },
+        });
+        console.log(`Admin user '${adminUserEmail}' created with role '${adminRole.role}'. PLEASE CHANGE THE DEFAULT PASSWORD and PHONE NUMBER.`);
+    }
+  } else {
+    const updates: any = {};
+    if (adminRole && dbAdminUser.roleId !== adminRole.id) {
+      updates.roleId = adminRole.id;
+      console.log(`Updating admin user '${adminUserEmail}' to role '${adminRole.role}'.`);
+    }
+    if (dbAdminUser.phoneNumber !== adminUserPhoneNumber) { // Example: update phone if different
+        updates.phoneNumber = adminUserPhoneNumber;
+    }
+    // Uncomment to force password update on existing admin user.
+    /*
+    if (!(await bcrypt.compare(adminUserPassword, dbAdminUser.password))) {
+        updates.password = hashedAdminPassword;
+        console.log(`Updating password for admin user '${adminUserEmail}'. PLEASE CHANGE THE DEFAULT PASSWORD if this was unexpected.`);
+    }
+    */
+    if (Object.keys(updates).length > 0) {
+      await prisma.user.update({
+        where: { email: adminUserEmail },
+        data: updates,
+      });
+      console.log(`Admin user '${adminUserEmail}' updated.`);
+    } else {
+      console.log(`Admin user '${adminUserEmail}' already exists and is configured.`);
+    }
+  }
+
+  // --- Seed "BIM_ENGINEER" Role (for context, if needed elsewhere) ---
+  // Assuming UserRole.role is @unique
+  const bimEngineerRole = await prisma.userRole.upsert({
+    where: { role: 'BIM_ENGINEER' },
+    update: { roleType: 'INTERNAL'},
+    create: {
+      role: 'BIM_ENGINEER',
+      roleType: 'INTERNAL',
+    },
+  });
+  console.log(`UserRole "BIM_ENGINEER" (ID: ${bimEngineerRole.id}) ensured.`);
+
+
+  // --- Seed "Simple Box" ModelDefinition (UPDATED as per your request) ---
   const simpleBoxModelName = 'Simple Box';
   await prisma.modelDefinition.upsert({
     where: { name: simpleBoxModelName },
-    update: {}, // No updates if it exists, just ensure it's there
+    update: { 
+        description: 'A basic rectangular box model with configurable dimensions and material thickness.',
+        imageUrl: 'url', 
+    },
     create: {
       name: simpleBoxModelName,
-      description: 'A basic rectangular box with configurable dimensions, materials, and adjacencies. Used for cabinets, storage units etc. Planks include Top, Bottom, Left, Right, Back. Optional Door and Shelves.',
-      imageUrl: '/img/models/simple-box.png', // From simpleBox.json
+      description: 'A basic rectangular box model with configurable dimensions and material thickness.',
+      imageUrl: 'url', 
       inputParameters: {
         create: [
-          // Based on simpleBox.json runtimeInputs and PROJECT_CONTEXT_AND_ROADMAP.md Section 6.II.D
-          { inputName: 'boxHeight', displayLabel: 'Box Height', inputType: 'NUMBER', unit: 'mm', defaultValue: '700', description: 'Overall height of the box (Min: 250mm, Max: 2400mm)' },
-          { inputName: 'boxWidth', displayLabel: 'Box Width', inputType: 'NUMBER', unit: 'mm', defaultValue: '600', description: 'Overall width of the box (Min: 250mm, Max: 2400mm)' },
-          { inputName: 'boxDepth', displayLabel: 'Box Depth', inputType: 'NUMBER', unit: 'mm', defaultValue: '550', description: 'Overall depth of the box (Min: 250mm, Max: 750mm)' },
-          { inputName: 'leftAdjacency', displayLabel: 'Left Adjacency', inputType: 'SELECT', options: ['Expose', 'Wall', 'Box'], defaultValue: 'Expose', description: 'What is to the left of this box?' },
-          { inputName: 'rightAdjacency', displayLabel: 'Right Adjacency', inputType: 'SELECT', options: ['Expose', 'Wall', 'Box'], defaultValue: 'Expose', description: 'What is to the right of this box?' },
-          { inputName: 'outerMaterialCode', displayLabel: 'Outer Material Code', inputType: 'TEXT', description: 'Material code for exposed surfaces.' }, // Or SELECT if from Material Repo
-          { inputName: 'innerMaterialCode', displayLabel: 'Inner Material Code', inputType: 'TEXT', description: 'Material code for internal surfaces.' }, // Or SELECT
-          { inputName: 'backMaterialCode', displayLabel: 'Back Panel Material Code', inputType: 'TEXT', description: 'Material code for the back panel.' }, // Or SELECT
-          { inputName: 'hasDoor', displayLabel: 'Has Door?', inputType: 'BOOLEAN', defaultValue: 'false', description: 'Does the box have a door?' },
-          { inputName: 'numberOfShelves', displayLabel: 'Number of Shelves', inputType: 'NUMBER', defaultValue: '0', description: 'How many internal shelves?' },
-          { inputName: 'skirtingHeight', displayLabel: 'Skirting Height', inputType: 'NUMBER', unit: 'mm', defaultValue: '0', description: 'Height of skirting, if any, below the box.' },
-        ],
+          { inputName: 'boxHeight', displayLabel: 'Box Height', inputType: 'NUMBER', unit: 'mm', defaultValue: '700', description: 'Overall height of the box.' },
+          { inputName: 'boxWidth', displayLabel: 'Box Width', inputType: 'NUMBER', unit: 'mm', defaultValue: '600', description: 'Overall width of the box.' },
+          { inputName: 'boxDepth', displayLabel: 'Box Depth', inputType: 'NUMBER', unit: 'mm', defaultValue: '550', description: 'Overall depth of the box.' },
+          { inputName: 'leftAdjacency', displayLabel: 'Left Adjacency', inputType: 'SELECT', defaultValue: 'Expose', description: 'Specify what is to the left of this box.', options: ['Expose', 'Wall', 'Box'] },
+          { inputName: 'rightAdjacency', displayLabel: 'Right Adjacency', inputType: 'SELECT', defaultValue: 'Expose', description: 'Specify what is to the right of this box.', options: ['Expose', 'Wall', 'Box'] },
+          { inputName: 'exposeMaterialCode', displayLabel: 'Exposed Surfaces Material Code', inputType: 'TEXT', defaultValue: 'none', description: 'Material code for visible box surfaces.' },
+          { inputName: 'innerMaterialCode', displayLabel: 'Internal Surfaces Material Code', inputType: 'TEXT', defaultValue: 'none', description: 'Material code for internal surfaces.' },
+          { inputName: 'backMaterialCode', displayLabel: 'Back Panel Material Code', inputType: 'TEXT', defaultValue: 'none', description: 'Material code for the back panel.' },
+        ]
       },
-      bomItems: {
+      // modelScopedVariables removed as it's not in schema.prisma ModelDefinition
+      // availableAddons removed as it's not in schema.prisma ModelDefinition
+      bomItems: { 
         create: [
-          // --- Planks ---
           {
-            itemName: 'Left Plank',
+            itemName: 'Left Panel',
+            itemType: BomItemType.PLANK, 
+            itemDescription: 'The vertical panel on the left side of the box.',
+            details: { // Storing plankProperties in 'details' JSON field
+              packetNumber: '1',
+              plankLocation: 'LT',
+              plankWidthLogic: "if (leftAdjacency === 'Expose') { plankWidth = boxDepth - doorPanel.thickness - (2 * leftPlank.edgeBandingThickness); } else { plankWidth = boxDepth - doorPanel.thickness - backPanel.thickness - (2 * leftPlank.edgeBandingThickness); }",
+              plankHeightLogic: "plankHeight = boxHeight - (2 * leftPlank.edgeBandingThickness);",
+              plankMaterialCodeLogic: "if (leftAdjacency === 'Expose') { plankMaterialCode = exposeMaterialCode; } else { plankMaterialCode = innerMaterialCode; }",
+              plankIdLogic: "plankId = boxNumber + ':P' + packetNumber + ':' + plankLocation;",
+              screwHolesLogic: "if (leftAdjacency !== 'Expose') screwHoles = [...];", 
+              vbScrewHolesLogic: "let holes = []; if (leftAdjacency === 'Expose') { /* ... */ } holes.push(/* ... */); context.result = holes;", 
+              backPanelGrooveLogic: "let groove = []; let tool; if (backPanel.thickness === 8) tool = T7; /* ... */ context.result = groove.length > 0 ? [groove] : [];", 
+            }
+          },
+          {
+            itemName: 'Right Panel',
             itemType: BomItemType.PLANK,
-            itemDescription: 'The left vertical side panel of the box.',
-            itemLogicScript: `
-              (inputs, rules) => {
-                const { boxHeight, boxDepth, leftAdjacency, outerMaterialCode, innerMaterialCode, skirtingHeight } = inputs;
-                const { getMaterialThickness, edgeBanding } = rules;
-
-                const ET = getMaterialThickness(outerMaterialCode); // Exposed material thickness
-                const IT = getMaterialThickness(innerMaterialCode); // Inner material thickness
-                // Back panel thickness (BT) and its effect on depth is handled by other planks or overall depth calculations.
-                // For this plank, we primarily care about its own material and edge banding.
-
-                const CEB = edgeBanding.exposed.thickness_mm; // Exposed edge banding
-                const IEB = edgeBanding.internal.thickness_mm; // Internal edge banding
-
-                let plankWidth, plankHeight, materialCode, plankThickness;
-                let holes = [];
-                let grooves = [];
-
-                if (leftAdjacency === 'Expose') {
-                  plankHeight = boxHeight - (2 * CEB); // Height adjusted for top/bottom edge banding
-                  plankWidth = boxDepth - CEB; // Depth adjusted for front edge banding (back edge might be raw or grooved)
-                  materialCode = outerMaterialCode;
-                  plankThickness = ET;
-                  // VB Screw Holes for Exposed Left Plank (example)
-                  // holes.push({ type: 'VB_SCREW', x: 50 - CEB, y: plankHeight - IT + 9 + CEB, z: ET - 11, tool: 'T6' });
-                } else { // 'Wall' or 'Box'
-                  plankHeight = boxHeight - skirtingHeight - (2 * IEB); // Adjusted for skirting and internal edge banding
-                  plankWidth = boxDepth - IEB; // Adjusted for front internal edge banding
-                  materialCode = innerMaterialCode;
-                  plankThickness = IT;
-                  // Screw holes for internal Left Plank (example)
-                  // holes.push({ type: 'SCREW', x: plankWidth / 4, y: skirtingHeight + IT / 2 - ET, z: -0.01, tool: 'T3' });
-                }
-                
-                // Simplified example: Actual hole/groove logic from simpleBoxGenerator.ts would be more complex
-                // and needs careful adaptation. For example, back panel groove:
-                // const BT_val = getMaterialThickness(inputs.backMaterialCode);
-                // if (BT_val === 8) grooves.push({ type: 'BACK_GROOVE', depth: 10, tool: 'T7', position: 'REAR_EDGE_CENTERED' });
-
-
-                return { name: 'Left Plank', width: plankWidth, height: plankHeight, thickness: plankThickness, materialCode, grainDirection: 'vertical', holes, grooves };
-              }
-            `,
+            itemDescription: 'The vertical panel on the right side of the box.',
+            details: { // Storing plankProperties in 'details' JSON field
+              packetNumber: '1',
+              plankLocation: 'RT',
+              plankWidthLogic: "if (rightAdjacency === 'Expose') { plankWidth = boxDepth - doorPanel.thickness - (2 * rightPlank.edgeBandingThickness); } else { plankWidth = boxDepth - doorPanel.thickness - backPanel.thickness - (2 * rightPlank.edgeBandingThickness); }",
+              plankHeightLogic: "plankHeight = boxHeight - (2 * rightPlank.edgeBandingThickness);",
+              plankMaterialCodeLogic: "if (rightAdjacency === 'Expose') { plankMaterialCode = exposeMaterialCode; } else { plankMaterialCode = innerMaterialCode; }",
+              plankIdLogic: "plankId = boxNumber + ':P' + packetNumber + ':' + plankLocation;",
+              screwHolesLogic: "if (rightAdjacency !== 'Expose') screwHoles = [...];", 
+              vbScrewHolesLogic: "let holes = []; if (rightAdjacency === 'Expose') { /* ... */ } holes.push(/* ... */); context.result = holes;", 
+              backPanelGrooveLogic: "let groove = []; let tool; if (backPanel.thickness === 8) tool = T7; /* ... */ context.result = groove.length > 0 ? [groove] : [];", 
+            }
           },
-          {
-            itemName: 'Right Plank',
-            itemType: BomItemType.PLANK,
-            itemDescription: 'The right vertical side panel of the box.',
-            itemLogicScript: `
-              (inputs, rules) => {
-                const { boxHeight, boxDepth, rightAdjacency, outerMaterialCode, innerMaterialCode, skirtingHeight } = inputs;
-                const { getMaterialThickness, edgeBanding } = rules;
-                const ET = getMaterialThickness(outerMaterialCode);
-                const IT = getMaterialThickness(innerMaterialCode);
-                const CEB = edgeBanding.exposed.thickness_mm;
-                const IEB = edgeBanding.internal.thickness_mm;
-
-                let plankWidth, plankHeight, materialCode, plankThickness;
-                if (rightAdjacency === 'Expose') {
-                  plankHeight = boxHeight - (2 * CEB);
-                  plankWidth = boxDepth - CEB;
-                  materialCode = outerMaterialCode;
-                  plankThickness = ET;
-                } else {
-                  plankHeight = boxHeight - skirtingHeight - (2 * IEB);
-                  plankWidth = boxDepth - IEB;
-                  materialCode = innerMaterialCode;
-                  plankThickness = IT;
-                }
-                return { name: 'Right Plank', width: plankWidth, height: plankHeight, thickness: plankThickness, materialCode, grainDirection: 'vertical', holes: [], grooves: [] };
-              }
-            `,
-          },
-          {
-            itemName: 'Top Plank',
-            itemType: BomItemType.PLANK,
-            itemDescription: 'The top horizontal panel of the box.',
-            itemLogicScript: `
-              (inputs, rules) => {
-                const { boxWidth, boxDepth, leftAdjacency, rightAdjacency, outerMaterialCode, innerMaterialCode, backMaterialCode } = inputs;
-                const { getMaterialThickness, edgeBanding } = rules;
-                const ET = getMaterialThickness(outerMaterialCode);
-                const IT = getMaterialThickness(innerMaterialCode);
-                const BT = getMaterialThickness(backMaterialCode);
-                const IEB = edgeBanding.internal.thickness_mm;
-                
-                let plankWidth;
-                // Simplified width calculation - actual depends on construction (overlay, inset)
-                if (leftAdjacency === 'Expose' && rightAdjacency === 'Expose') {
-                  plankWidth = boxWidth - (2 * ET) - (2 * IEB); // If sides are exposed, top sits between them
-                } else if (leftAdjacency === 'Expose' || rightAdjacency === 'Expose') {
-                  plankWidth = boxWidth - ET - IT - (2 * IEB); // One side exposed, one internal
-                } else {
-                  plankWidth = boxWidth - (2 * IT) - (2 * IEB); // Both sides internal
-                }
-                const plankDepth = boxDepth - BT - IEB; // Depth adjusted for back panel and front edge banding
-
-                return { name: 'Top Plank', width: plankWidth, height: plankDepth, thickness: IT, materialCode: innerMaterialCode, grainDirection: 'horizontal', holes: [], grooves: [] };
-              }
-            `,
-          },
-          {
-            itemName: 'Bottom Plank',
-            itemType: BomItemType.PLANK,
-            itemDescription: 'The bottom horizontal panel of the box.',
-            itemLogicScript: `
-              (inputs, rules) => {
-                // Similar logic to Top Plank, but might be affected by skirtingHeight if it sits on top
-                const { boxWidth, boxDepth, leftAdjacency, rightAdjacency, outerMaterialCode, innerMaterialCode, backMaterialCode, skirtingHeight } = inputs;
-                const { getMaterialThickness, edgeBanding } = rules;
-                const ET = getMaterialThickness(outerMaterialCode);
-                const IT = getMaterialThickness(innerMaterialCode);
-                const BT = getMaterialThickness(backMaterialCode);
-                const IEB = edgeBanding.internal.thickness_mm;
-
-                let plankWidth;
-                 if (leftAdjacency === 'Expose' && rightAdjacency === 'Expose') {
-                  plankWidth = boxWidth - (2 * ET) - (2 * IEB);
-                } else if (leftAdjacency === 'Expose' || rightAdjacency === 'Expose') {
-                  plankWidth = boxWidth - ET - IT - (2 * IEB);
-                } else {
-                  plankWidth = boxWidth - (2 * IT) - (2 * IEB);
-                }
-                const plankDepth = boxDepth - BT - IEB;
-                // If bottom plank sits on skirting, its effective position might change, or skirting is separate.
-                // For simplicity, assuming similar to top plank here.
-                return { name: 'Bottom Plank', width: plankWidth, height: plankDepth, thickness: IT, materialCode: innerMaterialCode, grainDirection: 'horizontal', holes: [], grooves: [] };
-              }
-            `,
-          },
-          {
-            itemName: 'Back Plank',
-            itemType: BomItemType.PLANK,
-            itemDescription: 'The back panel of the box.',
-            itemLogicScript: `
-              (inputs, rules) => {
-                const { boxHeight, boxWidth, leftAdjacency, rightAdjacency, outerMaterialCode, innerMaterialCode, backMaterialCode, skirtingHeight } = inputs;
-                const { getMaterialThickness } = rules;
-                const ET = getMaterialThickness(outerMaterialCode); // Thickness of side panels if exposed
-                const IT = getMaterialThickness(innerMaterialCode); // Thickness of side panels if internal
-                const BT = getMaterialThickness(backMaterialCode);
-
-                let plankWidth = boxWidth;
-                // Adjust width if back panel fits inside a groove in side panels
-                // This depends on construction method, e.g., if side panels have 10mm groove depth for back panel
-                const grooveDepth = 10; // Assuming a 10mm groove
-                if (leftAdjacency === 'Expose') plankWidth -= (ET - grooveDepth); else plankWidth -= (IT - grooveDepth);
-                if (rightAdjacency === 'Expose') plankWidth -= (ET - grooveDepth); else plankWidth -= (IT - grooveDepth);
-                
-                const plankHeight = boxHeight - skirtingHeight; // Adjusted for skirting
-                // If top/bottom also have grooves for back panel:
-                // plankHeight -= (2 * (IT - grooveDepth)); // Assuming top/bottom are internal material
-
-                return { name: 'Back Plank', width: plankWidth, height: plankHeight, thickness: BT, materialCode: backMaterialCode, grainDirection: 'vertical', holes: [], grooves: [] };
-              }
-            `,
-          },
-          {
-            itemName: 'Door Plank',
-            itemType: BomItemType.PLANK,
-            itemDescription: 'Optional door panel.',
-            itemLogicScript: `
-              (inputs, rules) => {
-                if (!inputs.hasDoor) return null; // No door if hasDoor is false
-
-                const { boxHeight, boxWidth, outerMaterialCode, skirtingHeight } = inputs;
-                const { getMaterialThickness, edgeBanding } = rules;
-                const ET = getMaterialThickness(outerMaterialCode); // Door usually uses outer material
-                const CEB = edgeBanding.exposed.thickness_mm;
-                const clearance = 2; // Standard door clearance
-
-                // Simplified: assumes single door. Double door logic would split width.
-                const plankWidth = boxWidth - (2 * clearance) - (2 * CEB);
-                const plankHeight = boxHeight - skirtingHeight - (2 * clearance) - (2 * CEB);
-                
-                return { name: 'Door Plank', width: plankWidth, height: plankHeight, thickness: ET, materialCode: outerMaterialCode, grainDirection: 'vertical', holes: [], grooves: [] };
-              }
-            `,
-          },
-          // --- Hardware (Example) ---
-          {
-            itemName: 'Hinges',
-            itemType: BomItemType.HARDWARE,
-            itemDescription: 'Standard cabinet hinges for the door.',
-            itemLogicScript: `
-              (inputs, rules) => {
-                if (!inputs.hasDoor) return null;
-                // Simple rule: 2 hinges for doors up to 900mm, 3 above, etc.
-                const hinges = inputs.boxHeight <= 900 ? 2 : (inputs.boxHeight <= 1500 ? 3 : 4);
-                return { name: 'Hinges', type: 'EURO_CONCEALED', quantity: hinges, unit: 'pieces' };
-              }
-            `,
-          },
-          // Add more BOM items for shelves, screws, etc.
-          // Shelf logic would be conditional on inputs.numberOfShelves > 0
-          // and calculate dimensions similar to Top/Bottom planks.
-        ],
+          // Add Top Panel, Bottom Panel, Back Panel, Door Panel with similar 'details' structure
+        ]
       },
-    },
+    }
   });
+  console.log(`ModelDefinition '${simpleBoxModelName}' seeded/ensured.`);
+
+  // --- Seed Statuses ---
+  const statusesToSeed = [
+    { id: 1, status: 'Draft' },
+    { id: 2, status: 'Active' },
+    { id: 3, status: 'Completed' },
+    { id: 4, status: 'Archived' },
+    { id: 5, status: 'On Hold' },
+  ];
+
+  console.log('Seeding statuses...');
+  for (const statusData of statusesToSeed) {
+    await prisma.status.upsert({
+      where: { id: statusData.id },
+      update: { status: statusData.status },
+      create: { id: statusData.id, status: statusData.status },
+    });
+  }
+  console.log('Statuses seeded/ensured.');
 
   console.log('Seeding finished.');
 }

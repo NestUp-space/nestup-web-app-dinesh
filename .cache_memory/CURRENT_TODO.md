@@ -9,16 +9,17 @@
 **Status:** Resolved.
 
 **Summary of Fixes:**
+
 - **faqData:**
-    - The import `import { faqData } from "@constants/faqData";` in `frontend/src/components/landing-page/Faq.tsx` was failing.
-    - The path alias `@constants/*` in `frontend/tsconfig.json` pointed to `frontend/src/constants/*`.
-    - The actual location of `faqData` was `frontend/constants/faqData/index.tsx`.
-    - **Resolution:** Moved the `frontend/constants/faqData` directory to `frontend/src/constants/faqData`.
+  - The import `import { faqData } from "@constants/faqData";` in `frontend/src/components/landing-page/Faq.tsx` was failing.
+  - The path alias `@constants/*` in `frontend/tsconfig.json` pointed to `frontend/src/constants/*`.
+  - The actual location of `faqData` was `frontend/constants/faqData/index.tsx`.
+  - **Resolution:** Moved the `frontend/constants/faqData` directory to `frontend/src/constants/faqData`.
 - **navLinks:**
-    - The import `import {links} from "@constants/navLinks";` in `frontend/src/components/landing-page/Footer.tsx` was failing.
-    - The path alias `@constants/*` in `frontend/tsconfig.json` pointed to `frontend/src/constants/*`.
-    - The actual location of `navLinks` was `frontend/constants/navLinks/index.ts`.
-    - **Resolution:** Moved the `frontend/constants/navLinks` directory to `frontend/src/constants/navLinks`.
+  - The import `import {links} from "@constants/navLinks";` in `frontend/src/components/landing-page/Footer.tsx` was failing.
+  - The path alias `@constants/*` in `frontend/tsconfig.json` pointed to `frontend/src/constants/*`.
+  - The actual location of `navLinks` was `frontend/constants/navLinks/index.ts`.
+  - **Resolution:** Moved the `frontend/constants/navLinks` directory to `frontend/src/constants/navLinks`.
 
 ## Current Task: Admin User Missing Permissions - Unable to Access /dashboard/users
 
@@ -51,16 +52,18 @@
 **Status:** Component refactoring complete. Memory file updates in progress.
 
 **Summary of Refactoring:**
+
 - Decomposed `frontend/src/app/dashboard/projects/page.tsx` into smaller, reusable components.
 - Created new components in `frontend/src/components/dashboard/projects/`:
-    - `ProjectCard.tsx` (Ticket 1 - Done)
-    - `CreateProjectDialog.tsx` (Ticket 2 - Done)
-    - `ProjectList.tsx` (Ticket 3 - Done)
-    - `ProjectTabs.tsx` (Ticket 4 - Done)
+  - `ProjectCard.tsx` (Ticket 1 - Done)
+  - `CreateProjectDialog.tsx` (Ticket 2 - Done)
+  - `ProjectList.tsx` (Ticket 3 - Done)
+  - `ProjectTabs.tsx` (Ticket 4 - Done)
 - Updated `frontend/src/app/dashboard/projects/page.tsx` to use these new components and removed redundant code/imports. (Ticket 5 - Done)
 - Created `.memory_bank/frontend_src_components_dashboard_projects.mbk`. (Part of Ticket 6 - In Progress)
 
 **Next Steps (Ticket 6 - In Progress):**
+
 1. Update `.cache_memory/CURRENT_CONTEXT.md` with a summary of the refactoring. (Pending)
 2. Update `.cache_memory/CURRENT_DECISIONS.md` with the decision to refactor and the chosen component structure. (Pending)
 3. Update `.work_tickets/likely.tickets.for.2025-05-20.md` to mark all tickets as "Done". (Pending)
