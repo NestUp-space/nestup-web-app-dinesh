@@ -30,3 +30,49 @@ The `setupAdminRoleAndUser.ts` script is the correct mechanism for ensuring the 
 
 1. Advise the user to run the script: `npx ts-node backend/src/scripts/setupAdminRoleAndUser.ts`
 2. Verify with the user if the issue is resolved after running the script.
+
+---
+
+# Current Task: Refactor frontend/src/app/dashboard/projects/page.tsx
+
+**Date:** 2025-05-20
+
+**Summary of Refactoring:**
+
+The `frontend/src/app/dashboard/projects/page.tsx` component was refactored to improve maintainability and code organization by breaking it down into smaller, specialized components. This aligns with the project's `GUARDRAILS.md` which encourages modular frontend architecture.
+
+**Changes Made:**
+
+1.  **New Directory Created:**
+    *   `frontend/src/components/dashboard/projects/` was created to house the new project-specific components.
+
+2.  **New Components Created:**
+    *   **`frontend/src/components/dashboard/projects/ProjectCard.tsx`**:
+        *   Responsibilities: Displays individual project details in a card format, handles navigation to the project detail page.
+        *   Extracted from the original `page.tsx`.
+    *   **`frontend/src/components/dashboard/projects/CreateProjectDialog.tsx`**:
+        *   Responsibilities: Manages the modal dialog for creating new projects, including form state, input fields (name, description, address, location, sqft, estimated time, personnel selection), and API submission logic.
+        *   Logic and JSX for the dialog were moved from `page.tsx`.
+    *   **`frontend/src/components/dashboard/projects/ProjectList.tsx`**:
+        *   Responsibilities: Renders a grid of `ProjectCard` components. Accepts a list of projects and an empty message as props.
+    *   **`frontend/src/components/dashboard/projects/ProjectTabs.tsx`**:
+        *   Responsibilities: Manages the tabbed interface (All, Active, Draft, Archived) for displaying projects. Uses `ProjectList` for rendering projects within each tab.
+
+3.  **`frontend/src/app/dashboard/projects/page.tsx` (ProjectsPage) Modifications:**
+    *   Now acts as a container component.
+    *   Retains responsibility for fetching project data and user lists (designers, project managers, engineers) for dropdowns.
+    *   Imports and utilizes the new components (`CreateProjectDialog`, `ProjectTabs`).
+    *   State related to the "Create Project" form and the `handleCreateProject` function were moved into `CreateProjectDialog.tsx`.
+    *   The rendering of project lists via tabs is now delegated to `ProjectTabs.tsx`.
+    *   Unused imports were removed.
+
+**Benefits Achieved:**
+*   **Improved Readability:** Each component now has a more focused responsibility.
+*   **Enhanced Maintainability:** Changes to specific UI sections (e.g., project card appearance, creation form) are isolated.
+*   **Better Reusability:** Components like `ProjectCard` and `ProjectList` are more easily reusable.
+*   **Simplified `ProjectsPage`:** The main page component is now less cluttered and easier to understand.
+
+**Memory Files Updated:**
+*   `.memory_bank/frontend_src_components_dashboard_projects.mbk` created to document the new module.
+*   `.cache_memory/CURRENT_TODO.md` updated to reflect task progress.
+*   This file (`.cache_memory/CURRENT_CONTEXT.md`) updated with this summary.

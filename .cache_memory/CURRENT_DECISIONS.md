@@ -49,3 +49,20 @@ The combination of these two decisions resolves the project creation issues:
 * **Decision 2:** Determined that the script `backend/src/scripts/setupAdminRoleAndUser.ts` is the correct mechanism to grant all defined permissions to the admin role (ID: 1). This script ensures all permissions from `constants/permissions.ts` are in the `UserPermission` table, creates/updates the admin role (ID: 1), and maps all permissions to this role.
 * **Rationale:** The issue likely stems from `setupAdminRoleAndUser.ts` not having been run, not completing successfully, or its effects being subsequently altered. Other seeding scripts like `seedRolesAndPermissions.ts` do not grant all permissions to a specific admin role.
 * **Solution Path:** Advise the user to run `backend/src/scripts/setupAdminRoleAndUser.ts`.
+
+## 2025-05-20
+
+### Refactor `frontend/src/app/dashboard/projects/page.tsx`
+
+*   **Decision:** Refactor the `ProjectsPage` component into smaller, more specialized components to improve maintainability, readability, and reusability, adhering to `GUARDRAILS.md`.
+*   **Rationale:** The original `ProjectsPage` was becoming large and handling multiple concerns (project listing, creation dialog, tabbed views). Breaking it down simplifies each part.
+*   **Chosen Component Structure:**
+    1.  **`frontend/src/components/dashboard/projects/ProjectCard.tsx`**: Displays individual project information.
+    2.  **`frontend/src/components/dashboard/projects/CreateProjectDialog.tsx`**: Manages the "Create New Project" modal, form, and submission logic.
+    3.  **`frontend/src/components/dashboard/projects/ProjectList.tsx`**: Renders a grid of `ProjectCard` components.
+    4.  **`frontend/src/components/dashboard/projects/ProjectTabs.tsx`**: Manages the tabbed interface (All, Active, Draft, Archived) using `ProjectList` for content.
+    5.  **`frontend/src/app/dashboard/projects/page.tsx` (Updated)**: Acts as a container, fetching data and passing it to `CreateProjectDialog` and `ProjectTabs`.
+*   **Impact:**
+    *   Improved code organization within `frontend/src/components/dashboard/projects/`.
+    *   Simplified logic in the main `page.tsx`.
+    *   Enhanced testability of individual UI pieces.

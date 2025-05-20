@@ -1,0 +1,64 @@
+# Module: frontend/src/components/dashboard/projects/
+
+**Purpose:** This module houses reusable React components specifically designed for the projects section of the dashboard. These components help in displaying project information, managing project creation, and organizing project views.
+
+**Last Updated:** 2025-05-20
+
+---
+
+## Components:
+
+### 1. `ProjectCard.tsx`
+   - **Purpose:** Displays a summary of a single project in a card format. Includes project name, description snippet, key personnel (designer, PM, engineer), task count, and status.
+   - **Functionality:**
+     - Receives `project` data as a prop.
+     - Navigates to the detailed project page (`/dashboard/projects/{project.id}`) on click.
+     - Dynamically styles the project status badge based on the status string.
+   - **Inputs:** `ProjectCardProps` (containing `project` object).
+   - **Outputs:** JSX for the project card.
+   - **Key Dependencies:** `react`, `next/navigation`.
+
+### 2. `CreateProjectDialog.tsx`
+   - **Purpose:** Provides a modal dialog for creating new projects.
+   - **Functionality:**
+     - Manages form state for new project details (name, description, address, location, sqft, estimated time, assigned designer, PM, engineer).
+     - Fetches and displays lists of available designers, project managers, and engineers in dropdowns.
+     - Handles form submission:
+       - Validates user and token.
+       - Sends a POST request to the `/api/projects` endpoint.
+       - Resets the form and calls `onProjectCreateSuccess` callback upon successful creation.
+       - Displays alerts for success or failure.
+   - **Inputs:** `CreateProjectDialogProps` (including `isOpen`, `onOpenChange`, `onProjectCreateSuccess`, `token`, `designers`, `projectManagers`, `engineers`, `currentUser`).
+   - **Outputs:** JSX for the dialog and its trigger button.
+   - **Key Dependencies:** `react`, `@/components/dashboard/dialog`, `@/components/dashboard/input`, `@/components/dashboard/label`, `@/components/dashboard/select`, `@/components/dashboard/button`, `lucide-react`, `@/context/UserContext`.
+
+### 3. `ProjectList.tsx`
+   - **Purpose:** Renders a responsive grid of `ProjectCard` components.
+   - **Functionality:**
+     - Accepts an array of `projects` and an optional `emptyListMessage`.
+     - Maps through the `projects` array, rendering a `ProjectCard` for each.
+     - Displays the `emptyListMessage` if the `projects` array is empty or undefined.
+   - **Inputs:** `ProjectListProps` (containing `projects` array, `emptyListMessage` string).
+   - **Outputs:** JSX for the grid of project cards or the empty message.
+   - **Key Dependencies:** `react`, `./ProjectCard.tsx`.
+
+### 4. `ProjectTabs.tsx`
+   - **Purpose:** Organizes projects into a tabbed view based on their status (All, Active, Draft, Archived).
+   - **Functionality:**
+     - Uses the `Tabs` component from `@/components/dashboard/tabs`.
+     - For each tab (`TabsContent`), it renders a `ProjectList` component, passing the corresponding filtered list of projects and a specific empty message for that tab.
+   - **Inputs:** `ProjectTabsProps` (containing `allProjects`, `activeProjects`, `draftProjects`, `archivedProjects` arrays).
+   - **Outputs:** JSX for the tabbed interface.
+   - **Key Dependencies:** `react`, `@/components/dashboard/tabs`, `./ProjectList.tsx`.
+
+---
+
+## Workflow/Interaction:
+
+- The main `ProjectsPage` (`frontend/src/app/dashboard/projects/page.tsx`) fetches all project data and user lists.
+- It then passes these lists to `ProjectTabs` and `CreateProjectDialog`.
+- `ProjectTabs` uses `ProjectList` to display the projects in different filtered views.
+- `ProjectList` uses `ProjectCard` to render each individual project.
+- `CreateProjectDialog` handles the UI and logic for adding new projects. When a project is created successfully, it calls a callback provided by `ProjectsPage` to refresh the main project list.
+
+This modular structure enhances maintainability and readability of the projects dashboard feature.
