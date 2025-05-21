@@ -8,6 +8,7 @@ import { CreateTaskDto, TaskResponseDto, UpdateTaskDto, UpdateSubtaskDto, Create
 import { ITaskRepository, taskRepository } from '../../repositories/task.repository';
 import { TaskWithSubtasks } from '../../types/project.types';
 import { TaskTemplate } from '../../types/projectTemplate.types'; // Import type for template items
+import { defaultProjectTaskTemplates } from '../../constants/projectTaskTemplate'; // Import task template for order
 import { PERMISSIONS } from '../../constants/permissions'; // Import PERMISSIONS
 import { ForbiddenError, NotFoundError } from '../../common/errors/customErrors'; // Assuming custom errors
 export class TaskService {
@@ -125,6 +126,41 @@ export class TaskService {
       throw new NotFoundError(`Task with ID ${taskId} not found.`);
     }
 
+    // This should ideally be fetched from a constant or configuration
+    const COMPLETED_STATUS_ID = 3; // Assuming 'Completed' status has ID 3
+    const COMPLETED_STATUS_NAME = 'Completed'; // Assuming 'Completed' status has this name
+
+    // New logic: Check if previous tasks are completed before marking this one as completed
+    if (newStatusId === COMPLETED_STATUS_ID) {
+      const allProjectTasks = await this.taskRepository.findMany({
+        where: { projectId: task.projectId },
+        include: { status: true }, // Ensure status is loaded for comparison
+      });
+
+      const currentTaskTemplateIndex = defaultProjectTaskTemplates.findIndex(
+        (template) => template.stage === task.stage && template.taskName === task.name
+      );
+
+      if (currentTaskTemplateIndex === -1) {
+        // This case should ideally not happen if tasks are created from templates
+        // Or could mean the task is not part of the standard flow
+        console.warn(`Task ${task.id} (Stage: ${task.stage}, Name: ${task.name}) not found in defaultProjectTaskTemplates. Skipping previous task check.`);
+      } else {
+        for (let i = 0; i < currentTaskTemplateIndex; i++) {
+          const precedingTemplateTask = defaultProjectTaskTemplates[i];
+          const correspondingActualTask = allProjectTasks.find(
+            (pTask) => pTask.stage === precedingTemplateTask.stage && pTask.name === precedingTemplateTask.taskName
+          );
+
+          if (correspondingActualTask && correspondingActualTask.status?.status !== COMPLETED_STATUS_NAME) {
+            throw new ForbiddenError(
+              `Cannot mark task "${task.name}" as completed. Preceding task "${correspondingActualTask.name}" (Stage: ${correspondingActualTask.stage}) is not yet completed.`
+            );
+          }
+        }
+      }
+    }
+
     let requiredPermission: string | null = null;
     if (task.uploaderRole === 'Client') {
       requiredPermission = PERMISSIONS.TASKS.UPDATE_STATUS_AS_CLIENT;
@@ -141,8 +177,7 @@ export class TaskService {
     }
     
     // Logic to check if all subtasks are completed before marking task as completed
-    // This should ideally be fetched from a constant or configuration
-    const COMPLETED_STATUS_ID = 3; // Assuming 'Completed' status has ID 3
+    // const COMPLETED_STATUS_ID = 3; // Already defined above
     if (newStatusId === COMPLETED_STATUS_ID) {
         if (task.subtasks && task.subtasks.length > 0) {
             const allSubtasksCompleted = task.subtasks.every(st => st.completed);

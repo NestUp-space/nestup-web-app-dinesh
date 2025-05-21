@@ -17,6 +17,7 @@ import { Task, Subtask, Project } from '@/types';
 import { useUser } from '@/context/UserContext';
 import { PERMISSIONS as FE_PERMISSIONS } from '@/constants/permissions';
 import { useProject as useProjectHook } from '@/hooks/useProject';
+import { defaultProjectTaskTemplates, FrontendTaskTemplate } from '@/constants/projectTaskTemplate'; // Import task template for order and type
 
 const MaterialManagement = lazy(() => import('@/components/dashboard/MaterialManagement'));
 const ModelSelector = lazy(() => import('@/components/dashboard/ModelSelector'));
@@ -182,6 +183,56 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
 
   const isTaskCompleted = task.status?.status === 'Completed';
 
+  // Function to check if preceding tasks are completed
+  const arePreviousTasksCompleted = () => {
+    if (!project || !project.tasks || !task.stage || !task.name) return true; // Default to true if data is missing
+
+    const currentTaskTemplateIndex = defaultProjectTaskTemplates.findIndex(
+      (template: FrontendTaskTemplate) => template.stage === task.stage && template.taskName === task.name
+    );
+
+    if (currentTaskTemplateIndex === -1) {
+      // Task not in standard template, or template mismatch
+      console.warn(`Task ${task.name} (Stage: ${task.stage}) not found in defaultProjectTaskTemplates. Cannot check previous task completion.`);
+      return true; // Or false, depending on desired behavior for non-template tasks
+    }
+
+    for (let i = 0; i < currentTaskTemplateIndex; i++) {
+      const precedingTemplateTask = defaultProjectTaskTemplates[i];
+      const correspondingActualTask = project.tasks.find(
+        (pTask) => pTask.stage === precedingTemplateTask.stage && pTask.name === precedingTemplateTask.taskName
+      );
+
+      if (correspondingActualTask && correspondingActualTask.status?.status !== 'Completed') {
+        return false; // Found a preceding task that is not completed
+      }
+    }
+    return true; // All preceding tasks are completed
+  };
+
+  const canSetToCompleted = arePreviousTasksCompleted();
+
+  const renderStatusUpdateDropdownItems = () => (
+    <>
+      {task.status?.status !== 'Active' && task.status?.status !== 'Completed' && (
+        <DropdownMenuItem onClick={() => handleStatusUpdate(statusIdMap['Active'])}>
+          Set to In Progress
+        </DropdownMenuItem>
+      )}
+      {task.status?.status !== 'Completed' && (
+        <DropdownMenuItem 
+          onClick={() => handleStatusUpdate(statusIdMap['Completed'])}
+          disabled={!canSetToCompleted}
+          title={!canSetToCompleted ? "Previous tasks must be completed first" : ""}
+        >
+          Set to Completed
+          {!canSetToCompleted && <Info size={14} className="ml-2 text-yellow-500" />}
+        </DropdownMenuItem>
+      )}
+    </>
+  );
+
+
   return (
     <div className={`bg-white shadow-lg rounded-lg p-5 border border-gray-200 ${isTaskCompleted ? 'border-l-4 border-green-500' : ''}`}>
       <div className="flex justify-between items-center mb-2">
@@ -191,6 +242,10 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
           <div className="flex items-center mt-1">
             {(() => {
               const statusText = task.status?.status || 'N/A';
+              const isProjectManager = currentUser?.role?.role === 'Project Manager';
+              const canUpdateAny = userHasPermission(FE_PERMISSIONS.TASKS.UPDATE_STATUS_ANY);
+              const canPMUpdateThisTask = isProjectManager && canUpdateAny && project && task.status?.status !== 'Completed';
+
               let icon = <MinusCircle size={16} className="mr-1.5 text-gray-500" />;
               let textColor = 'text-gray-700';
               let bgColor = 'bg-gray-100';
@@ -208,17 +263,40 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
                 icon = <Loader2 size={16} className="mr-1.5 text-blue-500 animate-spin" />;
                 textColor = 'text-blue-700'; bgColor = 'bg-blue-100';
               }
-              return (
-                <span className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full mr-2 ${bgColor} ${textColor}`}>
+
+              const statusElement = (
+                <span className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full mr-2 ${bgColor} ${textColor} ${canPMUpdateThisTask ? 'cursor-pointer hover:opacity-80' : ''}`}>
                   {icon}
                   {statusText}
                 </span>
               );
+
+              if (canPMUpdateThisTask) {
+                return (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      {statusElement}
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {renderStatusUpdateDropdownItems()}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                );
+              }
+              return statusElement;
             })()}
           </div>
         </div>
         
         {(() => {
+          const isProjectManager = currentUser?.role?.role === 'Project Manager';
+          const canUpdateAny = userHasPermission(FE_PERMISSIONS.TASKS.UPDATE_STATUS_ANY);
+          const canPMUpdateThisTask = isProjectManager && canUpdateAny;
+
+          // If PM can update via clickable status, don't show separate edit icon for PM
+          if (canPMUpdateThisTask) return null;
+
+
           let requiredPermissionForTaskType = '';
           if (task.uploaderRole === 'Client') {
             requiredPermissionForTaskType = FE_PERMISSIONS.TASKS.UPDATE_STATUS_AS_CLIENT;
@@ -226,10 +304,11 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
             requiredPermissionForTaskType = FE_PERMISSIONS.TASKS.UPDATE_STATUS_AS_BIM_ENGINEER;
           }
 
-          const canUpdateThisTask = userHasPermission(FE_PERMISSIONS.TASKS.UPDATE_STATUS_ANY) || 
+          const canUpdateThisTaskByRole = userHasPermission(FE_PERMISSIONS.TASKS.UPDATE_STATUS_ANY) || 
                                    (requiredPermissionForTaskType && userHasPermission(requiredPermissionForTaskType));
-
-          if (canUpdateThisTask && project && task.status?.status !== 'Completed') { // Don't show if already completed
+          
+          // Show edit icon for non-PMs who have permission, or for PMs if the clickable status is somehow not available (fallback)
+          if (canUpdateThisTaskByRole && project && task.status?.status !== 'Completed') { 
             return (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -238,16 +317,7 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {task.status?.status !== 'Active' && task.status?.status !== 'Completed' && (
-                    <DropdownMenuItem onClick={() => handleStatusUpdate(statusIdMap['Active'])}>
-                      Set to In Progress
-                    </DropdownMenuItem>
-                  )}
-                  {task.status?.status !== 'Completed' && (
-                    <DropdownMenuItem onClick={() => handleStatusUpdate(statusIdMap['Completed'])}>
-                      Set to Completed
-                    </DropdownMenuItem>
-                  )}
+                  {renderStatusUpdateDropdownItems()}
                 </DropdownMenuContent>
               </DropdownMenu>
             );

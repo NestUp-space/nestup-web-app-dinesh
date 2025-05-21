@@ -1,75 +1,48 @@
-## Cline's Session Decision Log
+## Cline's Decision Log (Current Session)
 
-**Session Date:** 2025-05-20
-
----
-
-**Decision ID:** 20250520-001
-**Timestamp:** 2025-05-20, 18:57
-**Task/Issue:** `TypeError: BomItemType is undefined` in `BillOfMaterialListEditor.tsx`
-**Decision Made:**
-Refactor shared Zod schemas and enums into `frontend/src/components/dashboard/model-management/modelSchemas.ts`.
-**Rationale:** Resolve circular dependency.
-**(Details omitted for brevity, see previous logs)**
+**Session Date:** 2025-05-21
 
 ---
 
-**Decision ID:** 20250520-002
-**Timestamp:** 2025-05-20, 20:07
-**Task/Issue:** Fix 404 Error for Project Instances API (`GET /api/catalogue/project-instances/by-project/1`) on project details page.
-**Decision Made:**
-Update API endpoint in `frontend/src/app/dashboard/projects/[id]/components/ProjectDetails.tsx` to `/api/projects/:projectId/model-instances`.
-**Rationale:** Align frontend with correct backend route.
-**(Details omitted for brevity, see previous logs)**
-
----
-
-**Decision ID:** 20250520-003
-**Timestamp:** 2025-05-20, 20:24
-**Task/Issue:** Resolve 404 Error for Model Instance API Endpoint (`GET` and `POST` to `/api/projects/1/model-instances`) on catalogue new page.
-**Decision Made:**
-Mount `projectModelInstanceRouter` within `projectRouter` in `backend/src/routes/project.routes.ts`.
-**Rationale:** The sub-router for model instances was defined but not connected to the main project routes, causing 404s.
-**Follow-up Actions:** Implemented the router mounting. This led to a new 400 Bad Request error.
-**(Details omitted for brevity, see previous logs)**
-
----
-
-**Decision ID:** 20250520-004
-**Timestamp:** 2025-05-20, 20:57
-**Task/Issue:** Resolve 400 Bad Request for Model Instance API Endpoint (`GET` and `POST` to `/api/projects/1/model-instances`) on catalogue new page.
-**Decision Made:**
-Initiate investigation into backend input validation failure.
+**Decision ID:** 20250521-002
+**Timestamp:** 2025-05-21, 22:51
+**Task:** Fix Designer Role Project Access (Permission String Inconsistency)
+**Decision/Action Taken:**
+The root cause was identified as an inconsistent permission string: the user `designer@nestup.space` had `project.view` (singular) in their database record, while the backend route `/api/projects` required `projects.view` (plural) as defined in `backend/src/constants/permissions.ts`.
+Actions:
+1.  Created a manual SQL migration (`backend/prisma/migrations/20250521225100_standardize_project_view_permission/migration.sql`) with the command: `UPDATE "UserPermission" SET "permission" = 'projects.view' WHERE "permission" = 'project.view';`.
+2.  Applied this migration using `npx prisma migrate resolve --applied 20250521225100_standardize_project_view_permission` and then `npx prisma migrate deploy`.
+3.  Re-ran `npx prisma db seed` to ensure consistency with the seed script which correctly uses `projects.view`.
 **Rationale:**
-The 400 error with message "Input validation failed" indicates a mismatch between the data sent by the frontend and the expectations defined in the backend's DTO validation schemas.
-**Affected Files/Modules (Initial Investigation Scope):**
-
-* `backend/src/catalogue/dtos/project-model-instance.dto.ts` (to check Zod schemas)
-* `backend/src/catalogue/routes/project-model-instance.routes.ts` (to see how `validateRequest` middleware is used)
-* Frontend code sending the request (e.g., `ModelSelector.tsx`)
-**Follow-up Actions:**
-* Request detailed validation error messages from the user.
-* Read `project-model-instance.dto.ts`.
-* Compare frontend payload with backend schemas.
-* Formulate and implement a fix.
-* Archive this decision to `DECISION_LOG.md` in LTM upon successful resolution.
+This sequence ensures that the incorrect data in the `UserPermission` table is corrected to the standard plural form used throughout the application (constants, routes). Re-seeding reinforces this standard.
+**Outcome (Anticipated):**
+The `designer@nestup.space` user should now have the correct `projects.view` permission string associated with their role. After logging out and back in (to refresh frontend and backend caches/sessions), they should be able to access the project list.
+**Affected Files/Areas:**
+- Database (`UserPermission` table)
+- New migration file: `backend/prisma/migrations/20250521225100_standardize_project_view_permission/migration.sql`
+- `backend/prisma/seed.ts` (re-applied)
+**Next Steps:**
+- Update work ticket.
+- Request user to re-test.
 
 ---
-
-**Decision ID:** 20250520-005
-**Timestamp:** 2025-05-20, 22:00
-**Task/Issue:** Fix Plank Generation Logic for Simple Box Model in `Reference/BasicBox.yaml`.
-**Decision Made:**
-User confirmed that their updated version of `Reference/BasicBox.yaml` is correct and user-friendly. No code changes were applied by Cline to this file in the final resolution of this task. The task is considered complete based on user verification of their own file version.
+**Decision ID:** 20250521-001
+**Timestamp:** 2025-05-21, 22:42
+**Task:** Fix Designer Role Project Access
+**Decision/Action Taken:**
+The `designer` role was intended to have `projects.view` permission as per `backend/prisma/seed.ts`, but the user `designer@nestup.space` was receiving a 403 error when trying to list projects.
+The primary suspected cause was a mismatch between the intended seeded state and the actual database state.
+Action: Executed `npx prisma db seed` in the `backend` directory to re-apply seed data.
 **Rationale:**
-The user indicated satisfaction with their version of `Reference/BasicBox.yaml` after previous discussions and analysis. The primary goal was to ensure the logic aligns with `Reference/TestCase.yaml` and respects the calculation sequence (materials determined before dimensions). Since the user verified their version meets these criteria, no further modifications by Cline were necessary.
-**Affected Files/Modules:**
-
-* `Reference/BasicBox.yaml` (Reviewed, user-updated version considered final)
-* `Reference/TestCase.yaml` (Reference for inputs/outputs)
-**Follow-up Actions:**
-* Updated work ticket (Ticket 5) to "Completed".
-* Updated `.cache_memory/CURRENT_CONTEXT.md` and `.cache_memory/CURRENT_TODO.md`.
-* This decision (20250520-005) will be archived to `.long_term_memory/DECISION_LOG.md`.
+This ensures that all default roles and their permissions, including the `designer` role and its `projects.view` permission, are correctly established in the database as defined in the seed script.
+**Outcome (Anticipated):**
+The `designer@nestup.space` user should now be able to access the project list. Backend permission cache should refresh or expire, reflecting the change.
+**Affected Files/Areas:**
+- Database (User, UserRole, RolePermissionMapping tables)
+- `backend/prisma/seed.ts` (source of truth for this fix)
+**Next Steps:**
+- Update work ticket.
+- Request user to re-test.
 
 ---
+**(Previous decisions from session context)**

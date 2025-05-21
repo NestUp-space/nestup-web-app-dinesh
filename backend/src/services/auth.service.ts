@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/db';
 import type { User, UserRole } from '@prisma/client';
+import { clearAllPermissionCache } from '../middlewares/permission.middleware';
 import { StatusCodes } from 'http-status-codes';
 import { ServiceResponse } from '../common/models/serviceResponse';
 
@@ -139,6 +140,10 @@ export const loginUser = async (data: LoginUserData): Promise<ServiceResponse<{ 
     },
     permissions, // Add the flat permissions array
   };
+
+  // Clear permission cache on successful login
+  clearAllPermissionCache();
+  console.log('[AuthService] Permission cache cleared after successful login for user:', user.email);
 
   console.log('Login successful for:', user.email);
   console.log('User object being sent in login response:', JSON.stringify(userForResponse, null, 2));

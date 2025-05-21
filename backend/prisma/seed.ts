@@ -1,6 +1,6 @@
 import { PrismaClient, BomItemType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { getAllPermissions as getAllPermissionStrings } from '../src/constants/permissions';
+import { getAllPermissions as getAllPermissionStrings, PERMISSIONS } from '../src/constants/permissions';
 
 const prisma = new PrismaClient();
 
@@ -11,19 +11,18 @@ async function main() {
   const allPermissionNames = getAllPermissionStrings();
   console.log(`Found ${allPermissionNames.length} permissions to seed.`);
   for (const permName of allPermissionNames) {
-    await prisma.userPermission.upsert({ // Corrected model name
+    await prisma.userPermission.upsert({
       where: { permission: permName },
       update: {},
       create: { permission: permName },
     });
   }
   console.log('Permissions seeded/ensured.');
-  const allPermissionsInDb = await prisma.userPermission.findMany(); // Corrected model name
+  const allPermissionsInDb = await prisma.userPermission.findMany();
 
   // --- Seed Admin UserRole ---
   const adminRoleName = 'admin';
-  const adminRoleType = 'admin';
-  // Assuming UserRole.role is now @unique
+  const adminRoleType = 'admin'; // Special type for admin
   const adminRole = await prisma.userRole.upsert({
     where: { role: adminRoleName },
     update: { roleType: adminRoleType },
@@ -34,15 +33,13 @@ async function main() {
   });
   console.log(`UserRole '${adminRole.role}' (ID: ${adminRole.id}) ensured with roleType '${adminRole.roleType}'.`);
 
-
   // --- Map all permissions to Admin Role ---
-  // Assuming RolePermissionMapping has @@unique([roleId, permissionId])
   if (adminRole && allPermissionsInDb.length > 0) {
     console.log(`Mapping ${allPermissionsInDb.length} permissions to role '${adminRole.role}' (ID: ${adminRole.id}).`);
     for (const perm of allPermissionsInDb) {
       await prisma.rolePermissionMapping.upsert({
         where: {
-          roleId_permissionId: { // Default name for compound unique constraint
+          roleId_permissionId: {
             roleId: adminRole.id,
             permissionId: perm.id,
           },
@@ -58,49 +55,45 @@ async function main() {
   }
 
   // --- Seed Admin User ---
-  const adminUserEmail = 'admin@nestup.com';
+  const adminUserEmail = 'admin@nestup.com'; // Ensure this matches your intended admin email
   const adminUserName = 'Admin User';
-  const adminUserPassword = 'DefaultAdminPassword123!'; 
-  const adminUserPhoneNumber = '0000000000_seed'; // Placeholder for required phoneNumber
+  const adminUserPassword = 'DefaultAdminPassword123!'; // CHANGE THIS IN PRODUCTION
+  const adminUserPhoneNumber = '0000000000_seed'; // Placeholder
   const hashedAdminPassword = await bcrypt.hash(adminUserPassword, 10);
 
-  let dbAdminUser = await prisma.user.findUnique({ // Renamed variable to avoid conflict
+  let dbAdminUser = await prisma.user.findUnique({
     where: { email: adminUserEmail },
   });
 
   if (!dbAdminUser) {
     if (!adminRole) {
-        console.error("Admin role not found, cannot create admin user without it.");
+      console.error("Admin role not found, cannot create admin user without it.");
     } else {
-        dbAdminUser = await prisma.user.create({
-            data: {
-              email: adminUserEmail,
-              name: adminUserName,
-              password: hashedAdminPassword,
-              phoneNumber: adminUserPhoneNumber, // Added required field
-              roleId: adminRole.id,
-              verified: true, 
-              isActive: true,   
-            },
-        });
-        console.log(`Admin user '${adminUserEmail}' created with role '${adminRole.role}'. PLEASE CHANGE THE DEFAULT PASSWORD and PHONE NUMBER.`);
+      dbAdminUser = await prisma.user.create({
+        data: {
+          email: adminUserEmail,
+          name: adminUserName,
+          password: hashedAdminPassword,
+          phoneNumber: adminUserPhoneNumber,
+          roleId: adminRole.id,
+          verified: true,
+          isActive: true,
+        },
+      });
+      console.log(`Admin user '${adminUserEmail}' created with role '${adminRole.role}'. PLEASE CHANGE THE DEFAULT PASSWORD and PHONE NUMBER.`);
     }
   } else {
     const updates: any = {};
     if (adminRole && dbAdminUser.roleId !== adminRole.id) {
       updates.roleId = adminRole.id;
-      console.log(`Updating admin user '${adminUserEmail}' to role '${adminRole.role}'.`);
     }
-    if (dbAdminUser.phoneNumber !== adminUserPhoneNumber) { // Example: update phone if different
-        updates.phoneNumber = adminUserPhoneNumber;
+    if (dbAdminUser.phoneNumber !== adminUserPhoneNumber) {
+      updates.phoneNumber = adminUserPhoneNumber;
     }
-    // Uncomment to force password update on existing admin user.
-    /*
-    if (!(await bcrypt.compare(adminUserPassword, dbAdminUser.password))) {
-        updates.password = hashedAdminPassword;
-        console.log(`Updating password for admin user '${adminUserEmail}'. PLEASE CHANGE THE DEFAULT PASSWORD if this was unexpected.`);
-    }
-    */
+    // Ensure admin user is active and verified
+    if (!dbAdminUser.isActive) updates.isActive = true;
+    if (!dbAdminUser.verified) updates.verified = true;
+
     if (Object.keys(updates).length > 0) {
       await prisma.user.update({
         where: { email: adminUserEmail },
@@ -112,62 +105,134 @@ async function main() {
     }
   }
 
-  // --- Seed "BIM_ENGINEER" Role (for context, if needed elsewhere) ---
-  // Assuming UserRole.role is @unique
+  // --- Seed bimEngineer Role ---
+  const bimEngineerRoleName = 'bimEngineer';
+  const bimEngineerRoleType = 'INTERNAL';
   const bimEngineerRole = await prisma.userRole.upsert({
-    where: { role: 'BIM_ENGINEER' },
-    update: { roleType: 'INTERNAL'},
+    where: { role: bimEngineerRoleName }, // Using new camelCase name
+    update: { roleType: bimEngineerRoleType },
     create: {
-      role: 'BIM_ENGINEER',
-      roleType: 'INTERNAL',
+      role: bimEngineerRoleName,
+      roleType: bimEngineerRoleType,
     },
   });
-  console.log(`UserRole "BIM_ENGINEER" (ID: ${bimEngineerRole.id}) ensured.`);
+  console.log(`UserRole "${bimEngineerRole.role}" (ID: ${bimEngineerRole.id}) ensured with roleType '${bimEngineerRole.roleType}'.`);
 
-  // --- Seed "Client" Role ---
-  const clientRole = await prisma.userRole.upsert({
-    where: { role: 'CLIENT' },
-    update: { roleType: 'EXTERNAL' },
+  // --- Map specific permissions to bimEngineer Role ---
+  const bimEngineerPermissionsToAssign = [
+    PERMISSIONS.CATALOGUE.MANAGE,
+    PERMISSIONS.PROJECTS.VIEW,
+  ];
+  if (bimEngineerRole && allPermissionsInDb.length > 0) {
+    for (const permString of bimEngineerPermissionsToAssign) {
+      const permObject = allPermissionsInDb.find(p => p.permission === permString);
+      if (permObject) {
+        await prisma.rolePermissionMapping.upsert({
+          where: { roleId_permissionId: { roleId: bimEngineerRole.id, permissionId: permObject.id } },
+          update: {},
+          create: { roleId: bimEngineerRole.id, permissionId: permObject.id },
+        });
+        console.log(`Permission "${permString}" mapped to role "${bimEngineerRole.role}".`);
+      } else {
+        console.warn(`Warning: Permission string "${permString}" not found. Skipping mapping for ${bimEngineerRole.role}.`);
+      }
+    }
+  }
+  
+  // --- Seed projectManager Role ---
+  const projectManagerRoleName = 'Project Manager'; // Changed to Title Case
+  const projectManagerRoleType = 'INTERNAL';
+  const projectManagerRole = await prisma.userRole.upsert({
+    where: { role: projectManagerRoleName },
+    update: { roleType: projectManagerRoleType },
     create: {
-      role: 'CLIENT',
-      roleType: 'EXTERNAL',
+      role: projectManagerRoleName, // Uses Title Case
+      roleType: projectManagerRoleType,
     },
   });
-  console.log(`UserRole "CLIENT" (ID: ${clientRole.id}) ensured.`);
+  console.log(`UserRole "${projectManagerRole.role}" (ID: ${projectManagerRole.id}) ensured with roleType '${projectManagerRole.roleType}'.`);
 
-  // --- Map specific task permissions to roles ---
-  const taskUpdateAsClientPerm = allPermissionsInDb.find(p => p.permission === 'tasks.update_status_as_client');
-  if (clientRole && taskUpdateAsClientPerm) {
-    await prisma.rolePermissionMapping.upsert({
-      where: { roleId_permissionId: { roleId: clientRole.id, permissionId: taskUpdateAsClientPerm.id } },
-      update: {},
-      create: { roleId: clientRole.id, permissionId: taskUpdateAsClientPerm.id },
-    });
-    console.log(`Permission "tasks.update_status_as_client" mapped to role "CLIENT".`);
+  // --- Map specific permissions to projectManager Role ---
+  const projectManagerPermissionsToAssign = [
+    PERMISSIONS.PROJECTS.VIEW,
+    PERMISSIONS.PROJECTS.CREATE,
+    PERMISSIONS.PROJECTS.EDIT,
+    PERMISSIONS.TASKS.MANAGE,
+  ];
+  if (projectManagerRole && allPermissionsInDb.length > 0) {
+    for (const permString of projectManagerPermissionsToAssign) {
+      const permObject = allPermissionsInDb.find(p => p.permission === permString);
+      if (permObject) {
+        await prisma.rolePermissionMapping.upsert({
+          where: { roleId_permissionId: { roleId: projectManagerRole.id, permissionId: permObject.id } },
+          update: {},
+          create: { roleId: projectManagerRole.id, permissionId: permObject.id },
+        });
+        console.log(`Permission "${permString}" mapped to role "${projectManagerRole.role}".`);
+      } else {
+        console.warn(`Warning: Permission string "${permString}" not found. Skipping mapping for ${projectManagerRole.role}.`);
+      }
+    }
   }
 
-  const taskUpdateAsBimPerm = allPermissionsInDb.find(p => p.permission === 'tasks.update_status_as_bim_engineer');
-  if (bimEngineerRole && taskUpdateAsBimPerm) {
-    await prisma.rolePermissionMapping.upsert({
-      where: { roleId_permissionId: { roleId: bimEngineerRole.id, permissionId: taskUpdateAsBimPerm.id } },
-      update: {},
-      create: { roleId: bimEngineerRole.id, permissionId: taskUpdateAsBimPerm.id },
-    });
-    console.log(`Permission "tasks.update_status_as_bim_engineer" mapped to role "BIM_ENGINEER".`);
+  // --- Seed designer Role ---
+  const designerRoleName = 'Designer'; // Changed to Title Case
+  const designerRoleType = 'EXTERNAL';
+  const designerRole = await prisma.userRole.upsert({
+    where: { role: designerRoleName },
+    update: { roleType: designerRoleType },
+    create: {
+      role: designerRoleName, // Uses Title Case
+      roleType: designerRoleType,
+    },
+  });
+  console.log(`UserRole "${designerRole.role}" (ID: ${designerRole.id}) ensured with roleType '${designerRole.roleType}'.`);
+
+  // --- Map specific permissions to designer Role ---
+  const designerPermissionsToAssign = [
+    PERMISSIONS.PROJECTS.VIEW,
+  ];
+  if (designerRole && allPermissionsInDb.length > 0) {
+    for (const permString of designerPermissionsToAssign) {
+      const permObject = allPermissionsInDb.find(p => p.permission === permString);
+      if (permObject) {
+        await prisma.rolePermissionMapping.upsert({
+          where: { roleId_permissionId: { roleId: designerRole.id, permissionId: permObject.id } },
+          update: {},
+          create: { roleId: designerRole.id, permissionId: permObject.id },
+        });
+        console.log(`Permission "${permString}" mapped to role "${designerRole.role}".`);
+      } else {
+        console.warn(`Warning: Permission string "${permString}" not found. Skipping mapping for ${designerRole.role}.`);
+      }
+    }
   }
 
-  // --- Seed "Simple Box" ModelDefinition (UPDATED as per your request) ---
+  // --- Remove old CLIENT role specific permission mappings if any linger (optional cleanup) ---
+  // This part is more for manual cleanup if the CLIENT role was deleted but mappings remained.
+  // The upsert logic for other roles should handle new assignments correctly.
+  // Example: If 'tasks.update_status_as_client' was a permission.
+  // const clientSpecificPerm = allPermissionsInDb.find(p => p.permission === 'tasks.update_status_as_client');
+  // if (clientSpecificPerm) {
+  //   await prisma.rolePermissionMapping.deleteMany({
+  //     where: { permissionId: clientSpecificPerm.id } // Deletes this mapping from ALL roles it might have been on
+  //   });
+  //  console.log(`Cleaned up potential lingering mappings for "tasks.update_status_as_client".`);
+  // }
+
+
+  // --- Seed "Simple Box" ModelDefinition ---
   const simpleBoxModelName = 'Simple Box';
   await prisma.modelDefinition.upsert({
     where: { name: simpleBoxModelName },
-    update: { 
-        description: 'A basic rectangular box model with configurable dimensions and material thickness.',
-        imageUrl: 'url', 
+    update: {
+      description: 'A basic rectangular box model with configurable dimensions and material thickness.',
+      imageUrl: 'url_placeholder.jpg', // Added placeholder
     },
     create: {
       name: simpleBoxModelName,
       description: 'A basic rectangular box model with configurable dimensions and material thickness.',
-      imageUrl: 'url', 
+      imageUrl: 'url_placeholder.jpg', // Added placeholder
       inputParameters: {
         create: [
           { inputName: 'boxHeight', displayLabel: 'Box Height', inputType: 'NUMBER', unit: 'mm', defaultValue: '700', description: 'Overall height of the box.' },
@@ -180,43 +245,41 @@ async function main() {
           { inputName: 'backMaterialCode', displayLabel: 'Back Panel Material Code', inputType: 'TEXT', defaultValue: 'none', description: 'Material code for the back panel.' },
         ]
       },
-      // modelScopedVariables removed as it's not in schema.prisma ModelDefinition
-      // availableAddons removed as it's not in schema.prisma ModelDefinition
-      bomItems: { 
+      bomItems: {
         create: [
           {
             itemName: 'Left Panel',
-            itemType: BomItemType.PLANK, 
+            itemType: BomItemType.PLANK,
             itemDescription: 'The vertical panel on the left side of the box.',
-            details: { // Storing plankProperties in 'details' JSON field
+            details: {
               packetNumber: '1',
               plankLocation: 'LT',
               plankWidthLogic: "if (leftAdjacency === 'Expose') { plankWidth = boxDepth - doorPanel.thickness - (2 * leftPlank.edgeBandingThickness); } else { plankWidth = boxDepth - doorPanel.thickness - backPanel.thickness - (2 * leftPlank.edgeBandingThickness); }",
               plankHeightLogic: "plankHeight = boxHeight - (2 * leftPlank.edgeBandingThickness);",
               plankMaterialCodeLogic: "if (leftAdjacency === 'Expose') { plankMaterialCode = exposeMaterialCode; } else { plankMaterialCode = innerMaterialCode; }",
               plankIdLogic: "plankId = boxNumber + ':P' + packetNumber + ':' + plankLocation;",
-              screwHolesLogic: "if (leftAdjacency !== 'Expose') screwHoles = [...];", 
-              vbScrewHolesLogic: "let holes = []; if (leftAdjacency === 'Expose') { /* ... */ } holes.push(/* ... */); context.result = holes;", 
-              backPanelGrooveLogic: "let groove = []; let tool; if (backPanel.thickness === 8) tool = T7; /* ... */ context.result = groove.length > 0 ? [groove] : [];", 
+              screwHolesLogic: "if (leftAdjacency !== 'Expose') screwHoles = [...];",
+              vbScrewHolesLogic: "let holes = []; if (leftAdjacency === 'Expose') { /* ... */ } holes.push(/* ... */); context.result = holes;",
+              backPanelGrooveLogic: "let groove = []; let tool; if (backPanel.thickness === 8) tool = T7; /* ... */ context.result = groove.length > 0 ? [groove] : [];",
             }
           },
           {
             itemName: 'Right Panel',
             itemType: BomItemType.PLANK,
             itemDescription: 'The vertical panel on the right side of the box.',
-            details: { // Storing plankProperties in 'details' JSON field
+            details: {
               packetNumber: '1',
               plankLocation: 'RT',
               plankWidthLogic: "if (rightAdjacency === 'Expose') { plankWidth = boxDepth - doorPanel.thickness - (2 * rightPlank.edgeBandingThickness); } else { plankWidth = boxDepth - doorPanel.thickness - backPanel.thickness - (2 * rightPlank.edgeBandingThickness); }",
               plankHeightLogic: "plankHeight = boxHeight - (2 * rightPlank.edgeBandingThickness);",
               plankMaterialCodeLogic: "if (rightAdjacency === 'Expose') { plankMaterialCode = exposeMaterialCode; } else { plankMaterialCode = innerMaterialCode; }",
               plankIdLogic: "plankId = boxNumber + ':P' + packetNumber + ':' + plankLocation;",
-              screwHolesLogic: "if (rightAdjacency !== 'Expose') screwHoles = [...];", 
-              vbScrewHolesLogic: "let holes = []; if (rightAdjacency === 'Expose') { /* ... */ } holes.push(/* ... */); context.result = holes;", 
-              backPanelGrooveLogic: "let groove = []; let tool; if (backPanel.thickness === 8) tool = T7; /* ... */ context.result = groove.length > 0 ? [groove] : [];", 
+              screwHolesLogic: "if (rightAdjacency !== 'Expose') screwHoles = [...];",
+              vbScrewHolesLogic: "let holes = []; if (rightAdjacency === 'Expose') { /* ... */ } holes.push(/* ... */); context.result = holes;",
+              backPanelGrooveLogic: "let groove = []; let tool; if (backPanel.thickness === 8) tool = T7; /* ... */ context.result = groove.length > 0 ? [groove] : [];",
             }
           },
-          // Add Top Panel, Bottom Panel, Back Panel, Door Panel with similar 'details' structure
+          // TODO: Add Top Panel, Bottom Panel, Back Panel, Door Panel with similar 'details' structure
         ]
       },
     }

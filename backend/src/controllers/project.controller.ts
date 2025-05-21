@@ -16,18 +16,28 @@ import { projectService } from '../services/project'; // Import project service
 const prisma = new PrismaClient();
 
 export class ProjectController {
-  static async getProjects(req: Request, res: Response): Promise<Response> {
+  static async getProjects(req: CustomRequest, res: Response): Promise<Response> {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = parseInt(req.query.pageSize as string) || 10;
       const search = req.query.search as string;
+      const user = req.user;
 
-      const where: Prisma.ProjectWhereInput = search ? {
+      // Initialize where clause with search if provided
+      let where: Prisma.ProjectWhereInput = search ? {
         OR: [
           { name: { contains: search, mode: 'insensitive' } },
           { description: { contains: search, mode: 'insensitive' } }
         ]
       } : {};
+
+      // If user is a Designer, only show their projects
+      if (user && user.role === 'Designer') {
+        where = {
+          ...where,
+          designerId: user.id
+        };
+      }
 
       const [projects, total] = await Promise.all([
         prisma.project.findMany({
