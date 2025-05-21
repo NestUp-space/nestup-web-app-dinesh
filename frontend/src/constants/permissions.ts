@@ -6,6 +6,7 @@ export const PERMISSION_GROUPS = {
   MATERIALS: 'materials',
   BIM: 'bim',
   CATALOGUE: 'catalogue',
+  TASKS: 'tasks', // New group for task-specific permissions
   SETTINGS: 'settings'
 } as const;
 
@@ -16,7 +17,11 @@ export const ACTIONS = {
   DELETE: 'delete',
   APPROVE: 'approve',
   MANAGE: 'manage',
-  CHANGE_STATUS: 'change_status' // Added CHANGE_STATUS
+  CHANGE_STATUS: 'change_status', // Added CHANGE_STATUS
+  // New task-specific actions mirroring backend
+  UPDATE_STATUS_AS_CLIENT: 'update_status_as_client',
+  UPDATE_STATUS_AS_BIM_ENGINEER: 'update_status_as_bim_engineer',
+  UPDATE_STATUS_ANY: 'update_status_any'
 } as const;
 
 export type PermissionGroup = typeof PERMISSION_GROUPS[keyof typeof PERMISSION_GROUPS];

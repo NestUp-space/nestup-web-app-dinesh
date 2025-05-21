@@ -1,36 +1,84 @@
 "use client";
 
-import React, { useState, useEffect, lazy, Suspense } from 'react'; // Added lazy and Suspense
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Button } from '@/components/dashboard/button';
-import { Eye, Edit3, ChevronDown, ChevronUp, CheckCircle, Circle, PlusCircle as PlusCircleIcon, Trash2 as TrashIcon, UploadCloud, Info, UserCheck, Download, Package } from 'lucide-react';
-// Use corrected paths for dynamic import
-// import ModelSelector from '@/components/dashboard/ModelSelector'; 
-// import MaterialManagement from '@/components/dashboard/MaterialManagement';
+import { 
+  Eye, Edit3, ChevronDown, ChevronUp, CheckCircle, Circle, 
+  PlusCircle as PlusCircleIcon, Trash2 as TrashIcon, UploadCloud, 
+  Info, UserCheck, Download, Package, Loader2, MinusCircle, Edit
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"; // Assuming this is the correct path for Radix Dropdown
 import { Task, Subtask, Project } from '@/types';
+import { useUser } from '@/context/UserContext';
+import { PERMISSIONS as FE_PERMISSIONS } from '@/constants/permissions';
+import { useProject as useProjectHook } from '@/hooks/useProject';
 
-// Lazy load the components
 const MaterialManagement = lazy(() => import('@/components/dashboard/MaterialManagement'));
 const ModelSelector = lazy(() => import('@/components/dashboard/ModelSelector'));
-
 
 interface CollapsibleTaskCardProps {
   task: Task;
   formatDate: (dateString?: string) => string;
-  project?: Project; // Changed from projectId to project
-  // onUpdateTask: (taskId: number, data: Partial<Task>) => void; // For editing task name/details
-  // onDeleteTask: (taskId: number) => void;
+  project?: Project;
+  onTaskUpdate?: () => void; // Callback to refresh project data
 }
 
-const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatDate, project }) => { // Changed projectId to project
+const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatDate, project, onTaskUpdate }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentSubtasks, setCurrentSubtasks] = useState<Subtask[]>(task.subtasks || []);
   const [newSubtaskName, setNewSubtaskName] = useState('');
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  const { user: currentUser, hasPermission: userHasPermission } = useUser();
+  const { refetch: refetchProjectHook } = useProjectHook(project?.id.toString() || null);
 
-  // Effect to update subtasks if task prop changes (e.g., parent re-fetches)
+  const statusIdMap: { [key: string]: number } = {
+    'Draft': 1,
+    'Active': 2,
+    'Completed': 3,
+    'Archived': 4,
+    'On Hold': 5,
+  };
+
   useEffect(() => {
     setCurrentSubtasks(task.subtasks || []);
   }, [task.subtasks]);
+
+  const handleStatusUpdate = async (newStatusId: number) => {
+    if (!project || !project.id || !token) {
+      alert("Project details or authentication token not found.");
+      return;
+    }
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects/${project.id}/tasks/${task.id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: newStatusId }),
+      });
+
+      if (response.ok) {
+        alert('Task status updated successfully!');
+        if (onTaskUpdate) {
+          onTaskUpdate();
+        } else if (refetchProjectHook) {
+          refetchProjectHook();
+        }
+      } else {
+        const errorData = await response.json();
+        alert(`Error updating task status: ${errorData.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Failed to update task status:', error);
+      alert(`Failed to update task status: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
 
   const handleToggleSubtaskCompletion = async (subtaskId: number, currentCompletedStatus: boolean) => {
     if (!token) {
@@ -38,7 +86,14 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
       return;
     }
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects/subtasks/${subtaskId}`, {
+      // Note: The API endpoint for subtask update might need to include projectId and taskId if it's nested
+      // For now, assuming /api/projects/subtasks/:subtaskId is correct or will be adjusted if subtask routes are nested differently.
+      // The current backend subtask controller uses /api/tasks/:taskId/subtasks/:subtaskId or /api/projects/:projectId/tasks/:taskId/subtasks/:subtaskId
+      // The CollapsibleTaskCard currently calls /api/projects/subtasks/:subtaskId which seems incorrect based on backend routes.
+      // This should likely be /api/projects/${project?.id}/tasks/${task.id}/subtasks/${subtaskId}
+      const subtaskUpdateUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects/${project?.id}/tasks/${task.id}/subtasks/${subtaskId}`;
+
+      const response = await fetch(subtaskUpdateUrl, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -47,10 +102,20 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
         body: JSON.stringify({ completed: !currentCompletedStatus }),
       });
       if (response.ok) {
-        const updatedSubtask = await response.json();
+        const responseData = await response.json(); // Expect { subtask: Subtask, parentTask?: TaskWithSubtasks | null }
+        
+        // Update current subtask
         setCurrentSubtasks(prevSubtasks =>
-          prevSubtasks.map(st => st.id === subtaskId ? { ...st, completed: updatedSubtask.subtask.completed } : st)
+          prevSubtasks.map(st => st.id === subtaskId ? { ...st, completed: responseData.subtask.completed } : st)
         );
+
+        // If parent task was updated (e.g., all subtasks completed), refresh project
+        if (responseData.parentTask && onTaskUpdate) {
+          onTaskUpdate();
+        } else if (responseData.parentTask && refetchProjectHook) {
+          refetchProjectHook();
+        }
+
       } else {
         const errorData = await response.json();
         alert(`Error updating subtask: ${errorData.message}`);
@@ -62,12 +127,12 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
 
   const handleAddSubtask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSubtaskName.trim() || !token) {
-      alert("Subtask name is required and you must be logged in.");
+    if (!newSubtaskName.trim() || !token || !project?.id) {
+      alert("Subtask name, project ID, and authentication are required.");
       return;
     }
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects/tasks/${task.id}/subtasks`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects/${project.id}/tasks/${task.id}/subtasks`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -78,7 +143,7 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
       if (response.ok) {
         const newSubtaskData = await response.json();
         setCurrentSubtasks(prevSubtasks => [...prevSubtasks, newSubtaskData.subtask]);
-        setNewSubtaskName(''); // Clear input
+        setNewSubtaskName('');
       } else {
         const errorData = await response.json();
         alert(`Error adding subtask: ${errorData.message}`);
@@ -89,15 +154,15 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
   };
   
   const handleDeleteSubtask = async (subtaskId: number) => {
-    if (!token) {
-      alert("Authentication token not found.");
+    if (!token || !project?.id) {
+      alert("Authentication token or project ID not found.");
       return;
     }
     if (!confirm("Are you sure you want to delete this subtask?")) {
         return;
     }
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects/subtasks/${subtaskId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects/${project.id}/tasks/${task.id}/subtasks/${subtaskId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -115,36 +180,88 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
     }
   };
 
+  const isTaskCompleted = task.status?.status === 'Completed';
 
   return (
-    <div className="bg-white shadow-lg rounded-lg p-5 border border-gray-200">
+    <div className={`bg-white shadow-lg rounded-lg p-5 border border-gray-200 ${isTaskCompleted ? 'border-l-4 border-green-500' : ''}`}>
       <div className="flex justify-between items-center mb-2">
         <div className="flex-grow">
           {task.stage && <p className="text-xs text-gray-500 mb-1 uppercase tracking-wider">{task.stage}</p>}
           <h3 className="text-lg font-semibold text-gray-800">{task.name}</h3>
           <div className="flex items-center mt-1">
-            <span className={`px-2 py-0.5 text-xs font-medium rounded-full mr-2 ${
-              task.status?.status === 'Completed' ? 'bg-green-100 text-green-700' :
-              task.status?.status === 'In Progress' ? 'bg-yellow-100 text-yellow-700' :
-            task.status?.status === 'Pending' ? 'bg-blue-100 text-blue-700' :
-            'bg-gray-100 text-gray-700'
-          }`}>
-            {task.status?.status || 'N/A'}
-          </span>
+            {(() => {
+              const statusText = task.status?.status || 'N/A';
+              let icon = <MinusCircle size={16} className="mr-1.5 text-gray-500" />;
+              let textColor = 'text-gray-700';
+              let bgColor = 'bg-gray-100';
+
+              if (statusText === 'Completed') {
+                icon = <CheckCircle size={16} className="mr-1.5 text-green-500" />;
+                textColor = 'text-green-700'; bgColor = 'bg-green-100';
+              } else if (statusText === 'Active') {
+                icon = <Loader2 size={16} className="mr-1.5 text-orange-500 animate-spin" />;
+                textColor = 'text-orange-700'; bgColor = 'bg-orange-100';
+              } else if (statusText === 'Draft') {
+                icon = <Circle size={16} className="mr-1.5 text-gray-500" />;
+                textColor = 'text-gray-700'; bgColor = 'bg-gray-100';
+              } else if (statusText === 'Pending') {
+                icon = <Loader2 size={16} className="mr-1.5 text-blue-500 animate-spin" />;
+                textColor = 'text-blue-700'; bgColor = 'bg-blue-100';
+              }
+              return (
+                <span className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full mr-2 ${bgColor} ${textColor}`}>
+                  {icon}
+                  {statusText}
+                </span>
+              );
+            })()}
             {task.uploaderRole && <span className="text-xs text-gray-500"> (Initiated by: {task.uploaderRole})</span>}
           </div>
         </div>
+        
+        {(() => {
+          let requiredPermissionForTaskType = '';
+          if (task.uploaderRole === 'Client') {
+            requiredPermissionForTaskType = FE_PERMISSIONS.TASKS.UPDATE_STATUS_AS_CLIENT;
+          } else if (task.uploaderRole === 'BIM Engineer') {
+            requiredPermissionForTaskType = FE_PERMISSIONS.TASKS.UPDATE_STATUS_AS_BIM_ENGINEER;
+          }
+
+          const canUpdateThisTask = userHasPermission(FE_PERMISSIONS.TASKS.UPDATE_STATUS_ANY) || 
+                                   (requiredPermissionForTaskType && userHasPermission(requiredPermissionForTaskType));
+
+          if (canUpdateThisTask && project && task.status?.status !== 'Completed') { // Don't show if already completed
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="ml-2 h-7 w-7">
+                    <Edit size={14} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {task.status?.status !== 'Active' && task.status?.status !== 'Completed' && (
+                    <DropdownMenuItem onClick={() => handleStatusUpdate(statusIdMap['Active'])}>
+                      Set to In Progress
+                    </DropdownMenuItem>
+                  )}
+                  {task.status?.status !== 'Completed' && (
+                    <DropdownMenuItem onClick={() => handleStatusUpdate(statusIdMap['Completed'])}>
+                      Set to Completed
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          }
+          return null;
+        })()}
+        
         <Button variant="ghost" size="sm" onClick={() => setIsOpen(!isOpen)} className="ml-auto">
           {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
         </Button>
       </div>
       <p className="text-sm text-gray-500 mb-1">Created: {formatDate(task.createdAt)}</p>
       <p className="text-sm text-gray-500">Last Updated: {formatDate(task.updatedAt)}</p>
-      {/* TODO: Add View/Edit Task buttons if needed */}
-      {/* <div className="mt-3 flex space-x-2">
-        <Button variant="outline" size="sm"><Eye className="mr-1 h-3 w-3" /> View Details</Button>
-        <Button variant="outline" size="sm"><Edit3 className="mr-1 h-3 w-3" /> Update Task</Button>
-      </div> */}
 
       {isOpen && (
         <div className="mt-4 pt-4 border-t border-gray-200">
@@ -169,18 +286,14 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
                             {subtask.type === 'information' && <Info size={14} className="mr-1" />}
                             {subtask.type === 'approval' && <UserCheck size={14} className="mr-1" />}
                             {subtask.type === 'payment_confirmation' && <Download size={14} className="mr-1" />}
-                            {/* Add more icons for other types */}
                             <span>Type: {subtask.type}</span>
                           </div>
                         )}
-                        {/* Render UI based on subtask type and name */}
                         {subtask.type === 'file_upload' && (
                             <Button variant="outline" size="sm" className="mt-2 text-xs h-7 px-2">
                                 <UploadCloud size={14} className="mr-1" /> Upload File
                             </Button>
                         )}
-                        
-                        {/* Generic component rendering based on subtask.metadataJson */}
                         {(() => {
                           if (subtask.metadataJson) {
                             try {
@@ -188,7 +301,6 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
                               if (metadata && typeof metadata.frontendComponent === 'string') {
                                 const componentPath = metadata.frontendComponent;
                                 const projectId = project?.id;
-
                                 return (
                                   <div className="mt-3 pt-3 border-t border-gray-100 w-full">
                                     <Suspense fallback={<div>Loading component...</div>}>
@@ -221,8 +333,6 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
           ) : (
             <p className="text-sm text-gray-500">No specific actions or subtasks defined for this step.</p>
           )}
-
-          {/* New logic for Site Visit task specific components */}
           {task.name === "Site Visit" && task.metadataJson && (
             (() => {
               try {
@@ -241,8 +351,6 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
                           }
                           if (componentPath.includes('ModelSelector.tsx')) {
                             if (project) {
-                              // Pass the main task as 'subtask' prop if ModelSelector expects a task-like object.
-                              // This casting to 'any' for subtask might hide type issues if ModelSelector strictly expects a Subtask.
                               return <ModelSelector key="model-selector" subtask={task as any} project={project} />;
                             }
                             return <p key="ms-loading-error" className="text-xs text-gray-500">Model Selector (Project data missing)</p>;
@@ -260,9 +368,6 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
               return null;
             })()
           )}
-
-          {/* The duplicated BIM Task Content block that was here has been removed. */}
-
           <form onSubmit={handleAddSubtask} className="mt-4 flex items-center space-x-2">
             <input
               type="text"
@@ -275,8 +380,6 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
               <PlusCircleIcon size={16} className="mr-1" /> Add
             </Button>
           </form>
-          
-          
         </div>
       )}
     </div>

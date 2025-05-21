@@ -331,5 +331,22 @@ Where `{documentType}` can be a subfolder (e.g., `planklabels`, `cutlists`, `inv
     3.  **Introduction of `ExpressionInput.tsx`:** A new component, `ExpressionInput.tsx`, was created to replace `LogicInput.tsx` for these calculation fields. It offers a more user-friendly text area with a "Format" button, a "Show/Hide Code" toggle (with syntax highlighting for the preview), and clickable variable chips.
 **Rationale:** To significantly improve the user experience for defining complex calculation logic by abstracting direct JavaScript interaction while still providing transparency and control. This iterative approach responded to user feedback to find a balance between power and ease of use.
 **Impacted Areas:** `frontend/src/components/dashboard/model-management/` (specifically `PlankLogicEditor.tsx`, `CollapsibleVariables.tsx`, `BillOfMaterialListEditor.tsx`, `LogicInput.tsx`, and the new `ExpressionInput.tsx`), `frontend/src/components/dashboard/model-management/templates/plankScripts.ts`.
-**Related LTM:** `CURRENT_CONTEXT.md` (for 2025-05-13), `CURRENT_TODO.md` (for 2025-05-13).
+**Related LTM:** `CURRENT_CONTEXT.md` (for 2025-05-13), `CURRENT_TODO.md` (for 2025-05-13)
+---
+
+## Decision_PlankLogicFix_BasicBox_20250520
+
+**Date:** 2025-05-20
+**Decision:** Corrected the plank generation logic in `Reference/BasicBox.yaml` to align with `Reference/TestCase.yaml`.
+**Rationale:** The existing logic strings for calculating plank dimensions (`plankWidthLogic`, `plankHeightLogic`) and material codes (`plankMaterialCodeLogic`) in `Reference/BasicBox.yaml` did not produce the expected outputs as defined in `Reference/TestCase.yaml`. The corrections involved:
+    1.  Adding `backPanelGrooveDepth: 10` to `modelScopedVariables` for use in calculations.
+    2.  Ensuring that material properties (e.g., `.thickness`, `.Outerlaminate`) are correctly accessed from the (assumed to be parsed by the execution engine) input material code objects (e.g., `exposeMaterialCode`, `innerMaterialCode`).
+    3.  Applying the correct edge banding thicknesses (`exposeEdgeBandingThickness: 2`, `innerEdgeBandingThickness: 1`) based on plank adjacency and specific panel requirements.
+    4.  Adjusting calculations for Top and Bottom panels to account for the `backPanelGrooveDepth`.
+    5.  Ensuring `plankMaterialCodeLogic` assigns the specific laminate string (e.g., `exposeMaterialCode.Outerlaminate`) rather than the entire material object.
+The updated logic was manually verified against `Reference/TestCase.yaml` and all calculations matched.
+**Impacted Areas:** Plank generation for the "Simple Box" model defined in `Reference/BasicBox.yaml`. Any system component that consumes this YAML to generate plank lists.
+**Related LTM:** `Reference/BasicBox.yaml`, `Reference/TestCase.yaml`, `createModelSimpleBoxTest.js`, `docs/test_cases/simple_box_plank_calculation.md`.
+**Cache Memory Snapshots:** `CURRENT_CONTEXT.md` (2025-05-20, 21:28), `CURRENT_DECISIONS.md` (20250520-005), `CURRENT_TODO.md` (2025-05-20, after this task).
+
 ---

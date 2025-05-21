@@ -6,6 +6,7 @@ export const PERMISSION_GROUPS = {
   MATERIALS: 'materials',
   BIM: 'bim',
   CATALOGUE: 'catalogue',
+  TASKS: 'tasks', // New group for task-specific permissions
   SETTINGS: 'settings'
 } as const;
 
@@ -18,7 +19,10 @@ export const ACTIONS = {
   MANAGE: 'manage',  // Higher-level permission that implies other permissions
   CHANGE_STATUS: 'change_status',
   ARCHIVE: 'archive',
-  COMPLETE: 'complete'
+  COMPLETE: 'complete',
+  UPDATE_STATUS_AS_CLIENT: 'update_status_as_client', // New action
+  UPDATE_STATUS_AS_BIM_ENGINEER: 'update_status_as_bim_engineer', // New action
+  UPDATE_STATUS_ANY: 'update_status_any' // New action for admins
 } as const;
 
 export type PermissionGroup = typeof PERMISSION_GROUPS[keyof typeof PERMISSION_GROUPS];

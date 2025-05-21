@@ -10,6 +10,7 @@ interface UserContextProps {
   login: (userData: User, token: string) => void;
   logout: () => void;
   isLoading: boolean;
+  hasPermission: (permission: string | string[]) => boolean; // Added hasPermission
 }
 
 interface User {
@@ -94,8 +95,21 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
   };
 
+  // hasPermission function
+  const hasPermission = (requiredPermissions: string | string[]): boolean => {
+    if (!user || !user.permissions) {
+      return false;
+    }
+    if (typeof requiredPermissions === 'string') {
+      return user.permissions.includes(requiredPermissions);
+    }
+    // If an array of permissions is provided, check if the user has at least one of them (OR logic)
+    // To check for ALL permissions (AND logic), use .every() instead of .some()
+    return requiredPermissions.some(permission => user.permissions!.includes(permission));
+  };
+
   return (
-    <UserContext.Provider value={{ user, setUser, login, logout, isLoading }}>
+    <UserContext.Provider value={{ user, setUser, login, logout, isLoading, hasPermission }}>
       {children}
     </UserContext.Provider>
   );

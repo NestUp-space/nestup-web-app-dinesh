@@ -1,0 +1,341 @@
+# Test case 2
+inputParameters: # Or consider renaming to configurableProperties or userSettings
+  - inputName: "boxHeight"
+    displayLabel: "Box Height"
+    inputType: "NUMBER" # Data type expected: Numerical value
+    unit: "mm"          # Unit of measurement
+    defaultValue: "700" # Default value if not specified by user
+    description: "Overall height of the box."
+    range: Minimum 250mm, Maximum 2400mm.
+  - inputName: "boxWidth"
+    displayLabel: "Box Width"
+    inputType: "NUMBER"
+    unit: "mm"
+    defaultValue: "600"
+    description: "Overall width of the box."
+    range: "(Min: 250mm, Max: 2400mm)" # Alternative way to specify range
+  - inputName: "boxDepth"
+    displayLabel: "Box Depth"
+    inputType: "NUMBER"
+    unit: "mm"
+    defaultValue: "550"
+    description: "Overall depth of the box."
+    range: "(Min: 250mm, Max: 750mm)"
+  - inputName: "leftAdjacency"
+    displayLabel: "Left Adjacency"
+    inputType: "SELECT" # User chooses from a list of options
+    defaultValue: "Expose"
+    description: "Specify what is to the left of this box. This affects panel design and material."
+    options: # Renamed from 'range' for clarity with SELECT type
+      - "Expose" # The left side is exposed (visible)
+      - "Wall"   # The left side is against a wall
+      - "Box"    # The left side is adjacent to another box
+  - inputName: "rightAdjacency"
+    displayLabel: "Right Adjacency"
+    inputType: "SELECT"
+    defaultValue: "Expose"
+    description: "Specify what is to the right of this box. This affects panel design and material."
+    options:
+      - "Expose" # The right side is exposed (visible)
+      - "Wall"   # The right side is against a wall
+      - "Box"    # The right side is adjacent to another box
+  - inputName: "exposeMaterialCode"
+    displayLabel: "Exposed Surfaces Material Code"
+    inputType: "SELECT_MATERIAL" # User inputs a text code
+    defaultValue: "thickness=18, material code= expose1, grain= Y, plyType= Plywood, innerLaminate=NX2014, Outerlaminate=EHGP3013"
+    description: "Material code for surfaces of the box that are visible from the outside. This choice determines the material's thickness (ET) and laminate code (ELC)."
+    valueHint: "Select from the list of approved materials available in the project's material library." # More descriptive than original 'range'
+  - inputName: "innerMaterialCode"
+    displayLabel: "Internal Surfaces Material Code"
+    inputType: "SELECT_MATERIAL"
+    defaultValue:  "thickness=18, material code= inner2, grain= Y, plyType= Plywood, innerLaminate=NX2014, Outerlaminate=NX2014"
+    description: "Material code for internal surfaces of the box. This choice determines the material's thickness (IT) and laminate code (ILC)."
+    valueHint: "Select from the list of approved materials available in the project's material library."
+  - inputName: "backMaterialCode"
+    displayLabel: "Back Panel Material Code"
+    inputType: "SELECT_MATERIAL"
+    defaultValue:  "thickness=18, material code= Back1, grain= Y, plyType= Plywood, innerLaminate=NX2014, Outerlaminate=NX2014"
+    description: "Material code for the back panel of the box. This choice determines the material's thickness (BT) and laminate code (BLC)."
+    valueHint: "Select from the list of approved materials available in the project's material library."
+
+# Bill of Materials: List of parts (planks) required to build the box
+billOfMaterials: # Renamed from bomItems
+  #Both sides Expose
+  leftPlank:
+    plankWidth: 528
+    plankHeight: 696
+    materialCode: EGHP3013
+    plankID: "B001P1LP"
+  rightPlank:
+    plankWidth: 528
+    plankHeight: 696
+    materialCode: EGHP3013
+    plankID: "B001P1RP"
+  topPlank:
+    plankWidth: 520  
+    plankHeight: 562 
+    materialCode: NX2014
+    plankID: "B001P1TP"   
+  bottomPlank:
+    plankWidth: 520
+    plankHeight: 562
+    materialCode: NX2014
+    plankID: "B001P1BP"
+  doorPlank:
+    plankWidth: 596
+    plankHeight: 696
+    materialCode: EGHP3013
+    plankID: "B001P1DP"
+  backPlank:
+    plankWidth: 584
+    plankHeight: 700
+    materialCode: NX2014
+    plankID: "B001P1BKP"
+  #left side Expose Right side Wall
+  leftPlank:
+    plankWidth: 528
+    plankHeight: 696
+    materialCode: EGHP3013
+    plankID: "B002P1LP"
+  rightPlank: 
+    plankWidth: 520
+    plankHeight: 698
+    materialCode: NX2014
+    plankID: "B002P1RP"
+  topPlank:
+    plankWidth: 520  
+    plankHeight: 562 
+    materialCode: NX2014
+    plankID: "B002P1TP"   
+  bottomPlank:
+    plankWidth: 520
+    plankHeight: 562
+    materialCode: NX2014
+    plankID: "B002P1BP"
+  doorPlank:
+    plankWidth: 594
+    plankHeight: 694
+    materialCode: EGHP3013
+    plankID: "B002P1DP"
+  backPlank:
+    plankWidth: 592
+    plankHeight: 700
+    materialCode: NX2014
+    plankID: "B002P1BKP"
+ #Right side Expose Left side Wall
+  leftPlank:
+    plankWidth: 520
+    plankHeight: 698
+    materialCode: NX2014
+    plankID: "B003P1LP"
+  rightPlank: 
+    plankWidth: 528
+    plankHeight: 696
+    materialCode: EGHP3013
+    plankID: "B003P1RP"
+  topPlank:
+    plankWidth: 520  
+    plankHeight: 562 
+    materialCode: NX2014
+    plankID: "B003P1TP"   
+  bottomPlank:
+    plankWidth: 520
+    plankHeight: 562
+    materialCode: NX2014
+    plankID: "B003P1BP"
+  doorPlank:
+    plankWidth: 594
+    plankHeight: 694
+    materialCode: EGHP3013
+    plankID: "B003P1DP"
+  backPlank:
+    plankWidth: 592
+    plankHeight: 700
+    materialCode: NX2014
+    plankID: "B003P1BKP"
+  #Right side Expose Left side Box
+  leftPlank:
+    plankWidth: 520
+    plankHeight: 698
+    materialCode: NX2014
+    plankID: "B004P1LP"
+  rightPlank: 
+    plankWidth: 528
+    plankHeight: 696
+    materialCode: EGHP3013
+    plankID: "B004P1RP"
+  topPlank:
+    plankWidth: 520  
+    plankHeight: 562 
+    materialCode: NX2014
+    plankID: "B004P1TP"   
+  bottomPlank:
+    plankWidth: 520
+    plankHeight: 562
+    materialCode: NX2014
+    plankID: "B004P1BP"
+  doorPlank:
+    plankWidth: 594
+    plankHeight: 694
+    materialCode: EGHP3013
+    plankID: "B004P1DP"
+  backPlank:
+    plankWidth: 592
+    plankHeight: 700
+    materialCode: NX2014
+    plankID: "B004P1BKP"
+   #left side Expose Right side Box
+  leftPlank:
+    plankWidth: 528
+    plankHeight: 696
+    materialCode: EGHP3013
+    plankID: "B005P1LP"
+  rightPlank: 
+    plankWidth: 520
+    plankHeight: 698
+    materialCode: NX2014
+    plankID: "B005P1RP"
+  topPlank:
+    plankWidth: 520  
+    plankHeight: 562 
+    materialCode: NX2014
+    plankID: "B005P1TP"   
+  bottomPlank:
+    plankWidth: 520
+    plankHeight: 562
+    materialCode: NX2014
+    plankID: "B005P1BP"
+  doorPlank:
+    plankWidth: 594
+    plankHeight: 694
+    materialCode: EGHP3013
+    plankID: "B005P1DP"
+  backPlank:
+    plankWidth: 592
+    plankHeight: 700
+    materialCode: NX2014
+    plankID: "B005P1BKP"
+   #Both side Wall
+  leftPlank:
+    plankWidth: 520
+    plankHeight: 698
+    materialCode: NX2014
+    plankID: "B006P1LP"
+  rightPlank:  
+    plankWidth: 520
+    plankHeight: 698
+    materialCode: NX2014
+    plankID: "B006P1RP"
+  topPlank:
+    plankWidth: 520  
+    plankHeight: 562 
+    materialCode: NX2014
+    plankID: "B006P1TP"   
+  bottomPlank:
+    plankWidth: 520
+    plankHeight: 562
+    materialCode: NX2014
+    plankID: "B006P1BP"
+  doorPlank:
+    plankWidth: 594
+    plankHeight: 694
+    materialCode: EGHP3013
+    plankID: "B006P1DP"
+  backPlank:
+    plankWidth: 600
+    plankHeight: 700
+    materialCode: NX2014
+    plankID: "B006P1BKP"
+   #Both side Box
+  leftPlank:
+    plankWidth: 520
+    plankHeight: 698
+    materialCode: NX2014
+    plankID: "B007P1LP"
+  rightPlank:  
+    plankWidth: 520
+    plankHeight: 698
+    materialCode: NX2014
+    plankID: "B007P1RP"
+  topPlank:
+    plankWidth: 520  
+    plankHeight: 562 
+    materialCode: NX2014
+    plankID: "B007P1TP"   
+  bottomPlank:
+    plankWidth: 520
+    plankHeight: 562
+    materialCode: NX2014
+    plankID: "B007P1BP"
+  doorPlank:
+    plankWidth: 594
+    plankHeight: 694
+    materialCode: EGHP3013
+    plankID: "B007P1DP"
+  backPlank:
+    plankWidth: 600
+    plankHeight: 700
+    materialCode: NX2014
+    plankID: "B007P1BKP"
+ #Right side Box Left Side Wall
+  leftPlank:
+    plankWidth: 520
+    plankHeight: 698
+    materialCode: NX2014
+    plankID: "B008P1LP"
+  rightPlank:  
+    plankWidth: 520
+    plankHeight: 698
+    materialCode: NX2014
+    plankID: "B008P1RP"
+  topPlank:
+    plankWidth: 520  
+    plankHeight: 562 
+    materialCode: NX2014
+    plankID: "B008P1TP"   
+  bottomPlank:
+    plankWidth: 520
+    plankHeight: 562
+    materialCode: NX2014
+    plankID: "B008P1BP"
+  doorPlank:
+    plankWidth: 594
+    plankHeight: 694
+    materialCode: EGHP3013
+    plankID: "B008P1DP"
+  backPlank:
+    plankWidth: 600
+    plankHeight: 700
+    materialCode: NX2014
+    plankID: "B008P1BKP"
+   #Left side Box Right Side Wall
+  leftPlank:
+    plankWidth: 520
+    plankHeight: 698
+    materialCode: NX2014
+    plankID: "B009P1LP"
+  rightPlank:  
+    plankWidth: 520
+    plankHeight: 698
+    materialCode: NX2014
+    plankID: "B009P1RP"
+  topPlank:
+    plankWidth: 520  
+    plankHeight: 562 
+    materialCode: NX2014
+    plankID: "B009P1TP"   
+  bottomPlank:
+    plankWidth: 520
+    plankHeight: 562
+    materialCode: NX2014
+    plankID: "B009P1BP"
+  doorPlank:
+    plankWidth: 594
+    plankHeight: 694
+    materialCode: EGHP3013
+    plankID: "B009P1DP"
+  backPlank:
+    plankWidth: 600
+    plankHeight: 700
+    materialCode: NX2014
+    plankID: "B009P1BKP"

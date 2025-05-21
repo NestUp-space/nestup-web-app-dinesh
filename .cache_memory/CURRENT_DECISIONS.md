@@ -43,14 +43,33 @@ Initiate investigation into backend input validation failure.
 **Rationale:**
 The 400 error with message "Input validation failed" indicates a mismatch between the data sent by the frontend and the expectations defined in the backend's DTO validation schemas.
 **Affected Files/Modules (Initial Investigation Scope):**
-*   `backend/src/catalogue/dtos/project-model-instance.dto.ts` (to check Zod schemas)
-*   `backend/src/catalogue/routes/project-model-instance.routes.ts` (to see how `validateRequest` middleware is used)
-*   Frontend code sending the request (e.g., `ModelSelector.tsx`)
+
+* `backend/src/catalogue/dtos/project-model-instance.dto.ts` (to check Zod schemas)
+* `backend/src/catalogue/routes/project-model-instance.routes.ts` (to see how `validateRequest` middleware is used)
+* Frontend code sending the request (e.g., `ModelSelector.tsx`)
 **Follow-up Actions:**
-*   Request detailed validation error messages from the user.
-*   Read `project-model-instance.dto.ts`.
-*   Compare frontend payload with backend schemas.
-*   Formulate and implement a fix.
-*   Archive this decision to `DECISION_LOG.md` in LTM upon successful resolution.
+* Request detailed validation error messages from the user.
+* Read `project-model-instance.dto.ts`.
+* Compare frontend payload with backend schemas.
+* Formulate and implement a fix.
+* Archive this decision to `DECISION_LOG.md` in LTM upon successful resolution.
+
+---
+
+**Decision ID:** 20250520-005
+**Timestamp:** 2025-05-20, 22:00
+**Task/Issue:** Fix Plank Generation Logic for Simple Box Model in `Reference/BasicBox.yaml`.
+**Decision Made:**
+User confirmed that their updated version of `Reference/BasicBox.yaml` is correct and user-friendly. No code changes were applied by Cline to this file in the final resolution of this task. The task is considered complete based on user verification of their own file version.
+**Rationale:**
+The user indicated satisfaction with their version of `Reference/BasicBox.yaml` after previous discussions and analysis. The primary goal was to ensure the logic aligns with `Reference/TestCase.yaml` and respects the calculation sequence (materials determined before dimensions). Since the user verified their version meets these criteria, no further modifications by Cline were necessary.
+**Affected Files/Modules:**
+
+* `Reference/BasicBox.yaml` (Reviewed, user-updated version considered final)
+* `Reference/TestCase.yaml` (Reference for inputs/outputs)
+**Follow-up Actions:**
+* Updated work ticket (Ticket 5) to "Completed".
+* Updated `.cache_memory/CURRENT_CONTEXT.md` and `.cache_memory/CURRENT_TODO.md`.
+* This decision (20250520-005) will be archived to `.long_term_memory/DECISION_LOG.md`.
 
 ---

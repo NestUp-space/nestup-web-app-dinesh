@@ -107,6 +107,7 @@ export default function ProjectDetailPage() {
         tasks={project.tasks} 
         formatDate={formatDate}
         project={project} // Pass the full project object
+        onTaskUpdate={refetch} // Pass refetch to handle task updates
       />
 
       {/* Modals */}

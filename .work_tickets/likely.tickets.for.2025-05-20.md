@@ -9,6 +9,7 @@ A runtime error "Error: Failed to parse src "url" on `next/image`..." was occurr
 Modify `ModelCatalogueCard.tsx` to preprocess `model.imageUrl`. If it's a relative path not starting with `/` (and not an absolute HTTP/HTTPS URL), prepend a `/`. Use this corrected URL for the `next/image` component.
 
 **Timestamps:**
+
 - Created: 2025-05-20 18:52:00
 - Updated: 2025-05-20 18:52:00
 
@@ -18,6 +19,7 @@ Modify `ModelCatalogueCard.tsx` to preprocess `model.imageUrl`. If it's a relati
 **Assigned by:** user (via error report)
 
 **Updates:**
+
 - 2025-05-20 18:51:56: Code modification applied to `frontend/src/components/dashboard/catalogue/ModelCatalogueCard.tsx`.
 
 ---
@@ -28,11 +30,13 @@ Modify `ModelCatalogueCard.tsx` to preprocess `model.imageUrl`. If it's a relati
 A runtime error `TypeError: _ModelBuilderForm__WEBPACK_IMPORTED_MODULE_3__.BomItemType is undefined` was occurring on the `/dashboard/catalogue/new` page. This was caused by a circular dependency where `ModelBuilderForm.tsx` imported `BillOfMaterialListEditor.tsx`, which in turn imported `BomItemType` from `ModelBuilderForm.tsx`. Subsequent import errors also appeared in other files (`useCatalogue.ts`, `app/.../new/page.tsx`) due to incorrect import paths after `BomItemType` was moved.
 
 **Task:**
-1.  Create a new file `frontend/src/components/dashboard/model-management/modelSchemas.ts`.
-2.  Move shared Zod schemas and enums (including `BomItemType`, `ModelInputParameterSchema`, `DiscriminatedBomItemSchema`, etc.) from `ModelBuilderForm.tsx` to `modelSchemas.ts`.
-3.  Update import statements in `ModelBuilderForm.tsx`, `BillOfMaterialListEditor.tsx`, `BomItem.tsx`, `frontend/src/app/dashboard/catalogue/new/page.tsx`, and `frontend/src/hooks/useCatalogue.ts` to reference `modelSchemas.ts` for these shared definitions.
+
+1. Create a new file `frontend/src/components/dashboard/model-management/modelSchemas.ts`.
+2. Move shared Zod schemas and enums (including `BomItemType`, `ModelInputParameterSchema`, `DiscriminatedBomItemSchema`, etc.) from `ModelBuilderForm.tsx` to `modelSchemas.ts`.
+3. Update import statements in `ModelBuilderForm.tsx`, `BillOfMaterialListEditor.tsx`, `BomItem.tsx`, `frontend/src/app/dashboard/catalogue/new/page.tsx`, and `frontend/src/hooks/useCatalogue.ts` to reference `modelSchemas.ts` for these shared definitions.
 
 **Timestamps:**
+
 - Created: 2025-05-20 19:15:00
 - Updated: 2025-05-20 19:15:00
 
@@ -42,6 +46,7 @@ A runtime error `TypeError: _ModelBuilderForm__WEBPACK_IMPORTED_MODULE_3__.BomIt
 **Assigned by:** user (via error report)
 
 **Updates:**
+
 - 2025-05-20 18:55 - 19:15: Identified root cause, planned solution, created `modelSchemas.ts`, moved definitions, and updated all affected import paths. Frontend dev server compiled successfully after changes.
 
 ---
@@ -55,6 +60,7 @@ A 404 Not Found error was occurring for the API endpoint `GET /api/catalogue/pro
 Modify `frontend/src/app/dashboard/projects/[id]/components/ProjectDetails.tsx` to use the correct API endpoint: `/api/projects/${project.id}/model-instances`.
 
 **Timestamps:**
+
 - Created: 2025-05-20 20:03:00
 - Updated: 2025-05-20 20:03:00
 
@@ -64,6 +70,7 @@ Modify `frontend/src/app/dashboard/projects/[id]/components/ProjectDetails.tsx` 
 **Assigned by:** user (via error report)
 
 **Updates:**
+
 - 2025-05-20 20:05: Corrected API endpoint in `frontend/src/app/dashboard/projects/[id]/components/ProjectDetails.tsx`.
 
 ---
@@ -76,11 +83,13 @@ The 404 was due to `projectModelInstanceRouter` not being mounted.
 The 400 is due to a mismatch between the route parameter name (`:id`) defined in `project.routes.ts` and what the DTOs/controller for model instances expected (`projectId`).
 
 **Task:**
-1.  Modify `backend/src/routes/project.routes.ts` to mount `projectModelInstanceRouter`. (Done - led to 400 error)
-2.  Modify `backend/src/catalogue/dtos/project-model-instance.dto.ts`: Change `params: z.object({ projectId: ... })` to `params: z.object({ id: ... })` in relevant schemas.
-3.  Modify `backend/src/catalogue/controllers/project-model-instance.controller.ts`: Update controller functions to use `req.params.id` (parsed as `projectIdStr`) instead of `req.params.projectId`.
+
+1. Modify `backend/src/routes/project.routes.ts` to mount `projectModelInstanceRouter`. (Done - led to 400 error)
+2. Modify `backend/src/catalogue/dtos/project-model-instance.dto.ts`: Change `params: z.object({ projectId: ... })` to `params: z.object({ id: ... })` in relevant schemas.
+3. Modify `backend/src/catalogue/controllers/project-model-instance.controller.ts`: Update controller functions to use `req.params.id` (parsed as `projectIdStr`) instead of `req.params.projectId`.
 
 **Timestamps:**
+
 - Created: 2025-05-20 20:28:00 (as 404 fix)
 - Updated: 2025-05-20 21:00:00 (to reflect 400 error and subsequent fixes)
 
@@ -90,8 +99,38 @@ The 400 is due to a mismatch between the route parameter name (`:id`) defined in
 **Assigned by:** user (via error report)
 
 **Updates:**
+
 - 2025-05-20 20:41: Mounted `projectModelInstanceRouter` in `project.routes.ts`.
 - 2025-05-20 21:00: Updated DTOs in `project-model-instance.dto.ts` to expect `params.id`.
 - 2025-05-20 21:00: Updated controller `project-model-instance.controller.ts` to use `req.params.id`.
+
+---
+
+## Ticket 5: Fix Plank Generation Logic for Simple Box Model
+
+**Status:** Completed
+**Description:** The plank generation logic in `Reference/BasicBox.yaml` was reviewed and confirmed by the user to be in the desired state, aligning with `Reference/TestCase.yaml` and adhering to the principle of calculating material properties before dimensions. No code changes were ultimately applied by Cline in this session as the user finalized the `BasicBox.yaml` content.
+**Affected Files:**
+
+- `Reference/BasicBox.yaml` (Reviewed, user-updated version considered final)
+- `Reference/TestCase.yaml` (Used for input and expected output reference)
+**Key Outcome:**
+- User confirmed the current state of `Reference/BasicBox.yaml` is correct and user-friendly.
+- The logic within `Reference/BasicBox.yaml` is understood to correctly produce the expected plank list based on test case inputs.
+- The structure of the logic supports the "materials first, then dimensions" calculation sequence by the processing engine.
+**Steps Taken:**
+
+1. Read `Reference/BasicBox.yaml` (user-updated version).
+2. Analyzed its logic against `Reference/TestCase.yaml` and user requirements.
+3. Confirmed with user that no further changes to `Reference/BasicBox.yaml` were needed.
+4. Updated memory files and documentation.
+**Timestamps:**
+
+- Created: 2025-05-20 (approx. 21:25)
+- Updated: 2025-05-20 (approx. 22:00) - Task completion confirmed by user.
+**Assigned to:** cline
+**Assigned by:** user
+**Updates:**
+- 2025-05-20: User confirmed `Reference/BasicBox.yaml` is in the desired state. Task moved to documentation and completion.
 
 ---

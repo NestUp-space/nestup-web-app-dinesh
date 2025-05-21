@@ -1,0 +1,56 @@
+# Test case 2
+inputParameters: # Or consider renaming to configurableProperties or userSettings
+  - inputName: "boxHeight"
+    value: "700" # Default value if not specified by user
+  - inputName: "boxWidth"
+    value: "600"
+  - inputName: "boxDepth"
+    value: "550"
+  - inputName: "leftAdjacency"
+    value: "Expose"
+  - inputName: "rightAdjacency"
+    
+    value: "Expose"
+   
+  - inputName: "exposeMaterialCode"
+    value: "thickness=18, material code= expose1, grain= Y, plyType= Plywood, innerLaminate=NX2014, Outerlaminate=EHGP3013"
+
+  - inputName: "innerMaterialCode"
+    value:  "thickness=18, material code= inner2, grain= Y, plyType= Plywood, innerLaminate=NX2014, Outerlaminate=NX2014"
+  - inputName: "backMaterialCode"
+    value:  "thickness=18, material code= Back1, grain= Y, plyType= Plywood, innerLaminate=NX2014, Outerlaminate=NX2014"
+
+# Bill of Materials: List of parts (planks) required to build the box
+billOfMaterials: # Renamed from bomItems
+  #Both sides Expose
+  leftPlank:
+    plankWidth: 528
+    plankHeight: 696
+    materialCode: EGHP3013
+    plankID: "B001P1LP"
+  rightPlank:
+    plankWidth: 528
+    plankHeight: 696
+    materialCode: EGHP3013
+    plankID: "B001P1RP"
+  topPlank:
+    plankWidth: 520  
+    plankHeight: 562 
+    materialCode: NX2014
+    plankID: "B001P1TP"   
+  bottomPlank:
+    plankWidth: 520
+    plankHeight: 562
+    materialCode: NX2014
+    plankID: "B001P1BP"
+  doorPlank:
+    plankWidth: 596
+    plankHeight: 696
+    materialCode: EGHP3013
+    plankID: "B001P1DP"
+  backPlank:
+    plankWidth: 584
+    plankHeight: 700
+    materialCode: NX2014
+    plankID: "B001P1BKP"
+ 

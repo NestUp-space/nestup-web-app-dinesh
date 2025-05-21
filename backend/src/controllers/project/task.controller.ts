@@ -9,6 +9,9 @@ import { taskService } from '../../services/project';
 import { UpdateTaskDto } from '../../dtos/project.dto';
 import { CustomRequest } from '../../middlewares/auth.middleware'; // Import CustomRequest
 import { TaskTemplate } from '../../types/projectTemplate.types'; // Import TaskTemplate
+import prisma from '../../config/db'; // Import prisma client
+import { User as PrismaUser, UserRole, RolePermissionMapping, UserPermission as PrismaUserPermission } from '@prisma/client'; // Import PrismaUser types
+
 
 // Removed local AuthenticatedRequest interface
 
@@ -157,7 +160,28 @@ export class TaskController {
         return;
       }
 
-      await taskService.updateTaskStatus(taskId, statusId);
+      // Fetch full user object for permission check
+      const fullCurrentUser = await prisma.user.findUnique({
+        where: { id: customReq.user.id },
+        include: {
+          role: {
+            include: {
+              roleMappings: {
+                include: {
+                  permission: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!fullCurrentUser) {
+        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'User details not found for permission check.' });
+        return;
+      }
+
+      await taskService.updateTaskStatus(taskId, statusId, fullCurrentUser as PrismaUser & { role: UserRole & { roleMappings: (RolePermissionMapping & { permission: PrismaUserPermission })[] } });
       res.status(StatusCodes.OK).json({ message: 'Task status updated successfully' });
     } catch (error) {
       res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });

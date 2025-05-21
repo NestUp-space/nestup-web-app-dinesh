@@ -7,6 +7,7 @@ import { validateProjectStatusTransition } from '../middlewares/validateProjectS
 import type { Request, Response, NextFunction } from 'express';
 import type { CustomRequest } from '../middlewares/auth.middleware';
 import projectModelInstanceRouter from '../catalogue/routes/project-model-instance.routes';
+import taskRouter from './task.routes'; // Import the new task router
 
 const router = express.Router();
 
@@ -87,5 +88,9 @@ router.post('/:id/materials',
 
 // Project model instances management
 router.use('/:id/model-instances', projectModelInstanceRouter);
+
+// Mount task router for project-specific tasks
+// :id here will be projectId, accessible in taskRouter via req.params.projectId due to mergeParams
+router.use('/:id/tasks', taskRouter); 
 
 export default router;

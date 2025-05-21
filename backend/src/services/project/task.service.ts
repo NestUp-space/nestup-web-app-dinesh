@@ -3,11 +3,13 @@
  * Handles business logic for tasks
  */
 
-import { Task, Subtask } from '@prisma/client'; // Added Subtask
+import { Task, Subtask, User as PrismaUser, UserRole, RolePermissionMapping, UserPermission as PrismaUserPermission } from '@prisma/client'; // Added Subtask, PrismaUser types
 import { CreateTaskDto, TaskResponseDto, UpdateTaskDto, UpdateSubtaskDto, CreateSubtaskDto } from '../../dtos/project.dto'; // Added UpdateSubtaskDto, CreateSubtaskDto
 import { ITaskRepository, taskRepository } from '../../repositories/task.repository';
 import { TaskWithSubtasks } from '../../types/project.types';
 import { TaskTemplate } from '../../types/projectTemplate.types'; // Import type for template items
+import { PERMISSIONS } from '../../constants/permissions'; // Import PERMISSIONS
+import { ForbiddenError, NotFoundError } from '../../common/errors/customErrors'; // Assuming custom errors
 export class TaskService {
   constructor(
     private taskRepository: ITaskRepository
@@ -111,10 +113,47 @@ export class TaskService {
   }
 
   /**
-   * Updates a task's status by ID
+   * Updates a task's status by ID, with permission check
    */
-  async updateTaskStatus(taskId: number, newStatusId: number): Promise<TaskWithSubtasks> {
-    return this.taskRepository.updateStatus(taskId, newStatusId);
+  async updateTaskStatus(
+    taskId: number, 
+    newStatusId: number, 
+    currentUser: PrismaUser & { role: UserRole & { roleMappings: (RolePermissionMapping & { permission: PrismaUserPermission })[] } }
+  ): Promise<TaskWithSubtasks> {
+    const task = await this.taskRepository.findById(taskId);
+    if (!task) {
+      throw new NotFoundError(`Task with ID ${taskId} not found.`);
+    }
+
+    let requiredPermission: string | null = null;
+    if (task.uploaderRole === 'Client') {
+      requiredPermission = PERMISSIONS.TASKS.UPDATE_STATUS_AS_CLIENT;
+    } else if (task.uploaderRole === 'BIM Engineer') {
+      requiredPermission = PERMISSIONS.TASKS.UPDATE_STATUS_AS_BIM_ENGINEER;
+    }
+    // Add more mappings if other uploaderRoles are introduced
+
+    const userPermissions = currentUser.role.roleMappings.map(rm => rm.permission.permission);
+    const canUpdateAny = userPermissions.includes(PERMISSIONS.TASKS.UPDATE_STATUS_ANY);
+    
+    if (!canUpdateAny && (!requiredPermission || !userPermissions.includes(requiredPermission))) {
+      throw new ForbiddenError(`User does not have permission to update status for this task type (uploaderRole: ${task.uploaderRole}).`);
+    }
+    
+    // Logic to check if all subtasks are completed before marking task as completed
+    // This should ideally be fetched from a constant or configuration
+    const COMPLETED_STATUS_ID = 3; // Assuming 'Completed' status has ID 3
+    if (newStatusId === COMPLETED_STATUS_ID) {
+        if (task.subtasks && task.subtasks.length > 0) {
+            const allSubtasksCompleted = task.subtasks.every(st => st.completed);
+            if (!allSubtasksCompleted) {
+                throw new Error('Cannot mark task as completed: Not all subtasks are completed.');
+            }
+        }
+    }
+
+
+    return this.taskRepository.updateStatus(taskId, newStatusId, currentUser.id);
   }
 
   /**
@@ -123,7 +162,8 @@ export class TaskService {
    */
   async updateSubtaskAndPotentiallyParent(
     subtaskId: number,
-    subtaskData: UpdateSubtaskDto
+    subtaskData: UpdateSubtaskDto,
+    currentUser: PrismaUser & { role: UserRole & { roleMappings: (RolePermissionMapping & { permission: PrismaUserPermission })[] } } // Added currentUser
   ): Promise<{ task: TaskWithSubtasks | null; subtask: Subtask }> {
     if (!this._subtaskService) {
       throw new Error('SubtaskService not injected into TaskService.');
@@ -142,7 +182,8 @@ export class TaskService {
         if (parentTask.statusId !== COMPLETED_STATUS_ID) { 
           // Check if the task itself has any other conditions before marking complete (e.g. direct files, etc)
           // For now, if all subtasks are done, we mark the task done.
-          parentTask = await this.updateTaskStatus(parentTask.id, COMPLETED_STATUS_ID);
+          // Pass currentUser to updateTaskStatus
+          parentTask = await this.updateTaskStatus(parentTask.id, COMPLETED_STATUS_ID, currentUser);
         }
       }
     }

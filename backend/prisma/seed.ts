@@ -124,6 +124,37 @@ async function main() {
   });
   console.log(`UserRole "BIM_ENGINEER" (ID: ${bimEngineerRole.id}) ensured.`);
 
+  // --- Seed "Client" Role ---
+  const clientRole = await prisma.userRole.upsert({
+    where: { role: 'CLIENT' },
+    update: { roleType: 'EXTERNAL' },
+    create: {
+      role: 'CLIENT',
+      roleType: 'EXTERNAL',
+    },
+  });
+  console.log(`UserRole "CLIENT" (ID: ${clientRole.id}) ensured.`);
+
+  // --- Map specific task permissions to roles ---
+  const taskUpdateAsClientPerm = allPermissionsInDb.find(p => p.permission === 'tasks.update_status_as_client');
+  if (clientRole && taskUpdateAsClientPerm) {
+    await prisma.rolePermissionMapping.upsert({
+      where: { roleId_permissionId: { roleId: clientRole.id, permissionId: taskUpdateAsClientPerm.id } },
+      update: {},
+      create: { roleId: clientRole.id, permissionId: taskUpdateAsClientPerm.id },
+    });
+    console.log(`Permission "tasks.update_status_as_client" mapped to role "CLIENT".`);
+  }
+
+  const taskUpdateAsBimPerm = allPermissionsInDb.find(p => p.permission === 'tasks.update_status_as_bim_engineer');
+  if (bimEngineerRole && taskUpdateAsBimPerm) {
+    await prisma.rolePermissionMapping.upsert({
+      where: { roleId_permissionId: { roleId: bimEngineerRole.id, permissionId: taskUpdateAsBimPerm.id } },
+      update: {},
+      create: { roleId: bimEngineerRole.id, permissionId: taskUpdateAsBimPerm.id },
+    });
+    console.log(`Permission "tasks.update_status_as_bim_engineer" mapped to role "BIM_ENGINEER".`);
+  }
 
   // --- Seed "Simple Box" ModelDefinition (UPDATED as per your request) ---
   const simpleBoxModelName = 'Simple Box';
