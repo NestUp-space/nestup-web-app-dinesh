@@ -24,7 +24,7 @@ router.use(isAuthenticated);
 // Project list and search
 router.get('/', 
   hasPermission(PERMISSIONS.PROJECTS.VIEW),
-  ProjectController.getProjects
+  handleCustomRequest(ProjectController.getProjects)
 );
 
 // Create new project
