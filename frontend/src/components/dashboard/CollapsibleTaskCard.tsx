@@ -215,7 +215,6 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
                 </span>
               );
             })()}
-            {task.uploaderRole && <span className="text-xs text-gray-500"> (Initiated by: {task.uploaderRole})</span>}
           </div>
         </div>
         
