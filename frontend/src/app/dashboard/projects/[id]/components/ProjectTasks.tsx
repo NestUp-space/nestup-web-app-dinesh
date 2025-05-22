@@ -23,6 +23,14 @@ export const ProjectTasks: React.FC<ProjectTasksProps> = ({
   project,
   onTaskUpdate // Destructure onTaskUpdate
 }) => {
+  // Sort tasks by sequenceIndex if available, otherwise maintain current order (which might be by createdAt or API default)
+  const sortedTasks = React.useMemo(() => {
+    if (tasks && tasks.length > 0 && tasks.every(task => typeof task.sequenceIndex === 'number')) {
+      return [...tasks].sort((a, b) => (a.sequenceIndex as number) - (b.sequenceIndex as number));
+    }
+    return tasks; // Fallback to original order if sequenceIndex is not consistently present
+  }, [tasks]);
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -35,7 +43,7 @@ export const ProjectTasks: React.FC<ProjectTasksProps> = ({
           {/* This is a simplified line; a more robust solution might draw segments between items */}
           {/* <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-300"></div> */}
 
-          {tasks.map((task, index) => {
+          {sortedTasks.map((task, index) => {
             const statusText = task.status?.status || 'N/A';
             let circleColor = 'bg-gray-400'; // Default for Not Started / Draft
             let lineColor = 'bg-gray-300'; // Default line color
@@ -64,7 +72,7 @@ export const ProjectTasks: React.FC<ProjectTasksProps> = ({
                 <div className="flex flex-col items-center mr-4">
                   {/* Top connector line (conditionally rendered for tasks after the first) */}
                   {index > 0 && (
-                    <div className={`w-0.5 h-6 ${tasks[index-1].status?.status === 'Completed' ? 'bg-green-500' : (tasks[index-1].status?.status === 'Active' ? 'bg-orange-500' : 'bg-gray-300')}`}></div>
+                    <div className={`w-0.5 h-6 ${sortedTasks[index-1].status?.status === 'Completed' ? 'bg-green-500' : (sortedTasks[index-1].status?.status === 'Active' ? 'bg-orange-500' : 'bg-gray-300')}`}></div>
                   )}
                   
                   {/* Circle/Icon */}
@@ -73,7 +81,7 @@ export const ProjectTasks: React.FC<ProjectTasksProps> = ({
                   </div>
 
                   {/* Bottom connector line (not for the last task) */}
-                  {index < tasks.length - 1 && (
+                  {index < sortedTasks.length - 1 && (
                     <div className={`w-0.5 flex-grow ${lineColor}`}></div>
                   )}
                 </div>

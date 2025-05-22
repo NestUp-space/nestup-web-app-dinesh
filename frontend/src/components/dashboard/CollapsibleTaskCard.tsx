@@ -33,6 +33,7 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
   const [isOpen, setIsOpen] = useState(false);
   const [currentSubtasks, setCurrentSubtasks] = useState<Subtask[]>(task.subtasks || []);
   const [newSubtaskName, setNewSubtaskName] = useState('');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false); // For loading state
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const { user: currentUser, hasPermission: userHasPermission } = useUser();
   const { refetch: refetchProjectHook } = useProjectHook(project?.id.toString() || null);
@@ -54,6 +55,7 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
       alert("Project details or authentication token not found.");
       return;
     }
+    setIsUpdatingStatus(true);
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects/${project.id}/tasks/${task.id}/status`, {
         method: 'PATCH',
@@ -65,7 +67,7 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
       });
 
       if (response.ok) {
-        alert('Task status updated successfully!');
+        // alert('Task status updated successfully!'); // Consider using a toast notification system instead of alert
         if (onTaskUpdate) {
           onTaskUpdate();
         } else if (refetchProjectHook) {
@@ -78,6 +80,8 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
     } catch (error) {
       console.error('Failed to update task status:', error);
       alert(`Failed to update task status: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -248,40 +252,57 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
           <div className="flex items-center mt-1">
             {(() => {
               const statusText = task.status?.status || 'N/A';
-              const isProjectManager = currentUser?.role?.role === 'Project Manager';
-              const canUpdateAny = userHasPermission(FE_PERMISSIONS.TASKS.UPDATE_STATUS_ANY);
-              const canPMUpdateThisTask = isProjectManager && canUpdateAny && project && task.status?.status !== 'Completed';
+              const isTaskModifiable = project && task.status?.status !== 'Completed';
+
+              const canUserUpdateThisTaskStatus = isTaskModifiable && (
+                (currentUser?.role?.role === 'Project Manager' && userHasPermission(FE_PERMISSIONS.TASKS.UPDATE_STATUS_ANY)) ||
+                userHasPermission(FE_PERMISSIONS.TASKS.UPDATE_STATUS_ANY) || // General permission for anyone
+                (task.uploaderRole === 'Client' && userHasPermission(FE_PERMISSIONS.TASKS.UPDATE_STATUS_AS_CLIENT)) ||
+                (task.uploaderRole === 'BIM Engineer' && userHasPermission(FE_PERMISSIONS.TASKS.UPDATE_STATUS_AS_BIM_ENGINEER))
+              );
 
               let icon = <MinusCircle size={16} className="mr-1.5 text-gray-500" />;
               let textColor = 'text-gray-700';
-              let bgColor = 'bg-gray-100';
+              let bgColor = 'bg-gray-100'; // Base background for button
+              let hoverBgColor = 'hover:bg-gray-200'; // Base hover for button
 
               if (statusText === 'Completed') {
                 icon = <CheckCircle size={16} className="mr-1.5 text-green-500" />;
-                textColor = 'text-green-700'; bgColor = 'bg-green-100';
+                textColor = 'text-green-700'; bgColor = 'bg-green-100'; hoverBgColor = 'hover:bg-green-200';
               } else if (statusText === 'Active') {
-                icon = <Loader2 size={16} className="mr-1.5 text-orange-500 animate-spin" />;
-                textColor = 'text-orange-700'; bgColor = 'bg-orange-100';
+                icon = isUpdatingStatus ? <Loader2 size={16} className="mr-1.5 text-orange-500 animate-spin" /> : <Loader2 size={16} className="mr-1.5 text-orange-500 animate-spin" />; // Keep spinning for active
+                textColor = 'text-orange-700'; bgColor = 'bg-orange-100'; hoverBgColor = 'hover:bg-orange-200';
               } else if (statusText === 'Draft') {
-                icon = <Circle size={16} className="mr-1.5 text-gray-500" />;
-                textColor = 'text-gray-700'; bgColor = 'bg-gray-100';
+                icon = isUpdatingStatus ? <Loader2 size={16} className="mr-1.5 text-gray-500 animate-spin" /> : <Circle size={16} className="mr-1.5 text-gray-500" />;
+                textColor = 'text-gray-700'; bgColor = 'bg-gray-100'; hoverBgColor = 'hover:bg-gray-200';
               } else if (statusText === 'Pending') {
-                icon = <Loader2 size={16} className="mr-1.5 text-blue-500 animate-spin" />;
-                textColor = 'text-blue-700'; bgColor = 'bg-blue-100';
+                icon = isUpdatingStatus ? <Loader2 size={16} className="mr-1.5 text-blue-500 animate-spin" /> : <Loader2 size={16} className="mr-1.5 text-blue-500 animate-spin" />; // Keep spinning for pending
+                textColor = 'text-blue-700'; bgColor = 'bg-blue-100'; hoverBgColor = 'hover:bg-blue-200';
               }
-
-              const statusElement = (
-                <span className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full mr-2 ${bgColor} ${textColor} ${canPMUpdateThisTask ? 'cursor-pointer hover:opacity-80' : ''}`}>
-                  {icon}
+              
+              const buttonBaseClasses = `inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full mr-2 transition-colors duration-150 ease-in-out`;
+              const buttonClasses = `${buttonBaseClasses} ${bgColor} ${textColor} ${canUserUpdateThisTaskStatus ? `${hoverBgColor} cursor-pointer` : 'cursor-not-allowed opacity-75'}`;
+              
+              const statusButtonContent = (
+                <>
+                  {isUpdatingStatus && statusText !== 'Active' && statusText !== 'Pending' ? <Loader2 size={16} className="mr-1.5 animate-spin" /> : icon}
                   {statusText}
-                </span>
+                  {canUserUpdateThisTaskStatus && <ChevronDown size={14} className="ml-1.5" />}
+                </>
               );
 
-              if (canPMUpdateThisTask) {
+              if (canUserUpdateThisTaskStatus) {
                 return (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      {statusElement}
+                      <Button
+                        variant="ghost" // Use ghost or a custom variant to better control background
+                        size="sm" // Adjust size as needed, "sm" is usually good for this
+                        className={buttonClasses}
+                        disabled={isUpdatingStatus}
+                      >
+                        {statusButtonContent}
+                      </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       {renderStatusUpdateDropdownItems()}
@@ -289,57 +310,34 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
                   </DropdownMenu>
                 );
               }
-              return statusElement;
+              
+              // Render as a non-interactive button/span if not updatable
+              return (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={buttonClasses}
+                  disabled
+                  aria-disabled="true"
+                >
+                   {icon}
+                   {statusText}
+                </Button>
+              );
             })()}
           </div>
         </div>
-        
-        {(() => {
-          const isProjectManager = currentUser?.role?.role === 'Project Manager';
-          const canUpdateAny = userHasPermission(FE_PERMISSIONS.TASKS.UPDATE_STATUS_ANY);
-          const canPMUpdateThisTask = isProjectManager && canUpdateAny;
-
-          // If PM can update via clickable status, don't show separate edit icon for PM
-          if (canPMUpdateThisTask) return null;
-
-
-          let requiredPermissionForTaskType = '';
-          if (task.uploaderRole === 'Client') {
-            requiredPermissionForTaskType = FE_PERMISSIONS.TASKS.UPDATE_STATUS_AS_CLIENT;
-          } else if (task.uploaderRole === 'BIM Engineer') {
-            requiredPermissionForTaskType = FE_PERMISSIONS.TASKS.UPDATE_STATUS_AS_BIM_ENGINEER;
-          }
-
-          const canUpdateThisTaskByRole = userHasPermission(FE_PERMISSIONS.TASKS.UPDATE_STATUS_ANY) || 
-                                   (requiredPermissionForTaskType && userHasPermission(requiredPermissionForTaskType));
-          
-          // Show edit icon for non-PMs who have permission, or for PMs if the clickable status is somehow not available (fallback)
-          if (canUpdateThisTaskByRole && project && task.status?.status !== 'Completed') { 
-            return (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="ml-2 h-7 w-7">
-                    <Edit size={14} />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {renderStatusUpdateDropdownItems()}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            );
-          }
-          return null;
-        })()}
-        
+        {/* The separate Edit button DropdownMenu is removed as its functionality is merged */}
         <Button variant="ghost" size="sm" onClick={() => setIsOpen(!isOpen)} className="ml-auto">
           {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
         </Button>
       </div>
-      <p className="text-sm text-gray-500 mb-1">Created: {formatDate(task.createdAt)}</p>
-      <p className="text-sm text-gray-500">Last Updated: {formatDate(task.updatedAt)}</p>
+      
 
       {isOpen && (
         <div className="mt-4 pt-4 border-t border-gray-200">
+          <p className="text-xs text-gray-500 mb-1">Created: {formatDate(task.createdAt)}</p>
+      <p className="text-xs text-gray-500">Last Updated: {formatDate(task.updatedAt)}</p>
           <h4 className="text-md font-semibold text-gray-700 mb-3">Actions / Subtasks:</h4>
           {currentSubtasks.length > 0 ? (
             <ul className="space-y-3">

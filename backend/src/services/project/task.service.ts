@@ -8,7 +8,8 @@ import { CreateTaskDto, TaskResponseDto, UpdateTaskDto, UpdateSubtaskDto, Create
 import { ITaskRepository, taskRepository } from '../../repositories/task.repository';
 import { TaskWithSubtasks, SubtaskWithoutRelations } from '../../types/project.types';
 import { TaskTemplate } from '../../types/projectTemplate.types'; // Import type for template items
-import { defaultProjectTaskTemplates } from '../../constants/projectTaskTemplate'; // Import task template for order
+// Corrected import path for defaultProjectTaskTemplates
+import { defaultProjectTaskTemplates } from '../../constants/projectTaskTemplate'; 
 import { PERMISSIONS } from '../../constants/permissions'; // Import PERMISSIONS
 import { ForbiddenError, NotFoundError } from '../../common/errors/customErrors'; // Assuming custom errors
 export class TaskService {
@@ -32,12 +33,17 @@ export class TaskService {
       throw new Error('Invalid task template item provided to TaskService.createTaskFromTemplate');
     }
 
+    const sequenceIndex = defaultProjectTaskTemplates.findIndex(
+      (template) => template.stage === taskTemplateItem.stage && template.taskName === taskTemplateItem.taskName
+    );
+
     const taskDataToCreate: CreateTaskDto = {
       projectId: projectId,
       name: taskTemplateItem.taskName,
       stage: taskTemplateItem.stage,
       statusId: taskTemplateItem.statusId || 1, // Default to statusId 1 (e.g., 'Pending')
       uploaderRole: taskTemplateItem.uploaderRole,
+      sequenceIndex: sequenceIndex !== -1 ? sequenceIndex : undefined, // Add sequenceIndex
       viewerRoles: Array.isArray(taskTemplateItem.viewerRoles)
         ? taskTemplateItem.viewerRoles.join(',')
         : taskTemplateItem.viewerRoles,

@@ -38,6 +38,10 @@ export class TaskRepository implements ITaskRepository {
       uploaderRole: data.uploaderRole,
     };
 
+    if (data.sequenceIndex !== undefined) {
+      createData.sequenceIndex = data.sequenceIndex;
+    }
+
     // Add metadataJson if it exists
     if (data.metadataJson !== undefined) {
       createData.metadataJson = data.metadataJson;
@@ -70,7 +74,7 @@ export class TaskRepository implements ITaskRepository {
     const tasks = await this.prisma.task.findMany({
       where,
       include: include || defaultInclude,
-      orderBy: orderBy || { createdAt: 'asc' }
+      orderBy: orderBy || ({ sequenceIndex: 'asc' } as any) // Order by sequenceIndex and cast to any
     });
     
     // Type assertion is necessary because Prisma's return type doesn't match our interface exactly
@@ -80,7 +84,7 @@ export class TaskRepository implements ITaskRepository {
   async findById(id: number, include?: Prisma.TaskInclude): Promise<TaskWithSubtasks | null> {
     const defaultInclude: Prisma.TaskInclude = {
       status: true,
-      subtasks: { orderBy: { createdAt: 'asc' } }
+      subtasks: { orderBy: { createdAt: 'asc' } } // Subtasks can maintain createdAt order for now
     };
 
     const task = await this.prisma.task.findUnique({
@@ -100,6 +104,7 @@ export class TaskRepository implements ITaskRepository {
     if (data.stage !== undefined) updateData.stage = data.stage;
     if (data.uploaderRole !== undefined) updateData.uploaderRole = data.uploaderRole;
     if (data.metadataJson !== undefined) updateData.metadataJson = data.metadataJson;
+    if (data.sequenceIndex !== undefined) updateData.sequenceIndex = data.sequenceIndex;
     
     // Handle viewerRoles which could be an array or string
     if (data.viewerRoles !== undefined) {

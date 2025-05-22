@@ -58,6 +58,7 @@ export interface CreateTaskDto {
   uploaderRole?: string;
   viewerRoles?: string | string[];
   metadataJson?: string; // For additional structured data
+  sequenceIndex?: number; // Added for task ordering
 }
 
 export interface UpdateTaskDto {
@@ -68,6 +69,7 @@ export interface UpdateTaskDto {
   viewerRoles?: string | string[];
   metadataJson?: string; // For additional structured data
   updatedById?: number;
+  sequenceIndex?: number; // Added for task ordering
 }
 
 export interface TaskResponseDto {

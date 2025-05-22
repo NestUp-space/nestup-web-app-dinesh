@@ -36,6 +36,7 @@ interface Task {
   createdAt: string;
   updatedAt: string;
   metadataJson?: string; // For additional structured data like associated frontend components
+  sequenceIndex?: number; // Added for task ordering
   subtasks?: Subtask[];
 }
 
