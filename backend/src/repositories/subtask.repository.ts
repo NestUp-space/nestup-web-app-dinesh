@@ -5,19 +5,19 @@
 
 import { PrismaClient, Subtask, Prisma } from '@prisma/client';
 import prisma from '../config/db';
-import { SubtaskBase } from '../types/project.types';
+import { SubtaskWithoutRelations } from '../types/project.types';
 import { CreateSubtaskDto, UpdateSubtaskDto } from '../dtos/project.dto';
 
 export interface ISubtaskRepository {
-  create(data: CreateSubtaskDto): Promise<Subtask>;
+  create(data: CreateSubtaskDto): Promise<SubtaskWithoutRelations>;
   findMany(params: {
     where?: Prisma.SubtaskWhereInput;
     orderBy?: Prisma.SubtaskOrderByWithRelationInput;
-  }): Promise<SubtaskBase[]>;
-  findById(id: number): Promise<SubtaskBase | null>;
+  }): Promise<SubtaskWithoutRelations[]>;
+  findById(id: number): Promise<SubtaskWithoutRelations | null>;
   update(id: number, data: UpdateSubtaskDto): Promise<Subtask>;
   delete(id: number): Promise<Subtask>;
-  findByTaskId(taskId: number): Promise<SubtaskBase[]>;
+  findByTaskId(taskId: number): Promise<SubtaskWithoutRelations[]>;
   areAllSubtasksCompleted(taskId: number): Promise<boolean>;
 }
 
@@ -28,62 +28,83 @@ export class SubtaskRepository implements ISubtaskRepository {
     this.prisma = prisma;
   }
 
-  async create(data: CreateSubtaskDto): Promise<Subtask> {
-    return this.prisma.subtask.create({
+  async create(data: CreateSubtaskDto): Promise<SubtaskWithoutRelations> {
+    const subtask = await this.prisma.subtask.create({
       data: {
-        taskId: data.taskId,
         name: data.name,
-        description: data.description,
-        actionRequired: data.actionRequired,
-        type: data.type,
-        metadataJson: data.metadataJson,
-        // 'completed' defaults to false as per schema
-      },
+        description: data.description || null,
+        actionRequired: data.actionRequired || null,
+        type: data.type || null,
+        metadataJson: data.metadataJson || null,
+        completed: false,
+        taskId: data.taskId,
+        isTemplateSubtask: data.isTemplateSubtask || false
+      } satisfies Prisma.SubtaskUncheckedCreateInput,
+      include: {
+        task: false // Explicitly exclude task relation
+      }
     });
+    return subtask as SubtaskWithoutRelations;
   }
 
   async findMany(params: {
     where?: Prisma.SubtaskWhereInput;
     orderBy?: Prisma.SubtaskOrderByWithRelationInput;
-  }): Promise<SubtaskBase[]> {
+  }): Promise<SubtaskWithoutRelations[]> {
     const { where, orderBy } = params;
     
     const subtasks = await this.prisma.subtask.findMany({
       where,
-      orderBy: orderBy || { createdAt: 'asc' }
+      orderBy: orderBy || { createdAt: 'asc' },
+      include: {
+        task: false
+      }
     });
     
-    return subtasks as SubtaskBase[];
+    return subtasks as SubtaskWithoutRelations[];
   }
 
-  async findById(id: number): Promise<SubtaskBase | null> {
+  async findById(id: number): Promise<SubtaskWithoutRelations | null> {
     const subtask = await this.prisma.subtask.findUnique({
       where: { id },
+      include: {
+        task: false
+      }
     });
     
-    return subtask as SubtaskBase | null;
+    return subtask as SubtaskWithoutRelations | null;
   }
 
-  async update(id: number, data: UpdateSubtaskDto): Promise<Subtask> {
-    return this.prisma.subtask.update({
+  async update(id: number, data: UpdateSubtaskDto): Promise<SubtaskWithoutRelations> {
+    const subtask = await this.prisma.subtask.update({
       where: { id },
       data,
+      include: {
+        task: false
+      }
     });
+    return subtask as SubtaskWithoutRelations;
   }
 
   async delete(id: number): Promise<Subtask> {
     return this.prisma.subtask.delete({
       where: { id },
+      include: {
+        task: false
+      }
     });
   }
 
-  async findByTaskId(taskId: number): Promise<SubtaskBase[]> {
+  async findByTaskId(taskId: number): Promise<SubtaskWithoutRelations[]> {
     const subtasks = await this.prisma.subtask.findMany({
       where: { taskId },
       orderBy: { createdAt: 'asc' },
+      include: {
+        task: false
+      }
     });
     
-    return subtasks as SubtaskBase[];
+    return subtasks as SubtaskWithoutRelations[];
   }
 
   async areAllSubtasksCompleted(taskId: number): Promise<boolean> {

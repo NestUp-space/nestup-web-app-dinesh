@@ -157,7 +157,14 @@ async function main() {
     PERMISSIONS.PROJECTS.VIEW,
     PERMISSIONS.PROJECTS.CREATE,
     PERMISSIONS.PROJECTS.EDIT,
-    PERMISSIONS.TASKS.MANAGE,
+    PERMISSIONS.TASKS.VIEW,
+    PERMISSIONS.TASKS.EDIT,
+    PERMISSIONS.TASKS.CHANGE_STATUS,
+    PERMISSIONS.SUBTASKS.VIEW,
+    PERMISSIONS.SUBTASKS.CREATE,
+    PERMISSIONS.SUBTASKS.EDIT,
+    PERMISSIONS.SUBTASKS.DELETE, // Base delete permission
+    PERMISSIONS.SUBTASKS.MANAGE_USER_ADDED, // Specific for user-added ones
   ];
   if (projectManagerRole && allPermissionsInDb.length > 0) {
     for (const permString of projectManagerPermissionsToAssign) {
@@ -191,6 +198,8 @@ async function main() {
   // --- Map specific permissions to designer Role ---
   const designerPermissionsToAssign = [
     PERMISSIONS.PROJECTS.VIEW,
+    PERMISSIONS.TASKS.VIEW,
+    PERMISSIONS.SUBTASKS.VIEW,
   ];
   if (designerRole && allPermissionsInDb.length > 0) {
     for (const permString of designerPermissionsToAssign) {

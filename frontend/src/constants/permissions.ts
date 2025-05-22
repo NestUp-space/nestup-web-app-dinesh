@@ -7,10 +7,12 @@ export const PERMISSION_GROUPS = {
   BIM: 'bim',
   CATALOGUE: 'catalogue',
   TASKS: 'tasks', // New group for task-specific permissions
+  SUBTASKS: 'subtasks', // New group for subtask-specific permissions
   SETTINGS: 'settings'
 } as const;
 
 export const ACTIONS = {
+  MANAGE_USER_ADDED: 'manage_user_added', // New action for managing user-added subtasks
   VIEW: 'view',
   CREATE: 'create',
   EDIT: 'edit',

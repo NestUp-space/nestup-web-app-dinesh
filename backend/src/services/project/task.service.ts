@@ -6,7 +6,7 @@
 import { Task, Subtask, User as PrismaUser, UserRole, RolePermissionMapping, UserPermission as PrismaUserPermission } from '@prisma/client'; // Added Subtask, PrismaUser types
 import { CreateTaskDto, TaskResponseDto, UpdateTaskDto, UpdateSubtaskDto, CreateSubtaskDto } from '../../dtos/project.dto'; // Added UpdateSubtaskDto, CreateSubtaskDto
 import { ITaskRepository, taskRepository } from '../../repositories/task.repository';
-import { TaskWithSubtasks } from '../../types/project.types';
+import { TaskWithSubtasks, SubtaskWithoutRelations } from '../../types/project.types';
 import { TaskTemplate } from '../../types/projectTemplate.types'; // Import type for template items
 import { defaultProjectTaskTemplates } from '../../constants/projectTaskTemplate'; // Import task template for order
 import { PERMISSIONS } from '../../constants/permissions'; // Import PERMISSIONS
@@ -60,9 +60,13 @@ export class TaskService {
           description: (subtaskTemplate.description !== null && subtaskTemplate.description !== undefined) ? subtaskTemplate.description : "",
           actionRequired: subtaskTemplate.actionRequired,
           type: subtaskTemplate.type,
-          metadataJson: subtaskTemplate.metadataJson ?? undefined // Convert null to undefined
+          metadataJson: subtaskTemplate.metadataJson ?? undefined, // Convert null to undefined
+          isTemplateSubtask: true // Explicitly set for template subtasks
         };
-        await this._subtaskService.createSubtask(subtaskDataToCreate);
+        // Pass undefined for currentUser as this is a system action (template creation)
+        // and permission checks in subtaskService for manual creation should not apply here.
+        // The subtaskService's createSubtask method already handles the isTemplateSubtask flag.
+        await this._subtaskService.createSubtask(subtaskDataToCreate, undefined);
       }
     }
 
@@ -104,13 +108,6 @@ export class TaskService {
     }
 
     return this.taskRepository.update(taskId, data);
-  }
-
-  /**
-   * Deletes a task by ID
-   */
-  async deleteTask(taskId: number): Promise<Task> {
-    return this.taskRepository.delete(taskId);
   }
 
   /**
@@ -199,7 +196,7 @@ export class TaskService {
     subtaskId: number,
     subtaskData: UpdateSubtaskDto,
     currentUser: PrismaUser & { role: UserRole & { roleMappings: (RolePermissionMapping & { permission: PrismaUserPermission })[] } } // Added currentUser
-  ): Promise<{ task: TaskWithSubtasks | null; subtask: Subtask }> {
+  ): Promise<{ task: TaskWithSubtasks | null; subtask: SubtaskWithoutRelations }> {
     if (!this._subtaskService) {
       throw new Error('SubtaskService not injected into TaskService.');
     }
@@ -248,7 +245,7 @@ export class TaskService {
       status: task.status,
       createdAt: task.createdAt.toISOString(),
       updatedAt: task.updatedAt.toISOString(),
-      subtasks: task.subtasks?.map((subtask: Subtask) => ({
+      subtasks: task.subtasks?.map(subtask => ({
         id: subtask.id,
         name: subtask.name,
         description: subtask.description,
@@ -256,9 +253,10 @@ export class TaskService {
         type: subtask.type,
         metadataJson: subtask.metadataJson,
         completed: subtask.completed,
+        isTemplateSubtask: subtask.isTemplateSubtask,
+        taskId: subtask.taskId,
         createdAt: subtask.createdAt.toISOString(),
-        updatedAt: subtask.updatedAt.toISOString(),
-        taskId: subtask.taskId
+        updatedAt: subtask.updatedAt.toISOString()
       }))
     };
   }

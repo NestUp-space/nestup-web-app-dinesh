@@ -112,17 +112,18 @@ model Task {
 }
 
 model Subtask {
-  id             Int      @id @default(autoincrement())
-  name           String
-  description    String?
-  actionRequired String?
-  type           String?
-  metadataJson   String?
-  completed      Boolean  @default(false)
-  taskId         Int
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  task           Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  id               Int      @id @default(autoincrement())
+  name             String
+  description      String?
+  actionRequired   String?
+  type             String?
+  metadataJson     String?
+  completed        Boolean  @default(false)
+  isTemplateSubtask Boolean  @default(false)
+  taskId           Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  task             Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 }
 
 model File {

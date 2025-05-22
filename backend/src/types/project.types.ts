@@ -123,7 +123,21 @@ export const projectIncludes = {
   tasks: { // Modified to include subtasks and status for tasks
     include: {
       status: true,
-      subtasks: true
+      subtasks: {
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          actionRequired: true,
+          type: true,
+          metadataJson: true,
+          completed: true,
+          createdAt: true,
+          updatedAt: true,
+          taskId: true,
+          isTemplateSubtask: true
+        }
+      }
     }
   }
 } as const;
@@ -145,9 +159,38 @@ export interface UserContext {
 export type TaskWithSubtasks = Prisma.TaskGetPayload<{
   include: {
     status: true;
-    subtasks: true;
+    subtasks: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        actionRequired: true,
+        type: true,
+        metadataJson: true,
+        completed: true,
+        taskId: true,
+        createdAt: true,
+        updatedAt: true,
+        isTemplateSubtask: true
+      }
+    }
   }
 }>;
 
-// Define SubtaskBase type for subtask service
-export type SubtaskBase = Prisma.SubtaskGetPayload<{}>;
+// Define SubtaskWithoutRelations type to match Prisma schema exactly
+export type SubtaskWithoutRelations = {
+  id: number;
+  name: string;
+  description: string | null;
+  actionRequired: string | null;
+  type: string | null;
+  metadataJson: string | null;
+  completed: boolean;
+  isTemplateSubtask: boolean;
+  taskId: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+// Define SubtaskBase type for service layer
+export type SubtaskBase = SubtaskWithoutRelations;

@@ -6,7 +6,8 @@
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { subtaskService, taskService } from '../../services/project'; // Import taskService
-import { CreateSubtaskDto, UpdateSubtaskDto } from '../../dtos/project.dto';
+import { CreateSubtaskDto, UpdateSubtaskDto, SubtaskResponseDto } from '../../dtos/project.dto';
+import { SubtaskWithoutRelations } from '../../types/project.types';
 import { CustomRequest } from '../../middlewares/auth.middleware'; // Import CustomRequest
 import { User as PrismaUser, UserRole, RolePermissionMapping, UserPermission as PrismaUserPermission } from '@prisma/client'; // Import PrismaUser types
 import prisma from '../../config/db'; // Import prisma client
@@ -38,21 +39,53 @@ export class SubtaskController {
         return;
       }
 
+      // Get full user object for permission check
+      const fullCurrentUser = await prisma.user.findUnique({
+        where: { id: customReq.user.id },
+        include: {
+          role: {
+            include: {
+              roleMappings: {
+                include: {
+                  permission: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!fullCurrentUser) {
+        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'User details not found for permission check.' });
+        return;
+      }
+
       const subtaskData: CreateSubtaskDto = {
         taskId,
         name,
         description,
         actionRequired,
         type,
-        metadataJson
+        metadataJson,
+        isTemplateSubtask: false // User-added subtasks are never template subtasks
       };
 
-      const subtask = await subtaskService.createSubtask(subtaskData);
+      const subtask = (await subtaskService.createSubtask(
+        subtaskData,
+        fullCurrentUser as PrismaUser & { role: UserRole & { roleMappings: (RolePermissionMapping & { permission: PrismaUserPermission })[] } }
+      )) as SubtaskWithoutRelations;
+
+      const responseDto: SubtaskResponseDto = {
+        ...subtask,
+        createdAt: subtask.createdAt.toISOString(),
+        updatedAt: subtask.updatedAt.toISOString(),
+        isTemplateSubtask: subtask.isTemplateSubtask
+      };
       
-      // Transform subtask to response DTO
-      const transformedSubtask = subtaskService.transformToResponseDto(subtask as any);
-      
-      res.status(StatusCodes.CREATED).json({ subtask: transformedSubtask, message: 'Subtask created successfully.' });
+      res.status(StatusCodes.CREATED).json({ 
+        subtask: responseDto, 
+        message: 'Subtask created successfully.' 
+      });
     } catch (error) {
       res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
     }
@@ -77,12 +110,16 @@ export class SubtaskController {
 
       const subtasks = await subtaskService.getSubtasksByTaskId(taskId);
       
-      // Transform subtasks to response DTOs
-      const transformedSubtasks = subtasks.map(subtask => 
-        subtaskService.transformToResponseDto(subtask)
-      );
+      const responseDtos: SubtaskResponseDto[] = subtasks.map(subtask => ({
+        ...subtask,
+        createdAt: subtask.createdAt.toISOString(),
+        updatedAt: subtask.updatedAt.toISOString(),
+        isTemplateSubtask: subtask.isTemplateSubtask
+      }));
 
-      res.status(StatusCodes.OK).json({ subtasks: transformedSubtasks });
+      res.status(StatusCodes.OK).json({ 
+        subtasks: responseDtos
+      });
     } catch (error) {
       res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
     }
@@ -163,13 +200,16 @@ export class SubtaskController {
         fullCurrentUser as PrismaUser & { role: UserRole & { roleMappings: (RolePermissionMapping & { permission: PrismaUserPermission })[] } } // Pass the full current user
       );
       
-      // Transform subtask to response DTO
-      const transformedSubtask = subtaskService.transformToResponseDto(updatedSubtask);
-      const transformedParentTask = updatedParentTask ? taskService.transformToResponseDto(updatedParentTask) : null;
-      
+      const subtaskResponseDto: SubtaskResponseDto = {
+        ...updatedSubtask,
+        createdAt: updatedSubtask.createdAt.toISOString(),
+        updatedAt: updatedSubtask.updatedAt.toISOString(),
+        isTemplateSubtask: updatedSubtask.isTemplateSubtask
+      };
+
       res.status(StatusCodes.OK).json({ 
-        subtask: transformedSubtask, 
-        parentTask: transformedParentTask, // Optionally return updated parent task
+        subtask: subtaskResponseDto,
+        parentTask: updatedParentTask ? taskService.transformToResponseDto(updatedParentTask) : null,
         message: 'Subtask updated successfully.' 
       });
     } catch (error) {
@@ -199,9 +239,37 @@ export class SubtaskController {
         return;
       }
 
-      await subtaskService.deleteSubtask(subtaskId);
+      // Get full user object for permission check
+      const fullCurrentUser = await prisma.user.findUnique({
+        where: { id: customReq.user.id },
+        include: {
+          role: {
+            include: {
+              roleMappings: {
+                include: {
+                  permission: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!fullCurrentUser) {
+        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'User details not found for permission check.' });
+        return;
+      }
+
+      await subtaskService.deleteSubtask(
+        subtaskId,
+        fullCurrentUser as PrismaUser & { role: UserRole & { roleMappings: (RolePermissionMapping & { permission: PrismaUserPermission })[] } }
+      );
       res.status(StatusCodes.OK).json({ message: 'Subtask deleted successfully.' });
     } catch (error) {
+      if ((error as Error).message === 'Cannot delete template-generated subtasks') {
+        res.status(StatusCodes.FORBIDDEN).json({ message: (error as Error).message });
+        return;
+      }
       res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
     }
   }

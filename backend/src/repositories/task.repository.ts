@@ -17,7 +17,6 @@ export interface ITaskRepository {
   }): Promise<TaskWithSubtasks[]>;
   findById(id: number, include?: Prisma.TaskInclude): Promise<TaskWithSubtasks | null>;
   update(id: number, data: UpdateTaskDto): Promise<Task>;
-  delete(id: number): Promise<Task>;
   updateStatus(id: number, statusId: number, updatedById: number): Promise<TaskWithSubtasks>; // Added updatedById
 }
 
@@ -121,12 +120,6 @@ export class TaskRepository implements ITaskRepository {
     return this.prisma.task.update({
       where: { id },
       data: updateData,
-    });
-  }
-
-  async delete(id: number): Promise<Task> {
-    return this.prisma.task.delete({
-      where: { id },
     });
   }
 

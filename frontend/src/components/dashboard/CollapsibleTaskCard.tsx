@@ -139,12 +139,15 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ name: newSubtaskName }),
+        body: JSON.stringify({ name: newSubtaskName, isTemplateSubtask: false }), // Explicitly set isTemplateSubtask to false
       });
       if (response.ok) {
         const newSubtaskData = await response.json();
+        // Ensure the new subtask from API response includes isTemplateSubtask
         setCurrentSubtasks(prevSubtasks => [...prevSubtasks, newSubtaskData.subtask]);
         setNewSubtaskName('');
+        if (onTaskUpdate) onTaskUpdate(); // Refresh project to get updated task status if backend modifies it
+        else if (refetchProjectHook) refetchProjectHook();
       } else {
         const errorData = await response.json();
         alert(`Error adding subtask: ${errorData.message}`);
@@ -153,15 +156,16 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
       alert(`Failed to add subtask: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
-  
+
   const handleDeleteSubtask = async (subtaskId: number) => {
     if (!token || !project?.id) {
-      alert("Authentication token or project ID not found.");
+      alert("Project ID and authentication are required to delete a subtask.");
       return;
     }
-    if (!confirm("Are you sure you want to delete this subtask?")) {
-        return;
-    }
+    // Optional: Add a confirmation dialog here
+    // if (!confirm("Are you sure you want to delete this subtask?")) {
+    //   return;
+    // }
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects/${project.id}/tasks/${task.id}/subtasks/${subtaskId}`, {
         method: 'DELETE',
@@ -171,7 +175,9 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
       });
       if (response.ok) {
         setCurrentSubtasks(prevSubtasks => prevSubtasks.filter(st => st.id !== subtaskId));
-        alert("Subtask deleted successfully.");
+        alert('Subtask deleted successfully.');
+        if (onTaskUpdate) onTaskUpdate();
+        else if (refetchProjectHook) refetchProjectHook();
       } else {
         const errorData = await response.json();
         alert(`Error deleting subtask: ${errorData.message}`);
@@ -392,9 +398,17 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
                         })()}
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteSubtask(subtask.id)} className="text-red-500 hover:text-red-700 ml-2 flex-shrink-0">
-                      <TrashIcon size={16} />
-                    </Button>
+                    {userHasPermission(FE_PERMISSIONS.SUBTASKS.DELETE) && !subtask.isTemplateSubtask && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleDeleteSubtask(subtask.id)} 
+                        className="text-red-500 hover:text-red-700 ml-2 flex-shrink-0"
+                        title="Delete this subtask"
+                      >
+                        <TrashIcon size={16} />
+                      </Button>
+                    )}
                   </div>
                 </li>
               ))}
@@ -402,6 +416,22 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
           ) : (
             <p className="text-sm text-gray-500">No specific actions or subtasks defined for this step.</p>
           )}
+
+          {userHasPermission(FE_PERMISSIONS.SUBTASKS.CREATE) && (
+            <form onSubmit={handleAddSubtask} className="mt-4 flex items-center gap-2">
+              <input
+                type="text"
+                value={newSubtaskName}
+                onChange={(e) => setNewSubtaskName(e.target.value)}
+                placeholder="New subtask name"
+                className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+              <Button type="submit" size="sm" className="h-9">
+                <PlusCircleIcon size={16} className="mr-1.5" /> Add
+              </Button>
+            </form>
+          )}
+          
           {task.name === "Site Visit" && task.metadataJson && (
             (() => {
               try {
@@ -437,18 +467,7 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
               return null;
             })()
           )}
-          <form onSubmit={handleAddSubtask} className="mt-4 flex items-center space-x-2">
-            <input
-              type="text"
-              value={newSubtaskName}
-              onChange={(e) => setNewSubtaskName(e.target.value)}
-              placeholder="New subtask name"
-              className="flex-grow mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-            />
-            <Button type="submit" size="sm" variant="default">
-              <PlusCircleIcon size={16} className="mr-1" /> Add
-            </Button>
-          </form>
+          {/* Add Subtask Form Removed */}
         </div>
       )}
     </div>

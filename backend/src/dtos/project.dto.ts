@@ -90,6 +90,7 @@ export interface CreateSubtaskDto {
   actionRequired?: string;
   type?: string;
   metadataJson?: string;
+  isTemplateSubtask?: boolean;
 }
 
 export interface UpdateSubtaskDto {
@@ -112,4 +113,5 @@ export interface SubtaskResponseDto {
   createdAt: string;
   updatedAt: string;
   taskId: number;
+  isTemplateSubtask: boolean;
 }

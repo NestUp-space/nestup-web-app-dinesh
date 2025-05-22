@@ -3,18 +3,33 @@
  * Handles business logic for subtasks
  */
 
-import { Subtask } from '@prisma/client';
+import { Subtask, User as PrismaUser, UserRole, RolePermissionMapping, UserPermission as PrismaUserPermission } from '@prisma/client';
 import { CreateSubtaskDto, SubtaskResponseDto, UpdateSubtaskDto } from '../../dtos/project.dto';
 import { ISubtaskRepository, subtaskRepository } from '../../repositories/subtask.repository';
-import { SubtaskBase } from '../../types/project.types';
+import { SubtaskBase, SubtaskWithoutRelations } from '../../types/project.types';
+import { PERMISSIONS } from '../../constants/permissions';
+import { ForbiddenError } from '../../common/errors/customErrors';
 
 export class SubtaskService {
   constructor(private subtaskRepository: ISubtaskRepository) {}
 
   /**
-   * Creates a new subtask
+   * Creates a new subtask. When created during project creation from a template,
+   * isTemplateSubtask should be set to true.
    */
-  async createSubtask(data: CreateSubtaskDto): Promise<Subtask> {
+  async createSubtask(
+    data: CreateSubtaskDto,
+    currentUser?: PrismaUser & { role: UserRole & { roleMappings: (RolePermissionMapping & { permission: PrismaUserPermission })[] } }
+  ): Promise<Subtask> {
+    // If creating a non-template subtask, check permissions
+    if (!data.isTemplateSubtask && currentUser) {
+      const userPermissions = currentUser.role.roleMappings.map(rm => rm.permission.permission);
+      const canManageUserAdded = userPermissions.includes(PERMISSIONS.SUBTASKS.MANAGE_USER_ADDED);
+      
+      if (!canManageUserAdded) {
+        throw new ForbiddenError('User does not have permission to create subtasks');
+      }
+    }
     let cleanedMetadataJson = data.metadataJson;
     if (cleanedMetadataJson && typeof cleanedMetadataJson === 'string') { // Ensure it's a string
       try {
@@ -57,7 +72,7 @@ export class SubtaskService {
   async updateSubtask(
     subtaskId: number, 
     data: UpdateSubtaskDto
-  ): Promise<{ subtask: Subtask; allSiblingSubtasksCompleted: boolean }> {
+  ): Promise<{ subtask: SubtaskWithoutRelations; allSiblingSubtasksCompleted: boolean }> {
     const subtask = await this.subtaskRepository.update(subtaskId, data);
     let allSiblingSubtasksCompleted = false;
 
@@ -93,13 +108,36 @@ export class SubtaskService {
       allSiblingSubtasksCompleted = false; // Explicitly set to false
     }
     
-    return { subtask, allSiblingSubtasksCompleted };
+    return { subtask: subtask as SubtaskWithoutRelations, allSiblingSubtasksCompleted };
   }
 
   /**
-   * Deletes a subtask by ID
+   * Deletes a subtask by ID.
+   * Template subtasks cannot be deleted.
+   * Only users with SUBTASKS.MANAGE_USER_ADDED permission can delete user-added subtasks.
    */
-  async deleteSubtask(subtaskId: number): Promise<Subtask> {
+  async deleteSubtask(
+    subtaskId: number,
+    currentUser: PrismaUser & { role: UserRole & { roleMappings: (RolePermissionMapping & { permission: PrismaUserPermission })[] } }
+  ): Promise<Subtask> {
+    // Check if subtask exists and if it's a template subtask
+    const subtask = await this.subtaskRepository.findById(subtaskId);
+    if (!subtask) {
+      throw new Error('Subtask not found');
+    }
+    
+    if (subtask.isTemplateSubtask) {
+      throw new ForbiddenError('Cannot delete template-generated subtasks');
+    }
+
+    // Check user permissions
+    const userPermissions = currentUser.role.roleMappings.map(rm => rm.permission.permission);
+    const canManageUserAdded = userPermissions.includes(PERMISSIONS.SUBTASKS.MANAGE_USER_ADDED);
+    
+    if (!canManageUserAdded) {
+      throw new ForbiddenError('User does not have permission to delete subtasks');
+    }
+
     return this.subtaskRepository.delete(subtaskId);
   }
 
@@ -117,7 +155,8 @@ export class SubtaskService {
       completed: subtask.completed,
       createdAt: subtask.createdAt.toISOString(),
       updatedAt: subtask.updatedAt.toISOString(),
-      taskId: subtask.taskId
+      taskId: subtask.taskId,
+      isTemplateSubtask: subtask.isTemplateSubtask || false
     };
   }
 }

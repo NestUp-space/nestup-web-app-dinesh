@@ -11,13 +11,6 @@ const router = express.Router({ mergeParams: true }); // Enable mergeParams to a
 router.use(isAuthenticated);
 
 // --- Task Routes ---
-// Create a new task for a project (expects projectId from parent router)
-router.post(
-  '/',
-  hasPermission([PERMISSIONS.TASKS.CREATE, PERMISSIONS.PROJECTS.EDIT]), // Example permission
-  taskController.createTask
-);
-
 // Get all tasks for a project (expects projectId from parent router)
 router.get(
   '/',
@@ -30,13 +23,6 @@ router.put(
   '/:taskId',
   hasPermission([PERMISSIONS.TASKS.EDIT, PERMISSIONS.PROJECTS.EDIT]), // General task edit
   taskController.updateTask
-);
-
-// Delete a specific task
-router.delete(
-  '/:taskId',
-  hasPermission([PERMISSIONS.TASKS.DELETE, PERMISSIONS.PROJECTS.EDIT]),
-  taskController.deleteTask
 );
 
 // Update a task's status

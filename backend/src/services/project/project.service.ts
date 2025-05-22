@@ -187,7 +187,8 @@ export class ProjectService {
           completed: subtask.completed,
           createdAt: subtask.createdAt.toISOString(),
           updatedAt: subtask.updatedAt.toISOString(),
-          taskId: subtask.taskId
+          taskId: subtask.taskId,
+          isTemplateSubtask: subtask.isTemplateSubtask // Added missing field
         }))
       })) || []
     };

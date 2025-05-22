@@ -47,6 +47,7 @@ interface Subtask {
   type?: string;
   metadataJson?: string;
   completed: boolean;
+  isTemplateSubtask?: boolean; // Added field
   createdAt: string;
   updatedAt: string;
   taskId: number;

@@ -8,7 +8,7 @@ import { StatusCodes } from 'http-status-codes';
 import { taskService } from '../../services/project';
 import { UpdateTaskDto } from '../../dtos/project.dto';
 import { CustomRequest } from '../../middlewares/auth.middleware'; // Import CustomRequest
-import { TaskTemplate } from '../../types/projectTemplate.types'; // Import TaskTemplate
+// import { TaskTemplate } from '../../types/projectTemplate.types'; // Import TaskTemplate - Removed as it's unused
 import prisma from '../../config/db'; // Import prisma client
 import { User as PrismaUser, UserRole, RolePermissionMapping, UserPermission as PrismaUserPermission } from '@prisma/client'; // Import PrismaUser types
 
@@ -16,43 +16,6 @@ import { User as PrismaUser, UserRole, RolePermissionMapping, UserPermission as 
 // Removed local AuthenticatedRequest interface
 
 export class TaskController {
-  /**
-   * Create a new task
-   */
-  async createTask(req: Request, res: Response): Promise<void> {
-    const customReq = req as CustomRequest;
-    try {
-      if (!customReq.user) {
-        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
-        return;
-      }
-
-      const projectId = parseInt(customReq.params.projectId, 10);
-      if (isNaN(projectId)) {
-        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid project ID' });
-        return;
-      }
-
-      // Expect TaskTemplate in the body, similar to project.controller.ts (standalone)
-      const taskTemplateItem = customReq.body as TaskTemplate;
-
-      // Validate taskTemplateItem if necessary (e.g., check for taskName)
-      if (!taskTemplateItem || typeof taskTemplateItem.taskName === 'undefined') {
-        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task template data: taskName is required.' });
-        return;
-      }
-      
-      const task = await taskService.createTaskFromTemplate(projectId, taskTemplateItem);
-      
-      // Transform task to response DTO
-      const transformedTask = taskService.transformToResponseDto(task as any); 
-      
-      res.status(StatusCodes.CREATED).json({ task: transformedTask });
-    } catch (error) {
-      res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
-    }
-  }
-
   /**
    * Get all tasks for a project
    */
@@ -108,30 +71,6 @@ export class TaskController {
 
       const task = await taskService.updateTask(taskId, updateData);
       res.status(StatusCodes.OK).json({ task });
-    } catch (error) {
-      res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
-    }
-  }
-
-  /**
-   * Delete a task
-   */
-  async deleteTask(req: Request, res: Response): Promise<void> {
-    const customReq = req as CustomRequest;
-    try {
-      if (!customReq.user) {
-        res.status(StatusCodes.UNAUTHORIZED).json({ message: 'Unauthorized' });
-        return;
-      }
-
-      const taskId = parseInt(customReq.params.taskId, 10);
-      if (isNaN(taskId)) {
-        res.status(StatusCodes.BAD_REQUEST).json({ message: 'Invalid task ID' });
-        return;
-      }
-
-      await taskService.deleteTask(taskId);
-      res.status(StatusCodes.OK).json({ message: 'Task deleted successfully' });
     } catch (error) {
       res.status(StatusCodes.BAD_REQUEST).json({ message: (error as Error).message });
     }
