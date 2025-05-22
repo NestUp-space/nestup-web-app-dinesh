@@ -30,7 +30,7 @@ interface CollapsibleTaskCardProps {
 }
 
 const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatDate, project, onTaskUpdate }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(task.status?.status === 'Active');
   const [currentSubtasks, setCurrentSubtasks] = useState<Subtask[]>(task.subtasks || []);
   const [newSubtaskName, setNewSubtaskName] = useState('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false); // For loading state
@@ -48,7 +48,13 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
 
   useEffect(() => {
     setCurrentSubtasks(task.subtasks || []);
-  }, [task.subtasks]);
+    // Update isOpen state when task status changes
+    if (task.status?.status === 'Active') {
+      setIsOpen(true);
+    } else if (task.status?.status === 'Completed' || task.status?.status === 'Draft') {
+      setIsOpen(false);
+    }
+  }, [task.subtasks, task.status?.status]);
 
   const handleStatusUpdate = async (newStatusId: number) => {
     if (!project || !project.id || !token) {
@@ -67,7 +73,14 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
       });
 
       if (response.ok) {
-        // alert('Task status updated successfully!'); // Consider using a toast notification system instead of alert
+        const responseData = await response.json();
+        // Update local state immediately for fast UI feedback
+        if (newStatusId === statusIdMap['Active']) {
+          setIsOpen(true);
+        } else if (newStatusId === statusIdMap['Completed'] || newStatusId === statusIdMap['Draft']) {
+          setIsOpen(false);
+        }
+        // Refresh project data
         if (onTaskUpdate) {
           onTaskUpdate();
         } else if (refetchProjectHook) {
@@ -109,16 +122,22 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
       if (response.ok) {
         const responseData = await response.json(); // Expect { subtask: Subtask, parentTask?: TaskWithSubtasks | null }
         
-        // Update current subtask
+        // Update current subtask immediately for fast UI feedback
         setCurrentSubtasks(prevSubtasks =>
           prevSubtasks.map(st => st.id === subtaskId ? { ...st, completed: responseData.subtask.completed } : st)
         );
 
-        // If parent task was updated (e.g., all subtasks completed), refresh project
-        if (responseData.parentTask && onTaskUpdate) {
-          onTaskUpdate();
-        } else if (responseData.parentTask && refetchProjectHook) {
-          refetchProjectHook();
+        // Only refresh project if parent task status changed
+        const hasParentTaskStatusChanged = 
+          responseData.parentTask && 
+          responseData.parentTask.status?.status !== task.status?.status;
+
+        if (hasParentTaskStatusChanged) {
+          if (onTaskUpdate) {
+            onTaskUpdate();
+          } else if (refetchProjectHook) {
+            refetchProjectHook();
+          }
         }
 
       } else {
