@@ -353,20 +353,7 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
                           {subtask.name}
                         </span>
                         {subtask.actionRequired && <p className="text-xs text-gray-600 mt-0.5">{subtask.actionRequired}</p>}
-                        {subtask.type && (
-                          <div className="mt-1 flex items-center text-xs text-gray-500">
-                            {subtask.type === 'file_upload' && <UploadCloud size={14} className="mr-1" />}
-                            {subtask.type === 'information' && <Info size={14} className="mr-1" />}
-                            {subtask.type === 'approval' && <UserCheck size={14} className="mr-1" />}
-                            {subtask.type === 'payment_confirmation' && <Download size={14} className="mr-1" />}
-                            <span>Type: {subtask.type}</span>
-                          </div>
-                        )}
-                        {subtask.type === 'file_upload' && (
-                            <Button variant="outline" size="sm" className="mt-2 text-xs h-7 px-2">
-                                <UploadCloud size={14} className="mr-1" /> Upload File
-                            </Button>
-                        )}
+
                         {(() => {
                           if (subtask.metadataJson) {
                             try {
@@ -381,6 +368,9 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
                                         <MaterialManagement projectId={projectId} />
                                       )}
                                       {componentPath.includes('ModelSelector.tsx') && project && (
+                                        <ModelSelector subtask={subtask} project={project} />
+                                      )}
+                                      {componentPath.includes('bookSiteBookSiteVisit.tsx') && project && (
                                         <ModelSelector subtask={subtask} project={project} />
                                       )}
                                     </Suspense>

@@ -10,9 +10,17 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
     uploaderRole: "Client",
     viewerRoles: ["All"],
     actionRequired: "Site visit is booked based on this the form.",
-    subtasks: []
+    subtasks: [
+      {
+        name: "Fill Details to book Site Visit Form",
+        actionRequired: "Client to upload the site visit form.",
+        type: "data_collection",
+        isSystemDefined: true,
+        metadataJson: JSON.stringify({ frontendComponent: "frontend/src/components/landing-page/BookSiteVisit.tsx" })
+      },
+    ]
   },
-   // Payment Stage
+   // Payment Stage "@/components/landing-page/BookSiteVisit"
    {
     stage: "Payment",
     taskName: "Token Deposit",
@@ -20,7 +28,14 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
     uploaderRole: "Client",
     viewerRoles: ["All"], // Assuming "AII" was a typo for "All"
     actionRequired: "Client to make a payment - Token deposit.",
-    subtasks: []
+    subtasks: [
+      {
+        name: "Confirm Token Deposit",
+        actionRequired: "Project Manager to confirm the token deposit.",
+        type: "approval",
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+      },
+    ]
   },
   {
     stage: "Site measurements",
@@ -90,7 +105,14 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
     uploaderRole: "BIM Engineer", 
     viewerRoles: ["All"],
     actionRequired: "BIM engineer Confirms the final designs.",
-    subtasks: []
+    subtasks: [
+      {
+        name: "Upload Final Designs",
+        actionRequired: "Upload site photos for documentation",
+        type: "upload",
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+      },
+    ]
   },
   // Approval Stage
   {
@@ -145,16 +167,44 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
   },
   // Pre-Production Stage
   {
+    stage: "Production",
+    taskName: "G-code and cutlist",
+    statusId: 1,
+    uploaderRole: "BIM Engineer",
+    viewerRoles: ["Production Engineer", "BIM Engineer"],
+    actionRequired: "Production associate use this for CNC programming.",
+    subtasks: [
+      {
+        name: "Upload cutlist",
+        actionRequired: "Upload site photos for documentation",
+        type: "upload",
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+      },
+      {
+        name: "Upload G-code",
+        actionRequired: "Upload site photos for documentation",
+        type: "upload",
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+      },
+    ]
+  },
+  {
     stage: "Pre-Production",
     taskName: "Material estimation",
     statusId: 1,
     uploaderRole: "BIM Engineer",
     viewerRoles: ["All"],
-    actionRequired: "Client to send the material. BIM Engineer to manage cuttist.",
+    actionRequired: "Client to send the material. BIM Engineer to manage cutlist.",
     subtasks: [
       {
-        name: "Upload Cuttist",
-        actionRequired: "BIM Engineer to upload cuttist.",
+        name: "Plywood Material Estimation",
+        actionRequired: "BIM Engineer to prepare and upload the material estimation.",
+        type: "upload",
+        metadataJson: null
+      },
+      {
+        name: "Hardware Material Estimation",
+        actionRequired: "BIM Engineer to prepare and upload the material estimation.",
         type: "upload",
         metadataJson: null
       }
@@ -168,7 +218,20 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
     uploaderRole: "BIM Engineer",
     viewerRoles: ["Production Engineer", "BIM Engineer"],
     actionRequired: "Production associate to verify and Receive the material and update the status.",
-    subtasks: []
+    subtasks: [
+      {
+        name: "Upload Input QA",
+        actionRequired: "BIM Engineer to upload the input QA.",
+        type: "upload",
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+      },
+      {
+        name: "Confirm Input QA",
+        actionRequired: "Production Engineer to confirm the input QA.",
+        type: "approval",
+        metadataJson: null
+      }
+    ]
   },
   {
     stage: "Payment",
@@ -177,7 +240,14 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
     uploaderRole: "Client",
     viewerRoles: ["All"],
     actionRequired: "Client to make a first installment payment.",
-    subtasks: []
+    subtasks: [
+      {
+        name: "Confirm First Installment",
+        actionRequired: "Project Manager to confirm the First Installment.",
+        type: "approval",
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+      },
+    ]
   },
   {
     stage: "Production",
@@ -186,16 +256,14 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
     uploaderRole: "BIM Engineer",
     viewerRoles: ["Production Engineer", "BIM Engineer"],
     actionRequired: "Production associate to verify and Receive the material and update the status.",
-    subtasks: []
-  },
-  {
-    stage: "Production",
-    taskName: "G code and cutting list",
-    statusId: 1,
-    uploaderRole: "BIM Engineer",
-    viewerRoles: ["Production Engineer", "BIM Engineer"],
-    actionRequired: "Production associate use this for CNC programming.",
-    subtasks: []
+    subtasks: [
+      {
+        name: "Upload Pressing List",
+        actionRequired: "BIM Engineer to upload the pressing list.",
+        type: "upload",
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+      },
+    ]
   },
   {
     stage: "Production",
@@ -204,7 +272,14 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
     uploaderRole: "BIM Engineer",
     viewerRoles: ["Production Engineer", "BIM Engineer"],
     actionRequired: "Production associate uses this to verify the status.",
-    subtasks: []
+    subtasks: [
+      {
+        name: "Upload Output QA",
+        actionRequired: "BIM Engineer to upload the output QA.",
+        type: "upload",
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+      },
+    ]
   },
   {
     stage: "Payment",
@@ -213,7 +288,20 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
     uploaderRole: "Client",
     viewerRoles: ["All"],
     actionRequired: "Client to make a last installment payment.",
-    subtasks: []
+    subtasks: [
+      {
+        name: "Confirm Final Payment",
+        actionRequired: "Project Manager to confirm the Final Payment.",
+        type: "approval",
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+      },
+      {
+        name: "Upload Invoice",
+        actionRequired: "Project Manager to confirm the token deposit.",
+        type: "approval",
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+      },
+    ]
   },
   {
     stage: "Production",
