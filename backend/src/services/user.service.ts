@@ -221,47 +221,14 @@ export class UserService {
   }
 
   static async getUsersByRole(roleName: string) {
-    // Handle the special case for 'engineer' to mean all internal users
-    if (roleName === 'engineer') {
-      return prisma.user.findMany({
-        where: {
-          role: {
-            roleType: 'INTERNAL', // Fetch users where their role's type is INTERNAL
-          },
-        },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          phoneNumber: true,
-          isActive: true,
-          verified: true,
-          createdAt: true,
-          updatedAt: true,
-          role: true,
-          // Exclude password for security
-        },
-      });
-    }
-
     // For other roleNames, correct common incorrect casings/formats from the browser
-    let correctedRoleName = roleName;
-    if (roleName === 'designer') {
-      correctedRoleName = 'Designer';
-    } else if (roleName === 'project_manager') { // Browser sends 'project_manager'
-      correctedRoleName = 'Project Manager';    // We search for 'Project Manager'
-    } else if (roleName === 'bim_engineer') { 
-      correctedRoleName = 'BIM Engineer';
-    } else if (roleName === 'client') { 
-      correctedRoleName = 'Home Owner'; // Assuming 'client' refers to 'Home Owner'
-    }
     // If roleName is already correct TitleCase and not matched above, it will be used as is.
     // If roleName is an unhandled incorrect variation, it might not find users.
 
     return prisma.user.findMany({
       where: {
         role: {
-          role: correctedRoleName, // Query by the exact role name string
+          role: roleName, // Query by the exact role name string
         },
       },
       select: {

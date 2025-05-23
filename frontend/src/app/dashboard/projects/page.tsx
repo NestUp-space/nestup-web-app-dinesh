@@ -100,15 +100,15 @@ export default function ProjectsPage({
     const loadUsersForRoles = async () => {
       // Fetch users for each role only if permission exists
       if (hasPermission(PERMISSIONS.USERS.VIEW)) {
-        const designersData = await fetchUsersByRole('designer');
+        const designersData = await fetchUsersByRole('Designer');
         console.log('Designer data before setting state:', designersData);
         setDesigners(designersData);
         
-        const projectManagersData = await fetchUsersByRole('project_manager');
+        const projectManagersData = await fetchUsersByRole('Project Manager');
         console.log('Project Manager data before setting state:', projectManagersData);
         setProjectManagers(projectManagersData);
         
-        const engineersData = await fetchUsersByRole('engineer');
+        const engineersData = await fetchUsersByRole('Site Engineer');
         console.log('Engineer data before setting state:', engineersData);
         setEngineers(engineersData);
       } else {
