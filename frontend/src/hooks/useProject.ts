@@ -45,6 +45,7 @@ interface Subtask {
   name: string;
   description?: string;
   actionRequired?: string;
+  actionByRole?: string; // Added field
   type?: string;
   metadataJson?: string;
   completed: boolean;

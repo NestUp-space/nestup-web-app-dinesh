@@ -3,12 +3,13 @@
 import React, { useState } from 'react';
 import { IndianRupee, FileCheck, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/dashboard/button';
-import { Subtask, Project } from '@/types';
+import { Subtask, Project, User } from '@/types';
 
 interface PaymentSubtaskProps {
   subtask: Subtask;
   project: Project;
   onPaymentComplete: () => void;
+  currentUser: User | null;
 }
 
 interface PaymentDetail {
@@ -21,7 +22,8 @@ interface PaymentDetail {
 export const PaymentSubtask: React.FC<PaymentSubtaskProps> = ({
   subtask,
   project,
-  onPaymentComplete
+  onPaymentComplete,
+  currentUser
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [referenceNumber, setReferenceNumber] = useState('');
@@ -190,23 +192,25 @@ export const PaymentSubtask: React.FC<PaymentSubtaskProps> = ({
                 </div>
               )}
             </div>
-            <Button
-              type="submit"
-              disabled={isSubmitting || !selectedFile}
-              className="bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2 shadow-sm transition-all duration-200"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Verifying...</span>
-                </>
-              ) : (
-                <>
-                  <IndianRupee className="w-4 h-4" />
-                  <span>Verify Payment</span>
-                </>
-              )}
-            </Button>
+            {subtask.actionByRole === currentUser?.role?.role && (
+              <Button
+                type="submit"
+                disabled={isSubmitting || !selectedFile}
+                className="bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2 shadow-sm transition-all duration-200"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Verifying...</span>
+                  </>
+                ) : (
+                  <>
+                    <IndianRupee className="w-4 h-4" />
+                    <span>Verify Payment</span>
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </form>

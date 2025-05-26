@@ -3,12 +3,13 @@
 import React, { useState } from 'react';
 import { CheckCircle2, Clock, ThumbsDown, ThumbsUp, MessageCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/dashboard/button';
-import { Subtask, Project } from '@/types';
+import { Subtask, Project, User } from '@/types';
 
 interface ApprovalSubtaskProps {
   subtask: Subtask;
   project: Project;
   onApprovalComplete: () => void;
+  currentUser: User | null;
 }
 
 type ApprovalAction = 'approve' | 'reject';
@@ -23,7 +24,8 @@ interface ApprovalHistoryItem {
 export const ApprovalSubtask: React.FC<ApprovalSubtaskProps> = ({
   subtask,
   project,
-  onApprovalComplete
+  onApprovalComplete,
+  currentUser
 }) => {
   const [comment, setComment] = useState('');
   const [showCommentBox, setShowCommentBox] = useState(false);
@@ -112,7 +114,7 @@ export const ApprovalSubtask: React.FC<ApprovalSubtaskProps> = ({
       </div>
 
       {/* Action Section */}
-      {!subtask.completed && (
+      {!subtask.completed && subtask.actionByRole === currentUser?.role?.role && (
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
           {!showCommentBox ? (
             <div className="p-4">

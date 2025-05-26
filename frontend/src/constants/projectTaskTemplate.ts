@@ -37,7 +37,7 @@ export const defaultProjectTaskTemplates: FrontendTaskTemplate[] = [
   },
   {
     stage: "Approval",
-    taskName: "Performa invoice",
+    taskName: "Proforma invoice",
   },
   // Pre-Production Stage
   {

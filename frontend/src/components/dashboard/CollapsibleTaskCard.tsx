@@ -178,6 +178,7 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
             subtask={subtask}
             project={project}
             onUploadComplete={handleSubtaskComplete}
+            currentUser={currentUser}
           />
         );
       case 'approval':
@@ -186,6 +187,7 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
             subtask={subtask}
             project={project}
             onApprovalComplete={handleSubtaskComplete}
+            currentUser={currentUser}
           />
         );
       case 'data_collection':
@@ -194,6 +196,7 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
             subtask={subtask}
             project={project}
             onDataSaved={handleSubtaskComplete}
+            currentUser={currentUser}
           />
         );
       case 'payment':
@@ -202,6 +205,7 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
             subtask={subtask}
             project={project}
             onPaymentComplete={handleSubtaskComplete}
+            currentUser={currentUser}
           />
         );
       default:
@@ -369,24 +373,26 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
                       onClick={() => handleSubtaskClick(subtask)}
                     >
                       <div className="flex items-start">
-                        <Button 
-                          variant="ghost"
-                          size="icon"
-                          className="mr-3 mt-0.5"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleToggleSubtaskCompletion(subtask.id, subtask.completed);
-                          }}
-                        >
-                          {subtask.completed ? (
-                            <CheckCircle className="h-5 w-5 text-green-500" />
-                          ) : (
-                            <Circle className="h-5 w-5 text-gray-400" />
-                          )}
-                        </Button>
+                        {subtask.actionByRole === currentUser?.role?.role && (
+                          <Button 
+                            variant="ghost"
+                            size="icon"
+                            className="mr-3 mt-0.5"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleSubtaskCompletion(subtask.id, subtask.completed);
+                            }}
+                          >
+                            {subtask.completed ? (
+                              <CheckCircle className="h-5 w-5 text-green-500" />
+                            ) : (
+                              <Circle className="h-5 w-5 text-gray-400" />
+                            )}
+                          </Button>
+                        )}
                         
                         <div className="flex-grow">
-                          <span className={`font-medium ${subtask.completed ? 'line-through text-gray-500' : 'text-gray-800'}`}>
+                          <span className={`font-medium ${subtask.completed ? ' text-gray-500' : 'text-gray-800'}`}>
                             {subtask.name}
                           </span>
                           {subtask.actionRequired && (

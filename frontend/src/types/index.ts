@@ -5,7 +5,7 @@
 
 // User-related types
 export interface User {
-  id: number;
+  id: number | string; // Changed to allow string or number
   name: string;
   email: string;
   profilePicUrl?: string;
@@ -15,7 +15,7 @@ export interface User {
 
 export interface UserRole {
   id: number;
-  name: string;
+  role: string; // Changed 'name' to 'role' to match backend/currentUser structure
   roleType: string;
 }
 

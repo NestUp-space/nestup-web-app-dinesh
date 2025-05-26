@@ -66,7 +66,7 @@ This file (`backend/src/constants/projectTaskTemplate.ts`) defines the default s
     - Site measurements (Book Site Visit, Site Visit, Design inputs with image uploads and approval)
     - Payment (Token Deposit, First Installment, Last Installment)
     - Design (Site photos, Finalise designs)
-    - Approval (Production document with uploads and approval, Performa invoice with specific types and payment)
+    - Approval (Production document with uploads and approval, Proforma invoice with specific types and payment)
     - Pre-Production (Material estimation with cuttist upload)
     - Production (Input QA, Pressing list, G code and cutting list, Output QA, Installation Guide upload)
 - Ensured `metadataJson` in subtasks, where objects were used, are now correctly `JSON.stringify()`-ed to match the `string | null` type definition.

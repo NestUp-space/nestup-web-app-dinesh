@@ -16,7 +16,8 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
         actionRequired: "Client to upload the site visit form.",
         type: "data_collection",
         isSystemDefined: true,
-        metadataJson: JSON.stringify({ frontendComponent: "frontend/src/components/landing-page/BookSiteVisit.tsx" })
+        metadataJson: JSON.stringify({ frontendComponent: "frontend/src/components/landing-page/BookSiteVisit.tsx" }),
+        actionByRole: "Project Manager"
       },
     ]
   },
@@ -33,7 +34,8 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
         name: "Confirm Token Deposit",
         actionRequired: "Project Manager to confirm the token deposit.",
         type: "approval",
-        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] }),
+        actionByRole: "Project Manager"
       },
     ]
   },
@@ -50,21 +52,24 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
         name: "Upload Site Photos",
         actionRequired: "Upload site photos for documentation",
         type: "upload",
-        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] }),
+        actionByRole: "Project Manager"
       },
       {
         name: "Collect Material Details",
         actionRequired: "BIM Engineer to input material specifications observed during site visit.",
         type: "data_collection",
         isSystemDefined: true,
-        metadataJson: JSON.stringify({ frontendComponent: "frontend/src/components/dashboard/MaterialManagement.tsx" })
+        metadataJson: JSON.stringify({ frontendComponent: "frontend/src/components/dashboard/MaterialManagement.tsx" }),
+        actionByRole: "Project Manager"
       },
       {
         name: "Record Model & Dimension Details",
         actionRequired: "BIM Engineer to input model selections and measured dimensions from site.",
         type: "data_collection",
         isSystemDefined: true,
-        metadataJson: JSON.stringify({ frontendComponent: "frontend/src/components/dashboard/ModelSelector.tsx" })
+        metadataJson: JSON.stringify({ frontendComponent: "frontend/src/components/dashboard/ModelSelector.tsx" }),
+        actionByRole: "Project Manager"
       }
     ]
   },
@@ -80,19 +85,22 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
         name: "Upload 2D Images",
         actionRequired: "Client to upload 2D site images.",
         type: "upload",
-        metadataJson: null
+        metadataJson: null,
+        actionByRole: "Project Manager"
       },
       {
         name: "Upload 3D Images",
         actionRequired: "Client to upload 3D site images.",
         type: "upload",
-        metadataJson: null
+        metadataJson: null,
+        actionByRole: "Project Manager"
       },
       {
         name: "Client Approval for Production",
         actionRequired: "Client to provide sign-off for production.",
         type: "approval",
-        metadataJson: JSON.stringify({ documentType: "Sign off document" })
+        metadataJson: JSON.stringify({ documentType: "Sign off document" }),
+        actionByRole: "Project Manager"
       }
     ]
   },
@@ -110,7 +118,8 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
         name: "Upload Final Designs",
         actionRequired: "Upload site photos for documentation",
         type: "upload",
-        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] }),
+        actionByRole: "Project Manager"
       },
     ]
   },
@@ -127,19 +136,21 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
         name: "Upload Production Document",
         actionRequired: "BIM Engineer to upload the production document.",
         type: "upload",
-        metadataJson: JSON.stringify({ fileTypes: ["PDF", "SKP"] })
+        metadataJson: JSON.stringify({ fileTypes: ["PDF", "SKP"] }),
+        actionByRole: "Project Manager"
       },
       {
         name: "Client Approval of Production Document",
         actionRequired: "Client to approve the uploaded production document.",
         type: "approval",
-        metadataJson: null
+        metadataJson: null,
+        actionByRole: "Project Manager"
       }
     ]
   },
   {
     stage: "Approval",
-    taskName: "Performa invoice",
+    taskName: "Proforma invoice",
     statusId: 1,
     uploaderRole: "BIM Engineer",
     viewerRoles: ["All"],
@@ -149,19 +160,22 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
         name: "Upload Proforma Invoice - MW",
         actionRequired: "BIM Engineer to upload Proforma Invoice for Modular Work.",
         type: "upload",
-        metadataJson: JSON.stringify({ invoiceType: "MW - Modular Work" })
+        metadataJson: JSON.stringify({ invoiceType: "MW - Modular Work" }),
+        actionByRole: "Project Manager"
       },
       {
         name: "Upload Proforma Invoice - FFTL",
         actionRequired: "BIM Engineer to upload Proforma Invoice for Fixtures Fevicol Transport and Logistics.",
         type: "upload",
-        metadataJson: JSON.stringify({ invoiceType: "FFTL - Fixtures Fevicol Transport and Logistics" })
+        metadataJson: JSON.stringify({ invoiceType: "FFTL - Fixtures Fevicol Transport and Logistics" }),
+        actionByRole: "Project Manager"
       },
       {
         name: "Client Payment for Proforma Invoices",
         actionRequired: "Client to make payment against the Proforma Invoices.",
         type: "payment",
-        metadataJson: null
+        metadataJson: null,
+        actionByRole: "Project Manager"
       }
     ]
   },
@@ -178,13 +192,15 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
         name: "Upload cutlist",
         actionRequired: "Upload site photos for documentation",
         type: "upload",
-        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] }),
+        actionByRole: "Project Manager"
       },
       {
         name: "Upload G-code",
         actionRequired: "Upload site photos for documentation",
         type: "upload",
-        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] }),
+        actionByRole: "Project Manager"
       },
     ]
   },
@@ -200,13 +216,15 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
         name: "Plywood Material Estimation",
         actionRequired: "BIM Engineer to prepare and upload the material estimation.",
         type: "upload",
-        metadataJson: null
+        metadataJson: null,
+        actionByRole: "Project Manager"
       },
       {
         name: "Hardware Material Estimation",
         actionRequired: "BIM Engineer to prepare and upload the material estimation.",
         type: "upload",
-        metadataJson: null
+        metadataJson: null,
+        actionByRole: "Project Manager"
       }
     ]
   },
@@ -223,13 +241,15 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
         name: "Upload Input QA",
         actionRequired: "BIM Engineer to upload the input QA.",
         type: "upload",
-        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] }),
+        actionByRole: "Project Manager"
       },
       {
         name: "Confirm Input QA",
         actionRequired: "Production Engineer to confirm the input QA.",
         type: "approval",
-        metadataJson: null
+        metadataJson: null,
+        actionByRole: "Project Manager"
       }
     ]
   },
@@ -245,7 +265,8 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
         name: "Confirm First Installment",
         actionRequired: "Project Manager to confirm the First Installment.",
         type: "approval",
-        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] }),
+        actionByRole: "Project Manager"
       },
     ]
   },
@@ -261,7 +282,8 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
         name: "Upload Pressing List",
         actionRequired: "BIM Engineer to upload the pressing list.",
         type: "upload",
-        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] }),
+        actionByRole: "Project Manager"
       },
     ]
   },
@@ -277,7 +299,8 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
         name: "Upload Output QA",
         actionRequired: "BIM Engineer to upload the output QA.",
         type: "upload",
-        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] }),
+        actionByRole: "Project Manager"
       },
     ]
   },
@@ -293,13 +316,15 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
         name: "Confirm Final Payment",
         actionRequired: "Project Manager to confirm the Final Payment.",
         type: "approval",
-        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] }),
+        actionByRole: "Project Manager"
       },
       {
         name: "Upload Invoice",
         actionRequired: "Project Manager to confirm the token deposit.",
         type: "approval",
-        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] })
+        metadataJson: JSON.stringify({ fileTypes: ["JPG", "PNG", "HEIC"] }),
+        actionByRole: "Project Manager"
       },
     ]
   },
@@ -315,7 +340,8 @@ export const defaultProjectTaskTemplates: TaskTemplate[] = [
             name: "Upload Installation Guide",
             actionRequired: "BIM Engineer to upload the installation guide.",
             type: "upload",
-            metadataJson: null
+            metadataJson: null,
+            actionByRole: "Project Manager"
         }
     ]
   }

@@ -3,12 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Loader2, CheckCircle, AlertCircle, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/dashboard/button';
-import { Subtask, Project } from '@/types';
+import { Subtask, Project, User } from '@/types';
 
 interface DataCollectionSubtaskProps {
   subtask: Subtask;
   project: Project;
   onDataSaved: () => void;
+  currentUser: User | null;
 }
 
 interface FormField {
@@ -24,7 +25,8 @@ interface FormField {
 export const DataCollectionSubtask: React.FC<DataCollectionSubtaskProps> = ({
   subtask,
   project,
-  onDataSaved
+  onDataSaved,
+  currentUser
 }) => {
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -222,23 +224,25 @@ export const DataCollectionSubtask: React.FC<DataCollectionSubtaskProps> = ({
                 </div>
               )}
             </div>
-            <Button
-              type="submit"
-              disabled={isSaving}
-              className="bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2 shadow-sm transition-all duration-200"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  <span>Save Data</span>
-                </>
-              )}
-            </Button>
+            {subtask.actionByRole === currentUser?.role?.role && (
+              <Button
+                type="submit"
+                disabled={isSaving}
+                className="bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2 shadow-sm transition-all duration-200"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>Save Data</span>
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </div>

@@ -77,7 +77,7 @@ export function DesktopNav() {
 
       <div className="mt-auto flex flex-col items-start gap-2 p-4">
         <div className="border-t w-full border-light-bw my-2" />
-        <div className="flex items-center gap-3 px-2">
+        <div className="flex items-center gap-3 px-2 max-w-full wrap">
           <UserIcon className="h-7 w-7 text-dark-text-bw" />
           <div>
             <div className="text-m font-medium text-dark-text-bw">
