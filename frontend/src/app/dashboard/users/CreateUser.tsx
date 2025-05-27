@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import * as api from '../../../lib/api';
 
 const CreateUser = () => {
@@ -89,7 +89,7 @@ const CreateUser = () => {
     roles: { id: string; name: string }[];
   }
 
-  const fetchRoles = async () => {
+  const fetchRoles = useCallback(async () => {
     try {
       const response = await api.get<RolesResponse>('/api/roles');
       if (response.success && response.data) {
@@ -98,11 +98,11 @@ const CreateUser = () => {
     } catch (error) {
       console.error('Failed to fetch roles:', error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchRoles();
-  }, []);
+  }, [fetchRoles]);
 
   return (
     <div>

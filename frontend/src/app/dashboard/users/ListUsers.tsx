@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import EditUser from './EditUser';
 import { useUser } from '../../../context/UserContext';
@@ -28,32 +28,35 @@ const ListUsers = () => {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isUserLoading && !isAdmin(currentUser?.role)) {
+    if (!isUserLoading && !isAdmin(currentUser?.role?.role)) {
       router.push('/dashboard');
     }
   }, [currentUser, isUserLoading, router]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       // Ensure currentUser is loaded and is an admin before fetching
-      if (!currentUser || !isAdmin(currentUser.role)) {
+      if (!currentUser || !isAdmin(currentUser.role?.role)) {
         setLoading(false);
         // Optionally set an error or just don't fetch
-        // setError("Unauthorized to fetch users."); 
+        // setError("Unauthorized to fetch users.");
         return;
       }
       const response = await api.get<UsersResponse>('/api/users');
       if (response.success && response.data) {
         setUsers(response.data.users || []);
+        setError(''); // Clear previous errors on success
       } else {
         setError(response.message || 'Failed to fetch users');
+        setUsers([]); // Clear users on error
       }
-      setLoading(false);
     } catch (err) {
       setError('Failed to fetch users');
+      setUsers([]); // Clear users on error
+    } finally {
       setLoading(false);
     }
-  };
+  }, [currentUser]); // Add currentUser as a dependency
 
   const handleUpdate = () => {
     setEditingUser(null);
@@ -75,18 +78,18 @@ const ListUsers = () => {
 
   useEffect(() => {
     // Fetch users only if the current user is loaded and is an admin
-    if (!isUserLoading && currentUser && isAdmin(currentUser.role)) {
+    if (!isUserLoading && currentUser && isAdmin(currentUser.role?.role)) {
       fetchUsers();
-    } else if (!isUserLoading && (!currentUser || !isAdmin(currentUser.role))) {
+    } else if (!isUserLoading && (!currentUser || !isAdmin(currentUser.role?.role))) {
       // If user is loaded but not admin, stop loading and potentially show error or redirect
       setLoading(false);
       // setError("Access Denied"); // Or handle redirect as done in the other useEffect
     }
-  }, [currentUser, isUserLoading]); // Rerun when currentUser or its loading state changes
+  }, [currentUser, isUserLoading, fetchUsers]); // Add fetchUsers
 
   if (isUserLoading || loading) return <p>Loading users...</p>;
   if (error) return <p>{error}</p>;
-  if (!isAdmin(currentUser?.role)) {
+  if (!isAdmin(currentUser?.role?.role)) {
     // This check is a fallback, primary redirection is handled by useEffect
     return <p>Access Denied. You do not have permission to view this page.</p>;
   }
@@ -132,7 +135,7 @@ const ListUsers = () => {
           <EditUser
             user={editingUser}
             onUpdate={handleUpdate}
-            currentUserRole={currentUser?.role}
+            currentUserRole={currentUser?.role?.role}
           />
         </div>
       )}

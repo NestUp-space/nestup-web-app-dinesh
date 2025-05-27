@@ -34,6 +34,16 @@ interface ProjectTasksProps {
   onTaskUpdate?: () => void;
 }
 
+interface TaskItemProps {
+  task: Task;
+  isFirst: boolean;
+  isLast: boolean;
+  prevTaskStatus?: TaskStatus;
+  formatDate: (dateString?: string) => string;
+  project: Project;
+  onTaskUpdate?: () => void;
+}
+
 // Timeline style configuration map
 const STYLE_CONFIG: Record<TaskStatus, TimelineStyleConfig> = {
   [TaskStatus.DRAFT]: {
@@ -126,6 +136,38 @@ const TaskTimelineNode: React.FC<{
   </div>
 );
 
+const TaskItem: React.FC<TaskItemProps> = ({
+  task,
+  isFirst,
+  isLast,
+  prevTaskStatus,
+  formatDate,
+  project,
+  onTaskUpdate,
+}) => {
+  const timelineStyles = useTimelineStyles(task, prevTaskStatus);
+
+  return (
+    <div className="flex items-start min-h-[8rem] relative mb-8">
+      <div className="absolute left-0 h-full">
+        <TaskTimelineNode
+          isFirst={isFirst}
+          isLast={isLast}
+          styles={timelineStyles}
+        />
+      </div>
+      <div className={`flex-1 ml-16 ${task.status?.status === TaskStatus.COMPLETED ? 'pt-1' : 'pt-0'}`}>
+        <CollapsibleTaskCard
+          task={task}
+          formatDate={formatDate}
+          project={project}
+          onTaskUpdate={onTaskUpdate}
+        />
+      </div>
+    </div>
+  );
+};
+
 export const ProjectTasks: React.FC<ProjectTasksProps> = ({
   tasks,
   formatDate,
@@ -156,33 +198,18 @@ export const ProjectTasks: React.FC<ProjectTasksProps> = ({
       </div>
       
       <div className="relative pl-8">
-        {sortedTasks.map((task, index) => {
-          const timelineStyles = useTimelineStyles(
-            task,
-            index > 0 ? sortedTasks[index - 1].status?.status as TaskStatus : undefined
-          );
-
-          return (
-            <div key={task.id} className="flex items-start min-h-[8rem] relative mb-8">
-              <div className="absolute left-0 h-full">
-                <TaskTimelineNode
-                  isFirst={index === 0}
-                  isLast={index === sortedTasks.length - 1}
-                  styles={timelineStyles}
-                />
-              </div>
-
-              <div className={`flex-1 ml-16 ${task.status?.status === TaskStatus.COMPLETED ? 'pt-1' : 'pt-0'}`}>
-                <CollapsibleTaskCard
-                  task={task}
-                  formatDate={formatDate}
-                  project={project}
-                  onTaskUpdate={onTaskUpdate}
-                />
-              </div>
-            </div>
-          );
-        })}
+        {sortedTasks.map((task, index) => (
+          <TaskItem
+            key={task.id}
+            task={task}
+            isFirst={index === 0}
+            isLast={index === sortedTasks.length - 1}
+            prevTaskStatus={index > 0 ? sortedTasks[index - 1].status?.status as TaskStatus : undefined}
+            formatDate={formatDate}
+            project={project}
+            onTaskUpdate={onTaskUpdate}
+          />
+        ))}
       </div>
     </div>
   );

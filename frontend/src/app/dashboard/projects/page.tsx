@@ -3,7 +3,7 @@
 // Tabs, TabsContent, TabsList, TabsTrigger are now in ProjectTabs
 // PlusCircle, Button, Dialog components, Input, Label, Select components are now in CreateProjectDialog
 import { DashboardBreadcrumb } from '@/components/dashboard/dashboardBreadcrumb';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';
 import { usePermissions } from '@/hooks/usePermissions'; // Import the new hook
@@ -33,7 +33,7 @@ export default function ProjectsPage({
   const [draftProjects, setDraftProjects] = useState<any[]>([]);
   const [archivedProjects, setArchivedProjects] = useState<any[]>([]);
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     if (!token) return;
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects`, {
@@ -65,7 +65,7 @@ export default function ProjectsPage({
       setDraftProjects([]);
       setArchivedProjects([]);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
 
@@ -122,7 +122,7 @@ export default function ProjectsPage({
 
     loadUsersForRoles();
     fetchProjects(); // Fetch projects on component mount
-  }, [token, hasPermission]); // Add hasPermission to dependency array
+  }, [token, hasPermission, fetchProjects]); // Add fetchProjects and hasPermission
 
   const search = searchParams.q ?? '';
   const offset = searchParams.offset ?? 0;

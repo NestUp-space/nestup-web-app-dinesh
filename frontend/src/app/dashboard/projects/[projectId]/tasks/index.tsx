@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 
@@ -19,16 +19,20 @@ const TasksPage = () => {
   const [newTaskDescription, setNewTaskDescription] = useState('');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
+    if (!projectId) return; // Ensure projectId is available
+    setLoading(true);
     try {
       const response = await axios.get(`/api/projects/${projectId}/tasks`);
       setTasks(response.data.tasks);
-      setLoading(false);
+      setError('');
     } catch (err) {
       setError('Failed to fetch tasks');
+      setTasks([]); // Clear tasks on error
+    } finally {
       setLoading(false);
     }
-  };
+  }, [projectId]);
 
   const handleCreateTask = async () => {
     try {
@@ -67,10 +71,8 @@ const TasksPage = () => {
   };
 
   useEffect(() => {
-    if (projectId) {
-      fetchTasks();
-    }
-  }, [projectId]);
+    fetchTasks();
+  }, [fetchTasks]);
 
   if (loading) return <p>Loading tasks...</p>;
   if (error) return <p>{error}</p>;

@@ -15,6 +15,7 @@ import {
   ModelInfo,
   CreateSiteVisitBoxData
 } from '@/hooks';
+import Image from 'next/image';
 import { Button } from '@/components/dashboard/button';
 import { Plus, Edit, Trash2, Save, X, Download, Info, Box, ArrowRight } from 'lucide-react';
 
@@ -27,13 +28,15 @@ const BoxConfiguration: React.FC<BoxConfigurationProps> = ({ taskId, projectId }
   const { boxes, loading: boxesLoading, refetch: refetchBoxes } = useTaskSiteVisitBoxes(taskId);
   const { createSiteVisitBox, loading: createLoading } = useCreateSiteVisitBox(taskId);
   const { deleteSiteVisitBox, loading: deleteLoading } = useDeleteSiteVisitBox();
+  const [editingBoxId, setEditingBoxId] = useState<number | null>(null); // Moved earlier for hook dependency
+  const { updateSiteVisitBox, loading: updateLoading } = useUpdateSiteVisitBox(editingBoxId ?? -1); // Provide -1 if null
   const { models, loading: modelsLoading } = useAvailableBimModels();
   const { validateInputs } = useValidateModelInputs();
   const { generatePlankList, loading: generateLoading } = useGeneratePlankList(taskId);
   const plankListDownloadUrl = usePlankListDownloadUrl(taskId);
   
   const [isAddingBox, setIsAddingBox] = useState(false);
-  const [editingBoxId, setEditingBoxId] = useState<number | null>(null);
+  // const [editingBoxId, setEditingBoxId] = useState<number | null>(null); // Moved earlier
   const [selectedModelType, setSelectedModelType] = useState<string | null>(null);
   const [modelInputs, setModelInputs] = useState<Record<string, any>>({});
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -115,8 +118,7 @@ const BoxConfiguration: React.FC<BoxConfigurationProps> = ({ taskId, projectId }
     try {
       if (editingBoxId !== null) {
         // Update existing box
-        const { updateSiteVisitBox } = useUpdateSiteVisitBox(editingBoxId);
-        await updateSiteVisitBox({
+        await updateSiteVisitBox({ // updateSiteVisitBox is now from the top-level hook
           modelType: selectedModelType!,
           inputs: modelInputs
         });
@@ -299,11 +301,12 @@ const BoxConfiguration: React.FC<BoxConfigurationProps> = ({ taskId, projectId }
                           <h4 className="font-medium">{model.modelType}</h4>
                         </div>
                         {model.screenshotUrl && (
-                          <div className="mb-2 h-32 bg-gray-100 rounded overflow-hidden">
-                            <img 
-                              src={model.screenshotUrl} 
-                              alt={model.modelType} 
-                              className="w-full h-full object-cover"
+                          <div className="relative mb-2 h-32 bg-gray-100 rounded overflow-hidden">
+                            <Image
+                              src={model.screenshotUrl}
+                              alt={model.modelType}
+                              layout="fill"
+                              objectFit="cover"
                             />
                           </div>
                         )}
@@ -364,9 +367,9 @@ const BoxConfiguration: React.FC<BoxConfigurationProps> = ({ taskId, projectId }
                 >
                   <X size={16} className="mr-1" /> Cancel
                 </Button>
-                <Button 
-                  type="submit" 
-                  disabled={createLoading || !selectedModelType}
+                <Button
+                  type="submit"
+                  disabled={(editingBoxId !== null ? updateLoading : createLoading) || !selectedModelType || modelInfoLoading}
                 >
                   <Save size={16} className="mr-1" /> Save
                 </Button>
