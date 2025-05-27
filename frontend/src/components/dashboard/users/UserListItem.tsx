@@ -22,7 +22,7 @@ export const UserListItem: React.FC<UserListItemProps> = ({ user, canEdit }) => 
       </div>
       <div className="flex items-center gap-4">
         <span className="text-xs text-dark-text-bw/70 px-2 py-0.5 bg-lighter-bw rounded-full border border-light-bw">
-          {user.role?.name || 'N/A'}
+          {user.role?.role || 'N/A'}
         </span>
         {canEdit && (
           <Button

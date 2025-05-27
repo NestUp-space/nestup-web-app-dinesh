@@ -191,7 +191,7 @@ const CreateUserPage: React.FC = () => {
               ))}
             </select>
           </div>
-          <Button variant="createUser" type="submit">
+          <Button variant="default" type="submit">
             Create User
           </Button>
         </form>
