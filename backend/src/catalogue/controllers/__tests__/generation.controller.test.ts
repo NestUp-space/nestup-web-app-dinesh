@@ -70,10 +70,10 @@ describe('GenerationController', () => {
       mockRequest.body = { projectCatalogueItemInstanceId };
 
       const mockExposedMaterial: Material = {
-        id: 1, projectId, materialId: 'EXM001', plyThickness: 18, innerLaminateCode: 'ILC01', outerLaminateCode: 'OLC01', overallThickness: 19, plyType: 'HDHMR', grainDirection: 'Vertical', edgebandingInnerCode: 'EBI01', edgebandingExposedCode: 'EBE01', createdAt: new Date(), updatedAt: new Date()
+        id: 1, projectId, materialId: 'EXM001', plyThickness: 18, innerLaminateCode: 'ILC01', outerLaminateCode: 'OLC01', overallThickness: 19, plyType: 'HDHMR', grainDirection: 'Y', createdAt: new Date(), updatedAt: new Date()
       };
       const mockInnerMaterial: Material = {
-        id: 2, projectId, materialId: 'INM001', plyThickness: 18, innerLaminateCode: 'ILC02', outerLaminateCode: 'OLC02', overallThickness: 19, plyType: 'MR Plywood', grainDirection: 'Horizontal', edgebandingInnerCode: 'EBI02', edgebandingExposedCode: 'EBE02', createdAt: new Date(), updatedAt: new Date()
+        id: 2, projectId, materialId: 'INM001', plyThickness: 18, innerLaminateCode: 'ILC02', outerLaminateCode: 'OLC02', overallThickness: 19, plyType: 'Plywood', grainDirection: 'N', createdAt: new Date(), updatedAt: new Date()
       };
 
       const mockBomItem: ModelBomItem = {
@@ -85,6 +85,7 @@ describe('GenerationController', () => {
         projectId,
         modelDefinitionId: 'model-def-1',
         runtimeInputsJson: { exposedMaterialId: 'EXM001', innerMaterialId: 'INM001', someOtherParam: 500 },
+        uiDisplayOrder: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
         modelDefinition: {

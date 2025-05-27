@@ -5,8 +5,8 @@
  * It is referenced in the Vitest configuration.
  */
 
-import { vi } from 'vitest';
-import { resetPrismaMock } from './prisma.mock';
+import { vi, beforeEach, afterAll } from 'vitest';
+import { prismaMock } from './prisma.mock';
 
 // Set up global environment variables for tests
 process.env.JWT_SECRET = 'test-jwt-secret';
@@ -14,7 +14,6 @@ process.env.NODE_ENV = 'test';
 
 // Reset mocks before each test
 beforeEach(() => {
-  resetPrismaMock();
   vi.resetAllMocks();
 });
 
