@@ -81,7 +81,7 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // Handle preflight requests
 
 // Additional CORS debugging middleware
-app.use((req, res, next) => {
+app.use((req, _res, next) => {
   console.log('--- [REQUEST DEBUG] Method:', req.method);
   console.log('--- [REQUEST DEBUG] URL:', req.url);
   console.log('--- [REQUEST DEBUG] Origin:', req.headers.origin);
