@@ -11,9 +11,20 @@ import { prismaMock } from './prisma.mock';
 // Set up global environment variables for tests
 process.env.JWT_SECRET = 'test-jwt-secret';
 process.env.NODE_ENV = 'test';
+process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
+
+// Mock Prisma Client globally
+vi.mock('@prisma/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@prisma/client')>();
+  return {
+    ...actual,
+    PrismaClient: vi.fn(() => prismaMock),
+  };
+});
 
 // Reset mocks before each test
 beforeEach(() => {
+  vi.clearAllMocks();
   vi.resetAllMocks();
 });
 
@@ -64,8 +75,14 @@ vi.mock('jsonwebtoken', () => ({
   }),
 }));
 
-// Mock bcrypt
-vi.mock('bcrypt', () => ({
+// Mock bcryptjs (the actual package being used)
+vi.mock('bcryptjs', () => ({
+  default: {
+    hash: vi.fn().mockResolvedValue('hashed-password'),
+    compare: vi.fn().mockImplementation((password, hash) => {
+      return Promise.resolve(password === 'correct-password');
+    }),
+  },
   hash: vi.fn().mockResolvedValue('hashed-password'),
   compare: vi.fn().mockImplementation((password, hash) => {
     return Promise.resolve(password === 'correct-password');

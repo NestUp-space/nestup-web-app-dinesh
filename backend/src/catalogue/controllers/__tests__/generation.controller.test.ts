@@ -8,15 +8,8 @@ import { ProjectModelInstanceService } from '../../services/project-model-instan
 import { JavaScriptFunctionService, ExecutedScriptResult } from '../../services/javascript-function.service';
 import { PlankListGeneratorService } from '../../services/plank-list-generator.service';
 
-// Mock Prisma Client
-const prismaMock = mockDeep<PrismaClient>();
-vi.mock('@prisma/client', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@prisma/client')>();
-  return {
-    ...original,
-    PrismaClient: vi.fn(() => prismaMock),
-  };
-});
+// Import the global prismaMock from setup
+import { prismaMock } from '../../../test/setup/prisma.mock';
 
 // Mock services
 vi.mock('../../services/project-model-instance.service'); // Corrected filename
@@ -147,7 +140,7 @@ describe('GenerationController', () => {
       await generationController.generatePlankList(mockRequest, mockResponse, mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(404);
-      expect(mockResponse.json).toHaveBeenCalledWith({ message: 'Project catalogue item instance or its definition/BOM not found.' });
+      expect(mockResponse.json).toHaveBeenCalledWith({ message: 'Project model instance or its definition/BOM not found.' });
     });
     
     // Add more tests:

@@ -1,24 +1,9 @@
-import { vi } from 'vitest';
+import { mockDeep, DeepMockProxy } from 'vitest-mock-extended';
+import { PrismaClient } from '@prisma/client';
 
-// This is a common way to mock Prisma with Vitest.
-// We are essentially creating an object that looks like PrismaClient,
-// but all its methods are Vitest mocks.
+// Create a deep mock of PrismaClient using vitest-mock-extended
+// This provides full type safety and automatically mocks all methods
+export const prismaMock: DeepMockProxy<PrismaClient> = mockDeep<PrismaClient>();
 
-const prismaMock = {
-  user: {
-    findFirst: vi.fn(),
-    findUnique: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-    // Add other model methods you use in tests
-  },
-  // Add other models as needed, e.g.:
-  // post: {
-  //   findFirst: vi.fn(),
-  //   create: vi.fn(),
-  // },
-  // ... other models
-};
-
-export { prismaMock };
+// Export for backward compatibility
+export { prismaMock as default };
