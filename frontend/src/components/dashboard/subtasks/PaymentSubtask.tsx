@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { IndianRupee, FileCheck, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/dashboard/button';
 import { Subtask, Project, User } from '@/types';
+import { useUser } from '@/context/UserContext';
+import { PERMISSIONS as FE_PERMISSIONS } from '@/constants/permissions';
 
 interface PaymentSubtaskProps {
   subtask: Subtask;
@@ -30,6 +32,12 @@ export const PaymentSubtask: React.FC<PaymentSubtaskProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const { hasPermission: userHasPermission } = useUser();
+
+  // Check if user can update subtask status
+  const canUpdateSubtaskStatus = subtask.actionByRole === currentUser?.role?.role && 
+                                 currentUser?.role?.role === 'Project Manager' && 
+                                 userHasPermission(FE_PERMISSIONS.SUBTASKS.CHANGE_STATUS);
 
   const paymentDetails: PaymentDetail | null = React.useMemo(() => {
     if (subtask.metadataJson) {
@@ -192,7 +200,7 @@ export const PaymentSubtask: React.FC<PaymentSubtaskProps> = ({
                 </div>
               )}
             </div>
-            {subtask.actionByRole === currentUser?.role?.role && (
+            {canUpdateSubtaskStatus && (
               <Button
                 type="submit"
                 disabled={isSubmitting || !selectedFile}

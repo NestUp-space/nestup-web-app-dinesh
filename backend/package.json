@@ -4,14 +4,18 @@
   "description": "",
   "main": "src/index.ts",
   "scripts": {
-    "start": "ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "start:dev": "ts-node src/index.ts",
     "dev": "nodemon -r tsconfig-paths/register src/index.ts",
-    "build": "tsc",
+    "build": "prisma generate && tsc",
+    "postbuild": "npm run migrate:prod",
     "test": "mocha -r ts-node/register 'src/tests/**/*.ts'",
     "test:permissions": "mocha -r ts-node/register 'src/tests/permissions.test.ts'",
     "migrate": "prisma migrate dev",
     "migrate:prod": "prisma migrate deploy",
-    "setup:admin": "ts-node src/scripts/setupAdminRoleAndUser.ts"
+    "setup:admin": "ts-node src/scripts/setupAdminRoleAndUser.ts",
+    "railway:build": "npm run build",
+    "railway:start": "npm run start"
   },
   "prisma": {
     "seed": "ts-node -r tsconfig-paths/register prisma/seed.ts"

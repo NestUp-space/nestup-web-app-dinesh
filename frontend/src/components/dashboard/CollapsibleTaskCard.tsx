@@ -373,7 +373,9 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
                       onClick={() => handleSubtaskClick(subtask)}
                     >
                       <div className="flex items-start">
-                        {subtask.actionByRole === currentUser?.role?.role && (
+                        {subtask.actionByRole === currentUser?.role?.role && 
+                         currentUser?.role?.role === 'Project Manager' && 
+                         userHasPermission(FE_PERMISSIONS.SUBTASKS.CHANGE_STATUS) && (
                           <Button 
                             variant="ghost"
                             size="icon"
@@ -390,6 +392,19 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
                             )}
                           </Button>
                         )}
+                        
+                        {/* Show status icon for view-only users (like Designers) */}
+                        {(subtask.actionByRole === currentUser?.role?.role && 
+                          currentUser?.role?.role !== 'Project Manager') ||
+                         !userHasPermission(FE_PERMISSIONS.SUBTASKS.CHANGE_STATUS) ? (
+                          <div className="mr-3 mt-0.5 p-2">
+                            {subtask.completed ? (
+                              <CheckCircle className="h-5 w-5 text-green-500" />
+                            ) : (
+                              <Circle className="h-5 w-5 text-gray-400" />
+                            )}
+                          </div>
+                        ) : null}
                         
                         <div className="flex-grow">
                           <span className={`font-medium ${subtask.completed ? ' text-gray-500' : 'text-gray-800'}`}>

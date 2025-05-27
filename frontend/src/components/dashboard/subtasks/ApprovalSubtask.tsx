@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { CheckCircle2, Clock, ThumbsDown, ThumbsUp, MessageCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/dashboard/button';
 import { Subtask, Project, User } from '@/types';
+import { useUser } from '@/context/UserContext';
+import { PERMISSIONS as FE_PERMISSIONS } from '@/constants/permissions';
 
 interface ApprovalSubtaskProps {
   subtask: Subtask;
@@ -32,6 +34,12 @@ export const ApprovalSubtask: React.FC<ApprovalSubtaskProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [approvalHistory, setApprovalHistory] = useState<ApprovalHistoryItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const { hasPermission: userHasPermission } = useUser();
+
+  // Check if user can update subtask status
+  const canUpdateSubtaskStatus = subtask.actionByRole === currentUser?.role?.role && 
+                                 currentUser?.role?.role === 'Project Manager' && 
+                                 userHasPermission(FE_PERMISSIONS.SUBTASKS.CHANGE_STATUS);
 
   const handleApprovalAction = async (action: ApprovalAction) => {
     if (isSubmitting) return;
@@ -113,8 +121,8 @@ export const ApprovalSubtask: React.FC<ApprovalSubtaskProps> = ({
         {getStatusDisplay()}
       </div>
 
-      {/* Action Section */}
-      {!subtask.completed && subtask.actionByRole === currentUser?.role?.role && (
+      {/* Action Section - Only show for Project Managers with proper permissions */}
+      {!subtask.completed && canUpdateSubtaskStatus && (
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
           {!showCommentBox ? (
             <div className="p-4">

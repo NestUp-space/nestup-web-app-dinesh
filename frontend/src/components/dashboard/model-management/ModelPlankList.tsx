@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Model, PlankDetails, RuntimeInput } from '@/types/plankTypes';
+import { safeEvaluateExpression, SAMPLE_CONTEXT } from '@/utils/safeExpressionEvaluator';
 
 interface ModelPlankListProps {
   models: Model[];
@@ -25,42 +26,25 @@ export default function ModelPlankList({ models, globalConstants }: ModelPlankLi
   const [plankList, setPlankList] = useState<PlankDetails[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // Execute a calculation with given inputs and logic
+  // Execute a calculation with given inputs and logic using safe evaluator
   const executeCalculation = (
     logic: string, 
     inputs: Record<string, any>, 
     expectedVar: 'Width' | 'Height' | 'Material'
   ): any => {
-    try {
-      const fn = new Function('runtimeInputs', 'globalConstants', `
-        // Runtime inputs
-        const {
-          boxDepth, boxHeight, leftAdjacency, rightAdjacency,
-          skirting, outerMaterialCode, innerMaterialCode,
-          ...otherInputs
-        } = runtimeInputs;
+    const context = {
+      runtimeInputs: inputs,
+      globalConstants
+    };
 
-        // Global constants
-        const {
-          MATERIAL_THICKNESS,
-          EDGE_BANDING
-        } = globalConstants;
-
-        // Variable declaration
-        let ${expectedVar};
-
-        // User's core logic
-        ${logic}
-
-        // Return value
-        return ${expectedVar};
-      `);
-
-      return fn(inputs, globalConstants);
-    } catch (err) {
-      console.error('Calculation error:', err);
-      throw new Error(`Failed to execute ${expectedVar.toLowerCase()} calculation`);
+    const result = safeEvaluateExpression(logic, context, expectedVar);
+    
+    if (!result.success) {
+      console.error('Calculation error:', result.error);
+      throw new Error(`Failed to execute ${expectedVar.toLowerCase()} calculation: ${result.error}`);
     }
+
+    return result.value;
   };
 
   // Generate plank list for selected model and inputs

@@ -5,6 +5,7 @@ import { CheckCircle, Wand2, AlertTriangle } from 'lucide-react'; // Added Alert
 import { Button } from '@/components/dashboard/button';
 import { Label } from '@/components/dashboard/label';
 import { cn } from '@/lib/utils';
+import { safeEvaluateExpression, validateExpressionCode, SAMPLE_CONTEXT } from '@/utils/safeExpressionEvaluator';
 
 interface ExpressionInputProps {
   label: string;
@@ -130,80 +131,32 @@ export default function ExpressionInput({
   };
 
   const validateCode = (code: string): ValidationResult => {
-    try {
-      // Create safe evaluation context
-      const evalContext = {
-        runtimeInputs: { ...SAMPLE_INPUTS },
-        globalConstants: DEFAULT_GLOBAL_CONSTANTS,
-        Width: undefined as any
-      };
+    // Determine expected variable
+    const expectedVar = label.toLowerCase().includes('width') ? 'Width'
+      : label.toLowerCase().includes('length') || label.toLowerCase().includes('height') ? 'Height'
+      : label.toLowerCase().includes('material') ? 'Material'
+      : 'Width';
 
-      // Determine expected variable
-      const expectedVar = label.toLowerCase().includes('width') ? 'Width'
-        : label.toLowerCase().includes('length') || label.toLowerCase().includes('height') ? 'Height'
-        : label.toLowerCase().includes('material') ? 'Material'
-        : 'Width';
-
-      // Construct the complete code with boilerplate
-      const wrapped = `
-        // Runtime inputs
-        const {
-          boxDepth, boxHeight, leftAdjacency, rightAdjacency,
-          skirting, outerMaterialCode, innerMaterialCode
-        } = runtimeInputs;
-
-        // Global constants
-        const {
-          MATERIAL_THICKNESS,
-          EDGE_BANDING
-        } = globalConstants;
-
-        // Variable declaration
-        let ${expectedVar};
-
-        // User's core logic
-        ${code}
-
-        // Return value
-        return ${expectedVar};
-      `;
-
-      // Execute the complete code
-      const fn = new Function('runtimeInputs', 'globalConstants', wrapped);
-      const result = fn(evalContext.runtimeInputs, evalContext.globalConstants);
-
-      // Validate result based on type
-      if (expectedVar === 'Material') {
-        if (typeof result !== 'string') {
-          return { isValid: false, error: 'Material code must return a string value' };
-        }
-        if (!result) {
-          return { isValid: false, error: 'Material code cannot be empty' };
-        }
-      } else {
-        if (typeof result !== 'number') {
-          return { isValid: false, error: `${expectedVar} must be a numeric value` };
-        }
-        if (result <= 0) {
-          return { isValid: false, error: `${expectedVar} must be greater than 0` };
-        }
-      }
-
-      // Check if code uses correct variable name
-      if (!code.includes(`${expectedVar} =`)) {
-        return { 
-          isValid: false, 
-          error: `Code must use '${expectedVar} =' to assign the ${label.toLowerCase()} value`
-        };
-      }
-
-      return { isValid: true, value: result };
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        return { isValid: false, error: err.message };
-      }
-      return { isValid: false, error: 'An unknown error occurred' };
+    // First validate the code structure
+    const structureValidation = validateExpressionCode(code, expectedVar);
+    if (!structureValidation.isValid) {
+      return { isValid: false, error: structureValidation.error };
     }
+
+    // Create safe evaluation context using sample data
+    const evalContext = {
+      runtimeInputs: { ...SAMPLE_INPUTS },
+      globalConstants: globalConstants || DEFAULT_GLOBAL_CONSTANTS
+    };
+
+    // Use safe evaluator
+    const result = safeEvaluateExpression(code, evalContext, expectedVar);
+    
+    if (!result.success) {
+      return { isValid: false, error: result.error };
+    }
+
+    return { isValid: true, value: result.value };
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {

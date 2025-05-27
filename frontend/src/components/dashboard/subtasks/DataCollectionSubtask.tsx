@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { Save, Loader2, CheckCircle, AlertCircle, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/dashboard/button';
 import { Subtask, Project, User } from '@/types';
+import { useUser } from '@/context/UserContext';
+import { PERMISSIONS as FE_PERMISSIONS } from '@/constants/permissions';
 
 interface DataCollectionSubtaskProps {
   subtask: Subtask;
@@ -33,6 +35,12 @@ export const DataCollectionSubtask: React.FC<DataCollectionSubtaskProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const { hasPermission: userHasPermission } = useUser();
+
+  // Check if user can update subtask status
+  const canUpdateSubtaskStatus = subtask.actionByRole === currentUser?.role?.role && 
+                                 currentUser?.role?.role === 'Project Manager' && 
+                                 userHasPermission(FE_PERMISSIONS.SUBTASKS.CHANGE_STATUS);
 
   useEffect(() => {
     // Parse metadata to get form configuration
@@ -224,7 +232,7 @@ export const DataCollectionSubtask: React.FC<DataCollectionSubtaskProps> = ({
                 </div>
               )}
             </div>
-            {subtask.actionByRole === currentUser?.role?.role && (
+            {canUpdateSubtaskStatus && (
               <Button
                 type="submit"
                 disabled={isSaving}

@@ -6,6 +6,8 @@ import { Upload, X, File, CheckCircle, AlertCircle, Loader2 } from 'lucide-react
 import { Button } from '@/components/dashboard/button';
 import { Subtask, Project, User } from '@/types';
 import { useGet } from '@/hooks/useApi'; // Import useGet hook
+import { useUser } from '@/context/UserContext';
+import { PERMISSIONS as FE_PERMISSIONS } from '@/constants/permissions';
 
 interface FileUploadSubtaskProps {
   subtask: Subtask;
@@ -31,6 +33,12 @@ export const FileUploadSubtask: React.FC<FileUploadSubtaskProps> = ({
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const { hasPermission: userHasPermission } = useUser();
+
+  // Check if user can update subtask status
+  const canUpdateSubtaskStatus = subtask.actionByRole === currentUser?.role?.role && 
+                                 currentUser?.role?.role === 'Project Manager' && 
+                                 userHasPermission(FE_PERMISSIONS.SUBTASKS.CHANGE_STATUS);
 
   // Parse metadata for file type restrictions
   const allowedFileTypes = React.useMemo(() => {
@@ -132,7 +140,7 @@ export const FileUploadSubtask: React.FC<FileUploadSubtaskProps> = ({
 
   return (
     <div className="h-full">
-      {isActionByCurrentUser ? (
+      {canUpdateSubtaskStatus ? (
         <>
           <div
             {...getRootProps()}

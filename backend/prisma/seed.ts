@@ -164,6 +164,7 @@ async function main() {
     PERMISSIONS.SUBTASKS.VIEW,
     PERMISSIONS.SUBTASKS.CREATE,
     PERMISSIONS.SUBTASKS.EDIT,
+    PERMISSIONS.SUBTASKS.CHANGE_STATUS, // Permission to change subtask status
     PERMISSIONS.SUBTASKS.DELETE, // Base delete permission
     PERMISSIONS.SUBTASKS.MANAGE_USER_ADDED, // Specific for user-added ones
   ];
