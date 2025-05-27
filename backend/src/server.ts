@@ -63,11 +63,31 @@ const corsOptions = {
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: [
+    "Content-Type", 
+    "Authorization", 
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+    "Access-Control-Request-Method",
+    "Access-Control-Request-Headers"
+  ],
+  exposedHeaders: ["Content-Length", "X-Foo", "X-Bar"],
+  preflightContinue: false,
+  optionsSuccessStatus: 200,
 };
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // Handle preflight requests
+
+// Additional CORS debugging middleware
+app.use((req, res, next) => {
+  console.log('--- [REQUEST DEBUG] Method:', req.method);
+  console.log('--- [REQUEST DEBUG] URL:', req.url);
+  console.log('--- [REQUEST DEBUG] Origin:', req.headers.origin);
+  console.log('--- [REQUEST DEBUG] Headers:', JSON.stringify(req.headers, null, 2));
+  next();
+});
 
 app.use(helmet());
 app.use(rateLimiter);
