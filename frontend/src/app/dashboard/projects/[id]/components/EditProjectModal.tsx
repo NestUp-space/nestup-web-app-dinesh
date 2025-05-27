@@ -5,21 +5,19 @@
 
 'use client';
 
-import React, { useEffect } from 'react'; // Added useEffect
+import React, { useEffect } from 'react';
 import { Button } from '@/components/dashboard/button';
-import { Project, User, UpdateProjectData } from '@/types'; // Added UpdateProjectData
-// import { useForm } from '@/hooks'; // To be replaced
-import { useForm, Controller } from 'react-hook-form'; // Import from react-hook-form
-import { zodResolver } from '@hookform/resolvers/zod'; // For Zod validation
-import { z } from 'zod'; // For Zod schema
+import { Project, User, UpdateProjectData, Status } from '@/types'; // Added Status
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogClose, // Added DialogClose for cancel button
-  DialogDescription // Optional: if a description is needed
+  DialogClose,
 } from '@/components/dashboard/dialog';
 import { Input } from '@/components/dashboard/input';
 import { Label } from '@/components/dashboard/label';
@@ -30,15 +28,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/dashboard/select';
-import { cn } from '@/lib/utils'; // For conditional class names
+import { cn } from '@/lib/utils';
 
 interface EditProjectModalProps {
   project: Project;
   clientsList: User[];
   engineersList: User[];
+  designersList: User[]; // New
+  projectManagersList: User[]; // New
+  statusesList: Status[]; // New
   onClose: () => void;
-  onSave: (data: any) => Promise<void>;
-  // isOpen prop will be controlled by the parent page (ProjectDetailPage)
+  onSave: (data: UpdateProjectData) => Promise<void>; // Changed any to UpdateProjectData
   isOpen: boolean;
 }
 
@@ -50,9 +50,13 @@ const editProjectSchema = z.object({
   location: z.string().optional().nullable(),
   sqft: z.number({ invalid_type_error: "Square footage must be a number or empty" })
     .positive("Square footage must be a positive number")
-    .optional(), // This makes the type number | undefined
-  // clientId: z.string().optional().nullable(), // Keep commented out
+    .optional()
+    .nullable(), // Allow null for optional number fields
   engineerId: z.string().optional().nullable(),
+  designerId: z.string().optional().nullable(), // New
+  projectManagerId: z.string().optional().nullable(), // New
+  statusId: z.string().min(1, "Status is required"), // New - assuming string from select
+  estimatedTime: z.string().optional().nullable(), // New
 });
 
 type EditProjectFormData = z.infer<typeof editProjectSchema>;
@@ -61,6 +65,9 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
   project,
   clientsList, // Keep for potential future use if client field is added
   engineersList,
+  designersList, // New
+  projectManagersList, // New
+  statusesList, // New
   onClose,
   onSave,
   isOpen
@@ -78,9 +85,12 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
       description: project.description || '',
       address: project.address || '',
       location: project.location || '',
-      sqft: project.sqft ?? undefined, // react-hook-form handles number conversion
-      // clientId: project.client?.id?.toString() || '', // Keep commented out
+      sqft: project.sqft ?? undefined,
       engineerId: project.engineer?.id?.toString() || '',
+      designerId: project.designer?.id?.toString() || '', // New
+      projectManagerId: project.projectManager?.id?.toString() || '', // New
+      statusId: project.statusId?.toString() || '', // New
+      estimatedTime: project.estimatedTime || '', // New
     },
   });
 
@@ -93,13 +103,15 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
         location: project.location || '',
         sqft: project.sqft ?? undefined,
         engineerId: project.engineer?.id?.toString() || '',
+        designerId: project.designer?.id?.toString() || '', // New
+        projectManagerId: project.projectManager?.id?.toString() || '', // New
+        statusId: project.statusId?.toString() || '', // New
+        estimatedTime: project.estimatedTime || '', // New
       });
     }
   }, [isOpen, project, reset]);
 
   const onSubmitHandler = async (data: EditProjectFormData) => {
-    // Align with UpdateProjectData which expects description: string | undefined
-    // and sqft: number | undefined
     const payload: UpdateProjectData = {
       name: data.name,
       description: data.description ?? undefined,
@@ -107,12 +119,16 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
       location: data.location ?? undefined,
       sqft: (typeof data.sqft === 'number' && !isNaN(data.sqft)) ? data.sqft : undefined,
       engineerId: (data.engineerId && data.engineerId !== "__NO_ENGINEER__") ? Number(data.engineerId) : undefined,
+      designerId: (data.designerId && data.designerId !== "__NO_DESIGNER__") ? Number(data.designerId) : undefined, // New
+      projectManagerId: (data.projectManagerId && data.projectManagerId !== "__NO_PROJECT_MANAGER__") ? Number(data.projectManagerId) : undefined, // New
+      statusId: Number(data.statusId), // New: Assuming statusId is always selected
+      estimatedTime: data.estimatedTime ?? undefined, // New
     };
     // Ensure nulls from Zod (for string fields) become undefined for UpdateProjectData
     if (payload.description === null) payload.description = undefined;
     if (payload.address === null) payload.address = undefined;
     if (payload.location === null) payload.location = undefined;
-    if (payload.engineerId === null) payload.engineerId = undefined; // Should not happen with current Zod
+    if (payload.estimatedTime === null) payload.estimatedTime = undefined;
 
     await onSave(payload);
   };
@@ -167,6 +183,78 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
               />
               {errors.sqft && <p className="mt-1 text-xs text-red-500">{errors.sqft.message}</p>}
             </div>
+            {/* Status Dropdown */}
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-status">Status</Label>
+              <Controller
+                name="statusId"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value || ''}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger id="edit-status">
+                      <SelectValue placeholder="Select Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statusesList.map(status => (
+                        <SelectItem key={status.id} value={status.id.toString()}>{status.status}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.statusId && <p className="mt-1 text-xs text-red-500">{errors.statusId.message}</p>}
+            </div>
+            {/* Designer Dropdown */}
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-designer">Designer</Label>
+              <Controller
+                name="designerId"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value || ''}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger id="edit-designer">
+                      <SelectValue placeholder="Select Designer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__NO_DESIGNER__">Select Designer</SelectItem>
+                      {designersList.map(designer => (
+                        <SelectItem key={designer.id} value={designer.id.toString()}>{designer.name} ({designer.email})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+            {/* Project Manager Dropdown */}
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-project-manager">Project Manager</Label>
+              <Controller
+                name="projectManagerId"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value || ''}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger id="edit-project-manager">
+                      <SelectValue placeholder="Select Project Manager" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__NO_PROJECT_MANAGER__">Select Project Manager</SelectItem>
+                      {projectManagersList.map(pm => (
+                        <SelectItem key={pm.id} value={pm.id.toString()}>{pm.name} ({pm.email})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
             {/* Engineer Dropdown */}
             <div className="space-y-1.5">
               <Label htmlFor="edit-engineer">Engineer</Label>
@@ -189,6 +277,15 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({
                     </SelectContent>
                   </Select>
                 )}
+              />
+            </div>
+            {/* Estimated Completion Input */}
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-estimated-time">Estimated Completion</Label>
+              <Input
+                id="edit-estimated-time"
+                {...register('estimatedTime')}
+                placeholder="e.g., YYYY-MM-DD or a descriptive string"
               />
             </div>
           </div>

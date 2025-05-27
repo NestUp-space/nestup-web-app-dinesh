@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import Breadcrumbs from '@/components/dashboard/Breadcrumbs';
-import { Project, User, UpdateProjectData } from '@/types';
+import { Project, User, UpdateProjectData, Status } from '@/types';
 import { useProject, useUpdateProject } from '@/hooks';
 import {
   ProjectHeader,
@@ -25,7 +25,10 @@ export default function ProjectDetailPage() {
   // State for users lists (for dropdowns)
   const [clientsList, setClientsList] = useState<User[]>([]);
   const [engineersList, setEngineersList] = useState<User[]>([]);
-  
+  const [designersList, setDesignersList] = useState<User[]>([]); // New
+  const [projectManagersList, setProjectManagersList] = useState<User[]>([]); // New
+  const [statusesList, setStatusesList] = useState<Status[]>([]); // New
+
   // Custom hooks for data fetching and operations
   const { project, loading, error, refetch } = useProject(projectId);
   const { updateProject, loading: isUpdating } = useUpdateProject(projectId);
@@ -61,6 +64,31 @@ export default function ProjectDetailPage() {
     
     fetchUsersByRole('client', setClientsList);
     fetchUsersByRole('engineer', setEngineersList);
+    fetchUsersByRole('designer', setDesignersList); // New
+    fetchUsersByRole('projectManager', setProjectManagersList); // New
+  }, []);
+
+  // Fetch project statuses
+  useEffect(() => {
+    const fetchStatuses = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) throw new Error("No token found");
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/statuses/project`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.message || `Failed to fetch statuses`);
+        }
+        const data = await response.json();
+        setStatusesList(data.data.statuses || []);
+      } catch (err: any) {
+        console.error('Failed to fetch statuses:', err.message);
+      }
+    };
+    fetchStatuses();
   }, []);
   
   // Handle project update
@@ -117,6 +145,9 @@ export default function ProjectDetailPage() {
           project={project} 
           clientsList={clientsList} 
           engineersList={engineersList} 
+          designersList={designersList} // New
+          projectManagersList={projectManagersList} // New
+          statusesList={statusesList} // New
           onClose={() => setShowEditModal(false)} 
           onSave={handleUpdate} 
         />
