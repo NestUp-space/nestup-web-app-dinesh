@@ -37,18 +37,18 @@ export default function TestPlankList() {
               <li>Tall Unit Model - Multiple shelves and drawers</li>
             </ul>
           </li>
-          <li>Enter a 2-digit box number (e.g., "01")</li>
+          <li>Enter a 2-digit box number (e.g., &quot;01&quot;)</li>
           <li>Set runtime inputs:
             <ul className="list-circle pl-5 mt-1">
               <li>Box dimensions (depth, height, width)</li>
-              <li>Set adjacency types to "Expose" or "Wall"</li>
+              <li>Set adjacency types to &quot;Expose&quot; or &quot;Wall&quot;</li>
               <li>Set skirting height (e.g., 100mm)</li>
-              <li>Material codes (e.g., "OUT001", "IN001")</li>
+              <li>Material codes (e.g., &quot;OUT001&quot;, &quot;IN001&quot;)</li>
               <li>Model-specific inputs (e.g., corner angle, drawer count)</li>
             </ul>
           </li>
-          <li>Click "Generate Plank List" to see the results</li>
-          <li>Use "Download CSV" to verify the output format</li>
+          <li>Click &quot;Generate Plank List&quot; to see the results</li>
+          <li>Use &quot;Download CSV&quot; to verify the output format</li>
         </ul>
         <p className="mt-4 text-sm text-gray-600">
           Note: Different models require different input parameters. The form will update to show the relevant inputs for each model.

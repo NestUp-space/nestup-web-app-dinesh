@@ -116,13 +116,13 @@ export default function ItemLogicEditorModal({
               {availableRuntimeInputs.length > 0 ? (
                 <ul className="list-disc list-inside">
                   {availableRuntimeInputs.map(param => (
-                    <li key={param.inputName}><code>runtimeInputs.{param.inputName}</code> (e.g., "{param.displayLabel || param.inputName}")</li>
+                    <li key={param.inputName}><code>runtimeInputs.{param.inputName}</code> (e.g., &quot;{param.displayLabel || param.inputName}&quot;)</li>
                   ))}
                 </ul>
               ) : <p>No input parameters defined for this model yet.</p>}
                <p className="mt-1 text-gray-600">
                 If your script uses material definitions (e.g., <code>runtimeInputs.exposedMaterialDefinition</code>),
-                you must manually include these full material objects in the "Sample Runtime Inputs" JSON when testing.
+                you must manually include these full material objects in the &quot;Sample Runtime Inputs&quot; JSON when testing.
                 The sample inputs are typically edited on the main model form.
               </p>
             </div>

@@ -42,7 +42,7 @@ export const faqData: FAQ[] = [
       <>
         We only work with interior designers/Contractors & Architects.
         <br />
-        We are a hardcore modular factory with an expertise in only modular woodwork, an interior design project needs a lot of planning, coordination and expertise on dealing with many teams simultaneously on the site so it's suggested for a homeowner to work with an interior designer rather than working directly with a modular factory like us.
+        We are a hardcore modular factory with an expertise in only modular woodwork, an interior design project needs a lot of planning, coordination and expertise on dealing with many teams simultaneously on the site so it&apos;s suggested for a homeowner to work with an interior designer rather than working directly with a modular factory like us.
       </>
     ),
   },

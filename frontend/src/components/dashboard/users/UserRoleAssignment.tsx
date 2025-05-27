@@ -139,7 +139,7 @@ export function UserRoleAssignment({ userId, userName, currentRoleId, onRoleAssi
       </CardHeader>
       <CardContent>
         {!canAssignRoles ? (
-          <p className="text-sm text-dark-text-bw/70">You don't have permission to assign roles.</p>
+          <p className="text-sm text-dark-text-bw/70">You don&apos;t have permission to assign roles.</p>
         ) : (
           <div className="space-y-4">
             {error && (
