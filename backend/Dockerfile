@@ -38,8 +38,6 @@ COPY --from=deps /app/prisma ./prisma
 COPY --from=builder /app/dist ./dist
 # Copy package.json for `npm start`
 COPY package.json .
-# Copy tsconfig.json for tsconfig-paths
-COPY tsconfig.json .
 
 # Expose the port the app runs on
 EXPOSE 8080
