@@ -29,15 +29,36 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // CORS Configuration
-const allowedOrigins = env.CORS_ORIGIN ? env.CORS_ORIGIN.split(',') : [env.FRONTEND_URL];
+const allowedOrigins = env.CORS_ORIGIN 
+  ? env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+  : [env.FRONTEND_URL];
+
+console.log('--- [CORS DEBUG] Allowed origins:', allowedOrigins);
+console.log('--- [CORS DEBUG] CORS_ORIGIN env var:', env.CORS_ORIGIN);
+console.log('--- [CORS DEBUG] FRONTEND_URL env var:', env.FRONTEND_URL);
+
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    console.log('--- [CORS DEBUG] Incoming origin:', origin);
+    
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+    if (!origin) {
+      console.log('--- [CORS DEBUG] No origin provided, allowing request');
+      return callback(null, true);
+    }
+    
+    // Check if origin is in allowed list using includes() instead of indexOf()
+    const isAllowed = allowedOrigins.includes(origin);
+    console.log('--- [CORS DEBUG] Origin allowed:', isAllowed);
+    console.log('--- [CORS DEBUG] Checking origin:', origin, 'against allowed origins:', allowedOrigins);
+    
+    if (!isAllowed) {
+      const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}. Allowed origins: ${allowedOrigins.join(', ')}`;
+      console.log('--- [CORS DEBUG] CORS blocked:', msg);
       return callback(new Error(msg), false);
     }
+    
+    console.log('--- [CORS DEBUG] CORS allowed for origin:', origin);
     return callback(null, true);
   },
   credentials: true,
