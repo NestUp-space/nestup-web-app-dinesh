@@ -84,4 +84,11 @@ app.use(openAPIRouter); // Assuming this serves API docs, path might need review
 // Error handlers
 app.use(errorHandler());
 
+// Start the server
+const PORT = env.PORT || 8080;
+app.listen(PORT, () => {
+  logger.info(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
+});
+
 export { app, logger };

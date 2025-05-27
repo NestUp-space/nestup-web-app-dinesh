@@ -3,8 +3,8 @@
  * Handles all authentication-related API calls to the backend
  */
 
-// Base URL from environment variable
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'; // Align with index.ts and .env.local variable name
+// Import API configuration
+import { API_BASE_URL } from '@/config/api';
 
 // Types
 interface RegisterData {
