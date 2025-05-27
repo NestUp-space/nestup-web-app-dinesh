@@ -19,8 +19,10 @@ COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
 COPY tsconfig.json .
 COPY src ./src
-# Ensure devDependencies are available for build, then prune
+# Ensure devDependencies are available for build
 RUN npm install --ignore-scripts
+# Generate Prisma Client before building
+RUN npx prisma generate
 RUN npm run build
 # Prune devDependencies after build
 RUN npm prune --production
