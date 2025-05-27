@@ -14,6 +14,7 @@ This guide will help you deploy the Nestup Web App using Railway for the backend
 ## 🔧 Phase 1: Security Fixes Completed
 
 ✅ **Security Issues Fixed:**
+
 - Replaced unsafe `new Function()` calls with safe expression evaluator
 - Added input validation and sanitization
 - Implemented error boundaries
@@ -24,6 +25,7 @@ This guide will help you deploy the Nestup Web App using Railway for the backend
 ### Step 1: Prepare Your Repository
 
 1. **Push your code to GitHub:**
+
    ```bash
    git add .
    git commit -m "Prepare for Railway deployment"
@@ -52,6 +54,7 @@ This guide will help you deploy the Nestup Web App using Railway for the backend
    - Railway will automatically provide `DATABASE_URL`
 
 5. **Configure Environment Variables:**
+
    ```
    NODE_ENV=production
    PORT=8080
@@ -83,6 +86,7 @@ This guide will help you deploy the Nestup Web App using Railway for the backend
 
 1. **Update API configuration:**
    - Create `frontend/.env.production` with your Railway backend URL:
+
    ```
    NEXT_PUBLIC_API_BASE_URL=https://your-app.railway.app
    ```
@@ -103,6 +107,7 @@ This guide will help you deploy the Nestup Web App using Railway for the backend
    - **Output Directory:** `.next`
 
 4. **Add Environment Variables:**
+
    ```
    NEXT_PUBLIC_API_BASE_URL=https://your-app.railway.app
    NODE_ENV=production
@@ -115,6 +120,7 @@ This guide will help you deploy the Nestup Web App using Railway for the backend
 ### Step 3: Update Backend CORS
 
 1. **Update Railway environment variables:**
+
    ```
    FRONTEND_URL=https://your-app.vercel.app
    CORS_ORIGIN=https://your-app.vercel.app
@@ -147,11 +153,13 @@ This guide will help you deploy the Nestup Web App using Railway for the backend
 ### Health Checks
 
 1. **Backend health check:**
+
    ```
    GET https://your-app.railway.app/health-check
    ```
 
 2. **Frontend accessibility:**
+
    ```
    https://your-app.vercel.app
    ```
@@ -180,11 +188,13 @@ This guide will help you deploy the Nestup Web App using Railway for the backend
 ## 💰 Cost Breakdown
 
 ### Railway (Backend + Database)
+
 - **Hobby Plan:** $5/month
 - Includes PostgreSQL database
 - 500 hours of runtime (enough for 24/7)
 
 ### Vercel (Frontend)
+
 - **Free Tier:** $0/month
 - 100GB bandwidth
 - Unlimited personal projects
@@ -194,6 +204,7 @@ This guide will help you deploy the Nestup Web App using Railway for the backend
 ## 🔧 Environment Variables Reference
 
 ### Railway (Backend)
+
 ```env
 NODE_ENV=production
 PORT=8080
@@ -207,6 +218,7 @@ COMMON_RATE_LIMIT_WINDOW_MS=900000
 ```
 
 ### Vercel (Frontend)
+
 ```env
 NEXT_PUBLIC_API_BASE_URL=https://your-backend.railway.app
 NODE_ENV=production
