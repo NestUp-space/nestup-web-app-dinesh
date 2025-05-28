@@ -8,7 +8,7 @@
     "start:dev": "ts-node src/server.ts",
     "dev": "nodemon -r tsconfig-paths/register src/server.ts",
     "build": "tsc && tsc-alias",
-    "prestart": "npm run migrate:prod",
+    "prestart": "npm run migrate:prod && npx prisma db seed",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

@@ -54,6 +54,7 @@ git push origin main
 Look for these debug messages in Railway logs:
 
 ```
+
 --- [CORS DEBUG] Allowed origins: ["https://nestup.space","https://www.nestup.space"]
 --- [CORS DEBUG] CORS_ORIGIN env var: https://nestup.space,https://www.nestup.space
 --- [CORS DEBUG] FRONTEND_URL env var: https://www.nestup.space
@@ -62,6 +63,7 @@ Look for these debug messages in Railway logs:
 --- [REQUEST DEBUG] Method: OPTIONS
 --- [REQUEST DEBUG] URL: /api/auth/login
 --- [REQUEST DEBUG] Origin: https://www.nestup.space
+
 ```
 
 ## Troubleshooting Scenarios
