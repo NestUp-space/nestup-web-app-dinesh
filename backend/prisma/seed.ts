@@ -58,7 +58,7 @@ async function main() {
   const adminUserEmail = 'admin@nestup.com'; // Ensure this matches your intended admin email
   const adminUserName = 'Admin User';
   const adminUserPassword = 'DefaultAdminPassword123!'; // CHANGE THIS IN PRODUCTION
-  const adminUserPhoneNumber = '0000000000_seed'; // Placeholder
+  const adminUserPhoneNumber = '9000000000'; // Placeholder
   const hashedAdminPassword = await bcrypt.hash(adminUserPassword, 10);
 
   let dbAdminUser = await prisma.user.findUnique({
@@ -315,6 +315,79 @@ async function main() {
     });
   }
   console.log('Statuses seeded/ensured.');
+
+  // --- Seed New Users ---
+  console.log('Seeding new users...');
+  
+  // Create Admin User
+  const suryanestupEmail = 'suryanestup@gmail.com';
+  const hashedSuryanestupPassword = await bcrypt.hash('suryanestup@gmail.com!', 10);
+  await prisma.user.upsert({
+    where: { email: suryanestupEmail },
+    update: {
+      password: hashedSuryanestupPassword,
+      roleId: adminRole.id,
+      verified: true,
+      isActive: true,
+    },
+    create: {
+      email: suryanestupEmail,
+      name: 'Surya Admin',
+      password: hashedSuryanestupPassword,
+      phoneNumber: '9000000001',
+      roleId: adminRole.id,
+      verified: true,
+      isActive: true,
+    },
+  });
+  console.log(`Admin user '${suryanestupEmail}' created/updated.`);
+
+  // Create Project Manager User
+  const pmEmail = 'bim@nestup.space';
+  const hashedPmPassword = await bcrypt.hash('bim@nestup.space!', 10);
+  await prisma.user.upsert({
+    where: { email: pmEmail },
+    update: {
+      password: hashedPmPassword,
+      roleId: projectManagerRole.id,
+      verified: true,
+      isActive: true,
+    },
+    create: {
+      email: pmEmail,
+      name: 'BIM Project Manager',
+      password: hashedPmPassword,
+      phoneNumber: '9000000002',
+      roleId: projectManagerRole.id,
+      verified: true,
+      isActive: true,
+    },
+  });
+  console.log(`Project Manager user '${pmEmail}' created/updated.`);
+
+  // Create Designer User
+  const designerEmail = 'surya8352@gmail.com';
+  const hashedDesignerPassword = await bcrypt.hash('surya8352@gmail.com!', 10);
+  await prisma.user.upsert({
+    where: { email: designerEmail },
+    update: {
+      password: hashedDesignerPassword,
+      roleId: designerRole.id,
+      verified: true,
+      isActive: true,
+    },
+    create: {
+      email: designerEmail,
+      name: 'Surya Designer',
+      password: hashedDesignerPassword,
+      phoneNumber: '9000000003',
+      roleId: designerRole.id,
+      verified: true,
+      isActive: true,
+    },
+  });
+  console.log(`Designer user '${designerEmail}' created/updated.`);
+  console.log('Users seeding completed.');
 
   console.log('Seeding finished.');
 }

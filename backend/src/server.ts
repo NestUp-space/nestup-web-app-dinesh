@@ -7,6 +7,7 @@ import { openAPIRouter } from "@/api-docs/openAPIRouter";
 import { healthCheckRouter } from "@/api/healthCheck/healthCheckRouter";
 import { userRouter } from "@/api/user/userRouter";
 import authRouter from "@/routes/auth.routes"; // Auth router
+import roleRouter from "@/routes/role.routes"; // Role router
 import projectRouter from "@/routes/project.routes"; // Project router
 import bimRouter from "@/bim/routes/bim.routes"; // BIM router
 // Catalogue Router
@@ -99,6 +100,7 @@ app.use(requestLogger);
 app.use("/health-check", healthCheckRouter);
 app.use("/api/users", userRouter); // Standardized under /api
 app.use("/api/auth", authRouter); // Auth routes
+app.use("/api/roles", roleRouter); // Role routes
 app.use("/api/projects", projectRouter); // Project routes
 
 // --- BIM Router Mounting ---
