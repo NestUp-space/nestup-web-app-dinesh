@@ -4,9 +4,12 @@ import { User } from '@/types'; // Assuming User type is in @/types
 // This interface describes the structure of the data returned by the /api/users endpoint
 interface UserListApiResponse {
   success: boolean;
-  message: string;
-  responseObject: User[];
-  statusCode: number;
+  data: {
+    users: User[];
+    total: number;
+  };
+  message?: string; // Optional as it might not always be present
+  statusCode?: number; // Optional as it might not always be present
   // If the backend adds pagination details like 'total', 'page', 'pageSize' at this level,
   // they can be added here. For now, 'total' is derived from responseObject.length.
 }
@@ -56,9 +59,8 @@ export function useUsersList({ currentPage, pageSize, selectedRole }: UseUsersLi
   const { data, error, loading, refetch } = useGet<UserListApiResponse>(endpoint);
 
   return {
-    users: data?.responseObject || [], // Extract User[] from responseObject
-    totalUsers: data?.responseObject?.length || 0, // Derive total from the fetched array length.
-                                                  // For true pagination, backend should provide a 'total' count.
+    users: data?.data?.users || [], // Extract User[] from data.users
+    totalUsers: data?.data?.total || 0, // Use the 'total' from the API
     error,
     loading,
     refetch,

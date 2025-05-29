@@ -5,7 +5,7 @@ import { pino } from "pino";
 
 import { openAPIRouter } from "@/api-docs/openAPIRouter";
 import { healthCheckRouter } from "@/api/healthCheck/healthCheckRouter";
-import { userRouter } from "@/api/user/userRouter";
+import userRouter from "@/routes/user.routes"; // Corrected user router
 import authRouter from "@/routes/auth.routes"; // Auth router
 import roleRouter from "@/routes/role.routes"; // Role router
 import projectRouter from "@/routes/project.routes"; // Project router
