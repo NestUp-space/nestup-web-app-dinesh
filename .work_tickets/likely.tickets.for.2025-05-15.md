@@ -11,7 +11,7 @@
   - Plan: Advise user to restart the frontend development server to load the correct environment variables.
   - Action: Deleted `frontend/.next` cache directory. Advised user to restart dev servers.
   - Action: Added console.log statements to `frontend/src/lib/api/index.ts` to debug `API_BASE_URL`. (Removed after use)
-  - Finding: `frontend/src/lib/api/auth.ts` was using a different environment variable (`NEXT_PUBLIC_API_BASE_URL`) and fallback URL (`http://localhost:5000`).
+  - Finding: `frontend/src/lib/api/auth.ts` was using a different environment variable (`NEXT_PUBLIC_API_URL`) and fallback URL (`http://localhost:5000`).
   - Action: Modified `frontend/src/lib/api/auth.ts` to use `NEXT_PUBLIC_API_URL` and align fallback with `index.ts`.
   - Status Update: Login request now targets correct URL (`http://localhost:5001/api/auth/login`) but receives a 403 Forbidden error. CORS preflight (OPTIONS) is successful.
   - Finding: The `loginUser` function in `backend/src/services/auth.service.ts` returns a 403 Forbidden if `user.isActive` is `false`.

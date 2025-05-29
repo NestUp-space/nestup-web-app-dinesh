@@ -88,7 +88,7 @@ This guide will help you deploy the Nestup Web App using Railway for the backend
    - Create `frontend/.env.production` with your Railway backend URL:
 
    ```
-   NEXT_PUBLIC_API_BASE_URL=https://your-app.railway.app
+   NEXT_PUBLIC_API_URL=https://your-app.railway.app
    ```
 
 ### Step 2: Deploy to Vercel
@@ -109,7 +109,7 @@ This guide will help you deploy the Nestup Web App using Railway for the backend
 4. **Add Environment Variables:**
 
    ```
-   NEXT_PUBLIC_API_BASE_URL=https://your-app.railway.app
+   NEXT_PUBLIC_API_URL=https://your-app.railway.app
    NODE_ENV=production
    ```
 
@@ -146,7 +146,7 @@ This guide will help you deploy the Nestup Web App using Railway for the backend
 
 2. **Update environment variables:**
    - Update `CORS_ORIGIN` in Railway
-   - Update `NEXT_PUBLIC_API_BASE_URL` in Vercel if using custom backend domain
+   - Update `NEXT_PUBLIC_API_URL` in Vercel if using custom backend domain
 
 ## 🧪 Phase 5: Testing & Verification
 
@@ -220,7 +220,7 @@ COMMON_RATE_LIMIT_WINDOW_MS=900000
 ### Vercel (Frontend)
 
 ```env
-NEXT_PUBLIC_API_BASE_URL=https://your-backend.railway.app
+NEXT_PUBLIC_API_URL=https://your-backend.railway.app
 NODE_ENV=production
 ```
 

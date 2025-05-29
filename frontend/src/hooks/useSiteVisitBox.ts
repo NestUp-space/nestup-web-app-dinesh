@@ -179,5 +179,5 @@ export function useGeneratePlankList(taskId: string | number) {
 
 // Hook for downloading a plank list CSV
 export function usePlankListDownloadUrl(taskId: string | number) {
-  return `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/tasks/${taskId}/site-visit/download-planklist-csv`;
+  return `${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}/site-visit/download-planklist-csv`;
 }
