@@ -36,7 +36,7 @@ export default function ProjectsPage({
   const fetchProjects = useCallback(async () => {
     if (!token) return;
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -78,7 +78,7 @@ export default function ProjectsPage({
 
       try {
         console.log(`Fetching users with role: ${roleName}`);
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/by-role?roleName=${roleName}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/by-role?roleName=${roleName}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
