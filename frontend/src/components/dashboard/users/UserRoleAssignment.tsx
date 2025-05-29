@@ -39,7 +39,7 @@ export function UserRoleAssignment({ userId, userName, currentRoleId, onRoleAssi
           throw new Error("No token found");
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/roles`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/roles`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -91,7 +91,7 @@ export function UserRoleAssignment({ userId, userName, currentRoleId, onRoleAssi
         throw new Error("No token found");
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/${userId}/role`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/role`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -63,7 +63,7 @@ const BookSiteVisit: React.FC<DesignerQuestionnaireProps> = ({ onSubmit }) => {
     setErrorMessage("");
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/site-visit/book`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/site-visit/book`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

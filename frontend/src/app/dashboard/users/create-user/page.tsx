@@ -28,7 +28,7 @@ const CreateUserPage: React.FC = () => {
           throw new Error("No token found. Please log in.");
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/roles`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/roles`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -75,7 +75,7 @@ const CreateUserPage: React.FC = () => {
       if (!selectedRole) {
         throw new Error("Invalid role selected.");
       }
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

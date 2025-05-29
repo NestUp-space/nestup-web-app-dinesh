@@ -88,7 +88,7 @@ export const FileUploadSubtask: React.FC<FileUploadSubtaskProps> = ({
         formData.append('file', file);
 
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects/${project.id}/tasks/${subtask.id}/upload`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/projects/${project.id}/tasks/${subtask.id}/upload`,
           {
             method: 'POST',
             body: formData,

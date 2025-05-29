@@ -67,7 +67,7 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
     setIsUpdatingStatus(true);
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects/${project.id}/tasks/${task.id}/status`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/projects/${project.id}/tasks/${task.id}/status`,
         {
           method: 'PATCH',
           headers: {
@@ -102,7 +102,7 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
     if (!token || !project) return;
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects/${project.id}/tasks/${task.id}/subtasks/${subtaskId}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/projects/${project.id}/tasks/${task.id}/subtasks/${subtaskId}`,
         {
           method: 'PUT',
           headers: {
@@ -138,7 +138,7 @@ const CollapsibleTaskCard: React.FC<CollapsibleTaskCardProps> = ({ task, formatD
     }
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects/${project.id}/tasks/${task.id}/subtasks`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/projects/${project.id}/tasks/${task.id}/subtasks`,
         {
           method: 'POST',
           headers: {

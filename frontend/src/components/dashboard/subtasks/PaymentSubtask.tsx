@@ -78,7 +78,7 @@ export const PaymentSubtask: React.FC<PaymentSubtaskProps> = ({
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects/${project.id}/tasks/${subtask.id}/payment`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/projects/${project.id}/tasks/${subtask.id}/payment`,
         {
           method: 'POST',
           headers: {

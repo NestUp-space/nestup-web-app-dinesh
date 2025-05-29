@@ -49,7 +49,7 @@ const ProjectsPage = () => {
         setLoading(false);
         return;
       }
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects`, {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/projects`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setProjects(response.data.projects || response.data.data?.projects || []); 
@@ -65,7 +65,7 @@ const ProjectsPage = () => {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("No token found");
 
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users?roleName=${roleName}`, {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/users?roleName=${roleName}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setter(response.data.data.users || []);
@@ -106,7 +106,7 @@ const ProjectsPage = () => {
     };
 
     try {
-      await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/projects`, projectData, {
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/projects`, projectData, {
         headers: { Authorization: `Bearer ${token}` },
       });
       // Clear form

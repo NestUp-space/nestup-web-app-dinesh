@@ -48,7 +48,7 @@ export default function ProjectDetailPage() {
         const token = localStorage.getItem("token");
         if (!token) throw new Error("No token found");
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users?roleName=${roleName}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users?roleName=${roleName}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) {
@@ -75,7 +75,7 @@ export default function ProjectDetailPage() {
         const token = localStorage.getItem("token");
         if (!token) throw new Error("No token found");
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/statuses/project`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/statuses/project`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) {
