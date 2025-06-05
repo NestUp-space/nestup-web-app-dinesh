@@ -434,7 +434,7 @@ This section outlines the planned phases for developing the features discussed i
 
 **Goal:** Implement functionality in `ModelSelector.tsx` to allow users to add, configure, reorder, and remove multiple "boxes" (each a `ProjectModelInstance`), with these configurations saved to and loaded from the backend. Each box should have individual save/delete functionality, and plank IDs should be prefixed with box numbers. This is a prerequisite for effectively generating consolidated outputs like Plank Lists for multiple boxes.
 
-**Phase A: Backend Modifications**
+#### Phase A: Backend Modifications
 
 * **Task 0.5.A.1: Modify `ProjectModelInstance` Prisma Model**
   * **Description:** Add a `uiDisplayOrder` field to `ProjectModelInstance`.
