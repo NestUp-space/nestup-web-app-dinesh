@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react"; // Added useEffect
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/dashboard/button"; // Updated import
 import { Input } from "@/components/dashboard/input";   // Updated import
@@ -8,22 +8,33 @@ import { Label } from "@/components/dashboard/label";   // Updated import
 import { login as loginApi, register as registerApi } from "@/lib/api/auth";
 import { useUser } from "@/context/UserContext";
 
+interface RoleOption {
+  value: string;
+  label: string;
+}
+
 const LoginRegister = () => {
   const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const phoneNumberRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const confirmPasswordRef = useRef<HTMLInputElement>(null);
+  const roleRef = useRef<HTMLSelectElement>(null); // Added roleRef
 
   const [nameError, setNameError] = useState("");
   const [emailError, setEmailError] = useState("");
   const [phoneError, setPhoneError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [confirmPasswordError, setConfirmPasswordError] = useState("");
+  const [roleError, setRoleError] = useState(""); // Added roleError state
+  
   const [isRegister, setIsRegister] = useState(false);
   const [serverError, setServerError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  const [availableExternalRoles, setAvailableExternalRoles] = useState<RoleOption[]>([]); // State for roles
+  const [selectedRole, setSelectedRole] = useState<string>(""); // State for selected role
 
   const router = useRouter();
   const { login: userLogin } = useUser();
@@ -35,6 +46,7 @@ const LoginRegister = () => {
     setPhoneError("");
     setPasswordError("");
     setConfirmPasswordError("");
+    setRoleError(""); // Clear role error
 
     const email = emailRef.current?.value || "";
     const password = passwordRef.current?.value || "";
@@ -76,10 +88,50 @@ const LoginRegister = () => {
         setConfirmPasswordError("Passwords do not match.");
         isValid = false;
       }
+
+      // Role validation
+      if (!selectedRole) {
+        setRoleError("Please select a role.");
+        isValid = false;
+      }
     }
 
     return isValid;
   };
+
+  useEffect(() => {
+    if (isRegister) {
+      const fetchRoles = async () => {
+        setIsLoading(true); // Indicate loading while fetching roles
+        try {
+          const response = await fetch('/api/roles/registration/external-roles');
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const data = await response.json();
+          if (data.success && Array.isArray(data.roles)) {
+            setAvailableExternalRoles(data.roles);
+          } else {
+            console.error('Failed to parse roles from API:', data.message || 'No roles array');
+            setAvailableExternalRoles([]);
+            setServerError("Could not load roles for registration. Please try again later.");
+          }
+        } catch (error) {
+          console.error('Could not fetch external roles:', error);
+          setAvailableExternalRoles([]);
+          setServerError("Could not load roles for registration. Please try again later.");
+        } finally {
+          setIsLoading(false); // Done loading roles
+        }
+      };
+      fetchRoles();
+    } else {
+      // Clear roles if switching away from registration form
+      setAvailableExternalRoles([]);
+      setSelectedRole("");
+      setRoleError("");
+    }
+  }, [isRegister]);
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,7 +151,7 @@ const LoginRegister = () => {
           email: emailRef.current?.value || "",
           phoneNumber: phoneNumberRef.current?.value || "",
           password: passwordRef.current?.value || "",
-          roleName: "client"
+          roleName: selectedRole // Use selectedRole
         };
 
         const response = await registerApi(registerData);
@@ -165,6 +217,28 @@ const LoginRegister = () => {
                   className="mt-1"
                 />
                 {phoneError && <p className="text-red-500 text-xs mt-1">{phoneError}</p>}
+              </div>
+              <div>
+                <Label htmlFor="role">Select Your Role</Label>
+                <select
+                  id="role"
+                  ref={roleRef}
+                  className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  value={selectedRole}
+                  disabled={isLoading || availableExternalRoles.length === 0}
+                >
+                  <option value="" disabled>-- Select a Role --</option>
+                  {availableExternalRoles.length === 0 && isRegister && !isLoading && (
+                    <option value="" disabled>No roles available</option>
+                  )}
+                  {availableExternalRoles.map(roleOption => (
+                    <option key={roleOption.value} value={roleOption.value}>
+                      {roleOption.label}
+                    </option>
+                  ))}
+                </select>
+                {roleError && <p className="text-red-500 text-xs mt-1">{roleError}</p>}
               </div>
             </>
           )}

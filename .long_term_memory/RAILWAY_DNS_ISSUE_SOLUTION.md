@@ -74,14 +74,12 @@ Look for startup errors in Railway logs:
 
 Ensure these are set in Railway:
 
-```
 DATABASE_URL=postgresql://...
 JWT_SECRET=your-jwt-secret
-CORS_ORIGIN=https://nestup.space,https://www.nestup.space
-FRONTEND_URL=https://www.nestup.space
+CORS_ORIGIN=[https://nestup.space,https://www.nestup.space]
+FRONTEND_URL=[https://www.nestup.space]
 PORT=8080
 NODE_ENV=production
-```
 
 ## Frontend Configuration Fix
 
@@ -91,17 +89,13 @@ Once you get the correct Railway URL, update frontend environment:
 
 Set environment variable:
 
-```
 NEXT_PUBLIC_API_URL=[CORRECT_RAILWAY_URL]
-```
 
 ### For Local Testing
 
 Update `frontend/.env.local`:
 
-```
 NEXT_PUBLIC_API_URL=[CORRECT_RAILWAY_URL]
-```
 
 ## Verification Steps
 

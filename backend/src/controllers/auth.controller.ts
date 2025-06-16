@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { z } from 'zod'; // Import Zod
 import { registerUser, loginUser, resetPassword as resetPasswordService } from '../services/auth.service';
+import { EXTERNAL_ROLES } from '../constants/roles'; // Import EXTERNAL_ROLES
 
 // --- Zod Schemas for Input Validation ---
 const RegisterBodySchema = z.object({
@@ -9,7 +10,16 @@ const RegisterBodySchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
   phoneNumber: z.string().regex(/^\d{10}$/, { message: 'Phone number must be 10 digits' }), // Basic 10-digit validation
   password: z.string().min(8, { message: 'Password must be at least 8 characters long' }),
-  roleName: z.string().default('client'), // Set default role to "client"
+  roleName: z.enum(
+    // Ensure EXTERNAL_ROLES is not empty for z.enum
+    Object.values(EXTERNAL_ROLES).length > 0
+      ? Object.values(EXTERNAL_ROLES) as [string, ...string[]]
+      : ['INVALID_EMPTY_ROLES_CONFIG'] as [string, ...string[]], // Fallback for empty config
+    {
+      required_error: "Role is required",
+      invalid_type_error: "Invalid role selected. Must be one of: " + Object.values(EXTERNAL_ROLES).join(', '),
+    }
+  ),
 });
 
 const LoginBodySchema = z.object({

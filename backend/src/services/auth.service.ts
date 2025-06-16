@@ -12,7 +12,7 @@ interface RegisterUserData {
   email: string;
   phoneNumber: string;
   password: string;
-  roleName?: string; // Optional role name, defaults to 'client'
+  roleName: string; // Now mandatory and validated as an external role name by controller
 }
 
 interface LoginUserData {
@@ -39,7 +39,23 @@ export const registerUser = async (data: RegisterUserData): Promise<ServiceRespo
     return ServiceResponse.failure(message, null, StatusCodes.BAD_REQUEST);
   }
 
-  const roleId = 1; // Hardcoding roleId 1 for 'client' for now
+  // Find the role in the database using the validated roleName
+  const roleFromDb = await prisma.userRole.findFirst({
+    where: {
+      role: data.roleName,
+      // Note: The controller's Zod schema already ensures data.roleName is a valid EXTERNAL_ROLE.
+      // We trust that EXTERNAL_ROLES constant accurately reflects role names in the DB for external roles.
+    },
+  });
+
+  if (!roleFromDb) {
+    // This case implies a mismatch between EXTERNAL_ROLES constant and the database,
+    // or that a role name passed Zod validation but doesn't exist.
+    // This should be a rare, critical error if configurations are correct.
+    console.error(`Critical: Role '${data.roleName}' passed validation but not found in DB or is not configured as an external role.`);
+    return ServiceResponse.failure('Selected role is invalid or not configured correctly.', null, StatusCodes.BAD_REQUEST);
+  }
+
   const hashedPassword = await bcrypt.hash(data.password, 10);
 
   try {
@@ -49,8 +65,8 @@ export const registerUser = async (data: RegisterUserData): Promise<ServiceRespo
         email: data.email,
         phoneNumber: data.phoneNumber,
         password: hashedPassword,
-        roleId: roleId,
-        verified: false,
+        roleId: roleFromDb.id, // Use the ID of the fetched role
+        verified: false, // Adjust based on your verification flow
         isActive: true,
       },
     });

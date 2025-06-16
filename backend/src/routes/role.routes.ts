@@ -6,6 +6,9 @@ import { PERMISSIONS } from '../constants/permissions';
 
 const router = express.Router();
 
+// Public route for fetching external roles for registration
+router.get('/registration/external-roles', RoleController.getExternalRolesForRegistration);
+
 // Apply authentication to all routes
 router.use(isAuthenticated);
 

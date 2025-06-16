@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { StatusCodes } from 'http-status-codes';
 import { clearUserPermissionCache } from '../middlewares/permission.middleware';
+import { EXTERNAL_ROLES } from '../constants/roles'; // Import the constant
 
 const prisma = new PrismaClient();
 
@@ -349,6 +350,38 @@ export class RoleController {
         success: false,
         message: 'Unable to delete role',
         error: err instanceof Error ? err.message : 'Unknown error'
+      });
+    }
+  }
+
+  static async getExternalRolesForRegistration(_req: Request, res: Response) {
+    try {
+      const externalRoleNames = Object.values(EXTERNAL_ROLES);
+
+      const rolesFromDb = await prisma.userRole.findMany({
+        where: {
+          role: { in: externalRoleNames },
+        },
+        select: {
+          role: true,
+        }
+      });
+
+      const formattedRoles = rolesFromDb.map(dbRole => ({
+        value: dbRole.role,
+        label: dbRole.role,
+      }));
+
+      return res.status(StatusCodes.OK).json({
+        success: true,
+        roles: formattedRoles,
+      });
+    } catch (err) {
+      console.error('Error fetching external roles for registration:', err);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: 'Unable to fetch external roles',
+        error: err instanceof Error ? err.message : 'Unknown error',
       });
     }
   }
