@@ -1,59 +1,104 @@
-import React from "react";
-import Image from "next/image"; // Import the Image component
+// frontend/src/components/landing-page/ProcessSection.tsx
 
-const processItems = [
-  {
-    imgSrc: "/img/measure.png", // Use the path relative to the public directory
-    imgAlt: "laser scale",
-    title: "Accurate site measurements",
-    text: "We begin by thoroughly understanding your site. Our professional measurement team visits your location and uses advanced laser measurement tools to scan the walls and capture all necessary details. This includes beams, columns, switchboard positions, and any surface undulations.",
-  },
-  {
-    imgSrc: "/img/checklist.png",
-    imgAlt: "checklist",
-    title: "Detailed Material Estimates",
-    text: "After gathering the measurements, we proceed with the designs that you have finalized with your client. Using our proprietary software, we create a detailed 3D modular model, plank by plank, down to the finest details such as holes and dimensions. This process generates precise material estimates and cut lists, ensuring accuracy at every stage",
-  },
-  {
-    imgSrc: "/img/automation.png",
-    imgAlt: "automation",
-    title: "Precise Factory Production",
-    text: "Once the design is approved, we move to the manufacturing phase at our state-of-the-art facility. Each module is meticulously crafted to ensure the highest quality and durability. After production, the materials are organized into unit-specific packages and go through a rigorous quality control process.",
-  },
-  {
-    imgSrc: "/img/installation.png",
-    imgAlt: "installation",
-    title: "Expert Installation Team",
-    text: "After production, the modular units are delivered to your specified location. We can recommend highly trained third-party installation teams for you to hire, or if you already have a team, we provide a comprehensive installation guide. Additionally, we can assign a site engineer to help train your team and ensure a smooth installation process.",
-  },
-];
+"use client";
+import React from 'react';
 
-export function ProcessSection() {
+const ProcessSection = () => {
   return (
-    <section className= "w-screen p-5 md:px-20 lg:px-40 " id="process">
-      <div className="text-theme-color text-3xl md:text-5xl font-bold tracking-tight md:tracking-tighter leading-tight mb-20 mt-8 flex items-center">
-        <h1>How we work</h1>
-      </div>
-      <div className="flex-col ">
-        {processItems.map((item, index) => (
-          <div key={index} className="grid grid-cols-5 gap-6 m-3">
-            <div className="col-span-1">
-              <Image
-                className="p-1 md:p-3 border-2 border-theme-dark bg-white rounded-sm"
-                src={item.imgSrc}
-                alt={item.imgAlt}
-                width={150} // specify a width
-                height={150} // specify a height
-              />
+    <div className="bg-white py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h2 className="text-3xl font-extrabold text-gray-900 text-center">
+          Every Step Matters. See How.
+        </h2>
+        <div className="mt-6 grid gap-6 grid-cols-1 md:grid-cols-4 lg:grid-cols-4">
+          {/* Process 1 */}
+          <div className="flex flex-col items-center text-center">
+            <div className="w-16 h-16">
+              <img src="/img/measure.png" alt="Measure" />
             </div>
-            <div className="flex col-span-4 bg-white items-center p-8 rounded-sm">
-              <p>
-                <span className="text-theme-color font-bold">{item.title}:</span> {item.text}
-              </p>
-            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Measure</h3>
           </div>
-        ))}
+          {/* Process 2 */}
+          <div className="flex flex-col items-center text-center">
+            <div className="w-16 h-16">
+              <img src="/img/model.png" alt="Model" />
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Model</h3>
+          </div>
+          {/* Process 3 */}
+          <div className="flex flex-col items-center text-center">
+            <div className="w-16 h-16">
+              <img src="/img/input.png" alt="Input" />
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Input</h3>
+          </div>
+          {/* Process 4 */}
+          <div className="flex flex-col items-center text-center">
+            <div className="w-16 h-16">
+              <img src="/img/design.png" alt="Design" />
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Design</h3>
+          </div>
+          {/* Process 5 */}
+          <div className="flex flex-col items-center text-center">
+            <div className="w-16 h-16">
+              <img src="/img/estimate.png" alt="Estimate" />
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Estimate</h3>
+          </div>
+          {/* Process 6 */}
+          <div className="flex flex-col items-center text-center">
+            <div className="w-16 h-16">
+              <img src="/img/check.png" alt="Check" />
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Check</h3>
+          </div>
+          {/* Process 7 */}
+          <div className="flex flex-col items-center text-center">
+            <div className="w-16 h-16">
+              <img src="/img/invoice.png" alt="Invoice" />
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Invoice</h3>
+          </div>
+          {/* Process 8 */}
+          <div className="flex flex-col items-center text-center">
+            <div className="w-16 h-16">
+              <img src="/img/payment.png" alt="Payment" />
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Payment</h3>
+          </div>
+           {/* Process 9 */}
+           <div className="flex flex-col items-center text-center">
+            <div className="w-16 h-16">
+              <img src="/img/factory.png" alt="Factory" />
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Factory</h3>
+          </div>
+          {/* Process 10 */}
+          <div className="flex flex-col items-center text-center">
+            <div className="w-16 h-16">
+              <img src="/img/packing.png" alt="Packing" />
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Packing</h3>
+          </div>
+          {/* Process 11 */}
+          <div className="flex flex-col items-center text-center">
+            <div className="w-16 h-16">
+              <img src="/img/dispatch.png" alt="Dispatch" />
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Dispatch</h3>
+          </div>
+          {/* Process 12 */}
+          <div className="flex flex-col items-center text-center">
+            <div className="w-16 h-16">
+              <img src="/img/install.png" alt="Install" />
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Install</h3>
+          </div>
+        </div>
       </div>
-    </section>
+    </div>
   );
-}
+};
+
+export default ProcessSection;
