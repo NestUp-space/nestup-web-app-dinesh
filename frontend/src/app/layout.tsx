@@ -21,6 +21,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(w,s){var e=document.createElement("script");e.type="text/javascript";e.async=true;e.src="https://cdn-in.pagesense.io/js/60044136648/30c7cb1f94964f17acf0132c17f1f563.js";var x=document.getElementsByTagName("script")[0];x.parentNode.insertBefore(e,x);})(window,"script");
+            `,
+          }}
+        />
+      </head>
     <body className={inter.className}>
     <Analytics/>
     <UserProvider>
