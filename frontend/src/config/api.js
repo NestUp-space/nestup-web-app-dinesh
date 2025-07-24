@@ -44,9 +44,11 @@ export const defaultFetchConfig = {
   credentials: 'include', // Include cookies for authentication
 };
 
-export default {
+const apiConfig = {
   API_BASE_URL,
   API_ENDPOINTS,
   buildApiUrl,
   defaultFetchConfig
 };
+
+export default apiConfig;

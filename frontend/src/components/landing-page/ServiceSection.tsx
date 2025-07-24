@@ -2,6 +2,7 @@
 
 "use client";
 import React from 'react';
+import Image from 'next/image';
 
 const ServiceSection = () => {
   return (
@@ -11,7 +12,7 @@ const ServiceSection = () => {
           {/* Service 1 */}
           <div className="flex flex-col items-center text-center">
             <div className="w-16 h-16">
-              <img src="/img/delivery.png" alt="14 Days Delivery" />
+              <Image src="/img/delivery.png" alt="14 Days Delivery" width={64} height={64} />
             </div>
             <h3 className="mt-4 text-lg font-medium text-gray-900">
               14 Days Delivery
@@ -25,7 +26,7 @@ const ServiceSection = () => {
           {/* Service 2 */}
           <div className="flex flex-col items-center text-center">
             <div className="w-16 h-16">
-              <img src="/img/end-to-end.png" alt="End-to-End Service" />
+              <Image src="/img/end-to-end.png" alt="End-to-End Service" width={64} height={64} />
             </div>
             <h3 className="mt-4 text-lg font-medium text-gray-900">
               End-to-End Service
@@ -39,7 +40,7 @@ const ServiceSection = () => {
           {/* Service 3 */}
           <div className="flex flex-col items-center text-center">
             <div className="w-16 h-16">
-              <img src="/img/custom.png" alt="Custom Solutions" />
+              <Image src="/img/custom.png" alt="Custom Solutions" width={64} height={64} />
             </div>
             <h3 className="mt-4 text-lg font-medium text-gray-900">
               Custom Solutions
@@ -53,7 +54,7 @@ const ServiceSection = () => {
           {/* Service 4 */}
           <div className="flex flex-col items-center text-center">
             <div className="w-16 h-16">
-              <img src="/img/transparent.png" alt="Transparent Process" />
+              <Image src="/img/transparent.png" alt="Transparent Process" width={64} height={64} />
             </div>
             <h3 className="mt-4 text-lg font-medium text-gray-900">
               Transparent Process

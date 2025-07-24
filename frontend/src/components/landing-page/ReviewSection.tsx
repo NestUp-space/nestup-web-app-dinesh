@@ -2,6 +2,7 @@
 
 "use client";
 import React from 'react';
+import Image from 'next/image';
 
 const ReviewSection = () => {
   return (
@@ -13,10 +14,12 @@ const ReviewSection = () => {
         <div className="mt-6 grid gap-6 grid-cols-1 md:grid-cols-3 lg:grid-cols-3">
           {/* Review 1 */}
           <div className="bg-gray-100 rounded-lg p-6">
-            <img
+            <Image
               className="w-16 h-16 rounded-full mx-auto"
               src="/img/placeholder.png"
               alt="Reviewer 1"
+              width={64}
+              height={64}
             />
             <div className="mt-4 text-center">
               <div className="flex items-center justify-center">
@@ -38,15 +41,17 @@ const ReviewSection = () => {
                 offered great customization options, and the delivery was super
                 fast."
               </p>
-              <p className="mt-2 font-bold">~ Raju Yadav</p>
+              <p className="mt-2 font-bold">&sim; Raju Yadav</p>
             </div>
           </div>
           {/* Review 2 */}
           <div className="bg-gray-100 rounded-lg p-6">
-            <img
+            <Image
               className="w-16 h-16 rounded-full mx-auto"
               src="/img/placeholder.png"
               alt="Reviewer 2"
+              width={64}
+              height={64}
             />
             <div className="mt-4 text-center">
               <div className="flex items-center justify-center">
@@ -68,15 +73,17 @@ const ReviewSection = () => {
                 offered great customization options, and the delivery was super
                 fast."
               </p>
-              <p className="mt-2 font-bold">~ Sunitha Devi</p>
+              <p className="mt-2 font-bold">&sim; Sunitha Devi</p>
             </div>
           </div>
           {/* Review 3 */}
           <div className="bg-gray-100 rounded-lg p-6">
-            <img
+            <Image
               className="w-16 h-16 rounded-full mx-auto"
               src="/img/placeholder.png"
               alt="Reviewer 3"
+              width={64}
+              height={64}
             />
             <div className="mt-4 text-center">
               <div className="flex items-center justify-center">
@@ -98,7 +105,7 @@ const ReviewSection = () => {
                 offered great customization options, and the delivery was super
                 fast."
               </p>
-              <p className="mt-2 font-bold">~ Ramesh Reddy</p>
+              <p className="mt-2 font-bold">&sim; Ramesh Reddy</p>
             </div>
           </div>
         </div>

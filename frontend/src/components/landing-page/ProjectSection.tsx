@@ -2,6 +2,7 @@
 
 "use client";
 import React from 'react';
+import Image from 'next/image';
 
 const ProjectSection = () => {
   return (
@@ -27,19 +28,19 @@ const ProjectSection = () => {
         <div className="mt-6 grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
           {/* Project 1 */}
           <div className="bg-white rounded-lg overflow-hidden">
-            <img src="/img/project1.png" alt="Project 1" />
+            <Image src="/img/project1.png" alt="Project 1" width={700} height={400} />
           </div>
           {/* Project 2 */}
           <div className="bg-white rounded-lg overflow-hidden">
-            <img src="/img/project2.png" alt="Project 2" />
+            <Image src="/img/project2.png" alt="Project 2" width={700} height={400} />
           </div>
           {/* Project 3 */}
           <div className="bg-white rounded-lg overflow-hidden">
-            <img src="/img/project3.png" alt="Project 3" />
+            <Image src="/img/project3.png" alt="Project 3" width={700} height={400} />
           </div>
           {/* Project 4 */}
           <div className="bg-white rounded-lg overflow-hidden">
-            <img src="/img/project4.png" alt="Project 4" />
+            <Image src="/img/project4.png" alt="Project 4" width={700} height={400} />
           </div>
         </div>
       </div>
