@@ -37,9 +37,9 @@ const ReviewSection = () => {
                 ))}
               </div>
               <p className="mt-2 text-gray-500">
-                "Really impressed with their smooth process and quality! They
+                 &ldquo;Really impressed with their smooth process and quality! They
                 offered great customization options, and the delivery was super
-                fast."
+                fast.&rdquo;
               </p>
               <p className="mt-2 font-bold">&sim; Raju Yadav</p>
             </div>
@@ -69,9 +69,9 @@ const ReviewSection = () => {
                 ))}
               </div>
               <p className="mt-2 text-gray-500">
-                "Really impressed with their smooth process and quality! They
+                &ldquo;Really impressed with their smooth process and quality! They
                 offered great customization options, and the delivery was super
-                fast."
+                fast.&rdquo;
               </p>
               <p className="mt-2 font-bold">&sim; Sunitha Devi</p>
             </div>
@@ -101,9 +101,9 @@ const ReviewSection = () => {
                 ))}
               </div>
               <p className="mt-2 text-gray-500">
-                "Really impressed with their smooth process and quality! They
+                 &ldquo;Really impressed with their smooth process and quality! They
                 offered great customization options, and the delivery was super
-                fast."
+                fast.&rdquo;
               </p>
               <p className="mt-2 font-bold">&sim; Ramesh Reddy</p>
             </div>
