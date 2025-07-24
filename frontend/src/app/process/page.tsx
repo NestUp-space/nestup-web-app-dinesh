@@ -2,7 +2,7 @@
 
 
 import { useRef } from "react";
-import { ProcessSection } from "@components/landing-page/ProcessSection";
+import ProcessSection from "@/components/landing-page/ProcessSection";
 import FAQ from "@components/landing-page/Faq";
 import { Footer } from "@/components/landing-page/Footer";
 import Navbar from "@/components/landing-page/Navbar";
