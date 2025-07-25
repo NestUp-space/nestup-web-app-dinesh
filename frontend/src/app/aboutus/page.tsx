@@ -1,6 +1,7 @@
 import ProcessCard from '@/components/landing-page/ProcessCard';
 import { Footer } from "@/components/landing-page/Footer";
 import Navbar from "@/components/landing-page/Navbar";
+import Image from 'next/image';
 
 export default function AboutUsPage() {
   return (
@@ -26,9 +27,11 @@ export default function AboutUsPage() {
           <section className="py-12 md:py-16 lg:py-20 px-4">
             <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
               <div className="md:order-2">
-                <img
+                <Image
                   src="/img/20250725_1901_Modern Office Entrance_remix_01k10wd1s3e589qtwtm9esg9bx.png"
                   alt="Modern office entrance showcasing interior design work"
+                  width={800}
+                  height={600}
                   className="w-full h-auto rounded-xl shadow-2xl transform hover:scale-105 transition-transform duration-500"
                 />
               </div>
@@ -39,7 +42,7 @@ export default function AboutUsPage() {
                 
                 <div className="space-y-4 text-base md:text-lg leading-relaxed text-gray-800">
                   <p>
-                    <span className="text-lg md:text-xl font-semibold text-theme-color">"Nine years ago</span>, in my third year of college, I found myself helping my dad set up a CNC router in his humble woodworking shop. I had no idea that those <span className="font-semibold text-gray-900">late nights learning software and training his team</span> would plant the first seeds of a much larger journey.
+                    <span className="text-lg md:text-xl font-semibold text-theme-color">&ldquo;Nine years ago</span>, in my third year of college, I found myself helping my dad set up a CNC router in his humble woodworking shop. I had no idea that those <span className="font-semibold text-gray-900">late nights learning software and training his team</span> would plant the first seeds of a much larger journey.
                   </p>
                   
                   <p>
@@ -47,7 +50,7 @@ export default function AboutUsPage() {
                   </p>
                   
                   <p className="text-lg md:text-xl font-medium text-gray-900">
-                    We knew there had to be a better way."
+                    We knew there had to be a better way.&rdquo;
                   </p>
                   <p className="text-m md:text-lg font-small text-theme-color text-right">
                     - Vamsi Pratap (Founder and CEO - Nestup)
@@ -61,14 +64,16 @@ export default function AboutUsPage() {
           <section className="py-12 md:py-16 lg:py-20 px-4 bg-white">
             <div className="max-w-4xl mx-auto text-center">
               <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold text-theme-color mb-8 leading-tight">
-                And that's how <span className="italic">Nestup</span> was born.
+                And that&apos;s how <span className="italic">Nestup</span> was born.
               </h2>
               <p className="text-xl md:text-2xl text-gray-600 mb-12 leading-relaxed font-light">
-                A system, a mindset, and a promise to fix what's broken in the interiors industry.
+                A system, a mindset, and a promise to fix what&apos;s broken in the interiors industry.
               </p>
-              <img
+              <Image
                 src="/img/AC69B49B-1960-4DE3-AAC7-A3F46C7F1190.jpeg"
                 alt="The birth of Nestup vision"
+                width={800}
+                height={600}
                 className="w-full h-auto rounded-xl shadow-lg"
               />
             </div>
@@ -78,9 +83,11 @@ export default function AboutUsPage() {
           <section className="py-12 md:py-16 lg:py-20 px-4">
             <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
               <div>
-                <img
+                <Image
                   src="/img/20250725_1924_Enhanced CNC Machine Image_remix_01k10xnsbdf67b11qq6cnazc94.png"
                   alt="Modern CNC machinery in factory"
+                  width={800}
+                  height={600}
                   className="w-full h-auto rounded-xl shadow-2xl transform hover:scale-105 transition-transform duration-500"
                 />
               </div>
@@ -95,7 +102,7 @@ export default function AboutUsPage() {
                   </p>
                   
                   <p>
-                    We've <span className="font-semibold text-theme-color">automated the chaos</span>—turning weeks of on-site carpentry into a streamlined, factory-led process that's clean, predictable, and high-quality.
+                    We&apos;ve <span className="font-semibold text-theme-color">automated the chaos</span>—turning weeks of on-site carpentry into a streamlined, factory-led process that&apos;s clean, predictable, and high-quality.
                   </p>
                   
                   <p>
@@ -137,9 +144,11 @@ export default function AboutUsPage() {
           <section className="py-12 md:py-16 lg:py-20 px-4">
             <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
               <div className="md:order-2">
-                <img
+                <Image
                   src="/img/20250725_2021_Futuristic Indian Interiors_simple_compose_01k110zryqewfarpmbgz0xkbr1.png"
                   alt="Futuristic Indian interiors representing modern convenience"
+                  width={800}
+                  height={600}
                   className="w-full h-auto rounded-xl shadow-2xl transform hover:scale-105 transition-transform duration-500"
                 />
               </div>
@@ -156,7 +165,7 @@ export default function AboutUsPage() {
                   </div>
                   
                   <p className="text-lg md:text-xl font-semibold text-center">
-                    We believe <span className="text-dark-color font-bold">convenience is no longer a luxury. It's a necessity.</span>
+                    We believe <span className="text-dark-color font-bold">convenience is no longer a luxury. It&apos;s a necessity.</span>
                   </p>
                   
                   <div className="space-y-4">
@@ -164,14 +173,14 @@ export default function AboutUsPage() {
                       Our vision is simple:
                     </p>
                     <p className="text-base md:text-lg leading-relaxed">
-                      Walk into a Nestup showroom, choose your designs, and have your woodwork installed <span className="font-bold text-theme-color">within a day</span>. We're not there yet, but we're getting close—<span className="font-semibold text-medium-interactive">fast</span>.
+                      Walk into a Nestup showroom, choose your designs, and have your woodwork installed <span className="font-bold text-theme-color">within a day</span>. We&apos;re not there yet, but we&apos;re getting close—<span className="font-semibold text-medium-interactive">fast</span>.
                     </p>
                   </div>
                   
                   <div className="bg-lighter-bg p-6 rounded-xl">
                     <p className="text-lg md:text-xl font-bold text-center text-gray-900 leading-relaxed">
-                      We're not just building wardrobes and kitchens.<br/>
-                      <span className="text-theme-color">We're building a new standard</span> for how interiors should be done in India.
+                      We&apos;re not just building wardrobes and kitchens.<br/>
+                      <span className="text-theme-color">We&apos;re building a new standard</span> for how interiors should be done in India.
                     </p>
                   </div>
                 </div>

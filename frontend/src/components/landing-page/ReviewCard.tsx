@@ -29,7 +29,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
       {/* Review Text in Middle */}
       <div className="flex-grow flex items-center justify-center mb-4">
         <p className="text-dark-text text-base leading-relaxed text-center italic">
-          "{review.review}"
+          &ldquo;{review.review}&rdquo;
         </p>
       </div>
 
