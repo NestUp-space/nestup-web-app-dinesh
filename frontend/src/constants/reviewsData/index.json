@@ -1,0 +1,88 @@
+{
+  "reviews": [
+    {
+      "id": 1,
+      "name": "Manoj Kotagiri",
+      "rating": 5,
+      "review": "Great experience with NestUp Space! Fast delivery, budget-friendly pricing, and excellent finish quality. Material estimates were spot on. Only suggestion—improve measurement accuracy, especially in uneven wall areas. Wishing them success—they're on the way to making modular interiors truly affordable and efficient."
+    },
+    {
+      "id": 2,
+      "name": "sweethome designs",
+      "rating": 5,
+      "review": "Nestup modular factorie are ideal for fast and flexible manufacturing. They can be set up quickly easy to operate, and reduce downtime compared to manual work."
+    },
+    {
+      "id": 3,
+      "name": "Shashikumar goud Upparpalli",
+      "rating": 5,
+      "review": "Getting good quality of modular in very best cost. The machines and software these guys are using is very updated. Overall if you are looking for good quality with reasonable cost we can go with this."
+    },
+    {
+      "id": 4,
+      "name": "Nishanth Chintapalli",
+      "rating": 5,
+      "review": "Good place for modular wood works. Would recommend every interior to go with Nestup."
+    },
+    {
+      "id": 5,
+      "name": "akula navyasree",
+      "rating": 5,
+      "review": "I recently had custom units designed and installed for my home, including a wardrobe, study table, dresser, and kitchen. They confirmed every detail of the designs with me before production, and the installation was smooth and efficient."
+    },
+    {
+      "id": 6,
+      "name": "Lakkaraju Yugandhar",
+      "rating": 5,
+      "review": "Had a great experience with Nestup space modular factory team. Their work was excellent, and the team was very professional. They maintained great customer interaction, understood our requirements, and provided complete assistance."
+    },
+    {
+      "id": 7,
+      "name": "Dileep Reddy",
+      "rating": 5,
+      "review": "Value for money and finishing is awesome and I found a huge difference between manual carpenter and machine finishing."
+    },
+    {
+      "id": 8,
+      "name": "Katuri Bobby",
+      "rating": 5,
+      "review": "I liked NestUp systematic and organized work. I appreciate Santosh the site supervisor, for his constant support."
+    },
+    {
+      "id": 9,
+      "name": "venu bunchedwar",
+      "rating": 5,
+      "review": "Very good work & best edge banding finishing"
+    },
+    {
+      "id": 10,
+      "name": "vamsee krishna",
+      "rating": 5,
+      "review": "Been working with them for more than 12 projects now, hardworking and very responsive team."
+    },
+    {
+      "id": 11,
+      "name": "Saife Sharukh",
+      "rating": 5,
+      "review": "Nestup space is good factory good in work and all the team members are very professional and Carpenter are very professional spicaly thanks for sai and sontosh"
+    },
+    {
+      "id": 12,
+      "name": "vamshi krishna",
+      "rating": 5,
+      "review": "Your team is always responsive and communicative. I appreciate the transparency and updates throughout the project :)"
+    },
+    {
+      "id": 13,
+      "name": "lethro interiors",
+      "rating": 5,
+      "review": "Got my 2 projects delivered and installed with couple of days delay but the finishing was unmatchable with other factories. The team was very cooperative and friendly. I would suggest people to get in touch with them for end to end contract."
+    },
+    {
+      "id": 14,
+      "name": "Nikhil Jonathan",
+      "rating": 5,
+      "review": "Father and Son combo brings you the 30 yrs experience with a tech enabled automation experience in delivering moduler house's. Great experience meeting the next gen Co-founder Vamshi, his attention to detail and clarity of explanation gives clear picture to the customer."
+    }
+  ]
+}

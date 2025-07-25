@@ -5,11 +5,7 @@ import React, { useEffect, useRef } from "react";
 import { CTAButton } from "./CTAButton";
 import Image from "next/image";
 import bgImg from "@img/homeBg.jpeg";
-import ReviewSection from "./ReviewSection";
-import ServiceSection from "./ServiceSection";
-import ProjectSection from "./ProjectSection";
-import ProcessSection from "./ProcessSection";
-import FooterSection from "./FooterSection";
+
 
 export function HomeSection() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -71,7 +67,7 @@ export function HomeSection() {
   return (
     <section className="flex flex-col" id="home">
       <div className= "h-dvh flex">
-        <div className="absolute flex items-center justify-center w-screen left-0 overflow-hidden bg-white opacity-30">
+        <div className="absolute flex items-center justify-center w-screen h-screen left-0 overflow-hidden bg-white opacity-30">
         <Image
           src={bgImg}
           alt="Backgound Image"
@@ -135,11 +131,6 @@ export function HomeSection() {
           </ul>
         </div>
       </div> */}
-      <ReviewSection />
-      <ServiceSection />
-      <ProjectSection />
-      <ProcessSection />
-      <FooterSection />
     </section>
   );
 }

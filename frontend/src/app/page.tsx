@@ -3,6 +3,9 @@ import ProcessSection from "@components/landing-page/ProcessSection";
 import { Footer } from "@/components/landing-page/Footer";
 import Navbar from "@/components/landing-page/Navbar";
 import FAQ from "@components/landing-page/Faq";
+import ReviewSection from "@/components/landing-page/ReviewSection";
+import ServiceSection from "@/components/landing-page/ServiceSection";
+import ProjectSection from "@/components/landing-page/ProjectSection";
 
 
 export default function Home() {
@@ -13,6 +16,9 @@ export default function Home() {
       </div>
       <div className="mt-24">
       <HomeSection />
+      <ReviewSection />
+      <ServiceSection />
+      <ProjectSection />
       <ProcessSection />
       <FAQ/>
       <Footer/>

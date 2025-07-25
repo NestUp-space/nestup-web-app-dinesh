@@ -1,114 +1,199 @@
-// frontend/src/components/landing-page/ReviewSection.tsx
-
 "use client";
-import React from 'react';
-import Image from 'next/image';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
+import ReviewCard from './ReviewCard';
+import { Review } from '@/types/reviews';
+import reviewsData from '@/constants/reviewsData/index.json';
 
 const ReviewSection = () => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const reviews: Review[] = reviewsData.reviews;
+  
+  // Start with a safe default that works for both server and client
+  const [visibleCards, setVisibleCards] = useState(3);
+
+  // Get number of visible cards based on screen size
+  const getVisibleCards = () => {
+    if (typeof window !== 'undefined') {
+      if (window.innerWidth >= 1280) return 4; // xl screens
+      if (window.innerWidth >= 1024) return 3; // lg screens
+      if (window.innerWidth >= 768) return 2;  // md screens
+      return 1; // sm screens
+    }
+    return 3; // default for SSR
+  };
+
+  // Handle client-side hydration and responsive behavior
+  useEffect(() => {
+    setIsClient(true);
+    setVisibleCards(getVisibleCards());
+
+    const handleResize = () => {
+      setVisibleCards(getVisibleCards());
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Check if we need carousel functionality
+  const needsCarousel = reviews.length > visibleCards;
+  
+  // Calculate total slides and max index correctly
+  const totalSlides = needsCarousel ? Math.ceil(reviews.length / visibleCards) : 1;
+  const maxIndex = Math.max(0, totalSlides - 1);
+
+  // Reset currentIndex if it's out of bounds (can happen on resize)
+  useEffect(() => {
+    if (currentIndex > maxIndex) {
+      setCurrentIndex(0);
+    }
+  }, [currentIndex, maxIndex]);
+
+  // Auto-scroll functionality
+  useEffect(() => {
+    if (!isHovered && needsCarousel) {
+      intervalRef.current = setInterval(() => {
+        setCurrentIndex((prevIndex) => {
+          const nextIndex = prevIndex + 1;
+          // Reset to beginning when we reach the end
+          if (nextIndex > maxIndex) {
+            return 0;
+          }
+          return nextIndex;
+        });
+      }, 3000); // Change slide every 3 seconds
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isHovered, needsCarousel, maxIndex]);
+
+  const nextSlide = () => {
+    if (needsCarousel) {
+      setCurrentIndex((prevIndex) => {
+        const nextIndex = prevIndex + 1;
+        if (nextIndex > maxIndex) {
+          return 0;
+        }
+        return nextIndex;
+      });
+    }
+  };
+
+  const prevSlide = () => {
+    if (needsCarousel) {
+      setCurrentIndex((prevIndex) => {
+        const nextIndex = prevIndex - 1;
+        if (nextIndex < 0) {
+          return maxIndex;
+        }
+        return nextIndex;
+      });
+    }
+  };
+
+  // Calculate the actual number of cards to show (don't exceed available reviews)
+  const cardsToShow = Math.min(visibleCards, reviews.length);
+
   return (
-    <div className="bg-white py-12">
+    <div className="bg-lighter-bg py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-3xl font-extrabold text-gray-900 text-center">
-          Testimonials
-        </h2>
-        <div className="mt-6 grid gap-6 grid-cols-1 md:grid-cols-3 lg:grid-cols-3">
-          {/* Review 1 */}
-          <div className="bg-gray-100 rounded-lg p-6">
-            <Image
-              className="w-16 h-16 rounded-full mx-auto"
-              src="/img/placeholder.png"
-              alt="Reviewer 1"
-              width={64}
-              height={64}
-            />
-            <div className="mt-4 text-center">
-              <div className="flex items-center justify-center">
-                {[...Array(5)].map((_, i) => (
-                  <svg
-                    key={i}
-                    className="w-5 h-5 text-yellow-500"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 1l2.939 4.955 6.572.955-4.756 4.635 1.123 6.545z"
-                    />
-                  </svg>
-                ))}
-              </div>
-              <p className="mt-2 text-gray-500">
-                 &ldquo;Really impressed with their smooth process and quality! They
-                offered great customization options, and the delivery was super
-                fast.&rdquo;
-              </p>
-              <p className="mt-2 font-bold">&sim; Raju Yadav</p>
-            </div>
-          </div>
-          {/* Review 2 */}
-          <div className="bg-gray-100 rounded-lg p-6">
-            <Image
-              className="w-16 h-16 rounded-full mx-auto"
-              src="/img/placeholder.png"
-              alt="Reviewer 2"
-              width={64}
-              height={64}
-            />
-            <div className="mt-4 text-center">
-              <div className="flex items-center justify-center">
-                {[...Array(5)].map((_, i) => (
-                  <svg
-                    key={i}
-                    className="w-5 h-5 text-yellow-500"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 1l2.939 4.955 6.572.955-4.756 4.635 1.123 6.545z"
-                    />
-                  </svg>
-                ))}
-              </div>
-              <p className="mt-2 text-gray-500">
-                &ldquo;Really impressed with their smooth process and quality! They
-                offered great customization options, and the delivery was super
-                fast.&rdquo;
-              </p>
-              <p className="mt-2 font-bold">&sim; Sunitha Devi</p>
-            </div>
-          </div>
-          {/* Review 3 */}
-          <div className="bg-gray-100 rounded-lg p-6">
-            <Image
-              className="w-16 h-16 rounded-full mx-auto"
-              src="/img/placeholder.png"
-              alt="Reviewer 3"
-              width={64}
-              height={64}
-            />
-            <div className="mt-4 text-center">
-              <div className="flex items-center justify-center">
-                {[...Array(5)].map((_, i) => (
-                  <svg
-                    key={i}
-                    className="w-5 h-5 text-yellow-500"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 1l2.939 4.955 6.572.955-4.756 4.635 1.123 6.545z"
-                    />
-                  </svg>
-                ))}
-              </div>
-              <p className="mt-2 text-gray-500">
-                 &ldquo;Really impressed with their smooth process and quality! They
-                offered great customization options, and the delivery was super
-                fast.&rdquo;
-              </p>
-              <p className="mt-2 font-bold">&sim; Ramesh Reddy</p>
-            </div>
+        {/* Header */}
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-extrabold text-darkest-text mb-4">
+            Testimonials
+          </h2>
+        </div>
+
+        {/* Carousel Container */}
+        <div className="relative">
+          {/* Navigation Buttons - Only show if carousel is needed */}
+          {needsCarousel && (
+            <>
+              <button
+                onClick={prevSlide}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-lightest-bg rounded-full p-2 shadow-lg hover:shadow-xl transition-shadow duration-200 border border-light-border"
+                aria-label="Previous reviews"
+              >
+                <svg className="w-6 h-6 text-dark-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+
+              <button
+                onClick={nextSlide}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-lightest-bg rounded-full p-2 shadow-lg hover:shadow-xl transition-shadow duration-200 border border-light-border"
+                aria-label="Next reviews"
+              >
+                <svg className="w-6 h-6 text-dark-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </>
+          )}
+
+          {/* Carousel */}
+          <div 
+            className={`overflow-hidden ${needsCarousel ? 'mx-8' : 'mx-0'}`}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            <motion.div
+              className="flex"
+              animate={{
+                x: needsCarousel ? `${-currentIndex * (100 / cardsToShow)}%` : '0%'
+              }}
+              transition={{
+                type: "spring",
+                stiffness: 300,
+                damping: 30
+              }}
+              style={{
+                width: needsCarousel ? `${(totalSlides * 100)}%` : '100%'
+              }}
+            >
+              {reviews.map((review) => (
+                <div
+                  key={review.id}
+                  style={{ 
+                    width: needsCarousel 
+                      ? `${100 / (totalSlides * cardsToShow)}%` 
+                      : `${100 / cardsToShow}%` 
+                  }}
+                  className="flex-shrink-0 px-2"
+                >
+                  <ReviewCard review={review} />
+                </div>
+              ))}
+            </motion.div>
           </div>
         </div>
+
+        {/* Dots Indicator - Only show if carousel is needed */}
+        {needsCarousel && totalSlides > 1 && (
+          <div className="flex justify-center mt-8 space-x-2">
+            {Array.from({ length: totalSlides }).map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentIndex(index)}
+                className={`w-2 h-2 rounded-full transition-colors duration-200 ${
+                  index === currentIndex
+                    ? 'bg-theme-color'
+                    : 'bg-light-bw hover:bg-medium-interactive-bw'
+                }`}
+                aria-label={`Go to slide ${index + 1}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
