@@ -90,7 +90,20 @@ const config: Config = {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
-  		}
+  		},
+      fontFamily: {
+        'primary': ['var(--font-primary)', 'sans-serif'],
+        'body': ['var(--font-body)', 'sans-serif'],
+        'mono': ['var(--font-mono)', 'monospace'],
+      },
+      fontSize: {
+        'technical': ['14px', { lineHeight: '1.5' }],
+        'spec': ['12px', { lineHeight: '1.4' }],
+      },
+      spacing: {
+        '18': '4.5rem',   // 72px
+        '22': '5.5rem',   // 88px
+      }
   	}
   },
   plugins: [require("tailwindcss-animate")],

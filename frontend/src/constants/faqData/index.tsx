@@ -1,5 +1,3 @@
-// faqData.tsx
-
 import React from 'react';
 
 interface FAQ {
@@ -12,9 +10,9 @@ export const faqData: FAQ[] = [
     question: "What is your process?",
     answer: (
       <>
-        The process consists of 4 stages.{" "}
+        Our process consists of 12 stages.{" "}
         <a href="/process" className="text-theme-color underline">
-          Know more
+          Learn more
         </a>
         .
       </>
@@ -24,51 +22,49 @@ export const faqData: FAQ[] = [
     question: "What is your pricing structure?",
     answer: (
       <>
-        From Site measurement to Installation in 14 working days at ₹340 per sqft
+        <strong>Payment 1:</strong> A token amount of ₹5,000 is required to book a site visit for measurements. After this, you’ll receive a cutlist and material estimates.
         <br />
-        Payment 1 - a Token amount of ₹5000 has to be paid for booking a site visit for measurements - You will be provided with a cutlist and Material estimates after this.
+        <strong>Payment 2:</strong> ₹110/sqft to be paid once materials are sent to our plant. Production begins after this.
         <br />
-        Payment 2 - 110₹/sqft to be paid once you send the material to our plant - After this the production at the factory starts.
+        <strong>Payment 3:</strong> ₹110/sqft (excluding GST) is to be paid once your material is processed and ready for dispatch. We will generate the e-way bill and release the material post payment.
         <br />
-        Payment 3 - 110₹/sqft (Excluding GST) to be paid once your material is processed and material is ready for shipping - post this payment an eway bill is generated from our end and processed material will be released.
-        <br />
-        Payment 4 - 100₹/sqft to be paid to the third party installation team on the site based on the work progress.
+        <strong>Payment 4:</strong> ₹100/sqft to be paid directly to the third-party installation team based on work progress at the site.
       </>
     ),
   },
   {
-    question: "Do you take up projects from homeowners also?",
+    question: "Do you take on projects from homeowners directly?",
     answer: (
       <>
-        We only work with interior designers/Contractors & Architects.
+        We work exclusively with Interior Designers, Contractors, and Architects.
         <br />
-        We are a hardcore modular factory with an expertise in only modular woodwork, an interior design project needs a lot of planning, coordination and expertise on dealing with many teams simultaneously on the site so it&apos;s suggested for a homeowner to work with an interior designer rather than working directly with a modular factory like us.
+        As a specialized modular woodwork factory, we focus solely on modular execution. Interior design projects require coordination across multiple teams, which is best handled by an experienced Interior Designer. Hence, we recommend homeowners work through a professional rather than directly with us.
       </>
     ),
   },
   {
-    question: "How long will it take for my projects to be completed?",
+    question: "How long will it take for my project to be completed?",
     answer: (
       <>
-        Once your Material reaches our factory we will complete and release the material after processing within 14 working days.
+        Once your materials reach our factory, we will process and dispatch them within 14 working days.
       </>
     ),
   },
   {
-    question: "Do you do screw fitting or full modular?",
+    question: "Do you use screw fittings or full modular fittings?",
     answer: (
       <>
-        Screw fitting is the strongest fitting there is, with finish limitations while mini fix gives us a great finish but with limited sturdiness.
+        Screw fittings offer unmatched strength but can have finish limitations, while VB fittings provide a sleek finish but are less sturdy.
         <br />
-        Hence we recommend a Hybrid fitting where we can use screw fitting where ever possible and use minifix where there are exposed planks giving best of both the worlds.
+        We recommend a hybrid approach — using screw fittings wherever possible for strength, and VB fittings for exposed areas to maintain a clean finish. This gives you the best of both worlds.
       </>
     ),
   },
   {
-    question: "How do you manage when walls are undulated ?",
+    question: "How do you handle undulated (uneven) walls?",
     answer: (
       <>
-        No walls are straight without undulations on an actual site, we understand this and leave a buffer of 50 mm while planning a box, the gap is covered with dummies with a scope to cover undulations properly at the site.
+        Walls are rarely perfectly straight on-site. We account for this by leaving a 50mm buffer while planning each box. This gap is covered with fillers, allowing for adjustments to accommodate wall undulations during installation.
       </>
     ),
   },
@@ -76,35 +72,37 @@ export const faqData: FAQ[] = [
     question: "Are there any hidden charges?",
     answer: (
       <>
-        There are no hidden charges that you have to pay as far as making is concerned ( Site measurements, Cutlists/Material Estimates, Production & Installations), However please note that any type of material purchase , Transportation , tax & Packaging is not included in this 320.
-      </>
-    ),
-  },
-  {
-    question: "How will I know if my material is not misused or exchanged?",
-    answer: (
-      <>
-        We have a strict transparency policy on the material you send , the cutlists will be shared with you making sure that no extra material is quoted & we have an open door policy which allows you to visit the factory during the time of your production so that you can check the production process yourself.
-      </>
-    ),
-  },
-  {
-    question: "Can you help us with other sections of the project like false ceiling , electrical, glass or manual work?",
-    answer: (
-      <>
-        We only take up modular woodwork where we support from site measurements to installation but we don’t get involved in any other sections of the project.
-      </>
-    ),
-  },
-  {
-    question: "I only worked with manual carpenters till now and want to shift to modular , what can I expect?",
-    answer: (
-      <>
-        There are two major things to understand before making the shift from manual woodwork to modular
+        No, there are no hidden charges for our core services — site measurement, cutlists/material estimates, production, and installation.
         <br />
-        Pricing : There is a significant(20%) increase in the cost for making the shift from manual woodwork to modular - Please choose modular only if the homeowner is willing to bear this amount.
+        However, please note that material procurement, transportation, taxes, and packaging are not included in the ₹340/sqft pricing.
+      </>
+    ),
+  },
+  {
+    question: "How can I be sure my materials won’t be misused or exchanged?",
+    answer: (
+      <>
+        We follow a strict transparency policy. All cutlists are shared with you to ensure no excess material is quoted. We also follow an open-door policy — you’re welcome to visit the factory during production to personally verify the process.
+      </>
+    ),
+  },
+  {
+    question: "Can you handle other parts of the project like false ceilings, electricals, glass, or manual work?",
+    answer: (
+      <>
+        No. We only undertake modular woodwork — from site measurements to final installation. We do not handle other trades such as electrical, false ceiling, or manual carpentry work.
+      </>
+    ),
+  },
+  {
+    question: "I’ve only worked with manual carpenters till now. What should I know before switching to modular?",
+    answer: (
+      <>
+        Here are two key differences to consider:
         <br />
-        Design : While making manual furniture the scope can be changed and improvised as the project progresses but for a modular design all the designs need to be confirmed to the last minute detail even before the material procurement is started.
+        <strong>1. Cost:</strong> Switching from manual to modular typically increases the cost by about 20%. Ensure the homeowner is prepared for this investment.
+        <br />
+        <strong>2. Design:</strong> Unlike manual carpentry, where changes can be made on the fly, modular work requires all designs to be finalized — down to the last detail — before material procurement begins.
       </>
     ),
   },
@@ -112,9 +110,8 @@ export const faqData: FAQ[] = [
     question: "Can I visit your factory?",
     answer: (
       <>
-        Yes , we are open to new designer visits to the factory from 11 am to 6 pm Monday to Saturday , if your project is ongoing at the factory you can visit any time and any day our gates are open 24*7.
+        Absolutely! We welcome designer visits Monday to Saturday, between 10 AM and 6 PM. If your project is under production, you can drop in any time — our factory is operational 24×7.
       </>
     ),
   },
-  // Add more FAQs as needed
 ];

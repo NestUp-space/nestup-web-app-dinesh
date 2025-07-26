@@ -1,136 +1,134 @@
-
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { CTAButton } from "./CTAButton";
 import Image from "next/legacy/image";
 import bgImg from "@img/homeBg.jpeg";
 
-
 export function HomeSection() {
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [videoLoaded, setVideoLoaded] = useState(false);
 
-  useEffect(() => {
-    function printLetterByLetter(
-      destination: string,
-      message: string,
-      speed: number,
-      callback: () => void
-    ) {
-      let i = 0;
-      const destinationElement = document.getElementById(destination);
-
-      // Ensure the element is cleared before starting
-      if (destinationElement) {
-        destinationElement.innerHTML = "";
-      }
-
-      intervalRef.current = setInterval(() => {
-        if (destinationElement) {
-          // Append one character at a time
-          if (message.charAt(i) === "\n") {
-            destinationElement.innerHTML += "<br>";
-          } else {
-            destinationElement.innerHTML += message.charAt(i);
-          }
-          i++;
-          if (i >= message.length) {
-            clearInterval(intervalRef.current!);
-            if (callback && typeof callback === "function") {
-              callback();
-            }
-          }
-        }
-      }, speed);
-    }
-
-    const message = "From Site measurement to Installation\nin 14 working days\nat ₹340 per sqft";
-
-    printLetterByLetter("pitch", message, 50, () => {
-      const ctaElements = document.getElementsByClassName("CTA");
-      for (let j = 0; j < ctaElements.length; j++) {
-        const element = ctaElements[j] as HTMLElement; // Cast to HTMLElement
-        setTimeout(() => {
-          element.style.visibility = "visible";
-        }, j * 100);
-      }
-    });
-
-    // Return a cleanup function to clear intervals when component unmounts
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, []); // Empty dependency array ensures this effect runs only once
+  const handleVideoLoad = () => {
+    setVideoLoaded(true);
+  };
 
   return (
     <section className="flex flex-col" id="home">
-      <div className= "h-dvh flex">
-        <div className="absolute flex items-center justify-center w-screen h-screen left-0 overflow-hidden bg-white opacity-30">
-        <Image
-          src={bgImg}
-          alt="Backgound Image"
-          className="inset-0 object-fill w-full h-full opacity-75"
-        />
+      <div className="min-h-screen flex relative">
+        {/* Background Image with Overlay */}
+        <div className="absolute inset-0 w-full h-full overflow-hidden">
+          <Image
+            src={bgImg}
+            alt="Professional modular furniture background"
+            className="object-cover w-full h-full opacity-20"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent"></div>
         </div>
-        <div className="relative flex items-center justify-center w-screen left-0 overflow-hidden ">
-          <div className="h-3/4 flex flex-col items-center justify-around">
-            <div className="text-center">
-              <h1 className="text-theme-color text-3xl md:text-5xl lg:text-7xl font-bold tracking-tight md:tracking-tighter leading-tight my-8 flex items-center">Build smarter with Modular</h1>
-              <br/>
-              <h2 className="m-4 text-2xl lg:text-3xl leading-tight">Faster, Better, and Cost Effective</h2>
+
+        {/* Main Content */}
+        <div className="relative z-10 w-full flex items-center justify-center px-4 py-16 lg:py-24">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            
+            {/* Left Column - Content */}
+            <div className="space-y-8">
+              {/* Main Headline */}
+              <div className="space-y-4">
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-primary leading-tight">
+                  Precision Modular Systems for{" "}
+                  <span className="text-secondary">Interior Design Excellence</span>
+                </h1>
+                
+                {/* Subheading with Key Benefits */}
+                <div className="flex flex-wrap gap-2 text-lg md:text-xl text-muted-foreground">
+                  <span className="bg-secondary/10 text-secondary px-3 py-1 rounded-full font-medium">
+                    14-Day Delivery
+                  </span>
+                  <span className="bg-accent/10 text-accent px-3 py-1 rounded-full font-medium">
+                    Technical Specifications
+                  </span>
+                  <span className="bg-primary/10 text-primary px-3 py-1 rounded-full font-medium">
+                    End-to-End Partnership
+                  </span>
+                </div>
+              </div>
+
+              {/* Professional Metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="group cursor-pointer transition-all duration-300 hover:scale-105">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 border border-primary/20 hover:border-primary/40 hover:shadow-lg">
+                    <div className="text-2xl font-bold text-primary">500+</div>
+                    <div className="text-sm text-muted-foreground">Designer Projects</div>
+                  </div>
+                </div>
+                
+                <div className="group cursor-pointer transition-all duration-300 hover:scale-105">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 border border-secondary/20 hover:border-secondary/40 hover:shadow-lg">
+                    <div className="text-2xl font-bold text-secondary">30+</div>
+                    <div className="text-sm text-muted-foreground">Material Options</div>
+                  </div>
+                </div>
+                
+                <div className="group cursor-pointer transition-all duration-300 hover:scale-105">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 border border-accent/20 hover:border-accent/40 hover:shadow-lg">
+                    <div className="text-2xl font-bold text-accent">ISO</div>
+                    <div className="text-sm text-muted-foreground">Quality Standards</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Call-to-Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <a href="/book-visit" className="flex-1 sm:flex-none">
+                  <CTAButton text="Schedule Technical Consultation" />
+                </a>
+                <a href="/specifications" className="flex-1 sm:flex-none">
+                  <button className="w-full px-6 py-3 border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-300 rounded-lg font-medium">
+                    Download Specifications
+                  </button>
+                </a>
+              </div>
             </div>
-            <h2 className= "h-28 text-center text-xl lg:text-2xl leading-tight " id="pitch"></h2>
-            <div className="CTA click">
-            <a href="/book-visit">
-              <CTAButton text="Book a Free Site Visit" />
-            </a>
-            <a href="tel:+918885563262">
-              <CTAButton text="Call us" />
-            </a>
+
+            {/* Right Column - Video */}
+            <div className="relative">
+              <div className="aspect-video rounded-xl overflow-hidden shadow-2xl border border-primary/20">
+                {!videoLoaded ? (
+                  <div 
+                    className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center cursor-pointer group"
+                    onClick={handleVideoLoad}
+                  >
+                    <div className="text-center space-y-4">
+                      <div className="w-20 h-20 bg-white/90 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300">
+                        <svg className="w-8 h-8 text-primary ml-1" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z"/>
+                        </svg>
+                      </div>
+                      <div className="text-white font-medium">
+                        Watch Our Process
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <iframe
+                    src="https://www.youtube.com/embed/K3iCPEizTsE?start=167&autoplay=1"
+                    title="Nestup Modular Furniture Process"
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                )}
+              </div>
+              
+              {/* Video Caption */}
+              <div className="mt-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                  See how we deliver precision modular solutions for interior designers
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </div>
-      
-      {/* <div className="w-screen flex flex-col justify-center items-center">
-        <div className="my-auto flex flex-col gap-3 p-5 md:p-10 lg:p-20 rounded-3xl">
-          <h2 className="text-theme-color text-3xl md:text-5xl font-bold tracking-tight md:tracking-tighter leading-tight mb-20 mt-8 flex items-center">
-          Why Modular Furniture is the Future?
-          </h2>
-          <p>
-          The rapid rise of modular furniture is no surprise—it offers innovative solutions to common challenges faced by homeowners, designers, and architects alike:
-          </p>
-          <br/>
-          <ul className=" md:text-xl flex flex-col gap-3">
-            <li>
-              <span className="text-theme-color font-bold">
-                Faster Move-In Times:
-              </span>{" "}
-              Modular furniture is built up to 30% faster than traditional carpentry, allowing homeowners to move in and start enjoying their space much sooner.
-            </li>
-            <li>
-              <span className="text-theme-color font-bold">
-                Superior Finish:
-              </span>{" "}
-              Factory-made modular furniture boasts smoother finishes, precise cuts, and minimal defects like bubbles or surface imperfections. This ensures a sleek, high-quality finish that enhances the overall look of any home.
-            </li>
-            <li>
-              <span className="text-theme-color font-bold">
-                Effortless Execution:
-              </span>{" "}
-              With modular furniture, the entire process is streamlined. Automated machinery ensures accuracy, reducing issues related to material procurement and installation. This makes the project smoother from start to finish.
-            </li>
-            <li>
-              <span className="text-theme-color font-bold">
-              Personalized Design:
-              </span>{" "}
-              Gone are the days of one-size-fits-all furniture. Modular designs offer extensive customization options, allowing designers to create personalized pieces that align with both their vision and the homeowner's desires.
-            </li>
-          </ul>
-        </div>
-      </div> */}
     </section>
   );
 }

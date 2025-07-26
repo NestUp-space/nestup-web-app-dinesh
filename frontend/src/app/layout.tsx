@@ -1,10 +1,19 @@
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Inter, Source_Sans_3, JetBrains_Mono } from "next/font/google"
 import "../styles/globals.css"
 import { UserProvider } from '@/context/UserContext'; 
 import { Analytics } from "@vercel/analytics/react"
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: '--font-primary' });
+const sourceSans = Source_Sans_3({ 
+  subsets: ["latin"], 
+  weight: ['400', '600', '700'],
+  variable: '--font-body' 
+});
+const jetbrains = JetBrains_Mono({ 
+  subsets: ["latin"],
+  variable: '--font-mono' 
+});
 
 export const metadata: Metadata = {
   title: "Nestup.space",
@@ -30,7 +39,7 @@ export default function RootLayout({
           }}
         />
       </head>
-    <body className={inter.className}>
+    <body className={`${inter.variable} ${sourceSans.variable} ${jetbrains.variable}`}>
     <Analytics/>
     <UserProvider>
       <div >

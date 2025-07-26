@@ -9,7 +9,7 @@ const ServiceSection = () => {
     {
       icon: Clock,
       title: "14 Days Delivery",
-      description: "We promise to deliver your fully customized modular units within just 14 days, ensuring quality, precision, and complete satisfaction!",
+      description: "We promise to deliver your fully customized modular units within just 14 working days, ensuring quality, precision, and complete satisfaction!",
       color: "text-blue-600",
       bgColor: "bg-blue-50",
       hoverColor: "hover:bg-blue-100"

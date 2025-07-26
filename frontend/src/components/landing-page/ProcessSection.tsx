@@ -18,19 +18,10 @@ import {
   ChevronRight,
   X,
 } from "lucide-react"
-import styles from './ProcessSection.module.css'
 
 /**
- * Enhanced ProcessFlowComponent - A fully responsive React component with optimized mobile/desktop UX
- *
- * Features:
- * - Adaptive interaction patterns (contextual popover on desktop, bottom sheet on mobile)
- * - Full accessibility support with keyboard navigation and ARIA labels
- * - Touch-optimized with proper gesture support
- * - Smooth animations and transitions
- * - Performance optimized with proper portal rendering
- * - Responsive grid layout with optimized touch targets
- * - Fixed modal positioning with proper z-index layering
+ * Enhanced ProcessFlowComponent - Circular Interactive Diagram
+ * Preserves all existing text content while implementing a professional circular UI
  */
 
 interface ProcessStep {
@@ -40,38 +31,18 @@ interface ProcessStep {
   description: string
 }
 
-interface GridConfig {
-  columns: number
-  rows: number
-  gap: string
-}
-
-interface ActiveStepPosition {
-  row: number
-  col: number
-  rect: DOMRect
-  side: 'left' | 'right'
-}
-
 const ProcessFlowComponent: React.FC = () => {
-  const [hoveredStep, setHoveredStep] = useState<string | null>(null)
   const [activeStep, setActiveStep] = useState<string | null>(null)
-  const [activeStepPosition, setActiveStepPosition] = useState<ActiveStepPosition | null>(null)
-  const [visibleSteps, setVisibleSteps] = useState<Set<string>>(new Set())
-  const [gridConfig, setGridConfig] = useState<GridConfig>({ columns: 4, rows: 3, gap: "2rem" })
+  const [hoveredStep, setHoveredStep] = useState<string | null>(null)
   const [isMobile, setIsMobile] = useState(false)
-  const [isTablet, setIsTablet] = useState(false)
   const [mounted, setMounted] = useState(false)
   
   const containerRef = useRef<HTMLDivElement>(null)
-  const gridRef = useRef<HTMLDivElement>(null)
-  const activeStepRef = useRef<HTMLDivElement>(null)
-  const stepRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
 
   const steps: ProcessStep[] = useMemo(() => [
     { id: "measure", label: "Site Measurements", icon: Ruler, description: "Professional measurement team visits your location using advanced laser tools to capture precise, millimeter-accurate dimensions." },
     { id: "input", label: "Design Input Collection", icon: ClipboardList, description: "Gathering comprehensive design requirements including 2D layouts, laminate codes, and technical specifications through detailed consultation." },
-    { id: "model", label: "3D Modeling", icon: Package, description: "Creation of detailed 3D models in SketchUp with precise plank-by-plank specifications, built from scratch using site measurements." },
+    { id: "model", label: "3D Modeling", icon: Package, description: "Creation of detailed 3D models in a 3D-software with precise plank-by-plank specifications, built from scratch using site measurements." },
     { id: "design", label: "Design Finalization", icon: FileText, description: "Final design review and approval process with detailed documentation and client confirmation before production begins." },
     { id: "payment", label: "Payment Processing", icon: CreditCard, description: "Transparent payment structure with token advance for measurements and staged payments aligned with production milestones." },
     { id: "invoice", label: "Invoice Generation", icon: Receipt, description: "Detailed invoice generation with complete breakdown of costs, materials, and services for transparent billing." },
@@ -83,52 +54,17 @@ const ProcessFlowComponent: React.FC = () => {
     { id: "install", label: "Professional Installation", icon: Wrench, description: "Expert installation support with detailed guides, on-site engineering assistance, and professional carpentry teams available." },
   ], [])
 
-  // Device detection and responsive configuration
+  // Device detection
   useEffect(() => {
     setMounted(true)
     
     const updateDeviceConfig = () => {
-      const width = window.innerWidth
-      const newIsMobile = width < 768
-      const newIsTablet = width >= 768 && width < 1024
-      
-      setIsMobile(newIsMobile)
-      setIsTablet(newIsTablet)
-      
-      if (width >= 1024) {
-        setGridConfig({ columns: 4, rows: 3, gap: "2rem" })
-      } else if (width >= 768) {
-        setGridConfig({ columns: 3, rows: 4, gap: "1.5rem" })
-      } else {
-        setGridConfig({ columns: 2, rows: 6, gap: "1.25rem" })
-      }
+      setIsMobile(window.innerWidth < 768)
     }
 
     updateDeviceConfig()
     window.addEventListener('resize', updateDeviceConfig)
     return () => window.removeEventListener('resize', updateDeviceConfig)
-  }, [])
-
-  // Intersection Observer for scroll animations
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const stepId = entry.target.getAttribute('data-step-id')
-            if (stepId) {
-              setVisibleSteps(prev => new Set(Array.from(prev).concat(stepId)))
-            }
-          }
-        })
-      },
-      { threshold: 0.3, rootMargin: '50px' }
-    )
-
-    const stepElements = document.querySelectorAll('[data-step-id]')
-    stepElements.forEach(el => observer.observe(el))
-
-    return () => observer.disconnect()
   }, [])
 
   // Keyboard navigation
@@ -137,299 +73,265 @@ const ProcessFlowComponent: React.FC = () => {
       if (event.key === 'Escape' && activeStep) {
         setActiveStep(null)
       }
-      
-      if (activeStep && (event.key === 'Tab' || event.key === 'Enter')) {
-        // Handle focus management within description
-        event.preventDefault()
-      }
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [activeStep])
 
-  const handleStepClick = useCallback((stepId: string, event: React.MouseEvent<HTMLDivElement>) => {
+  const handleStepClick = useCallback((stepId: string) => {
     if (activeStep === stepId) {
       setActiveStep(null)
-      setActiveStepPosition(null)
       return
     }
-
-    const target = event.currentTarget
-    const rect = target.getBoundingClientRect()
-    const stepIndex = steps.findIndex(step => step.id === stepId)
-    const row = Math.floor(stepIndex / gridConfig.columns)
-    const col = stepIndex % gridConfig.columns
-    
-    // Determine which side to show the card based on column position
-    const side = col < gridConfig.columns / 2 ? 'right' : 'left'
-    
     setActiveStep(stepId)
-    setActiveStepPosition({ row, col, rect, side })
     setHoveredStep(null)
-  }, [activeStep, steps, gridConfig.columns])
+  }, [activeStep])
 
   const handleCloseDescription = useCallback(() => {
     setActiveStep(null)
-    setActiveStepPosition(null)
   }, [])
 
   const handleDiveDeeper = () => {
     console.log("Dive deeper clicked")
   }
 
-  const getStepPosition = (index: number) => {
-    const row = Math.floor(index / gridConfig.columns)
-    const col = index % gridConfig.columns
-    return { row, col }
+  // Calculate circular positions for steps
+  const getCircularPosition = (index: number, total: number, radius: number) => {
+    const angle = (index * 2 * Math.PI) / total - Math.PI / 2 // Start from top
+    const x = Math.cos(angle) * radius
+    const y = Math.sin(angle) * radius
+    return { x, y, angle }
   }
 
-  const shouldShowHorizontalConnector = (index: number) => {
-    const { col } = getStepPosition(index)
-    return col < gridConfig.columns - 1 && index < steps.length - 1
-  }
-
-  const shouldShowVerticalConnector = (index: number) => {
-    const { col, row } = getStepPosition(index)
-    return col === gridConfig.columns - 1 && row < gridConfig.rows - 1 && index < steps.length - 1
-  }
-
-  const getIconShiftClass = (stepIndex: number) => {
-    if (!activeStepPosition) return ''
-    
-    const { row, col } = getStepPosition(stepIndex)
-    const { row: activeRow, col: activeCol, side } = activeStepPosition
-    
-    // Only shift icons in the same row as the active step
-    if (row !== activeRow) return ''
-    
-    // Don't shift the active icon itself
-    if (stepIndex === steps.findIndex(step => step.id === activeStep)) return ''
-    
-    // Shift logic based on card position
-    if (side === 'right') {
-      // Card appears on right, shift icons left
-      return col < activeCol ? styles.iconShiftLeft : ''
-    } else {
-      // Card appears on left, shift icons right
-      return col > activeCol ? styles.iconShiftRight : ''
-    }
-  }
-
-  // Description Card Component
-  const DescriptionCard = ({ step }: { step: ProcessStep }) => {
-    if (!activeStepPosition || !mounted) return null
-
-    const IconComponent = step.icon
-    const { side, rect, row } = activeStepPosition
-    
-    // Calculate card position
-    const cardWidth = isMobile ? 280 : isTablet ? 320 : 360
-    const cardOffset = isMobile ? 20 : 40
-    
-    let cardStyle: React.CSSProperties = {}
-    
-    if (isMobile) {
-      // On mobile, show below the active icon
-      cardStyle = {
-        position: 'absolute',
-        top: `${(row + 1) * 120 + 20}px`,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: `${cardWidth}px`,
-        zIndex: 10
-      }
-    } else {
-      // On desktop/tablet, show beside the icon
-      const gridRect = gridRef.current?.getBoundingClientRect()
-      if (gridRect) {
-        const relativeTop = rect.top - gridRect.top + rect.height / 2
-        
-        if (side === 'right') {
-          cardStyle = {
-            position: 'absolute',
-            top: `${relativeTop - 100}px`,
-            left: `${rect.width + cardOffset}px`,
-            width: `${cardWidth}px`,
-            zIndex: 10
-          }
-        } else {
-          cardStyle = {
-            position: 'absolute',
-            top: `${relativeTop - 100}px`,
-            right: `${rect.width + cardOffset}px`,
-            width: `${cardWidth}px`,
-            zIndex: 10
-          }
-        }
-      }
-    }
-
-    return (
-      <div 
-        className={styles.descriptionCard}
-        style={cardStyle}
-        role="dialog"
-        aria-labelledby="description-title"
-        aria-describedby="description-text"
-      >
-        <button 
-          className={styles.descriptionClose}
-          onClick={handleCloseDescription}
-          aria-label="Close description"
-        >
-          <X size={18} />
-        </button>
-        
-        <div className={styles.descriptionContent}>
-          <div className={styles.descriptionIconContainer}>
-            <IconComponent className={styles.descriptionIcon} />
-          </div>
-          <h3 id="description-title" className={styles.descriptionTitle}>
-            {step.label}
-          </h3>
-          <p id="description-text" className={styles.descriptionText}>
-            {step.description}
-          </p>
-        </div>
-      </div>
-    )
-  }
+  const circleRadius = isMobile ? 120 : 180
+  const centerX = 0
+  const centerY = 0
 
   return (
-    <div className={styles.processFlowContainer} ref={containerRef}>
-      <div className={styles.contentWrapper}>
-        {/* Left Content Section */}
-        <div className={styles.leftContent}>
-          <div className={styles.textContent}>
-            <h1 className={styles.mainHeading}>
-              EVERY STEP MATTERS.
-              <br />
-              <span className={styles.gradientText}>SEE HOW.</span>
-            </h1>
-            <div className={styles.description}>
-              <p>Take a look at our <strong className="font-semibold">12-step process</strong> that blends <em className="italic">craftsmanship</em> with <u className="underline">clarity</u> to ensure every detail is handled with care, precision, and transparency.</p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white py-16 px-4">
+      <div className="max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          
+          {/* Left Content Section */}
+          <div className="space-y-8">
+            <div className="space-y-6">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
+                EVERY STEP MATTERS.
+                <br />
+                <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent">
+                  SEE HOW.
+                </span>
+              </h1>
+              
+              <div className="text-lg md:text-xl text-muted-foreground space-y-4">
+                <p>
+                  Take a look at our <strong className="font-semibold text-primary">12-step process</strong> that blends{" "}
+                  <em className="italic text-secondary">craftsmanship</em> with{" "}
+                  <u className="underline text-accent">clarity</u> to ensure every detail is handled with care, precision, and transparency.
+                </p>
+              </div>
+              
+              <button 
+                onClick={handleDiveDeeper}
+                className="inline-flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all duration-300 font-medium text-lg group"
+                aria-label="Learn more about our process"
+              >
+                <span>Dive Deeper</span>
+                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
+              </button>
             </div>
-            <button 
-              className={styles.diveDeeperBtn} 
-              onClick={handleDiveDeeper} 
-              aria-label="Learn more about our process"
-            >
-              <span>Dive Deeper</span>
-              <ChevronRight className={styles.btnIcon} />
-            </button>
           </div>
-        </div>
 
-        {/* Right Content Section - Process Grid */}
-        <div className={styles.rightContent}>
-          <div className={styles.gridContainer}>
+          {/* Right Content Section - Circular Process Diagram */}
+          <div className="relative">
             <div 
-              className={styles.processGrid} 
-              ref={gridRef}
-              style={{
-                gridTemplateColumns: `repeat(${gridConfig.columns}, 1fr)`,
-                gap: gridConfig.gap
+              className="relative mx-auto"
+              style={{ 
+                width: `${(circleRadius + 80) * 2}px`, 
+                height: `${(circleRadius + 80) * 2}px` 
               }}
-              role="grid"
-              aria-label="Process steps"
+              ref={containerRef}
             >
-            {steps.map((step, index) => {
-              const IconComponent = step.icon
-              const isVisible = visibleSteps.has(step.id)
-              const isHovered = hoveredStep === step.id
-              const isActive = activeStep === step.id
-
-              return (
-                <div 
-                  key={step.id} 
-                  className={`${styles.processStep} ${isVisible ? styles.visible : ''} ${isActive ? styles.active : ''} ${getIconShiftClass(index)}`}
-                  data-step-id={step.id}
-                  style={{ animationDelay: `${index * 100}ms` }}
-                  onMouseEnter={() => !isMobile && setHoveredStep(step.id)}
-                  onMouseLeave={() => !isMobile && setHoveredStep(null)}
-                  onClick={(e) => handleStepClick(step.id, e)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      handleStepClick(step.id, e as any)
-                    }
-                  }}
-                  ref={(el) => {
-                    stepRefs.current[step.id] = el
-                    if (activeStep === step.id) {
-                      (activeStepRef as React.MutableRefObject<HTMLDivElement | null>).current = el
-                    }
-                  }}
-                  role="gridcell"
-                  tabIndex={0}
-                  aria-label={`${step.label}. Click to view details.`}
-                  aria-expanded={isActive}
-                >
-                  <div className={styles.stepContent}>
-                    <div className={`${styles.iconContainer} ${isHovered ? styles.hovered : ''} ${isActive ? styles.active : ''}`}>
-                      <div className={styles.iconBackground}></div>
-                      <IconComponent className={styles.stepIcon} />
-                      <div className={styles.rippleEffect}></div>
-                      {isActive && <div className={styles.activeIndicator} />}
-                    </div>
-                    <span className={styles.stepLabel}>{step.label}</span>
-                  </div>
-
-                  {/* SVG Connection System */}
-                  {index < steps.length - 1 && (
-                    <svg className={styles.connectionSvg} viewBox="0 0 100 100" aria-hidden="true">
-                      <defs>
-                        <linearGradient id={`gradient-${index}`} x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="#ff8c42" />
-                          <stop offset="100%" stopColor="#ff6b1a" />
-                        </linearGradient>
-                        <marker
-                          id={`arrowhead-${index}`}
-                          markerWidth="10"
-                          markerHeight="7"
-                          refX="9"
-                          refY="3.5"
-                          orient="auto"
-                        >
-                          <polygon
-                            points="0 0, 10 3.5, 0 7"
-                            fill="#ff6b1a"
-                          />
-                        </marker>
-                      </defs>
-                      
-                      {shouldShowHorizontalConnector(index) && (
-                        <path
-                          d="M 70 40 L 90 40"
-                          stroke={`url(#gradient-${index})`}
-                          strokeWidth="3"
-                          fill="none"
-                          markerEnd={`url(#arrowhead-${index})`}
-                          className={`${styles.connectionPath} ${styles.horizontal}`}
-                        />
-                      )}
-
-                      {shouldShowVerticalConnector(index) && (
-                        <path
-                          d={`M 40 70 L 40 90 L ${40 - (gridConfig.columns - 1) * 100} 90 L ${40 - (gridConfig.columns - 1) * 100} 110`}
-                          stroke={`url(#gradient-${index})`}
-                          strokeWidth="3"
-                          fill="none"
-                          markerEnd={`url(#arrowhead-${index})`}
-                          className={`${styles.connectionPath} ${styles.vertical}`}
-                        />
-                      )}
-                    </svg>
-                  )}
+              {/* Center Circle */}
+              <div 
+                className="absolute bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center shadow-2xl"
+                style={{
+                  width: '120px',
+                  height: '120px',
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)'
+                }}
+              >
+                <div className="text-white text-center">
+                  <div className="text-2xl font-bold">12</div>
+                  <div className="text-sm">Steps</div>
                 </div>
-              )
-            })}
+              </div>
+
+              {/* Process Steps in Circle */}
+              {steps.map((step, index) => {
+                const IconComponent = step.icon
+                const position = getCircularPosition(index, steps.length, circleRadius)
+                const isActive = activeStep === step.id
+                const isHovered = hoveredStep === step.id
+                
+                return (
+                  <div
+                    key={step.id}
+                    className="absolute group cursor-pointer"
+                    style={{
+                      left: `calc(50% + ${position.x}px)`,
+                      top: `calc(50% + ${position.y}px)`,
+                      transform: 'translate(-50%, -50%)',
+                    }}
+                    onMouseEnter={() => !isMobile && setHoveredStep(step.id)}
+                    onMouseLeave={() => !isMobile && setHoveredStep(null)}
+                    onClick={() => handleStepClick(step.id)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${step.label}. Click to view details.`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleStepClick(step.id)
+                      }
+                    }}
+                  >
+                    {/* Connection Line to Center */}
+                    <div 
+                      className="absolute bg-gradient-to-r from-primary/20 to-secondary/20 transition-all duration-300 group-hover:from-primary/40 group-hover:to-secondary/40"
+                      style={{
+                        width: `${circleRadius - 60}px`,
+                        height: '2px',
+                        left: '50%',
+                        top: '50%',
+                        transformOrigin: 'left center',
+                        transform: `translateY(-50%) rotate(${position.angle + Math.PI}rad)`,
+                        zIndex: 1
+                      }}
+                    />
+                    
+                    {/* Step Circle */}
+                    <div 
+                      className={`
+                        relative w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg z-10
+                        ${isActive 
+                          ? 'bg-secondary text-white scale-110 shadow-2xl' 
+                          : isHovered 
+                            ? 'bg-primary text-white scale-105 shadow-xl' 
+                            : 'bg-white text-primary hover:bg-primary hover:text-white border-2 border-primary/20'
+                        }
+                      `}
+                    >
+                      <IconComponent className="w-6 h-6" />
+                      
+                      {/* Step Number */}
+                      <div 
+                        className={`
+                          absolute -top-2 -right-2 w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center
+                          ${isActive ? 'bg-accent text-white' : 'bg-secondary text-white'}
+                        `}
+                      >
+                        {index + 1}
+                      </div>
+                    </div>
+
+                    {/* Step Label */}
+                    <div 
+                      className={`
+                        absolute mt-2 text-center text-sm font-medium transition-all duration-300 whitespace-nowrap
+                        ${position.y < 0 ? 'top-full' : 'bottom-full mb-2'}
+                        ${isActive ? 'text-secondary' : 'text-primary'}
+                      `}
+                      style={{
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        maxWidth: '120px'
+                      }}
+                    >
+                      {step.label}
+                    </div>
+                  </div>
+                )
+              })}
+
+              {/* Active Step Description Card */}
+              {activeStep && mounted && (
+                <div className="absolute inset-0 flex items-center justify-center z-20">
+                  <div className="bg-white rounded-2xl shadow-2xl border border-primary/10 p-6 max-w-sm mx-4 transform transition-all duration-300 scale-100">
+                    <button 
+                      onClick={handleCloseDescription}
+                      className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                      aria-label="Close description"
+                    >
+                      <X size={20} />
+                    </button>
+                    
+                    {(() => {
+                      const step = steps.find(s => s.id === activeStep)
+                      if (!step) return null
+                      const IconComponent = step.icon
+                      
+                      return (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                              <IconComponent className="w-6 h-6 text-primary" />
+                            </div>
+                            <h3 className="text-xl font-semibold text-primary">
+                              {step.label}
+                            </h3>
+                          </div>
+                          <p className="text-muted-foreground leading-relaxed">
+                            {step.description}
+                          </p>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Description Card */}
-            {activeStep && (
-              <DescriptionCard step={steps.find(s => s.id === activeStep)!} />
+            {/* Mobile Accordion Fallback */}
+            {isMobile && (
+              <div className="mt-8 space-y-3">
+                <h3 className="text-lg font-semibold text-primary mb-4">Process Steps</h3>
+                {steps.map((step, index) => {
+                  const IconComponent = step.icon
+                  const isActive = activeStep === step.id
+                  
+                  return (
+                    <div 
+                      key={step.id}
+                      className="bg-white rounded-lg border border-primary/10 overflow-hidden"
+                    >
+                      <button
+                        onClick={() => handleStepClick(step.id)}
+                        className="w-full p-4 text-left flex items-center gap-3 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isActive ? 'bg-secondary text-white' : 'bg-primary/10 text-primary'}`}>
+                          <IconComponent className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium text-primary">{step.label}</div>
+                        </div>
+                        <div className={`w-6 h-6 rounded-full bg-secondary text-white text-xs flex items-center justify-center font-bold`}>
+                          {index + 1}
+                        </div>
+                      </button>
+                      
+                      {isActive && (
+                        <div className="px-4 pb-4 text-muted-foreground">
+                          {step.description}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             )}
           </div>
         </div>
