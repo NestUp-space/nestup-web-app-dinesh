@@ -790,7 +790,7 @@ export function DetailedProcess() {
           <div className="border-t border-gray-200 p-6 bg-gradient-to-r from-gray-50 to-blue-50">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div>
-                <h4 className="font-bold text-lg text-theme-color mb-3">What's Included</h4>
+                <h4 className="font-bold text-lg text-theme-color mb-3">What&apos;s Included</h4>
                 <ul className="space-y-2 mb-6">
                   {pricingInfo.includes.map((item, idx) => (
                     <li key={idx} className="flex items-start">
