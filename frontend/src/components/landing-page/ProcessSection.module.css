@@ -1,0 +1,568 @@
+/* ProcessSection.module.css */
+
+.processFlowContainer {
+  width: 100%;
+  min-height: 600px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 3rem 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+.processFlowContainer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 20% 80%, rgba(255, 140, 66, 0.1) 0%, transparent 50%),
+              radial-gradient(circle at 80% 20%, rgba(255, 107, 26, 0.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.contentWrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 5rem;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.leftContent {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.textContent {
+  max-width: 500px;
+}
+
+.mainHeading {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  line-height: 1.1;
+  margin: 0 0 2rem 0;
+  letter-spacing: -0.03em;
+}
+
+.gradientText {
+  background: linear-gradient(135deg, #ff8c42 0%, #ff6b1a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.description {
+  font-size: 1.125rem;
+  color: #4a5568;
+  line-height: 1.7;
+  margin: 0 0 2.5rem 0;
+}
+
+.diveDeeperBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: linear-gradient(135deg, #ff8c42 0%, #ff6b1a 100%);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 3rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(255, 140, 66, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.diveDeeperBtn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.diveDeeperBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 140, 66, 0.4);
+}
+
+.diveDeeperBtn:hover::before {
+  left: 100%;
+}
+
+.btnIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+  transition: transform 0.3s ease;
+}
+
+.diveDeeperBtn:hover .btnIcon {
+  transform: translateX(4px);
+}
+
+.rightContent {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.gridContainer {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.processGrid {
+  display: grid;
+  position: relative;
+  max-width: 600px;
+  width: 100%;
+}
+
+.processStep {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0;
+  transform: translateY(30px) scale(0.8);
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  border-radius: 1rem;
+  padding: 0.5rem;
+  outline: none;
+}
+
+.processStep:focus {
+  box-shadow: 0 0 0 3px rgba(255, 140, 66, 0.3);
+}
+
+.processStep.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.processStep.active .iconContainer {
+  transform: scale(1.1);
+}
+
+.stepContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  z-index: 2;
+  position: relative;
+}
+
+.iconContainer {
+  width: 6rem;
+  height: 6rem;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.iconBackground {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 1.25rem;
+  box-shadow: 
+    0 6px 20px rgba(0, 0, 0, 0.15),
+    0 3px 6px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.iconContainer.hovered .iconBackground,
+.iconContainer.active .iconBackground {
+  background: linear-gradient(135deg, #ff8c42 0%, #ff6b1a 100%);
+  transform: scale(1.05);
+  box-shadow: 
+    0 10px 30px rgba(255, 140, 66, 0.4),
+    0 5px 10px rgba(255, 107, 26, 0.3);
+}
+
+.stepIcon {
+  width: 3.5rem;
+  height: 3.5rem;
+  color: #ff6b1a;
+  stroke-width: 2.5;
+  position: relative;
+  z-index: 2;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.iconContainer.hovered .stepIcon,
+.iconContainer.active .stepIcon {
+  color: white;
+  transform: scale(1.1);
+}
+
+.rippleEffect {
+  position: absolute;
+  inset: 0;
+  border-radius: 1.25rem;
+  background: radial-gradient(circle, rgba(255, 140, 66, 0.4) 0%, transparent 70%);
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.iconContainer.hovered .rippleEffect,
+.iconContainer.active .rippleEffect {
+  opacity: 1;
+  transform: scale(1.6);
+}
+
+.activeIndicator {
+  position: absolute;
+  inset: -4px;
+  border: 3px solid #ff6b1a;
+  border-radius: 1.5rem;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+.stepLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #2d3748;
+  text-align: center;
+  transition: color 0.3s ease;
+}
+
+.processStep:hover .stepLabel,
+.processStep.active .stepLabel {
+  color: #ff6b1a;
+}
+
+/* Icon Shifting Animations */
+.iconShiftLeft {
+  transform: translateX(-150px);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.iconShiftRight {
+  transform: translateX(150px);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.connectionSvg {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.connectionPath {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: drawPath 2s ease-in-out forwards;
+}
+
+.connectionPath.horizontal {
+  animation-delay: 0.5s;
+}
+
+.connectionPath.vertical {
+  animation-delay: 0.7s;
+}
+
+@keyframes drawPath {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Description Card Styles */
+.descriptionCard {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.15),
+    0 8px 25px rgba(255, 140, 66, 0.2);
+  border: 2px solid rgba(255, 140, 66, 0.1);
+  position: absolute;
+  opacity: 0;
+  transform: scale(0.8) translateY(20px);
+  animation: cardSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation-delay: 0.1s;
+  max-width: 400px;
+  min-height: 200px;
+}
+
+@keyframes cardSlideIn {
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.descriptionClose {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(113, 128, 150, 0.1);
+  border: none;
+  border-radius: 50%;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #718096;
+  z-index: 10;
+}
+
+.descriptionClose:hover {
+  background: rgba(255, 107, 26, 0.1);
+  color: #ff6b1a;
+  transform: scale(1.1);
+}
+
+.descriptionContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.descriptionIconContainer {
+  width: 5rem;
+  height: 5rem;
+  background: linear-gradient(135deg, #ff8c42 0%, #ff6b1a 100%);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 8px 25px rgba(255, 140, 66, 0.3);
+}
+
+.descriptionIcon {
+  width: 3rem;
+  height: 3rem;
+  color: white;
+  stroke-width: 2;
+}
+
+.descriptionTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 1rem;
+  line-height: 1.3;
+}
+
+.descriptionText {
+  font-size: 1rem;
+  color: #4a5568;
+  line-height: 1.6;
+  margin: 0;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalSlideIn {
+  from { 
+    opacity: 0; 
+    transform: scale(0.8) translateY(-20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: scale(1) translateY(0); 
+  }
+}
+
+@keyframes bottomSheetSlideIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(100%); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 1023px) {
+  .contentWrapper {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+    text-align: center;
+  }
+
+  .mainHeading {
+    font-size: 2.2rem;
+  }
+
+  .description {
+    font-size: 1rem;
+  }
+
+  .processGrid {
+    max-width: 450px;
+  }
+
+  .iconContainer {
+    width: 5rem;
+    height: 5rem;
+  }
+
+  .stepIcon {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .iconShiftLeft {
+    transform: translateX(-100px);
+  }
+
+  .iconShiftRight {
+    transform: translateX(100px);
+  }
+
+  .descriptionCard {
+    max-width: 320px;
+    padding: 1.25rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .processFlowContainer {
+    padding: 2rem 1rem;
+  }
+
+  .mainHeading {
+    font-size: 1.8rem;
+  }
+
+  .description {
+    font-size: 0.9rem;
+  }
+
+  .processGrid {
+    max-width: 350px;
+    gap: 1rem;
+  }
+
+  .iconContainer {
+    width: 4.5rem;
+    height: 4.5rem;
+  }
+
+  .stepIcon {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .stepLabel {
+    font-size: 0.75rem;
+  }
+
+  /* Mobile: No horizontal shifting, card appears below */
+  .iconShiftLeft,
+  .iconShiftRight {
+    transform: none;
+  }
+
+  .descriptionCard {
+    max-width: 280px;
+    padding: 1rem;
+    position: relative !important;
+    top: 1rem !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) scale(0.8) translateY(20px);
+    margin-bottom: 1rem;
+  }
+
+  .descriptionCard .descriptionTitle {
+    font-size: 1.1rem;
+  }
+
+  .descriptionCard .descriptionText {
+    font-size: 0.85rem;
+  }
+
+  .descriptionCard .descriptionIconContainer {
+    width: 3.5rem;
+    height: 3.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .descriptionCard .descriptionIcon {
+    width: 2rem;
+    height: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .processFlowContainer {
+    padding: 1.5rem 0.75rem;
+  }
+
+  .mainHeading {
+    font-size: 1.5rem;
+  }
+
+  .description {
+    font-size: 0.85rem;
+  }
+
+  .diveDeeperBtn {
+    padding: 0.875rem 1.5rem;
+    font-size: 1rem;
+  }
+
+  .processGrid {
+    max-width: 300px;
+    gap: 0.75rem;
+  }
+
+  .iconContainer {
+    width: 4rem;
+    height: 4rem;
+  }
+
+  .stepIcon {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .stepLabel {
+    font-size: 0.7rem;
+  }
+}
