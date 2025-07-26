@@ -44,7 +44,7 @@ export function HomeSection() {
       }, speed);
     }
 
-    const message = "From Site measurement to Installation\nin 14 working days\nat ₹320 per sqft";
+    const message = "From Site measurement to Installation\nin 14 working days\nat ₹340 per sqft";
 
     printLetterByLetter("pitch", message, 50, () => {
       const ctaElements = document.getElementsByClassName("CTA");

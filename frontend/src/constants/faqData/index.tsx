@@ -24,7 +24,7 @@ export const faqData: FAQ[] = [
     question: "What is your pricing structure?",
     answer: (
       <>
-        From Site measurement to Installation in 14 working days at ₹320 per sqft
+        From Site measurement to Installation in 14 working days at ₹340 per sqft
         <br />
         Payment 1 - a Token amount of ₹5000 has to be paid for booking a site visit for measurements - You will be provided with a cutlist and Material estimates after this.
         <br />
