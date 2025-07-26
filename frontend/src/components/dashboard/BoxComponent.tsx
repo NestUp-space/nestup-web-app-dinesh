@@ -107,7 +107,6 @@ const BoxComponent: React.FC<BoxComponentProps> = ({
           )}
         </div>
       </div>
-
       {/* Model selection */}
       <div className="mb-4">
         <label htmlFor={`modelSelect-${box.id}`} className="block text-sm font-medium text-gray-700 mb-1">
@@ -127,7 +126,6 @@ const BoxComponent: React.FC<BoxComponentProps> = ({
           ))}
         </select>
       </div>
-
       {/* Model input parameters */}
       {currentModel && currentModel.inputParameters && currentModel.inputParameters.length > 0 && (
         <div className="space-y-4 mb-4">
@@ -156,7 +154,6 @@ const BoxComponent: React.FC<BoxComponentProps> = ({
           ))}
         </div>
       )}
-
       {/* Box actions and status */}
       <div className="mt-4 flex items-center justify-between">
         <div className="flex-1">

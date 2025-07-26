@@ -425,7 +425,7 @@ const DesignerQuestionnaire: React.FC<DesignerQuestionnaireProps> = ({ onSubmit 
               {page > 1 ? (
                 <CTAButton type="button" text="Previous" onClick={handlePrevious} />
               ) : (
-                <div></div> // Placeholder to keep space between buttons even if Previous isn't rendered
+                (<div></div>) // Placeholder to keep space between buttons even if Previous isn't rendered
               )}
 
               {/* Next and Skip Buttons */}

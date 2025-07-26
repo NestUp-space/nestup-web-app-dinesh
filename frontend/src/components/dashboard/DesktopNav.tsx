@@ -1,7 +1,7 @@
 "use client";
 
 import Link from 'next/link';
-import Image from 'next/image';
+import Image from "next/legacy/image";
 import { NavItem } from './nav-item';
 import { Home, Users, LineChart, Settings, LogOut, HelpCircle, User as UserIcon, BookCopy, FolderKanban, Workflow } from 'lucide-react'; // Added FolderKanban, Workflow
 import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
@@ -53,10 +53,9 @@ export function DesktopNav() {
         )}
 
         {!isLoading && user?.role && hasPermission(user?.role.roleType, 'admin') && ( // Assuming BIM Process has same permissions as Catalogue
-          <NavItem href="/dashboard/bimProcess" label="BIM Process">
-            <Workflow className="h-5 w-5 mr-3" />
-            BIM Process
-          </NavItem>
+          (<NavItem href="/dashboard/bimProcess" label="BIM Process">
+            <Workflow className="h-5 w-5 mr-3" />BIM Process
+                      </NavItem>)
         )}
 
         {/* <NavItem href="#" label="Analytics">
@@ -74,7 +73,6 @@ export function DesktopNav() {
           Settings
         </NavItem> */}
       </nav>
-
       <div className="mt-auto flex flex-col items-start gap-2 p-4">
         <div className="border-t w-full border-light-bw my-2" />
         <div className="flex items-center gap-3 px-2 max-w-full wrap">

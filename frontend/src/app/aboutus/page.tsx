@@ -1,7 +1,7 @@
 import ProcessCard from '@/components/landing-page/ProcessCard';
 import { Footer } from "@/components/landing-page/Footer";
 import Navbar from "@/components/landing-page/Navbar";
-import Image from 'next/image';
+import Image from "next/legacy/image";
 
 export default function AboutUsPage() {
   return (

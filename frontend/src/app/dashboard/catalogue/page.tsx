@@ -6,7 +6,7 @@ import { PlusCircle, Edit, Eye } from 'lucide-react';
 import { DashboardBreadcrumb } from '@/components/dashboard/dashboardBreadcrumb'; // Import DashboardBreadcrumb
 import useSWR from 'swr';
 import { apiClient } from '@/lib/api/client';
-import Image from 'next/image'; // For displaying images
+import Image from "next/legacy/image"; // For displaying images
 import ModelCatalogueCard, { ListedModelData } from '@/components/dashboard/catalogue/ModelCatalogueCard'; // Import the new component and its type
 
 const fetcher = (url: string) => apiClient.get(url); // Corrected: apiClient.get already returns the data

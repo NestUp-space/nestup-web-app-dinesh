@@ -15,7 +15,7 @@ import {
   ModelInfo,
   CreateSiteVisitBoxData
 } from '@/hooks';
-import Image from 'next/image';
+import Image from "next/legacy/image";
 import { Button } from '@/components/dashboard/button';
 import { Plus, Edit, Trash2, Save, X, Download, Info, Box, ArrowRight } from 'lucide-react';
 

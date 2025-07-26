@@ -2,7 +2,7 @@
 
 import React, { useState, ChangeEvent } from 'react';
 import { useFormContext } from 'react-hook-form'; 
-import Image from 'next/image'; 
+import Image from "next/legacy/image"; 
 import { Input } from '@/components/dashboard/input'; 
 import { Label } from '@/components/dashboard/label';   
 import { cn } from '@/lib/utils';

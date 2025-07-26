@@ -8,7 +8,7 @@ import { MobileNav } from '@/components/dashboard/MobileNav';
 import { useUser } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import Image from 'next/image';
+import Image from "next/legacy/image";
 import LogoText from "@img/NestupLogoText.svg";
 
 export default function DashboardLayout({

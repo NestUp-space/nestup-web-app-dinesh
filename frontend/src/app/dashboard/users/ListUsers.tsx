@@ -121,9 +121,9 @@ const ListUsers = () => {
               <td>
                 <button onClick={() => setEditingUser(user)}>Edit</button>
                 {user.role !== 'super admin' && ( // Allow disabling admins but not super admins
-                  <button onClick={() => handleToggleActiveStatus(user.id, !user.isActive)}>
+                  (<button onClick={() => handleToggleActiveStatus(user.id, !user.isActive)}>
                     {user.isActive ? 'Disable' : 'Enable'}
-                  </button>
+                  </button>)
                 )}
               </td>
             </tr>

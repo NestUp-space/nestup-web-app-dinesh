@@ -77,7 +77,7 @@ export default function ModelListTable() {
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {models && models.map((model: ModelDefinition) => ( // Added type for model
-            <tr key={model.id}>
+            (<tr key={model.id}>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{model.name}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 max-w-xs truncate" title={model.description || ''}>
                 {model.description || 'N/A'}
@@ -105,7 +105,7 @@ export default function ModelListTable() {
                   </a>
                 </Link>
               </td>
-            </tr>
+            </tr>)
           ))}
         </tbody>
       </table>

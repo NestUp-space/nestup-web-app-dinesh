@@ -3,7 +3,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { CTAButton } from "./CTAButton";
-import Image from "next/image";
+import Image from "next/legacy/image";
 import bgImg from "@img/homeBg.jpeg";
 
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from '@/components/dashboard/button';
-import Image from 'next/image';
+import Image from "next/legacy/image";
 import Logo from "@img/NestupLogoOnly.svg";
 import {
   DropdownMenu,

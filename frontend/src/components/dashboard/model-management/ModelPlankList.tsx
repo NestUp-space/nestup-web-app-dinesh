@@ -169,7 +169,6 @@ export default function ModelPlankList({ models, globalConstants }: ModelPlankLi
           ))}
         </select>
       </div>
-
       {selectedModel && (
         <>
           {/* Box Number Input */}

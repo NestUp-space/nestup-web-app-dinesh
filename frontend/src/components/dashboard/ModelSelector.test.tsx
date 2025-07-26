@@ -65,7 +65,7 @@ jest.mock('./BoxComponent', () => ({
       >
         <option value="">-- Select --</option>
         {catalogueModels.map((model: any) => ( // model type can be more specific if CatalogueModel is imported
-          <option key={model.id} value={model.id}>{model.name}</option>
+          (<option key={model.id} value={model.id}>{model.name}</option>)
         ))}
       </select>
       <input

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from 'next/link';
-import Image from 'next/image'; // Added Image import
+import Image from "next/legacy/image"; // Added Image import
 import { Button } from './button'; 
 import { Sheet, SheetContent, SheetTrigger } from './sheet'; 
 import { Home, Users2, LineChart, PanelLeft, Settings, BookCopy, FolderKanban, Workflow } from 'lucide-react'; // Removed Package2
@@ -64,13 +64,12 @@ export function MobileNav() {
             </Link>
           )}
           {!isLoading && user?.role && hasPermission(user.role.roleType, 'admin') && ( // Assuming BIM Process has same permissions
-            <Link
+            (<Link
               href="/dashboard/bimProcess"
               className="flex items-center gap-3 rounded-md px-3 py-2 text-dark-text-bw transition-all hover:bg-lighter-bw hover:text-theme-color"
             >
-              <Workflow className="h-5 w-5" />
-              BIM Process
-            </Link>
+              <Workflow className="h-5 w-5" />BIM Process
+                          </Link>)
           )}
           {/* <Link
             href="#"

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import Image from "next/legacy/image";
 import { Edit, Eye } from 'lucide-react';
 // Button component might be needed if the Link's child button is to be styled with project's Button
 // import { Button } from '@/components/dashboard/button'; 
