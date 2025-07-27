@@ -1,0 +1,598 @@
+/* ProcessFlow.module.css - Bubble-like Interactive Process Section */
+
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+  padding: 4rem 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 80%, rgba(246, 147, 30, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 139, 26, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.maxWidth {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 5rem;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+/* Left Content Section */
+.leftContent {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.textSection {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.mainHeading {
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-weight: 800;
+  line-height: 1.1;
+  color: #1e293b;
+  letter-spacing: -0.02em;
+}
+
+.gradientText {
+  background: linear-gradient(135deg, #F6931E 0%, #FF8B1A 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.description {
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  color: #64748b;
+  line-height: 1.7;
+  max-width: 500px;
+}
+
+.diveButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: linear-gradient(135deg, #F6931E 0%, #FF8B1A 100%);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 2rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 20px rgba(246, 147, 30, 0.3);
+  position: relative;
+  overflow: hidden;
+  align-self: flex-start;
+}
+
+.diveButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.diveButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(246, 147, 30, 0.4);
+}
+
+.diveButton:hover::before {
+  left: 100%;
+}
+
+.buttonIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+  transition: transform 0.3s ease;
+}
+
+.diveButton:hover .buttonIcon {
+  transform: translateX(4px);
+}
+
+/* Right Content - Bubble Diagram */
+.rightContent {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  min-height: 500px; /* Ensure container has height */
+}
+
+.bubbleContainer {
+  position: absolute; /* Use absolute positioning */
+  top: 50%;
+  left: 50%;
+  width: 500px;
+  height: 500px;
+  transform: translate(-50%, -50%); /* Center the container */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.centerBubble {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  background: linear-gradient(135deg, #F6931E 0%, #FF8B1A 100%);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-weight: 700;
+  box-shadow: 0 10px 40px rgba(246, 147, 30, 0.3);
+  z-index: 10;
+  animation: centerPulse 3s ease-in-out infinite;
+}
+
+@keyframes centerPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.centerNumber {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.centerLabel {
+  font-size: 0.875rem;
+  opacity: 0.9;
+}
+
+.processBubble {
+  position: absolute;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 5;
+}
+
+.bubbleContent {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.bubbleIcon {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    0 4px 16px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.bubbleIcon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #F6931E 0%, #FF8B1A 100%);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.processBubble:hover .bubbleIcon::before,
+.processBubble.active .bubbleIcon::before {
+  opacity: 1;
+}
+
+.iconSvg {
+  width: 2rem;
+  height: 2rem;
+  color: #F6931E;
+  stroke-width: 2;
+  position: relative;
+  z-index: 2;
+  transition: all 0.3s ease;
+}
+
+.processBubble:hover .iconSvg,
+.processBubble.active .iconSvg {
+  color: white;
+  transform: scale(1.1);
+}
+
+.bubbleNumber {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+  z-index: 3;
+}
+
+.bubbleLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e293b;
+  text-align: center;
+  max-width: 120px;
+  line-height: 1.3;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0; /* Hide by default */
+  transform: translateY(10px); /* Start slightly lower */
+}
+
+.processBubble:hover .bubbleLabel,
+.processBubble.active .bubbleLabel {
+  color: #F6931E;
+  opacity: 1; /* Show on hover/active */
+  transform: translateY(0); /* Move to original position */
+}
+
+/* Connection Lines */
+.connectionLine {
+  position: absolute;
+  background: linear-gradient(90deg, #e2e8f0 0%, #cbd5e1 50%, #e2e8f0 100%);
+  height: 2px;
+  transform-origin: center;
+  opacity: 0.6;
+  transition: all 0.3s ease;
+  z-index: 1;
+}
+
+.processBubble:hover ~ .connectionLine,
+.processBubble.active ~ .connectionLine {
+  background: linear-gradient(90deg, #F6931E 0%, #FF8B1A 50%, #F6931E 100%);
+  opacity: 1;
+  height: 3px;
+}
+
+/* Bubble Physics Animation */
+.processBubble.floating {
+  animation: bubbleFloat 4s ease-in-out infinite;
+}
+
+@keyframes bubbleFloat {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  25% { transform: translateY(-10px) rotate(1deg); }
+  50% { transform: translateY(-5px) rotate(0deg); }
+  75% { transform: translateY(-15px) rotate(-1deg); }
+}
+
+.processBubble.jiggle {
+  animation: bubbleJiggle 0.6s ease-in-out;
+}
+
+@keyframes bubbleJiggle {
+  0%, 100% { transform: translateX(0px); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+/* Active Description Card */
+.descriptionOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: overlayFadeIn 0.3s ease;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.descriptionCard {
+  background: white;
+  border-radius: 1.5rem;
+  padding: 2rem;
+  max-width: 500px;
+  margin: 1rem;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  position: relative;
+  animation: cardSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes cardSlideIn {
+  from { 
+    opacity: 0; 
+    transform: scale(0.8) translateY(20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: scale(1) translateY(0); 
+  }
+}
+
+.closeButton {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(148, 163, 184, 0.1);
+  border: none;
+  border-radius: 50%;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #64748b;
+}
+
+.closeButton:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  transform: scale(1.1);
+}
+
+.cardContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.5rem;
+}
+
+.cardIconContainer {
+  width: 5rem;
+  height: 5rem;
+  background: linear-gradient(135deg, #F6931E 0%, #FF8B1A 100%);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 8px 25px rgba(246, 147, 30, 0.3);
+}
+
+.cardIcon {
+  width: 3rem;
+  height: 3rem;
+  color: white;
+  stroke-width: 2;
+}
+
+.cardTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.3;
+}
+
+.cardDescription {
+  font-size: 1rem;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+/* Mobile Styles */
+.mobileContainer {
+  display: none;
+  margin-top: 2rem;
+}
+
+.mobileTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 1rem;
+}
+
+.mobileStep {
+  background: white;
+  border-radius: 1rem;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.mobileStepButton {
+  width: 100%;
+  padding: 1rem;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.mobileStepButton:hover {
+  background: #f8fafc;
+}
+
+.mobileStepIcon {
+  width: 2.5rem;
+  height: 2.5rem;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.mobileStepIcon.active {
+  background: linear-gradient(135deg, #F6931E 0%, #FF8B1A 100%);
+}
+
+.mobileStepIconSvg {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #F6931E;
+  stroke-width: 2;
+}
+
+.mobileStepIcon.active .mobileStepIconSvg {
+  color: white;
+}
+
+.mobileStepContent {
+  flex: 1;
+}
+
+.mobileStepLabel {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.875rem;
+}
+
+.mobileStepNumber {
+  width: 1.5rem;
+  height: 1.5rem;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.mobileStepDescription {
+  padding: 0 1rem 1rem 1rem;
+  color: #64748b;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+    text-align: center;
+  }
+
+  .bubbleContainer {
+    width: 400px;
+    height: 400px;
+  }
+
+  .centerBubble {
+    width: 100px;
+    height: 100px;
+  }
+
+  .centerNumber {
+    font-size: 1.75rem;
+  }
+
+  .bubbleIcon {
+    width: 70px;
+    height: 70px;
+  }
+
+  .iconSvg {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 2rem 1rem;
+  }
+
+  .rightContent {
+    display: none;
+  }
+
+  .mobileContainer {
+    display: block;
+  }
+
+  .leftContent {
+    text-align: center;
+  }
+
+  .diveButton {
+    align-self: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 1.5rem 0.75rem;
+  }
+
+  .diveButton {
+    padding: 0.875rem 1.5rem;
+    font-size: 1rem;
+  }
+
+  .mobileStepButton {
+    padding: 0.75rem;
+  }
+
+  .mobileStepIcon {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .mobileStepIconSvg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .mobileStepNumber {
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 0.625rem;
+  }
+}

@@ -20,7 +20,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
   };
 
   return (
-    <div className="bg-lightest-bg rounded-lg shadow-md p-6 mx-2 min-h-[280px] flex flex-col border border-light-border">
+    <div className="bg-gradient-to-br from-lightest-bg to-lighter-bg rounded-lg shadow-lg p-6 mx-2 min-h-[300px] flex flex-col border border-light-border/50 transition-all duration-300 hover:shadow-xl hover:border-theme-color">
       {/* Rating at Top */}
       <div className="flex items-center justify-center mb-4">
         <div className="flex space-x-1">{renderStars(review.rating)}</div>
@@ -28,18 +28,18 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
 
       {/* Review Text in Middle */}
       <div className="flex-grow flex items-center justify-center mb-4">
-        <p className="text-dark-text text-base leading-relaxed text-center italic">
+        <p className="text-dark-text text-lg leading-relaxed text-center font-body italic">
           &ldquo;{review.review}&rdquo;
         </p>
       </div>
 
       {/* User Name and Avatar at Bottom */}
-      <div className="flex items-center justify-center space-x-3 mt-auto">
-        <div className="w-10 h-10 bg-theme-color rounded-full flex items-center justify-center text-white font-semibold text-sm">
+      <div className="flex items-center justify-center space-x-4 mt-auto pt-4 border-t border-light-border/30">
+        <div className="w-12 h-12 bg-gradient-to-br from-theme-color to-dark-color rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md">
           {review.name.charAt(0).toUpperCase()}
         </div>
         <div>
-          <h3 className="font-semibold text-darkest-text text-sm text-center">{review.name}</h3>
+          <h3 className="font-primary font-semibold text-darkest-text text-md text-center">{review.name}</h3>
         </div>
       </div>
     </div>

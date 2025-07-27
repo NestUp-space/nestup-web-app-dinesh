@@ -13,114 +13,83 @@ const ReviewSection = () => {
   
   const reviews: Review[] = reviewsData.reviews;
   
-  // Start with a safe default that works for both server and client
   const [visibleCards, setVisibleCards] = useState(3);
 
-  // Get number of visible cards based on screen size
   const getVisibleCards = () => {
     if (typeof window !== 'undefined') {
-      if (window.innerWidth >= 1280) return 4; // xl screens
-      if (window.innerWidth >= 1024) return 3; // lg screens
-      if (window.innerWidth >= 768) return 2;  // md screens
-      return 1; // sm screens
+      if (window.innerWidth >= 1280) return 3; 
+      if (window.innerWidth >= 768) return 2;
+      return 1;
     }
-    return 3; // default for SSR
+    return 3;
   };
 
-  // Handle client-side hydration and responsive behavior
   useEffect(() => {
     setIsClient(true);
-    setVisibleCards(getVisibleCards());
-
-    const handleResize = () => {
+    const updateVisibleCards = () => {
       setVisibleCards(getVisibleCards());
     };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    updateVisibleCards();
+    window.addEventListener('resize', updateVisibleCards);
+    return () => window.removeEventListener('resize', updateVisibleCards);
   }, []);
 
-  // Check if we need carousel functionality
   const needsCarousel = reviews.length > visibleCards;
   
-  // Calculate total slides and max index correctly
   const totalSlides = needsCarousel ? Math.ceil(reviews.length / visibleCards) : 1;
   const maxIndex = Math.max(0, totalSlides - 1);
 
-  // Reset currentIndex if it's out of bounds (can happen on resize)
   useEffect(() => {
     if (currentIndex > maxIndex) {
       setCurrentIndex(0);
     }
   }, [currentIndex, maxIndex]);
 
-  // Auto-scroll functionality
   useEffect(() => {
     if (!isHovered && needsCarousel) {
       intervalRef.current = setInterval(() => {
-        setCurrentIndex((prevIndex) => {
-          const nextIndex = prevIndex + 1;
-          // Reset to beginning when we reach the end
-          if (nextIndex > maxIndex) {
-            return 0;
-          }
-          return nextIndex;
-        });
-      }, 3000); // Change slide every 3 seconds
+        setCurrentIndex((prevIndex) => (prevIndex + 1) % totalSlides);
+      }, 4000);
     }
-
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
     };
-  }, [isHovered, needsCarousel, maxIndex]);
+  }, [isHovered, needsCarousel, totalSlides]);
 
   const nextSlide = () => {
     if (needsCarousel) {
-      setCurrentIndex((prevIndex) => {
-        const nextIndex = prevIndex + 1;
-        if (nextIndex > maxIndex) {
-          return 0;
-        }
-        return nextIndex;
-      });
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % totalSlides);
     }
   };
 
   const prevSlide = () => {
     if (needsCarousel) {
-      setCurrentIndex((prevIndex) => {
-        const nextIndex = prevIndex - 1;
-        if (nextIndex < 0) {
-          return maxIndex;
-        }
-        return nextIndex;
-      });
+      setCurrentIndex((prevIndex) => (prevIndex - 1 + totalSlides) % totalSlides);
     }
   };
 
-  // Calculate the actual number of cards to show (don't exceed available reviews)
   const cardsToShow = Math.min(visibleCards, reviews.length);
 
   return (
-    <div className="bg-lighter-bg py-16">
+    <div className="bg-lighter-bg py-20 sm:py-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-extrabold text-darkest-text mb-4">
-            Testimonials
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-primary font-extrabold text-darkest-text mb-4">
+            Trusted by Innovators
           </h2>
+          <p className="text-lg text-dark-text max-w-3xl mx-auto">
+            Our clients' success stories are the best measure of our commitment and expertise.
+          </p>
         </div>
 
-        {/* Carousel Container */}
         <div className="relative">
-          {/* Navigation Buttons - Only show if carousel is needed */}
           {needsCarousel && (
             <>
               <button
                 onClick={prevSlide}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-lightest-bg rounded-full p-2 shadow-lg hover:shadow-xl transition-shadow duration-200 border border-light-border"
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 backdrop-blur-sm rounded-full p-3 shadow-lg hover:bg-white transition-all duration-200 border border-light-border"
                 aria-label="Previous reviews"
               >
                 <svg className="w-6 h-6 text-dark-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -130,7 +99,7 @@ const ReviewSection = () => {
 
               <button
                 onClick={nextSlide}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-lightest-bg rounded-full p-2 shadow-lg hover:shadow-xl transition-shadow duration-200 border border-light-border"
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 backdrop-blur-sm rounded-full p-3 shadow-lg hover:bg-white transition-all duration-200 border border-light-border"
                 aria-label="Next reviews"
               >
                 <svg className="w-6 h-6 text-dark-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,53 +109,42 @@ const ReviewSection = () => {
             </>
           )}
 
-          {/* Carousel */}
           <div 
-            className={`overflow-hidden ${needsCarousel ? 'mx-8' : 'mx-0'}`}
+            className={`overflow-hidden ${needsCarousel ? 'mx-12' : 'mx-0'}`}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
             <motion.div
               className="flex"
-              animate={{
-                x: needsCarousel ? `${-currentIndex * (100 / cardsToShow)}%` : '0%'
-              }}
-              transition={{
-                type: "spring",
-                stiffness: 300,
-                damping: 30
-              }}
-              style={{
-                width: needsCarousel ? `${(totalSlides * 100)}%` : '100%'
-              }}
+              animate={{ x: needsCarousel ? `${-currentIndex * 100}%` : '0%' }}
+              transition={{ type: "spring", stiffness: 260, damping: 30 }}
             >
-              {reviews.map((review) => (
-                <div
-                  key={review.id}
-                  style={{ 
-                    width: needsCarousel 
-                      ? `${100 / (totalSlides * cardsToShow)}%` 
-                      : `${100 / cardsToShow}%` 
-                  }}
-                  className="flex-shrink-0 px-2"
-                >
-                  <ReviewCard review={review} />
+              {Array.from({ length: totalSlides }).map((_, slideIndex) => (
+                <div key={slideIndex} className="flex-shrink-0 w-full flex justify-center">
+                  {reviews.slice(slideIndex * cardsToShow, (slideIndex + 1) * cardsToShow).map(review => (
+                    <div
+                      key={review.id}
+                      style={{ width: `${100 / cardsToShow}%` }}
+                      className="flex-shrink-0 px-3"
+                    >
+                      <ReviewCard review={review} />
+                    </div>
+                  ))}
                 </div>
               ))}
             </motion.div>
           </div>
         </div>
 
-        {/* Dots Indicator - Only show if carousel is needed */}
         {needsCarousel && totalSlides > 1 && (
-          <div className="flex justify-center mt-8 space-x-2">
+          <div className="flex justify-center mt-10 space-x-3">
             {Array.from({ length: totalSlides }).map((_, index) => (
               <button
                 key={index}
                 onClick={() => setCurrentIndex(index)}
-                className={`w-2 h-2 rounded-full transition-colors duration-200 ${
+                className={`w-3 h-3 rounded-full transition-all duration-300 ${
                   index === currentIndex
-                    ? 'bg-theme-color'
+                    ? 'bg-theme-color scale-125'
                     : 'bg-light-bw hover:bg-medium-interactive-bw'
                 }`}
                 aria-label={`Go to slide ${index + 1}`}

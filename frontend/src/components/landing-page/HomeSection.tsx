@@ -79,12 +79,7 @@ export function HomeSection() {
               {/* Call-to-Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4">
                 <a href="/book-visit" className="flex-1 sm:flex-none">
-                  <CTAButton text="Schedule Technical Consultation" />
-                </a>
-                <a href="/specifications" className="flex-1 sm:flex-none">
-                  <button className="w-full px-6 py-3 border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-300 rounded-lg font-medium">
-                    Download Specifications
-                  </button>
+                  <CTAButton text="Book a Free Site Visit" />
                 </a>
               </div>
             </div>
@@ -94,23 +89,32 @@ export function HomeSection() {
               <div className="aspect-video rounded-xl overflow-hidden shadow-2xl border border-primary/20">
                 {!videoLoaded ? (
                   <div 
-                    className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center cursor-pointer group"
+                    className="relative w-full h-full cursor-pointer group"
                     onClick={handleVideoLoad}
                   >
-                    <div className="text-center space-y-4">
-                      <div className="w-20 h-20 bg-white/90 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300">
-                        <svg className="w-8 h-8 text-primary ml-1" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M8 5v14l11-7z"/>
-                        </svg>
-                      </div>
-                      <div className="text-white font-medium">
-                        Watch Our Process
+                    <Image
+                      src="https://img.youtube.com/vi/K3iCPEizTsE/maxresdefault.jpg"
+                      alt="Nestup Modular Furniture Process Thumbnail"
+                      layout="fill"
+                      objectFit="cover"
+                      className="transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <div className="text-center space-y-4">
+                        <div className="w-20 h-20 bg-white/90 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300">
+                          <svg className="w-8 h-8 text-primary ml-1" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z"/>
+                          </svg>
+                        </div>
+                        <div className="text-white font-medium text-lg">
+                          Watch Our Process
+                        </div>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <iframe
-                    src="https://www.youtube.com/embed/K3iCPEizTsE?start=167&autoplay=1"
+                    src="https.youtube.com/embed/K3iCPEizTsE?start=167&autoplay=1"
                     title="Nestup Modular Furniture Process"
                     className="w-full h-full"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

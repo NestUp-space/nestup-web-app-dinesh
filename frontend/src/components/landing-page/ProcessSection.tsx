@@ -17,17 +17,15 @@ import {
   Wrench,
   ChevronRight,
   X,
+  type LucideIcon,
 } from "lucide-react"
-
-/**
- * Enhanced ProcessFlowComponent - Circular Interactive Diagram
- * Preserves all existing text content while implementing a professional circular UI
- */
+import styles from './ProcessFlow.module.css'
+import { useBubblePhysics } from './useBubblePhysics'
 
 interface ProcessStep {
   id: string
   label: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: LucideIcon
   description: string
 }
 
@@ -36,6 +34,7 @@ const ProcessFlowComponent: React.FC = () => {
   const [hoveredStep, setHoveredStep] = useState<string | null>(null)
   const [isMobile, setIsMobile] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [jiggleStep, setJiggleStep] = useState<string | null>(null)
   
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -53,6 +52,25 @@ const ProcessFlowComponent: React.FC = () => {
     { id: "dispatch", label: "Dispatch & Logistics", icon: Truck, description: "Coordinated dispatch with transportation arrangements and delivery scheduling to ensure safe arrival at your site." },
     { id: "install", label: "Professional Installation", icon: Wrench, description: "Expert installation support with detailed guides, on-site engineering assistance, and professional carpentry teams available." },
   ], [])
+
+  // Calculate circular positions for bubbles
+  const bubblePositions = useMemo(() => {
+    const radius = isMobile ? 150 : 180
+    return steps.map((step, index) => {
+      const angle = (index * 2 * Math.PI) / steps.length - Math.PI / 2 // Start from top
+      const x = Math.cos(angle) * radius
+      const y = Math.sin(angle) * radius
+      return { id: step.id, x, y }
+    })
+  }, [steps, isMobile])
+
+  // Initialize bubble physics with center always at origin
+  const { positions, disturbBubble, disturbAllBubbles } = useBubblePhysics({
+    bubbles: bubblePositions,
+    containerWidth: 500,
+    containerHeight: 500,
+    enabled: mounted && !isMobile
+  })
 
   // Device detection
   useEffect(() => {
@@ -86,7 +104,26 @@ const ProcessFlowComponent: React.FC = () => {
     }
     setActiveStep(stepId)
     setHoveredStep(null)
-  }, [activeStep])
+    
+    // Add jiggle effect
+    setJiggleStep(stepId)
+    setTimeout(() => setJiggleStep(null), 600)
+    
+    // Disturb the bubble physics
+    if (!isMobile) {
+      disturbBubble(stepId, 8)
+      setTimeout(() => disturbAllBubbles(3), 200)
+    }
+  }, [activeStep, isMobile, disturbBubble, disturbAllBubbles])
+
+  const handleStepHover = useCallback((stepId: string | null) => {
+    if (isMobile) return
+    setHoveredStep(stepId)
+    
+    if (stepId && !activeStep) {
+      disturbBubble(stepId, 2)
+    }
+  }, [isMobile, activeStep, disturbBubble])
 
   const handleCloseDescription = useCallback(() => {
     setActiveStep(null)
@@ -94,248 +131,353 @@ const ProcessFlowComponent: React.FC = () => {
 
   const handleDiveDeeper = () => {
     console.log("Dive deeper clicked")
+    if (!isMobile) {
+      disturbAllBubbles(5)
+    }
   }
-
-  // Calculate circular positions for steps
-  const getCircularPosition = (index: number, total: number, radius: number) => {
-    const angle = (index * 2 * Math.PI) / total - Math.PI / 2 // Start from top
-    const x = Math.cos(angle) * radius
-    const y = Math.sin(angle) * radius
-    return { x, y, angle }
-  }
-
-  const circleRadius = isMobile ? 120 : 180
-  const centerX = 0
-  const centerY = 0
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white py-16 px-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+    <div className={styles.container}>
+      <div className={styles.maxWidth}>
+        <div className={styles.grid}>
           
           {/* Left Content Section */}
-          <div className="space-y-8">
-            <div className="space-y-6">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
+          <div className={styles.leftContent}>
+            <div className={styles.textSection}>
+              <h1 className={styles.mainHeading}>
                 EVERY STEP MATTERS.
                 <br />
-                <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent">
+                <span className={styles.gradientText}>
                   SEE HOW.
                 </span>
               </h1>
               
-              <div className="text-lg md:text-xl text-muted-foreground space-y-4">
+              <div className={styles.description}>
                 <p>
-                  Take a look at our <strong className="font-semibold text-primary">12-step process</strong> that blends{" "}
-                  <em className="italic text-secondary">craftsmanship</em> with{" "}
-                  <u className="underline text-accent">clarity</u> to ensure every detail is handled with care, precision, and transparency.
+                  Take a look at our <strong>12-step process</strong> that blends{" "}
+                  <em>craftsmanship</em> with{" "}
+                  <u>clarity</u> to ensure every detail is handled with care, precision, and transparency.
                 </p>
               </div>
               
               <button 
                 onClick={handleDiveDeeper}
-                className="inline-flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all duration-300 font-medium text-lg group"
+                className={styles.diveButton}
                 aria-label="Learn more about our process"
               >
                 <span>Dive Deeper</span>
-                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
+                <ChevronRight className={styles.buttonIcon} />
               </button>
             </div>
           </div>
 
-          {/* Right Content Section - Circular Process Diagram */}
-          <div className="relative">
-            <div 
-              className="relative mx-auto"
-              style={{ 
-                width: `${(circleRadius + 80) * 2}px`, 
-                height: `${(circleRadius + 80) * 2}px` 
-              }}
-              ref={containerRef}
-            >
-              {/* Center Circle */}
+          {/* Right Content Section - Bubble Diagram */}
+          <div className={styles.rightContent}>
+            <div className={styles.bubbleContainer} ref={containerRef}>
+              
+              {/* Center Bubble - Always centered at 50%, 50% */}
               <div 
-                className="absolute bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center shadow-2xl"
+                className={styles.centerBubble}
                 style={{
-                  width: '120px',
-                  height: '120px',
+                  position: 'absolute',
                   left: '50%',
                   top: '50%',
                   transform: 'translate(-50%, -50%)'
                 }}
               >
-                <div className="text-white text-center">
-                  <div className="text-2xl font-bold">12</div>
-                  <div className="text-sm">Steps</div>
-                </div>
+                <div className={styles.centerNumber}>12</div>
+                <div className={styles.centerLabel}>Steps</div>
               </div>
 
-              {/* Process Steps in Circle */}
+              {/* Process Bubbles */}
               {steps.map((step, index) => {
                 const IconComponent = step.icon
-                const position = getCircularPosition(index, steps.length, circleRadius)
                 const isActive = activeStep === step.id
                 const isHovered = hoveredStep === step.id
+                const isJiggling = jiggleStep === step.id
+                
+                // Use physics positions if available, otherwise fall back to calculated positions
+                const position = positions[step.id] || bubblePositions[index]
                 
                 return (
-                  <div
-                    key={step.id}
-                    className="absolute group cursor-pointer"
-                    style={{
-                      left: `calc(50% + ${position.x}px)`,
-                      top: `calc(50% + ${position.y}px)`,
-                      transform: 'translate(-50%, -50%)',
-                    }}
-                    onMouseEnter={() => !isMobile && setHoveredStep(step.id)}
-                    onMouseLeave={() => !isMobile && setHoveredStep(null)}
-                    onClick={() => handleStepClick(step.id)}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`${step.label}. Click to view details.`}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        handleStepClick(step.id)
-                      }
-                    }}
-                  >
-                    {/* Connection Line to Center */}
-                    <div 
-                      className="absolute bg-gradient-to-r from-primary/20 to-secondary/20 transition-all duration-300 group-hover:from-primary/40 group-hover:to-secondary/40"
+                  <div key={step.id} style={{ position: 'relative' }}>
+                    <div
+                      className={`${styles.processBubble} ${isActive ? styles.active : ''} ${isJiggling ? styles.jiggle : styles.floating}`}
                       style={{
-                        width: `${circleRadius - 60}px`,
-                        height: '2px',
-                        left: '50%',
-                        top: '50%',
-                        transformOrigin: 'left center',
-                        transform: `translateY(-50%) rotate(${position.angle + Math.PI}rad)`,
-                        zIndex: 1
+                        position: 'absolute',
+                        left: `calc(50% + ${position.x}px)`,
+                        top: `calc(50% + ${position.y}px)`,
+                        transform: 'translate(-50%, -50%)',
+                        animationDelay: `${index * 0.1}s`
                       }}
-                    />
-                    
-                    {/* Step Circle */}
-                    <div 
-                      className={`
-                        relative w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg z-10
-                        ${isActive 
-                          ? 'bg-secondary text-white scale-110 shadow-2xl' 
-                          : isHovered 
-                            ? 'bg-primary text-white scale-105 shadow-xl' 
-                            : 'bg-white text-primary hover:bg-primary hover:text-white border-2 border-primary/20'
+                      onMouseEnter={() => handleStepHover(step.id)}
+                      onMouseLeave={() => handleStepHover(null)}
+                      onClick={() => handleStepClick(step.id)}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`${step.label}. Click to view details.`}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          handleStepClick(step.id)
                         }
-                      `}
+                      }}
                     >
-                      <IconComponent className="w-6 h-6" />
-                      
-                      {/* Step Number */}
-                      <div 
-                        className={`
-                          absolute -top-2 -right-2 w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center
-                          ${isActive ? 'bg-accent text-white' : 'bg-secondary text-white'}
-                        `}
-                      >
-                        {index + 1}
+                      <div className={styles.bubbleContent}>
+                        {/* Bubble Icon */}
+                        <div className={`${styles.bubbleIcon} ${isActive ? styles.active : ''} ${isHovered ? styles.hovered : ''}`}>
+                          <IconComponent className={styles.iconSvg} />
+                          
+                          {/* Step Number */}
+                          <div className={styles.bubbleNumber}>
+                            {index + 1}
+                          </div>
+                        </div>
+
+                        {/* Step Label */}
+                        <div 
+                          className={styles.bubbleLabel}
+                          style={{
+                            opacity: isHovered || isActive ? 1 : 0,
+                            transform: isHovered || isActive ? 'translateY(0)' : 'translateY(10px)'
+                          }}
+                        >
+                          {step.label}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Step Label */}
-                    <div 
-                      className={`
-                        absolute mt-2 text-center text-sm font-medium transition-all duration-300 whitespace-nowrap
-                        ${position.y < 0 ? 'top-full' : 'bottom-full mb-2'}
-                        ${isActive ? 'text-secondary' : 'text-primary'}
-                      `}
-                      style={{
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        maxWidth: '120px'
-                      }}
-                    >
-                      {step.label}
-                    </div>
+                    {/* Hover Tooltip for Desktop */}
+                    {isHovered && !isMobile && !activeStep && (
+                      <div
+                        style={{
+                          position: 'fixed',
+                          left: `calc(50% + ${position.x}px + 60px)`,
+                          top: `calc(50% + ${position.y}px - 20px)`,
+                          transform: 'translateY(-50%)',
+                          backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                          color: 'white',
+                          padding: '12px 16px',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          maxWidth: '300px',
+                          zIndex: 9998,
+                          pointerEvents: 'none',
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                          animation: 'fadeIn 0.2s ease-out'
+                        }}
+                      >
+                        <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                          {step.label}
+                        </div>
+                        <div style={{ fontSize: '12px', opacity: 0.9 }}>
+                          {step.description}
+                        </div>
+                        {/* Tooltip Arrow */}
+                        <div
+                          style={{
+                            position: 'absolute',
+                            left: '-6px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: 0,
+                            height: 0,
+                            borderTop: '6px solid transparent',
+                            borderBottom: '6px solid transparent',
+                            borderRight: '6px solid rgba(0, 0, 0, 0.9)'
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 )
               })}
-
-              {/* Active Step Description Card */}
-              {activeStep && mounted && (
-                <div className="absolute inset-0 flex items-center justify-center z-20">
-                  <div className="bg-white rounded-2xl shadow-2xl border border-primary/10 p-6 max-w-sm mx-4 transform transition-all duration-300 scale-100">
-                    <button 
-                      onClick={handleCloseDescription}
-                      className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
-                      aria-label="Close description"
-                    >
-                      <X size={20} />
-                    </button>
-                    
-                    {(() => {
-                      const step = steps.find(s => s.id === activeStep)
-                      if (!step) return null
-                      const IconComponent = step.icon
-                      
-                      return (
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                              <IconComponent className="w-6 h-6 text-primary" />
-                            </div>
-                            <h3 className="text-xl font-semibold text-primary">
-                              {step.label}
-                            </h3>
-                          </div>
-                          <p className="text-muted-foreground leading-relaxed">
-                            {step.description}
-                          </p>
-                        </div>
-                      )
-                    })()}
-                  </div>
-                </div>
-              )}
             </div>
-
-            {/* Mobile Accordion Fallback */}
-            {isMobile && (
-              <div className="mt-8 space-y-3">
-                <h3 className="text-lg font-semibold text-primary mb-4">Process Steps</h3>
-                {steps.map((step, index) => {
-                  const IconComponent = step.icon
-                  const isActive = activeStep === step.id
-                  
-                  return (
-                    <div 
-                      key={step.id}
-                      className="bg-white rounded-lg border border-primary/10 overflow-hidden"
-                    >
-                      <button
-                        onClick={() => handleStepClick(step.id)}
-                        className="w-full p-4 text-left flex items-center gap-3 hover:bg-gray-50 transition-colors"
-                      >
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isActive ? 'bg-secondary text-white' : 'bg-primary/10 text-primary'}`}>
-                          <IconComponent className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-medium text-primary">{step.label}</div>
-                        </div>
-                        <div className={`w-6 h-6 rounded-full bg-secondary text-white text-xs flex items-center justify-center font-bold`}>
-                          {index + 1}
-                        </div>
-                      </button>
-                      
-                      {isActive && (
-                        <div className="px-4 pb-4 text-muted-foreground">
-                          {step.description}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
           </div>
         </div>
+
+        {/* Mobile Container */}
+        <div className={styles.mobileContainer}>
+          <h3 className={styles.mobileTitle}>Process Steps</h3>
+          {steps.map((step, index) => {
+            const IconComponent = step.icon
+            const isActive = activeStep === step.id
+            
+            return (
+              <div key={step.id} className={styles.mobileStep}>
+                <button
+                  onClick={() => handleStepClick(step.id)}
+                  className={styles.mobileStepButton}
+                >
+                  <div className={`${styles.mobileStepIcon} ${isActive ? styles.active : ''}`}>
+                    <IconComponent className={styles.mobileStepIconSvg} />
+                  </div>
+                  <div className={styles.mobileStepContent}>
+                    <div className={styles.mobileStepLabel}>{step.label}</div>
+                  </div>
+                  <div className={styles.mobileStepNumber}>
+                    {index + 1}
+                  </div>
+                </button>
+                
+                {isActive && (
+                  <div className={styles.mobileStepDescription}>
+                    {step.description}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </div>
+
+      {/* Active Step Description Overlay */}
+      {activeStep && mounted && !isMobile && (
+        <div 
+          className={styles.descriptionOverlay} 
+          onClick={handleCloseDescription}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+        >
+          <div 
+            className={styles.descriptionCard} 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: '32px',
+              maxWidth: '500px',
+              width: '100%',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+              position: 'relative',
+              transform: 'scale(1)',
+              animation: 'fadeInScale 0.3s ease-out'
+            }}
+          >
+            <button 
+              onClick={handleCloseDescription}
+              className={styles.closeButton}
+              aria-label="Close description"
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '8px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background-color 0.2s',
+                zIndex: 10000
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.1)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent'
+              }}
+            >
+              <X size={20} />
+            </button>
+            
+            {(() => {
+              const step = steps.find(s => s.id === activeStep)
+              if (!step) return null
+              const IconComponent = step.icon
+              
+              return (
+                <div className={styles.cardContent}>
+                  <div 
+                    className={styles.cardIconContainer}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '64px',
+                      height: '64px',
+                      borderRadius: '16px',
+                      backgroundColor: '#f3f4f6',
+                      marginBottom: '24px'
+                    }}
+                  >
+                    <IconComponent 
+                      className={styles.cardIcon}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        color: '#374151'
+                      }}
+                    />
+                  </div>
+                  <h3 
+                    className={styles.cardTitle}
+                    style={{
+                      fontSize: '24px',
+                      fontWeight: 'bold',
+                      marginBottom: '16px',
+                      color: '#111827',
+                      lineHeight: '1.3'
+                    }}
+                  >
+                    {step.label}
+                  </h3>
+                  <p 
+                    className={styles.cardDescription}
+                    style={{
+                      fontSize: '16px',
+                      lineHeight: '1.6',
+                      color: '#6b7280',
+                      margin: 0
+                    }}
+                  >
+                    {step.description}
+                  </p>
+                </div>
+              )
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* CSS Animation for modal */}
+      <style jsx>{`
+        @keyframes fadeInScale {
+          from {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+      `}</style>
     </div>
   )
 }
