@@ -8,8 +8,27 @@ const config: Config = {
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
   	extend: {
   		colors: {
+        // DLS Color Palette
+        'primary-blue': '#1A365D',
+        'primary-orange': '#FF8A00',
+        'accent-green': '#22543D',
+        'technical-gray': '#4A5568',
+        'neutral-dark': '#2D3748',
+        'neutral-light': '#F7FAFC',
+        'deep-wood-brown': '#8B4513',
+        'modern-tech-blue': '#2563EB',
+        'warm-gold': '#F59E0B',
+
+        // Existing Colors
   			'lightest-bg': '#FFF8F0',
   			'lighter-bg': '#FFEBD1',
   			'light-bg': '#FFD9A6',
@@ -89,12 +108,16 @@ const config: Config = {
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
+  			sm: 'calc(var(--radius) - 4px)',
+        // DLS Border Radius
+        'dls-sm': '4px',
+        'dls-md': '8px',
+        'dls-lg': '12px',
   		},
       fontFamily: {
-        'primary': ['var(--font-primary)', 'sans-serif'],
-        'body': ['var(--font-body)', 'sans-serif'],
-        'mono': ['var(--font-mono)', 'monospace'],
+        sans: ['var(--font-inter)', 'sans-serif'],
+        body: ['var(--font-source-sans-pro)', 'sans-serif'],
+        mono: ['var(--font-jetbrains-mono)', 'monospace'],
       },
       fontSize: {
         'technical': ['14px', { lineHeight: '1.5' }],

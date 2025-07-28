@@ -1,7 +1,10 @@
 "use client";
 
+"use client";
+
 import React, { useState } from 'react';
 import { TechnicalProjectCard } from './TechnicalProjectCard';
+import { Button } from '@/components/ui/button';
 
 // Enhanced project data with technical specifications
 const technicalProjects = [
@@ -225,57 +228,49 @@ const ProjectSection = () => {
   });
 
   return (
-    <section className="py-16 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-24 bg-neutral-light">
+      <div className="container">
         {/* Section Header */}
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-primary mb-4">
+          <h2 className="text-4xl font-bold text-primary-blue mb-4">
             Technical Project Portfolio
           </h2>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+          <p className="text-xl text-technical-gray max-w-3xl mx-auto font-body">
             Explore our precision-engineered modular solutions with detailed specifications, 
             material breakdowns, and comprehensive case studies from real designer collaborations.
           </p>
         </div>
 
         {/* Filters */}
-        <div className="mb-8 space-y-4">
+        <div className="mb-12 flex flex-col md:flex-row gap-8">
           {/* Category Filter */}
-          <div>
-            <h3 className="text-lg font-semibold text-primary mb-3">Filter by Category</h3>
+          <div className="flex-1">
+            <h3 className="text-lg font-sans font-semibold text-primary-blue mb-3">Filter by Category</h3>
             <div className="flex flex-wrap gap-3">
               {categories.map((category) => (
-                <button
+                <Button
                   key={category.id}
+                  variant={selectedCategory === category.id ? 'default' : 'outline'}
                   onClick={() => setSelectedCategory(category.id)}
-                  className={`px-4 py-2 rounded-full font-medium transition-all duration-300 ${
-                    selectedCategory === category.id
-                      ? 'bg-primary text-white shadow-lg'
-                      : 'bg-white text-primary border border-primary/20 hover:border-primary/40 hover:shadow-md'
-                  }`}
                 >
                   {category.name} ({category.count})
-                </button>
+                </Button>
               ))}
             </div>
           </div>
 
           {/* Complexity Filter */}
-          <div>
-            <h3 className="text-lg font-semibold text-primary mb-3">Filter by Complexity</h3>
+          <div className="flex-1">
+            <h3 className="text-lg font-sans font-semibold text-primary-blue mb-3">Filter by Complexity</h3>
             <div className="flex flex-wrap gap-3">
               {complexityFilters.map((filter) => (
-                <button
+                <Button
                   key={filter.id}
+                  variant={selectedComplexity === filter.id ? 'default' : 'outline'}
                   onClick={() => setSelectedComplexity(filter.id)}
-                  className={`px-4 py-2 rounded-full font-medium transition-all duration-300 ${
-                    selectedComplexity === filter.id
-                      ? 'bg-secondary text-white shadow-lg'
-                      : 'bg-white text-secondary border border-secondary/20 hover:border-secondary/40 hover:shadow-md'
-                  }`}
                 >
                   {filter.name}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -283,13 +278,13 @@ const ProjectSection = () => {
 
         {/* Results Summary */}
         <div className="mb-8 text-center">
-          <p className="text-muted-foreground">
-            Showing <span className="font-semibold text-primary">{filteredProjects.length}</span> projects
+          <p className="text-technical-gray font-body">
+            Showing <span className="font-bold text-primary-orange">{filteredProjects.length}</span> projects
             {selectedCategory !== 'all' && (
-              <span> in <span className="font-semibold text-primary">{categories.find(c => c.id === selectedCategory)?.name}</span></span>
+              <span> in <span className="font-semibold text-primary-blue">{categories.find(c => c.id === selectedCategory)?.name}</span></span>
             )}
             {selectedComplexity !== 'all' && (
-              <span> with <span className="font-semibold text-secondary">{selectedComplexity}</span> complexity</span>
+              <span> with <span className="font-semibold text-primary-blue">{selectedComplexity}</span> complexity</span>
             )}
           </p>
         </div>
@@ -303,45 +298,41 @@ const ProjectSection = () => {
 
         {/* No Results */}
         {filteredProjects.length === 0 && (
-          <div className="text-center py-12">
+          <div className="text-center py-16 bg-white rounded-dls-lg">
             <div className="text-6xl mb-4">🔍</div>
-            <h3 className="text-xl font-semibold text-primary mb-2">No Projects Found</h3>
-            <p className="text-muted-foreground mb-4">
+            <h3 className="text-2xl font-bold text-primary-blue mb-2">No Projects Found</h3>
+            <p className="text-technical-gray mb-6">
               Try adjusting your filters to see more projects.
             </p>
-            <button
+            <Button
+              variant="default"
               onClick={() => {
                 setSelectedCategory('all');
                 setSelectedComplexity('all');
               }}
-              className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
             >
               Clear All Filters
-            </button>
+            </Button>
           </div>
         )}
 
         {/* Call to Action */}
-        <div className="mt-16 text-center">
-          <div className="bg-white rounded-2xl p-8 shadow-lg border border-primary/10">
-            <h3 className="text-2xl font-bold text-primary mb-4">
+        <div className="mt-24 text-center">
+          <div className="bg-white rounded-dls-lg p-10 shadow-lg border border-primary-blue/10">
+            <h3 className="text-3xl font-bold text-primary-blue mb-4">
               Ready to Start Your Project?
             </h3>
-            <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
+            <p className="text-technical-gray mb-8 max-w-2xl mx-auto font-body">
               Our technical team is ready to collaborate on your next modular furniture project. 
               Get detailed specifications, material recommendations, and timeline estimates.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="/book-visit">
-                <button className="px-8 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium">
-                  Schedule Technical Consultation
-                </button>
-              </a>
-              <a href="/specifications">
-                <button className="px-8 py-3 border-2 border-secondary text-secondary hover:bg-secondary hover:text-white transition-colors rounded-lg font-medium">
-                  Download Material Catalog
-                </button>
-              </a>
+              <Button asChild size="cta" variant="cta">
+                <a href="/book-visit">Schedule Technical Consultation</a>
+              </Button>
+              <Button asChild size="lg" variant="secondary">
+                <a href="/specifications">Download Material Catalog</a>
+              </Button>
             </div>
           </div>
         </div>

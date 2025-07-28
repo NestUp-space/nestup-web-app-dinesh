@@ -4,15 +4,15 @@ import "../styles/globals.css"
 import { UserProvider } from '@/context/UserContext'; 
 import { Analytics } from "@vercel/analytics/react"
 
-const inter = Inter({ subsets: ["latin"], variable: '--font-primary' });
-const sourceSans = Source_Sans_3({ 
-  subsets: ["latin"], 
-  weight: ['400', '600', '700'],
-  variable: '--font-body' 
-});
-const jetbrains = JetBrains_Mono({ 
+const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
+const sourceSans = Source_Sans_3({
   subsets: ["latin"],
-  variable: '--font-mono' 
+  weight: ['400', '600', '700'],
+  variable: '--font-source-sans-pro'
+});
+const jetbrains = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: '--font-jetbrains-mono'
 });
 
 export const metadata: Metadata = {

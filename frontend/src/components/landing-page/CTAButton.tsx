@@ -14,7 +14,7 @@ export function CTAButton({ text, type = "button", onClick, className, disabled 
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`CTA_button bg-theme-dark text-white rounded px-4 py-2 m-2 hover:bg-orange-500 transition-colors ${
+      className={`CTA_button bg-primary-orange text-white rounded px-4 py-2 m-2 hover:bg-orange-500 transition-colors ${
         disabled ? 'opacity-50 cursor-not-allowed' : ''
       } ${className}`}
     >
