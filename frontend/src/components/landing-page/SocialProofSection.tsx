@@ -9,19 +9,19 @@ const SocialProofSection: React.FC = () => {
         <div className="testimonials-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
           <div className="testimonial bg-white p-6 rounded-lg shadow-sm">
             <div className="rating text-warm-gold text-2xl mb-3">⭐⭐⭐⭐⭐</div>
-            <p className="text-technical-gray mb-4">"Fast delivery, budget-friendly pricing, and excellent finish quality. Material estimates were spot on."</p>
+            <p className="text-technical-gray mb-4">&quot;Fast delivery, budget-friendly pricing, and excellent finish quality. Material estimates were spot on.&quot;</p>
             <cite className="font-semibold text-neutral-dark">- Interior Designer, Hyderabad</cite>
           </div>
           
           <div className="testimonial bg-white p-6 rounded-lg shadow-sm">
             <div className="rating text-warm-gold text-2xl mb-3">⭐⭐⭐⭐⭐</div>
-            <p className="text-technical-gray mb-4">"Value for money and finishing is awesome. Huge difference between manual carpenter and machine finishing."</p>
+            <p className="text-technical-gray mb-4">&quot;Value for money and finishing is awesome. Huge difference between manual carpenter and machine finishing.&quot;</p>
             <cite className="font-semibold text-neutral-dark">- Home Owner, Secunderabad</cite>
           </div>
           
           <div className="testimonial bg-white p-6 rounded-lg shadow-sm">
             <div className="rating text-warm-gold text-2xl mb-3">⭐⭐⭐⭐⭐</div>
-            <p className="text-technical-gray mb-4">"Been working with them for more than 12 projects now, hardworking and very responsive team."</p>
+            <p className="text-technical-gray mb-4">&quot;Been working with them for more than 12 projects now, hardworking and very responsive team.&quot;</p>
             <cite className="font-semibold text-neutral-dark">- Interior Designer Partner</cite>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Image from "next/image";
 
 interface ProjectCardProps {
   title: string;
@@ -9,7 +10,9 @@ interface ProjectCardProps {
 export const ProjectCard = ({ title, imageUrl, description }: ProjectCardProps) => {
   return (
     <Card className="overflow-hidden rounded-dls-lg shadow-md transition-transform hover:-translate-y-1">
-      <img src={imageUrl} alt={title} className="w-full h-48 object-cover" />
+      <div className="relative w-full h-48">
+        <Image src={imageUrl} alt={title} layout="fill" objectFit="cover" />
+      </div>
       <CardHeader>
         <CardTitle className="text-primary-blue">{title}</CardTitle>
       </CardHeader>

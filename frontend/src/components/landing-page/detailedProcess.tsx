@@ -349,7 +349,7 @@ export function DetailedProcess() {
             <div className="border-t border-neutral-light p-6 bg-lighter-bg">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
-                  <h4 className="font-bold text-lg text-theme-color mb-3">What's Included</h4>
+                  <h4 className="font-bold text-lg text-theme-color mb-3">What&#39;s Included</h4>
                   <ul className="space-y-2 mb-6">
                     {pricingInfo.includes.map((item, idx) => (
                       <li key={idx} className="flex items-start">
@@ -390,8 +390,8 @@ export function DetailedProcess() {
           <div className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white p-8 rounded-xl shadow-lg">
             <h3 className="text-2xl md:text-3xl font-bold mb-4">Ready to Experience Our Process?</h3>
             <p className="text-lg mb-6 opacity-90">
-              Visit our factory Monday to Saturday, 10 AM to 6 PM for new designers. Existing customers welcome anytime!
-            </p>
+            Visit our factory Monday to Saturday, 10 AM to 6 PM for new designers. Existing customers welcome anytime!
+          </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button className="bg-white text-theme-color hover:bg-gray-100 px-8 py-3 text-lg font-semibold rounded-full shadow-lg transform hover:scale-105 transition-transform">
                 Schedule Site Measurement

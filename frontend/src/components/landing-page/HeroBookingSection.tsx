@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from "next/image";
 
 const HeroBookingSection: React.FC = () => {
   return (
@@ -26,7 +27,9 @@ const HeroBookingSection: React.FC = () => {
         
         <div className="hero-visual md:w-1/2 mt-8 md:mt-0">
           {/* Placeholder for 3D visualization or measurement process video */}
-          <img src="/img/PHOTO-2024-11-01-12-29-07.jpg" alt="Site visit and measurement process" className="rounded-lg shadow-lg w-full h-auto object-cover"/>
+          <div className="relative w-full h-96">
+            <Image src="/img/PHOTO-2024-11-01-12-29-07.jpg" alt="Site visit and measurement process" layout="fill" objectFit="cover" className="rounded-lg shadow-lg"/>
+          </div>
         </div>
       </div>
     </section>

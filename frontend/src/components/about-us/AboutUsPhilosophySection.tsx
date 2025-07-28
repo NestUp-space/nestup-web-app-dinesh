@@ -25,7 +25,7 @@ export default function AboutUsPhilosophySection() {
             </p>
             
             <p>
-              We've <span className="font-semibold text-theme-color">automated the chaos</span>—turning weeks of on-site carpentry into a streamlined, factory-led process that's clean, predictable, and high-quality.
+              We&#39;ve <span className="font-semibold text-theme-color">automated the chaos</span>—turning weeks of on-site carpentry into a streamlined, factory-led process that&#39;s clean, predictable, and high-quality.
             </p>
             
             <p>

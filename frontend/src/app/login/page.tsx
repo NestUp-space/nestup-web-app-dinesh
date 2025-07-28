@@ -221,7 +221,7 @@ const LoginRegister = () => {
 
             <div className="mb-8 text-left w-full max-w-sm">
               <h3 className="text-2xl font-inter font-semibold mb-4 text-dark-text">Customer Success Story:</h3>
-              <p className="italic text-lg opacity-100">"Father and Son combo brings you the 30 yrs experience with a tech enabled automation experience. Great experience meeting the next gen Co-founder Vamshi, his attention to detail gives clear picture to the customer."</p>
+              <p className="italic text-lg opacity-100">&ldquo;Father and Son combo brings you the 30 yrs experience with a tech enabled automation experience. Great experience meeting the next gen Co-founder Vamshi, his attention to detail gives clear picture to the customer.&rdquo;</p>
             </div>
 
             <div className="text-left w-full max-w-sm">

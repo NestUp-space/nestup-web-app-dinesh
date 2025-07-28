@@ -8,8 +8,7 @@
     "railway:build": "cd backend && npm run railway:build",
     "railway:start": "cd backend && npm run railway:start",
     "dev": "cd backend && npm run dev",
-    "migrate:prod": "cd backend && npm run migrate:prod",
-    "postbuild": "cd backend && npm run postbuild"
+    "migrate:prod": "cd backend && npm run migrate:prod"
   },
   "engines": {
     "node": ">=18.0.0",

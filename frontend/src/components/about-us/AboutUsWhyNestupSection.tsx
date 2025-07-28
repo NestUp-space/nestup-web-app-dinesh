@@ -27,7 +27,7 @@ export default function AboutUsWhyNestupSection() {
             </div>
             
             <p className="text-lg md:text-xl font-semibold text-center">
-              We believe <span className="text-dark-color font-bold">convenience is no longer a luxury. It's a necessity.</span>
+                We believe <span className="text-dark-color font-bold">convenience is no longer a luxury. It&#39;s a necessity.</span>
             </p>
             
             <div className="space-y-4">
@@ -35,14 +35,14 @@ export default function AboutUsWhyNestupSection() {
                 Our vision is simple:
               </p>
               <p className="text-base md:text-lg leading-relaxed">
-                Walk into a Nestup showroom, choose your designs, and have your woodwork installed <span className="font-bold text-theme-color">within a day</span>. We're not there yet, but we're getting close—<span className="font-semibold text-medium-interactive">fast</span>.
+                Walk into a Nestup showroom, choose your designs, and have your woodwork installed <span className="font-bold text-theme-color">within a day</span>. We&#39;re not there yet, but we&#39;re getting close—<span className="font-semibold text-medium-interactive">fast</span>.
               </p>
             </div>
             
             <div className="bg-lighter-bg p-6 rounded-xl">
               <p className="text-lg md:text-xl font-bold text-center text-darkest-text leading-relaxed">
-                We're not just building wardrobes and kitchens.<br/>
-                <span className="text-theme-color">We're building a new standard</span> for how interiors should be done in India.
+                We&#39;re not just building wardrobes and kitchens.<br/>
+                <span className="text-theme-color">We&#39;re building a new standard</span> for how interiors should be done in India.
               </p>
             </div>
           </div>

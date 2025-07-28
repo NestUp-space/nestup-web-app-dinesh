@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 
 interface MaterialCardProps {
   title: string;
@@ -10,7 +11,9 @@ interface MaterialCardProps {
 export const MaterialCard = ({ title, imageUrl, specs }: MaterialCardProps) => {
   return (
     <Card className="overflow-hidden rounded-dls-lg shadow-md">
-      <img src={imageUrl} alt={title} className="w-full h-40 object-cover" />
+      <div className="relative w-full h-40">
+        <Image src={imageUrl} alt={title} layout="fill" objectFit="cover" />
+      </div>
       <CardHeader>
         <CardTitle className="text-primary-blue text-xl">{title}</CardTitle>
       </CardHeader>

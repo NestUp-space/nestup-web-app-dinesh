@@ -80,7 +80,7 @@ const ReviewSection = () => {
             Trusted by Innovators
           </h2>
           <p className="text-lg text-dark-text max-w-3xl mx-auto">
-            Our clients' success stories are the best measure of our commitment and expertise.
+            Our clients&#39; success stories are the best measure of our commitment and expertise.
           </p>
         </div>
 

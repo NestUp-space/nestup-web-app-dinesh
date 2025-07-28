@@ -198,7 +198,7 @@ const BookingFormSection: React.FC<BookingFormSectionProps> = ({ onSubmit }) => 
                 <option>₹3-5 Lakhs</option>
                 <option>₹5-10 Lakhs</option>
                 <option>₹10+ Lakhs</option>
-                <option>I'll discuss during visit</option>
+                <option>I&#39;ll discuss during visit</option>
               </select>
             </div>
             
