@@ -1,13 +1,25 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Image from "next/image";
 
 const HeroBookingSection: React.FC = () => {
   const [playVideo, setPlayVideo] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  
+  // Define YouTube embed URL as a constant (official embed code)
+  const YOUTUBE_EMBED_URL = "https://www.youtube.com/embed/K3iCPEizTsE?si=Bnzd-3ZECZ9XhHnw&autoplay=1";
 
   const handlePlayClick = () => {
     setPlayVideo(true);
   };
+
+  // Set iframe src after component mounts to ensure proper loading
+  useEffect(() => {
+    if (playVideo && iframeRef.current) {
+      // Set the src directly - React will handle it properly
+      iframeRef.current.src = YOUTUBE_EMBED_URL;
+    }
+  }, [playVideo]);
 
   return (
     <section className="hero-booking bg-neutral-light py-16 md:py-24">
@@ -36,13 +48,14 @@ const HeroBookingSection: React.FC = () => {
           <div className="relative w-full h-96">
             {playVideo ? (
               <iframe
-                className="absolute top-0 left-0 w-full h-full rounded-lg shadow-lg"
-                src="https://www.youtube.com/embed/K3iCPEizTsE?autoplay=1"
+                ref={iframeRef}
                 title="YouTube video player"
+                className="absolute top-0 left-0 w-full h-full rounded-lg shadow-lg"
                 frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
                 allowFullScreen
-              ></iframe>
+              />
             ) : (
               <>
                 <Image 
