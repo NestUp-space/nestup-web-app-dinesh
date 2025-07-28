@@ -1,7 +1,14 @@
-import React from 'react';
+"use client";
+import React, { useState } from 'react';
 import Image from "next/image";
 
 const HeroBookingSection: React.FC = () => {
+  const [playVideo, setPlayVideo] = useState(false);
+
+  const handlePlayClick = () => {
+    setPlayVideo(true);
+  };
+
   return (
     <section className="hero-booking bg-neutral-light py-16 md:py-24">
       <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-12">
@@ -26,9 +33,36 @@ const HeroBookingSection: React.FC = () => {
         </div>
         
         <div className="hero-visual md:w-1/2 mt-8 md:mt-0">
-          {/* Placeholder for 3D visualization or measurement process video */}
           <div className="relative w-full h-96">
-            <Image src="/img/PHOTO-2024-11-01-12-29-07.jpg" alt="Site visit and measurement process" layout="fill" objectFit="cover" className="rounded-lg shadow-lg"/>
+            {playVideo ? (
+              <iframe
+                className="absolute top-0 left-0 w-full h-full rounded-lg shadow-lg"
+                src="https://www.youtube.com/embed/K3iCPEizTsE?autoplay=1"
+                title="YouTube video player"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            ) : (
+              <>
+                <Image 
+                  src="/img/PHOTO-2024-11-01-12-29-07.jpg" 
+                  alt="Site visit and measurement process" 
+                  layout="fill" 
+                  objectFit="cover" 
+                  className="rounded-lg shadow-lg"
+                />
+                <button 
+                  onClick={handlePlayClick} 
+                  className="absolute inset-0 flex items-center justify-center w-full h-full bg-black bg-opacity-50"
+                  aria-label="Play video"
+                >
+                  <svg className="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path>
+                  </svg>
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
