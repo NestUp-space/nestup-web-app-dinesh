@@ -12,4 +12,16 @@ export type Post = {
   };
   content: string;
   preview?: boolean;
+  // New dynamic fields
+  category: string;
+  pillar?: string;
+  featured?: boolean;
+  priority?: number;
+  readTime?: number;
+  keywords?: {
+    primary?: string;
+    secondary?: string[];
+  };
+  cta?: string;
+  tags?: string[];
 };

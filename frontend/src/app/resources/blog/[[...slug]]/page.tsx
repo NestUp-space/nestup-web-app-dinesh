@@ -9,7 +9,8 @@ import { PostBody } from "@components/landing-page/post-body";
 import { PostHeader } from "@components/landing-page/post-header";
 
 export default async function Post({ params }: Params) {
-  const post = getPostBySlug(params.slug);
+  const slug = params.slug.join("/");
+  const post = getPostBySlug(slug);
 
   if (!post) {
     return notFound();
@@ -37,12 +38,13 @@ export default async function Post({ params }: Params) {
 
 type Params = {
   params: {
-    slug: string;
+    slug: string[];
   };
 };
 
 export function generateMetadata({ params }: Params): Metadata {
-  const post = getPostBySlug(params.slug);
+  const slug = params.slug.join("/");
+  const post = getPostBySlug(slug);
 
   if (!post) {
     return notFound();
@@ -63,6 +65,6 @@ export async function generateStaticParams() {
   const posts = getAllPosts();
 
   return posts.map((post) => ({
-    slug: post.slug,
+    slug: post.slug.split("/"),
   }));
 }

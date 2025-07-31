@@ -362,6 +362,41 @@ enum BomItemType {
   ADDON
 }
 
+model Booking {
+  id                  String        @id @default(cuid())
+  firstName           String
+  lastName            String
+  email               String
+  phone               String
+  address             Json          // {street, city, state, pincode}
+  preferredDateTime   DateTime
+  alternateDateTime   DateTime?
+  projectType         String?
+  requirements        String?
+  source              String        @default("website")
+  utmParams           Json?         // {utm_source, utm_medium, utm_campaign}
+  crmLeadId           String?
+  calendarEventId     String?
+  status              BookingStatus @default(PENDING)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([email])
+  @@index([phone])
+  @@index([preferredDateTime])
+  @@index([status])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CRM_SYNCED
+  CALENDAR_CREATED
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
 enum DocumentType {
   INPUT_QA_CSV
   PRESSING_LIST_CSV

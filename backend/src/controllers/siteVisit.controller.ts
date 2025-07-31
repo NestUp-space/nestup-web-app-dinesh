@@ -1,46 +1,38 @@
 import { Request, Response, NextFunction } from 'express';
-import { createOrUpdateUser, createDraftProject } from '../services/siteVisit.service';
 import { StatusCodes } from 'http-status-codes';
-import { BookSiteVisitInput } from '../validations/siteVisit.validation';
-import { BadRequestError, NotFoundError } from '../common/errors/customErrors';
+import { BadRequestError } from '../common/errors/customErrors';
+import { siteVisitBookingService, CreateBookingInput } from '../services/siteVisitBooking.service';
 
 export const bookSiteVisit = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { name, phone, projectName, projectAddress, projectLocation, preferredSlot } = req.body as BookSiteVisitInput;
+    const validatedData = req.body;
 
-    const user = await createOrUpdateUser(name, phone);
+    // Transform validated data to match service interface
+    const bookingData: CreateBookingInput = {
+      ...validatedData,
+      preferredDateTime: new Date(validatedData.preferredDateTime),
+      alternateDateTime: validatedData.alternateDateTime ? new Date(validatedData.alternateDateTime) : undefined
+    };
 
-    if (!user) {
-      throw new NotFoundError('User not found');
-    }
+    // Create the booking with integrated CRM and Calendar
+    const result = await siteVisitBookingService.createBooking(bookingData);
 
-    const project = await createDraftProject(
-      user.id,
-      projectName,
-      projectAddress,
-      projectLocation,
-      new Date(preferredSlot)
-    );
-
-    if (!project) {
-      throw new BadRequestError('Failed to create draft project');
-    }
+    // Check if there were any critical errors (booking creation should still succeed even with integration errors)
+    const hasErrors = result.errors.length > 0;
 
     res.status(StatusCodes.CREATED).json({
       success: true,
-      message: 'Site visit booked successfully',
-      user: { name: user.name, phone: user.phoneNumber },
-      project: {
-        id: project.id,
-        name: project.name,
-        address: project.address,
-        location: project.location,
-        preferredSlot: project.estimatedTime
-      }
+      message: hasErrors 
+        ? 'Site visit booked successfully with some integration warnings'
+        : 'Site visit booked successfully',
+      bookingId: result.booking.id,
+      crmLeadId: result.crmLeadId,
+      calendarEventId: result.calendarEventId,
+      warnings: hasErrors ? result.errors : undefined
     });
   } catch (error: unknown) {
     console.error('Error booking site visit:', error);
-    if (error instanceof BadRequestError || error instanceof NotFoundError) {
+    if (error instanceof BadRequestError) {
       res.status(error.statusCode).json({ success: false, message: error.message });
     } else {
       res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({

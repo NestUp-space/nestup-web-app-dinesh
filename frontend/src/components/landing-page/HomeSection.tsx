@@ -114,7 +114,7 @@ export function HomeSection() {
                   </div>
                 ) : (
                   <iframe
-                    src="https://www.youtube.com/embed/K3iCPEizTsE?start=167&autoplay=1"
+                    src="https://www.youtube.com/embed/K3iCPEizTsE?start=0&autoplay=1"
                     title="Nestup Modular Furniture Process"
                     className="w-full h-full"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
