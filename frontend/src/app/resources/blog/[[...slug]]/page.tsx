@@ -65,6 +65,6 @@ export async function generateStaticParams() {
   const posts = getAllPosts();
 
   return posts.map((post) => ({
-    slug: post.slug.split("/"),
+    slug: post.slug.split("/"), // This will convert "category/post-name" into ["category", "post-name"]
   }));
 }

@@ -1,4 +1,4 @@
-import { getPostsByCategory, getCategoryStats } from "@lib/api";
+import { getPostsByCategory, getCategoryStats, categoryMap } from "@lib/api";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,16 +8,7 @@ import Navbar from "@/components/landing-page/Navbar";
 import { Footer } from "@/components/landing-page/Footer";
 import { notFound } from "next/navigation";
 
-// Map category slugs to display names
-const categoryMap: Record<string, string> = {
-  "technical-mastery": "Technical Mastery",
-  "design-workflow": "Design Workflow",
-  "project-management": "Project Management",
-  "business-growth": "Business Growth",
-  "case-studies": "Case Studies",
-  "sustainability": "Sustainability",
-  "design-trends": "Design Trends",
-};
+// The categoryMap is now imported from @lib/api and contains both displayName and routeSlug
 
 type Params = {
   params: {
@@ -26,20 +17,22 @@ type Params = {
 };
 
 export default function CategoryPage({ params }: Params) {
-  const categoryName = categoryMap[params.categorySlug];
-  
-  if (!categoryName) {
+  const categoryInfo = Object.values(categoryMap).find(
+    (cat) => cat.routeSlug === params.categorySlug
+  );
+
+  if (!categoryInfo) {
     return notFound();
   }
 
-  const posts = getPostsByCategory(categoryName);
+  const posts = getPostsByCategory(categoryInfo.displayName);
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold text-orange-500 mb-4">{categoryName}</h1>
+          <h1 className="text-5xl font-bold text-orange-500 mb-4">{categoryInfo.displayName}</h1>
           <p className="text-xl text-gray-600">
             {posts.length} articles in this category
           </p>
@@ -87,22 +80,26 @@ export default function CategoryPage({ params }: Params) {
 }
 
 export async function generateStaticParams() {
-  return Object.keys(categoryMap).map((categorySlug) => ({
-    categorySlug,
+  // Generate static params from the route slugs in the unified categoryMap
+  return Object.values(categoryMap).map((catInfo) => ({
+    categorySlug: catInfo.routeSlug,
   }));
 }
 
 export function generateMetadata({ params }: Params) {
-  const categoryName = categoryMap[params.categorySlug];
+  // Find the display name from the route slug
+  const categoryInfo = Object.values(categoryMap).find(
+    (cat) => cat.routeSlug === params.categorySlug
+  );
   
-  if (!categoryName) {
+  if (!categoryInfo) {
     return {
       title: "Category Not Found",
     };
   }
 
   return {
-    title: `${categoryName} - NestUp Blog`,
-    description: `Browse all articles in the ${categoryName} category`,
+    title: `${categoryInfo.displayName} - NestUp Blog`,
+    description: `Browse all articles in the ${categoryInfo.displayName} category`,
   };
 }

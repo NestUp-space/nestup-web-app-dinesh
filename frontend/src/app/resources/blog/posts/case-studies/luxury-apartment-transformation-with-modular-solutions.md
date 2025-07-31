@@ -8,7 +8,6 @@ author:
 coverImage: "/blog-images/luxury-apartment-case-study.jpg"
 ogImage:
   url: "/blog-images/luxury-apartment-case-study-og.jpg"
-category: "Case Studies"
 pillar: "Case Studies & Project Spotlights"
 featured: true
 priority: 2
