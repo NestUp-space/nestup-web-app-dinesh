@@ -57,7 +57,7 @@ export default function AllPosts() {
     );
   }
 
-  const posts = data?.blogPosts?.data || [];
+  const posts = data?.blogPosts || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -72,19 +72,19 @@ export default function AllPosts() {
         ) : (
           <>
             <div className="mb-8 text-center text-gray-600">
-              {data?.blogPosts?.meta?.pagination?.total && (
-                <p>Showing {posts.length} of {data.blogPosts.meta.pagination.total} articles</p>
+              {data?.blogPosts && (
+                <p>Showing {posts.length} of {data.blogPosts.length} articles</p>
               )}
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {posts.map((post) => (
-                <Link key={post.id} href={`/resources/blog/${post.attributes.slug}`}>
+                <Link key={post.documentId} href={`/resources/blog/${post.slug}`}>
                   <Card className="overflow-hidden hover:shadow-lg transition-shadow border-0 rounded-none">
-                    {post.attributes.featuredImage?.data ? (
+                    {post.featuredImage?.url ? (
                       <Image
-                        src={post.attributes.featuredImage.data.attributes.url}
-                        alt={post.attributes.featuredImage.data.attributes.alternativeText || post.attributes.title}
+                        src={post.featuredImage.url}
+                        alt={post.featuredImage.alternativeText || post.title}
                         width={300}
                         height={200}
                         className="w-full h-40 object-cover"
@@ -97,52 +97,52 @@ export default function AllPosts() {
                     
                     <CardContent className="p-6">
                       {/* Category Badge */}
-                      {post.attributes.category?.data && (
+                      {post.category && (
                         <Badge 
                           variant="outline" 
                           className="mb-3 text-white border-0 rounded-none"
-                          style={{ backgroundColor: post.attributes.category.data.attributes.color }}
+                          style={{ backgroundColor: post.category.color }}
                         >
-                          {post.attributes.category.data.attributes.name}
+                          {post.category.name}
                         </Badge>
                       )}
                       
                       <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                        {post.attributes.title}
+                        {post.title}
                       </h3>
                       
                       <p className="text-gray-600 mb-4 line-clamp-2">
-                        {post.attributes.excerpt || "No excerpt available"}
+                        {post.excerpt || "No excerpt available"}
                       </p>
                       
                       {/* Meta Information */}
                       <div className="flex items-center justify-between text-sm text-gray-500">
                         <span className="flex items-center">
                           <Clock className="h-4 w-4 mr-1" />
-                          {post.attributes.readTime || 5} min read
+                          {post.readTime || 5} min read
                         </span>
                         
                         <div className="flex items-center space-x-3">
-                          {post.attributes.author?.name && (
+                          {post.author?.name && (
                             <span className="flex items-center">
                               <User className="h-4 w-4 mr-1" />
-                              {post.attributes.author.name}
+                              {post.author.name}
                             </span>
                           )}
                           
-                          {post.attributes.publishedAt && (
+                          {post.publishedAt && (
                             <span className="flex items-center">
                               <Calendar className="h-4 w-4 mr-1" />
-                              {new Date(post.attributes.publishedAt).toLocaleDateString()}
+                              {new Date(post.publishedAt).toLocaleDateString()}
                             </span>
                           )}
                         </div>
                       </div>
                       
                       {/* Tags */}
-                      {post.attributes.tags && post.attributes.tags.length > 0 && (
+                      {post.tags && post.tags.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-1">
-                          {post.attributes.tags.slice(0, 3).map((tag, index) => (
+                          {post.tags.slice(0, 3).map((tag, index) => (
                             <span key={index} className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
                               #{tag}
                             </span>

@@ -34,14 +34,19 @@ cd backend && npm run dev &
 BACKEND_PID=$!
 
 echo -e "${GREEN}Starting frontend server...${NC}"
-cd frontend && npm run dev &
+cd ../frontend && npm run dev &
 FRONTEND_PID=$!
+
+echo -e "${GREEN}Starting Strapi CMS...${NC}"
+cd ../backend/cms && npm run develop &
+STRAPI_PID=$!
 
 # Function to handle script termination
 function cleanup {
   echo -e "${YELLOW}Shutting down servers...${NC}"
   kill $BACKEND_PID
   kill $FRONTEND_PID
+  kill $STRAPI_PID
   echo -e "${GREEN}Servers stopped.${NC}"
   exit 0
 }

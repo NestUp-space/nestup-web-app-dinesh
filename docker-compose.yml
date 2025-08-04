@@ -55,6 +55,31 @@ services:
     networks:
       - nestup-network
 
+  strapi:
+    build:
+      context: ./backend/cms
+    container_name: nestup-strapi
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_CLIENT: postgres
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DB_NAME:-strapi_db}
+      DATABASE_USER: ${DB_USER:-postgres}
+      DATABASE_PASSWORD: ${DB_PASSWORD:-password}
+      DATABASE_SSL: "false"
+      HOST: 0.0.0.0
+      PORT: 1338
+      APP_KEYS: "testKey1,testKey2"
+      API_TOKEN_SALT: "testSalt"
+      ADMIN_JWT_SECRET: "testSecret"
+    ports:
+      - "1338:1338"
+    networks:
+      - nestup-network
+
 networks:
   nestup-network:
     driver: bridge

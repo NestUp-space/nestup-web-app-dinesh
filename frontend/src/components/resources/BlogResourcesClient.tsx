@@ -23,6 +23,7 @@ import {
 import Image from "next/image";
 import { Footer } from "@/components/landing-page/Footer";
 import Link from "next/link";
+import { ResourcesHeroSection } from "./ResourcesHeroSection";
 
 interface BlogData {
   featuredArticles: any[];
@@ -81,17 +82,7 @@ export default function BlogResourcesClient({ blogData }: BlogResourcesClientPro
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         {/* Hero Section */}
-        <section className="bg-white py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center">
-              <h1 className="text-5xl font-bold text-orange-500 mb-4">Blog.</h1>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-                {`Your comprehensive resource hub for modular interior design. From technical specifications to business
-              growth strategies, we're here to help interior designers succeed with modular solutions.`}
-              </p>
-            </div>
-          </div>
-        </section>
+        <ResourcesHeroSection />
 
         {/* Content Pillars */}
         <section className="py-12 bg-gray-50">

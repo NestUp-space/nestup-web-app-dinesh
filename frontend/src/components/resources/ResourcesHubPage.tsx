@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Wrench, Calculator, Download, FileText } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePosts } from "@/hooks/usePosts"
+import type { BlogPost } from "@/types/strapi"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ResourcesHeroSection } from "./ResourcesHeroSection"
 
@@ -66,51 +68,53 @@ export default function ResourcesHubPage() {
           <div className="mb-16 text-center text-red-500">
             Failed to load blog posts. Please try again later.
           </div>
-        ) : data?.blogPosts?.data?.length ? (
+        ) : data?.blogPosts?.length ? (
           <div className="mb-16">
             <h2 className="text-3xl font-bold mb-8">Latest Blog Posts</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {data.blogPosts.data.map((post) => (
-                <Link href={`/resources/blog/${post.attributes.slug}`} key={post.id}>
+              {data.blogPosts.map((post) => (
+                <Link href={`/resources/blog/${post.slug}`} key={post.documentId}>
                   <Card className="border-0 rounded-none hover:shadow-lg transition-shadow cursor-pointer">
                     <CardContent className="p-6">
                       {/* Featured Image */}
-                      {post.attributes.featuredImage?.data && (
+                      {post.featuredImage && (
                         <div className="mb-4">
-                          <img
-                            src={post.attributes.featuredImage.data.attributes.url}
-                            alt={post.attributes.featuredImage.data.attributes.alternativeText || post.attributes.title}
+                          <Image
+                            src={post.featuredImage.url}
+                            alt={post.featuredImage.alternativeText || post.title}
+                            width={400}
+                            height={192}
                             className="w-full h-48 object-cover rounded"
                           />
                         </div>
                       )}
                       
                       {/* Category Badge */}
-                      {post.attributes.category?.data && (
+                      {post.category && (
                         <div className="mb-3">
                           <span 
                             className="inline-block px-3 py-1 text-xs font-semibold text-white rounded-full"
-                            style={{ backgroundColor: post.attributes.category.data.attributes.color }}
+                            style={{ backgroundColor: post.category.color }}
                           >
-                            {post.attributes.category.data.attributes.name}
+                            {post.category.name}
                           </span>
                         </div>
                       )}
                       
-                      <h3 className="text-xl font-semibold mb-2">{post.attributes.title}</h3>
+                      <h3 className="text-xl font-semibold mb-2">{post.title}</h3>
                       <p className="text-gray-600 line-clamp-3 mb-4">
-                        {post.attributes.excerpt || 'No excerpt available'}
+                        {post.excerpt || 'No excerpt available'}
                       </p>
                       
                       {/* Meta Information */}
                       <div className="flex items-center text-sm text-gray-500 mb-4">
-                        <span>{post.attributes.author?.name || 'NestUp Team'}</span>
+                        <span>{post.author?.name || 'NestUp Team'}</span>
                         <span className="mx-2">•</span>
-                        <span>{post.attributes.readTime || 5} min read</span>
-                        {post.attributes.publishedAt && (
+                        <span>{post.readTime || 5} min read</span>
+                        {post.publishedAt && (
                           <>
                             <span className="mx-2">•</span>
-                            <span>{new Date(post.attributes.publishedAt).toLocaleDateString()}</span>
+                            <span>{new Date(post.publishedAt).toLocaleDateString()}</span>
                           </>
                         )}
                       </div>
@@ -123,17 +127,6 @@ export default function ResourcesHubPage() {
                 </Link>
               ))}
             </div>
-            
-            {/* Show total count if available */}
-            {data.blogPosts.meta?.pagination?.total > data.blogPosts.data.length && (
-              <div className="text-center mt-8">
-                <Link href="/resources/blog">
-                  <Button className="bg-orange-500 hover:bg-orange-600 rounded-none">
-                    View All {data.blogPosts.meta.pagination.total} Posts
-                  </Button>
-                </Link>
-              </div>
-            )}
           </div>
         ) : null}
 

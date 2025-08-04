@@ -33,11 +33,11 @@ export default function Post() {
     );
   }
 
-  if (error || !data || !data.blogPosts?.data?.length) {
+  if (error || !data || !data.blogPosts?.length) {
     return notFound();
   }
 
-  const post = data.blogPosts.data[0].attributes;
+  const post = data.blogPosts[0];
 
   return (
     <main>
@@ -46,9 +46,9 @@ export default function Post() {
         <article className="mb-32">
           <PostHeader
             title={post.title}
-            coverImage={post.featuredImage?.data?.attributes?.url || ""}
+            coverImage={post.featuredImage?.url || ""}
             date={post.publishedAt}
-            author={{ name: post.author?.name || "Nestup", picture: post.author?.picture?.data?.attributes?.url || "" }}
+            author={{ name: post.author?.name || "Nestup", picture: post.author?.picture?.url || "" }}
           />
           <div className="max-w-2xl mx-auto">
             <RichTextRenderer content={post.content} />

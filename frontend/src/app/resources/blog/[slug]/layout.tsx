@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       variables: { slug: params.slug },
     });
 
-    const post = data?.blogPosts?.data[0]?.attributes;
+    const post = data?.blogPosts[0];
 
     if (!post) {
       return {
@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         description: post.excerpt,
         images: [
           {
-            url: seo?.ogImage?.data.attributes.url || post.featuredImage?.data.attributes.url || '',
+            url: seo?.ogImage?.url || post.featuredImage?.url || '',
             alt: post.title,
           },
         ],
@@ -47,7 +47,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         card: 'summary_large_image',
         title: post.title,
         description: post.excerpt,
-        images: [seo?.ogImage?.data.attributes.url || post.featuredImage?.data.attributes.url || ''],
+        images: [seo?.ogImage?.url || post.featuredImage?.url || ''],
       },
     };
   } catch (error) {
