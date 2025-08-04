@@ -2,10 +2,14 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Wrench, Calculator, Download, FileText, Lightbulb } from "lucide-react"
+import { Wrench, Calculator, Download, FileText } from "lucide-react"
 import Link from "next/link"
+import { usePosts } from "@/hooks/usePosts"
+import { Skeleton } from "@/components/ui/skeleton"
+import { ResourcesHeroSection } from "./ResourcesHeroSection"
 
 export default function ResourcesHubPage() {
+  const { loading, error, data } = usePosts()
   const resources = [
     {
       title: "Material Configurator",
@@ -42,17 +46,99 @@ export default function ResourcesHubPage() {
           </Link>
         </div>
 
-        <div className="text-center mb-16">
-          <div className="bg-orange-500 w-20 h-20 flex items-center justify-center mx-auto mb-6 rounded-none">
-            <Lightbulb className="h-10 w-10 text-white" />
-          </div>
-          <h1 className="text-5xl font-bold text-orange-500 mb-6">Resources</h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Access our comprehensive library of tools, templates, and resources designed to streamline your modular
-            interior design workflow.
-          </p>
-        </div>
+        <ResourcesHeroSection />
 
+        {/* Blog Posts Section */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+            {[...Array(3)].map((_, i) => (
+              <Card key={i} className="border-0 rounded-none">
+                <CardContent className="p-6">
+                  <Skeleton className="h-48 w-full mb-4" />
+                  <Skeleton className="h-6 w-3/4 mb-2" />
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-4 w-2/3" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="mb-16 text-center text-red-500">
+            Failed to load blog posts. Please try again later.
+          </div>
+        ) : data?.blogPosts?.data?.length ? (
+          <div className="mb-16">
+            <h2 className="text-3xl font-bold mb-8">Latest Blog Posts</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {data.blogPosts.data.map((post) => (
+                <Link href={`/resources/blog/${post.attributes.slug}`} key={post.id}>
+                  <Card className="border-0 rounded-none hover:shadow-lg transition-shadow cursor-pointer">
+                    <CardContent className="p-6">
+                      {/* Featured Image */}
+                      {post.attributes.featuredImage?.data && (
+                        <div className="mb-4">
+                          <img
+                            src={post.attributes.featuredImage.data.attributes.url}
+                            alt={post.attributes.featuredImage.data.attributes.alternativeText || post.attributes.title}
+                            className="w-full h-48 object-cover rounded"
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Category Badge */}
+                      {post.attributes.category?.data && (
+                        <div className="mb-3">
+                          <span 
+                            className="inline-block px-3 py-1 text-xs font-semibold text-white rounded-full"
+                            style={{ backgroundColor: post.attributes.category.data.attributes.color }}
+                          >
+                            {post.attributes.category.data.attributes.name}
+                          </span>
+                        </div>
+                      )}
+                      
+                      <h3 className="text-xl font-semibold mb-2">{post.attributes.title}</h3>
+                      <p className="text-gray-600 line-clamp-3 mb-4">
+                        {post.attributes.excerpt || 'No excerpt available'}
+                      </p>
+                      
+                      {/* Meta Information */}
+                      <div className="flex items-center text-sm text-gray-500 mb-4">
+                        <span>{post.attributes.author?.name || 'NestUp Team'}</span>
+                        <span className="mx-2">•</span>
+                        <span>{post.attributes.readTime || 5} min read</span>
+                        {post.attributes.publishedAt && (
+                          <>
+                            <span className="mx-2">•</span>
+                            <span>{new Date(post.attributes.publishedAt).toLocaleDateString()}</span>
+                          </>
+                        )}
+                      </div>
+                      
+                      <Button variant="outline" className="border-orange-500 text-orange-500 hover:bg-orange-50 rounded-none">
+                        Read More
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+            
+            {/* Show total count if available */}
+            {data.blogPosts.meta?.pagination?.total > data.blogPosts.data.length && (
+              <div className="text-center mt-8">
+                <Link href="/resources/blog">
+                  <Button className="bg-orange-500 hover:bg-orange-600 rounded-none">
+                    View All {data.blogPosts.meta.pagination.total} Posts
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {/* Resources Tools Section */}
+        <h2 className="text-3xl font-bold mb-8">Tools & Resources</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {resources.map((resource, index) => (
             <Link href={resource.page} key={index}>

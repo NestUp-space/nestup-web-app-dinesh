@@ -1,0 +1,28 @@
+{
+  "collectionName": "components_shared_project_details",
+  "info": {
+    "displayName": "Project Details",
+    "description": "Case study project information"
+  },
+  "options": {},
+  "attributes": {
+    "client": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    },
+    "duration": {
+      "type": "string"
+    },
+    "projectValue": {
+      "type": "string"
+    },
+    "challenges": {
+      "type": "richtext"
+    },
+    "results": {
+      "type": "richtext"
+    }
+  }
+}

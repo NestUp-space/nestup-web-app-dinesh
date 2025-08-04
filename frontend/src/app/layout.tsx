@@ -3,6 +3,7 @@ import { Inter, Source_Sans_3, JetBrains_Mono } from "next/font/google"
 import "../styles/globals.css"
 import { UserProvider } from '@/context/UserContext'; 
 import { Analytics } from "@vercel/analytics/react"
+import { ApolloWrapper } from '@/components/providers/ApolloWrapper'
 
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
 const sourceSans = Source_Sans_3({
@@ -41,11 +42,13 @@ export default function RootLayout({
       </head>
     <body className={`${inter.variable} ${sourceSans.variable} ${jetbrains.variable}`}>
     <Analytics/>
-    <UserProvider>
-      <div >
-        {children}
-      </div>
-    </UserProvider>
+    <ApolloWrapper>
+      <UserProvider>
+        <div >
+          {children}
+        </div>
+      </UserProvider>
+    </ApolloWrapper>
     </body>
   </html>
   );

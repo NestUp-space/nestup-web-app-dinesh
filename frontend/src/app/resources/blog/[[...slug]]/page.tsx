@@ -1,22 +1,43 @@
-import { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { getAllPosts, getPostBySlug } from "@lib/api";
+"use client";
 
-import markdownToHtml from "@lib/markdownToHtml";
+import { notFound, useParams } from "next/navigation";
+import { usePost } from "@/hooks/usePost";
 import Container from "@components/landing-page/container";
 import BlogHeader from "@components/landing-page/blogHeader";
 import { PostBody } from "@components/landing-page/post-body";
 import { PostHeader } from "@components/landing-page/post-header";
+import { Skeleton } from "@/components/ui/skeleton";
+import RichTextRenderer from "@/components/RichTextRenderer";
 
-export default async function Post({ params }: Params) {
-  const slug = params.slug.join("/");
-  const post = getPostBySlug(slug);
+export default function Post() {
+  const params = useParams();
+  const slug = Array.isArray(params.slug) ? params.slug.join("/") : params.slug;
+  const { loading, error, data } = usePost(slug || "");
 
-  if (!post) {
+  if (!slug) {
     return notFound();
   }
 
-  const content = await markdownToHtml(post.content || "");
+  if (loading) {
+    return (
+      <main>
+        <Container>
+          <BlogHeader />
+          <article className="mb-32">
+            <Skeleton className="h-12 w-2/3 mb-4" />
+            <Skeleton className="h-6 w-1/3 mb-8" />
+            <Skeleton className="h-96 w-full" />
+          </article>
+        </Container>
+      </main>
+    );
+  }
+
+  if (error || !data || !data.blogPosts?.data?.length) {
+    return notFound();
+  }
+
+  const post = data.blogPosts.data[0].attributes;
 
   return (
     <main>
@@ -25,46 +46,15 @@ export default async function Post({ params }: Params) {
         <article className="mb-32">
           <PostHeader
             title={post.title}
-            coverImage={post.coverImage}
-            date={post.date}
-            author={post.author}
+            coverImage={post.featuredImage?.data?.attributes?.url || ""}
+            date={post.publishedAt}
+            author={{ name: post.author?.name || "Nestup", picture: post.author?.picture?.data?.attributes?.url || "" }}
           />
-          <PostBody content={content} />
+          <div className="max-w-2xl mx-auto">
+            <RichTextRenderer content={post.content} />
+          </div>
         </article>
       </Container>
     </main>
   );
-}
-
-type Params = {
-  params: {
-    slug: string[];
-  };
-};
-
-export function generateMetadata({ params }: Params): Metadata {
-  const slug = params.slug.join("/");
-  const post = getPostBySlug(slug);
-
-  if (!post) {
-    return notFound();
-  }
-
-  const title = `${post.title}`;
-
-  return {
-    title,
-    openGraph: {
-      title,
-      images: [post.ogImage.url],
-    },
-  };
-}
-
-export async function generateStaticParams() {
-  const posts = getAllPosts();
-
-  return posts.map((post) => ({
-    slug: post.slug.split("/"), // This will convert "category/post-name" into ["category", "post-name"]
-  }));
 }

@@ -5,6 +5,7 @@ import Image from "next/legacy/image"
 import { ChevronDown, ChevronUp } from "lucide-react"
 import { processSteps, pricingInfo } from "@/constants/processSteps";
 import { Button } from "@/components/ui/button";
+import { ProcessHeroSection } from "@/components/process/ProcessHeroSection";
 
 export function DetailedProcess() {
   const [expandedStep, setExpandedStep] = useState<string | null>(null)
@@ -15,17 +16,9 @@ export function DetailedProcess() {
   }
 
   return (
-    <section className="w-screen py-24 bg-neutral-light" id="detailed-process">
+    <section className="w-screen bg-neutral-light" id="detailed-process">
+      <ProcessHeroSection />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-darkest-text mb-4">
-            Our Comprehensive 12-Step Process
-          </h1>
-          <p className="text-lg md:text-xl font-normal text-dark-text max-w-3xl mx-auto leading-relaxed">
-            7+ years of industry experience refined into a streamlined, error-free process for faster turnaround,
-            cost-effective production, and meticulous attention to detail.
-          </p>
-        </div>
 
         {/* Process Steps */}
         <div className="space-y-4 mb-12">
