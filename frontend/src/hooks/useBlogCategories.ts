@@ -2,5 +2,10 @@ import { useQuery } from '@apollo/client';
 import { GET_BLOG_CATEGORIES } from '../lib/api/blogQueries';
 
 export const useBlogCategories = () => {
-  return useQuery(GET_BLOG_CATEGORIES);
+  return useQuery(GET_BLOG_CATEGORIES, {
+    errorPolicy: 'all',
+    onError: (error) => {
+      console.error('Blog categories query error:', error);
+    },
+  });
 };
