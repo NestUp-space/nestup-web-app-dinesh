@@ -1,6 +1,6 @@
 # Strapi Dockerfile
 
-FROM strapi/base:18-alpine
+FROM node:18-alpine
 
 # Set working directory
 WORKDIR /opt/app
@@ -9,8 +9,8 @@ WORKDIR /opt/app
 COPY package.json ./
 COPY package-lock.json ./
 
-# Install dependencies
-RUN npm install
+# Install Strapi globally and then install dependencies
+RUN npm install -g @strapi/strapi@latest && npm install
 
 # Copy application files
 COPY . .
