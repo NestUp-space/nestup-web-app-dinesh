@@ -13,7 +13,7 @@ const technicalProjects = [
     title: "Luxury Master Bedroom Suite",
     category: "bedroom" as const,
     images: {
-      primary: "/img/siteImages/bedroom-1.jpeg",
+      primary: "/img/siteImages/Bedroom-1.jpeg",
       technical: [
         "/img/siteImages/Bedroom-2.jpeg",
         "/img/siteImages/Bedroom-3.jpeg",
@@ -157,7 +157,7 @@ const technicalProjects = [
     title: "Executive Home Office",
     category: "office" as const,
     images: {
-      primary: "/img/siteImages/bedroom-1.jpeg", // Using bedroom image as placeholder
+      primary: "/img/siteImages/Bedroom-1.jpeg", // Using bedroom image as placeholder
       technical: [
         "/img/siteImages/Bedroom-2.jpeg",
         "/img/siteImages/Bedroom-3.jpeg",
