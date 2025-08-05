@@ -60,14 +60,16 @@ export default function BlogPostPage() {
           )}
 
           {/* Category Badge */}
-          <div className="mb-4">
-            <Badge 
-              style={{ backgroundColor: post.category.color }}
-              className="text-white"
-            >
-              {post.category.name}
-            </Badge>
-          </div>
+          {post.category && (
+            <div className="mb-4">
+              <Badge 
+                style={{ backgroundColor: post.category.color }}
+                className="text-white"
+              >
+                {post.category.name}
+              </Badge>
+            </div>
+          )}
 
           {/* Title */}
           <h1 className="text-4xl font-bold mb-6 text-gray-900">

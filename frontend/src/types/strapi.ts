@@ -54,7 +54,7 @@ export interface BlogPost {
     url: string;
     alternativeText: string;
   }[];
-  category: BlogCategory;
+  category?: BlogCategory | null;
   tags: string[];
   author: Author;
   seoMeta?: SEOMeta;
