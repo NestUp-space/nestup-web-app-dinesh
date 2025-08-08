@@ -1,15 +1,24 @@
 "use client"
 
 import { useState } from "react"
-import Image from "next/legacy/image"
 import { ChevronDown, ChevronUp } from "lucide-react"
+import { useRouter } from "next/navigation"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
 import { processSteps, pricingInfo } from "@/constants/processSteps";
 import { Button } from "@/components/ui/button";
 import { ProcessHeroSection } from "@/components/process/ProcessHeroSection";
 
 export function DetailedProcess() {
+  const router = useRouter()
   const [expandedStep, setExpandedStep] = useState<string | null>(null)
   const [showPricing, setShowPricing] = useState(false)
+  const [showFactoryModal, setShowFactoryModal] = useState(false)
 
   const toggleStep = (stepId: string) => {
     setExpandedStep(expandedStep === stepId ? null : stepId)
@@ -386,12 +395,16 @@ export function DetailedProcess() {
             Visit our factory Monday to Saturday, 10 AM to 6 PM for new designers. Existing customers welcome anytime!
           </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button className="bg-white text-theme-color hover:bg-gray-100 px-8 py-3 text-lg font-semibold rounded-full shadow-lg transform hover:scale-105 transition-transform">
-                Schedule Site Measurement
+              <Button 
+                className="bg-white text-theme-color hover:bg-gray-100 px-8 py-3 text-lg font-semibold rounded-full shadow-lg transform hover:scale-105 transition-transform"
+                onClick={() => router.push('/book-visit')}
+              >
+                Book a Free Site Visit
               </Button>
               <Button
                 variant="outline"
-                className="border-white text-white hover:bg-white hover:text-orange-500 px-8 py-3 text-lg font-semibold rounded-full shadow-lg transform hover:scale-105 transition-transform"
+                className="border-white text-theme-color hover:bg-white hover:text-orange-500 px-8 py-3 text-lg font-semibold rounded-full shadow-lg transform hover:scale-105 transition-transform"
+                onClick={() => setShowFactoryModal(true)}
               >
                 Visit Our Factory
               </Button>
@@ -399,6 +412,37 @@ export function DetailedProcess() {
           </div>
         </div>
       </div>
+
+      <Dialog open={showFactoryModal} onOpenChange={setShowFactoryModal}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-theme-color">
+              Our Factory Location
+            </DialogTitle>
+            <DialogDescription>
+              Visit us at our manufacturing facility
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-dark-text">
+              BHEL Ancillary Industrial Estate, Bharat Heavy Electricals Limited<br />
+              Hyderabad, Telangana 502032<br />
+              India
+            </p>
+            <div className="aspect-video w-full">
+              <iframe 
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3805.0945358523336!2d78.30504387543745!3d17.503000099463662!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bcb93750a7621c5%3A0x48c12b1c027429cb!2sNestUp%20Space%20Modular%20Factory!5e0!3m2!1sen!2sin!4v1754622427527!5m2!1sen!2sin" 
+                width="100%" 
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              ></iframe>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   )
 }

@@ -15,12 +15,14 @@ export default function CallToActionSection() {
           <Button className="bg-white text-theme-color hover:bg-gray-100 px-8 py-3 text-lg font-semibold rounded-full shadow-lg transform hover:scale-105 transition-transform">
             Book a Free Site Visit
           </Button>
-          <Button
-            variant="outline"
-            className="border-white text-theme-color hover:bg-white hover:text-orange-500 px-8 py-3 text-lg font-semibold rounded-full shadow-lg transform hover:scale-105 transition-transform"
-          >
-            Call Us
-          </Button>
+          <a href="tel:+918885563262">
+            <Button
+              variant="outline"
+              className="border-white text-theme-color hover:bg-white hover:text-orange-500 px-8 py-3 text-lg font-semibold rounded-full shadow-lg transform hover:scale-105 transition-transform"
+            >
+              Call Us
+            </Button>
+          </a>
         </div>
       </div>
     </section>

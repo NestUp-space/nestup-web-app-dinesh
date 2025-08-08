@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect, useRef, useCallback, useMemo } from "react"
+import { useRouter } from 'next/navigation'
 import {
   Ruler,
   ClipboardList,
@@ -129,8 +130,10 @@ const ProcessFlowComponent: React.FC = () => {
     setActiveStep(null)
   }, [])
 
+  const router = useRouter()
+
   const handleDiveDeeper = () => {
-    console.log("Dive deeper clicked")
+    router.push('/process')
     if (!isMobile) {
       disturbAllBubbles(5)
     }
