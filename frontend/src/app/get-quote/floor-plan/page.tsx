@@ -1,293 +1,310 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Home, ArrowLeft, Check, FileText, Maximize2 } from "lucide-react"
-import Link from "next/link"
+import { Home, Check, Maximize2, Search, Filter, MapPin } from "lucide-react"
+import Image from "next/image"
 import { cn } from "@/lib/utils"
 import Navbar from "@/components/landing-page/Navbar"
-import { Footer } from "@/components/landing-page/Footer"
-
-// Mock floor plan data
-const floorPlans = [
-  {
-    id: 1,
-    name: "Compact 1BHK",
-    bhk: "1BHK",
-    area: 650,
-    features: ["1 Bathroom", "Balcony", "Open Kitchen"],
-    thumbnail: "/placeholder.svg?height=200&width=300",
-    pdfUrl: "#",
-    price: "Starting ₹8.5L",
-    popular: false,
-  },
-  {
-    id: 2,
-    name: "Classic 2BHK",
-    bhk: "2BHK",
-    area: 1050,
-    features: ["2 Bathrooms", "2 Balconies", "Separate Kitchen"],
-    thumbnail: "/placeholder.svg?height=200&width=300",
-    pdfUrl: "#",
-    price: "Starting ₹12.8L",
-    popular: true,
-  },
-  {
-    id: 3,
-    name: "Premium 2BHK",
-    bhk: "2BHK",
-    area: 1250,
-    features: ["2 Bathrooms", "Utility Area", "Large Living Room"],
-    thumbnail: "/placeholder.svg?height=200&width=300",
-    pdfUrl: "#",
-    price: "Starting ₹15.2L",
-    popular: false,
-  },
-  {
-    id: 4,
-    name: "Spacious 3BHK",
-    bhk: "3BHK",
-    area: 1450,
-    features: ["3 Bathrooms", "Master Bedroom", "Dining Area"],
-    thumbnail: "/placeholder.svg?height=200&width=300",
-    pdfUrl: "#",
-    price: "Starting ₹18.5L",
-    popular: true,
-  },
-  {
-    id: 5,
-    name: "Luxury 3BHK",
-    bhk: "3BHK",
-    area: 1650,
-    features: ["3 Bathrooms", "Walk-in Closet", "Powder Room"],
-    thumbnail: "/placeholder.svg?height=200&width=300",
-    pdfUrl: "#",
-    price: "Starting ₹22.3L",
-    popular: false,
-  },
-  {
-    id: 6,
-    name: "Grand 4BHK",
-    bhk: "4BHK",
-    area: 2100,
-    features: ["4 Bathrooms", "Study Room", "Servant Quarter"],
-    thumbnail: "/placeholder.svg?height=200&width=300",
-    pdfUrl: "#",
-    price: "Starting ₹28.7L",
-    popular: false,
-  },
-]
+import StickyCTA from "@/components/common/StickyCTA"
+import { QuoteProgress } from "@/components/quote/quote-progress"
+import { floorPlans, type FloorPlan } from "@/data/get-quote/floorPlans"
 
 export default function FloorPlanSelectionPage() {
-  const [selectedPlan, setSelectedPlan] = useState<(typeof floorPlans)[0] | null>(null)
-  const [previewPlan, setPreviewPlan] = useState<(typeof floorPlans)[0] | null>(null)
+  const [selectedPlan, setSelectedPlan] = useState<FloorPlan | null>(null)
+  const [previewPlan, setPreviewPlan] = useState<FloorPlan | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedBHK, setSelectedBHK] = useState<string>("all")
 
-  const handlePlanSelect = (plan: (typeof floorPlans)[0]) => {
+  const handlePlanSelect = (plan: FloorPlan) => {
     setSelectedPlan(plan)
   }
 
+  // Filter floor plans based on search and BHK selection
+  const filteredPlans = useMemo(() => {
+    return floorPlans.filter((plan) => {
+      const matchesSearch = plan.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           plan.features.some(feature => 
+                             feature.toLowerCase().includes(searchQuery.toLowerCase())
+                           )
+      const matchesBHK = selectedBHK === "all" || plan.bhk === selectedBHK
+      return matchesSearch && matchesBHK
+    })
+  }, [searchQuery, selectedBHK])
+
+  const bhkOptions = ["all", "1BHK", "2BHK", "3BHK", "4BHK"]
+
   return (
-    <div className="">
-      <div className="h-24 top-0 fixed bg-white z-50">
+    <div className="min-h-screen bg-neutral-light">
+      <div className="h-20 md:h-24 top-0 fixed bg-white z-50">
         <Navbar />
       </div>
-      <div className="mt-24 w-screen">
-        <div className="min-h-screen bg-background">
-          {/* Progress Bar */}
-          <div className="w-full bg-muted h-1">
-            <div className="bg-primary h-1 transition-all duration-300" style={{ width: "42.8%" }}></div>
-          </div>
+      <div className="mt-20 md:mt-24 w-full">
+        {/* Progress Bar */}
+        <QuoteProgress currentStep={2} />
 
-          {/* Main Content */}
-          <div className="container mx-auto px-4 py-8 max-w-6xl">
-            <div className="space-y-8">
-              {/* Step Header */}
-              <div className="text-center space-y-4">
-                <h1 className="text-3xl md:text-4xl font-sans font-bold text-foreground">Choose your floor plan</h1>
-                <p className="text-lg text-muted-foreground">Select the layout that matches your apartment</p>
+        {/* Main Content */}
+        <div className="container mx-auto px-4 py-6 md:py-8 max-w-6xl">
+          <div className="space-y-6 md:space-y-8">
+            {/* Step Header */}
+            <div className="text-center space-y-3 md:space-y-4">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-sans font-bold text-primary-blue">Choose your floor plan</h1>
+              <p className="text-base md:text-lg text-dark-text">Select the perfect layout that matches your apartment and lifestyle needs</p>
+            </div>
+            
+            {/* Search and Filter Section */}
+            <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-dark-text" />
+                <Input
+                  type="text"
+                  placeholder="Search floor plans by name or features..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-12 pr-4 py-3 text-base border border-neutral-light focus:border-primary-orange focus:ring-2 focus:ring-primary-orange/20 transition-all duration-200 bg-white"
+                />
               </div>
 
-              {/* Floor Plan Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {floorPlans.map((plan) => (
+              {/* Filter Tabs */}
+              <div className="flex flex-wrap justify-center gap-2 md:gap-3">
+                {bhkOptions.map((bhk) => (
+                  <Button
+                    key={bhk}
+                    variant={selectedBHK === bhk ? "default" : "outline"}
+                    onClick={() => setSelectedBHK(bhk)}
+                    className={cn(
+                      "px-3 md:px-6 py-2 rounded-lg font-medium transition-all duration-200 text-sm md:text-base",
+                      selectedBHK === bhk
+                        ? "bg-primary-orange text-white hover:bg-primary-orange/90"
+                        : "border border-neutral-light text-dark-text hover:border-primary-blue/50 hover:text-primary-blue bg-white"
+                    )}
+                  >
+                    {bhk === "all" ? "All Plans" : bhk}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Results Count */}
+              <div className="text-center">
+                <p className="text-dark-text text-sm md:text-base">
+                  Showing <span className="font-semibold text-primary-blue">{filteredPlans.length}</span> of{" "}
+                  <span className="font-semibold">{floorPlans.length}</span> floor plans
+                </p>
+              </div>
+            </div>
+
+            {/* Floor Plan Grid */}
+            {filteredPlans.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                {filteredPlans.map((plan) => (
                   <Card
                     key={plan.id}
                     className={cn(
-                      "cursor-pointer transition-all duration-200 hover:shadow-lg",
+                      "cursor-pointer transition-all duration-200 hover:shadow-lg bg-white border border-neutral-light",
                       selectedPlan?.id === plan.id
-                        ? "ring-2 ring-primary border-primary shadow-lg"
-                        : "hover:border-primary/50",
+                        ? "ring-2 ring-primary-orange border-primary-orange shadow-lg"
+                        : "hover:border-primary-orange/50"
                     )}
                     onClick={() => handlePlanSelect(plan)}
                   >
-                    <CardContent className="p-0">
+                    <CardContent className="p-0 overflow-hidden">
                       {/* Plan Image */}
-                      <div className="relative">
-                        <img
+                      <div className="relative group">
+                        <Image
                           src={plan.thumbnail}
                           alt={plan.name}
-                          className="w-full h-48 object-cover rounded-t-lg"
+                          width={400}
+                          height={300}
+                          className="w-full h-40 md:h-48 object-cover transition-transform duration-200 group-hover:scale-105"
                         />
-                        {plan.popular && (
-                          <Badge className="absolute top-3 left-3 bg-accent text-accent-foreground">
-                            Popular
-                          </Badge>
-                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                        
+                        {/* Badges */}
+                        <div className="absolute top-3 left-3 space-y-2">
+                          {plan.popular && (
+                            <Badge className="bg-primary-orange text-white font-medium px-2 md:px-3 py-1 text-xs">
+                              ⭐ Popular
+                            </Badge>
+                          )}
+                        </div>
+                        
                         {selectedPlan?.id === plan.id && (
-                          <div className="absolute top-3 right-3 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-                            <Check className="h-4 w-4 text-primary-foreground" />
+                          <div className="absolute top-3 right-3 w-6 h-6 bg-primary-orange rounded-full flex items-center justify-center">
+                            <Check className="h-4 w-4 text-white" />
                           </div>
                         )}
                       </div>
 
                       {/* Plan Details */}
-                      <div className="p-6 space-y-4">
-                        <div className="space-y-2">
+                      <div className="p-4 md:p-6 space-y-3 md:space-y-4">
+                        <div className="space-y-2 md:space-y-3">
                           <div className="flex items-center justify-between">
-                            <h3 className="font-sans font-bold text-xl text-foreground">{plan.name}</h3>
-                            <Badge variant="secondary">{plan.bhk}</Badge>
+                            <h3 className="font-bold text-lg md:text-xl text-primary-blue truncate">{plan.name}</h3>
+                            <Badge className="bg-primary-blue text-white font-medium px-2 md:px-3 py-1 text-xs flex-shrink-0">
+                              {plan.bhk}
+                            </Badge>
                           </div>
-                          <p className="text-muted-foreground">{plan.area} sq.ft</p>
+                          <div className="flex items-center space-x-2 text-dark-text">
+                            <MapPin className="h-4 w-4 flex-shrink-0" />
+                            <p className="text-sm md:text-base font-medium">{plan.area} sq.ft</p>
+                          </div>
+                          <p className="text-primary-orange font-semibold text-base md:text-lg">{plan.price}</p>
                         </div>
 
                         {/* Features */}
-                        <div className="space-y-2">
-                          <h4 className="text-sm font-medium text-foreground">Key Features:</h4>
-                          <div className="flex flex-wrap gap-1">
-                            {plan.features.map((feature, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
+                        <div className="space-y-2 md:space-y-3">
+                          <h4 className="text-xs md:text-sm font-semibold text-primary-blue uppercase tracking-wide">Key Features:</h4>
+                          <div className="flex flex-wrap gap-1 md:gap-2">
+                            {plan.features.slice(0, 3).map((feature, index) => (
+                              <Badge 
+                                key={index} 
+                                variant="outline" 
+                                className="text-xs border-primary-orange/20 text-primary-orange bg-primary-orange/5 px-2 md:px-3 py-1 font-medium"
+                              >
                                 {feature}
                               </Badge>
                             ))}
+                            {plan.features.length > 3 && (
+                              <Badge 
+                                variant="outline" 
+                                className="text-xs border-primary-orange/20 text-primary-orange bg-primary-orange/5 px-2 md:px-3 py-1 font-medium"
+                              >
+                                +{plan.features.length - 3} more
+                              </Badge>
+                            )}
                           </div>
                         </div>
 
-                        {/* Price */}
-                        <div className="pt-2 border-t border-border">
-                          <p className="text-lg font-semibold text-foreground">{plan.price}</p>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex gap-2">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-1"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Maximize2 className="h-4 w-4 mr-2" />
-                                Preview
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-4xl">
-                              <DialogHeader>
-                                <DialogTitle>{plan.name} - Floor Plan</DialogTitle>
-                              </DialogHeader>
-                              <div className="space-y-4">
-                                <img
-                                  src={plan.thumbnail}
-                                  alt={plan.name}
-                                  className="w-full h-96 object-contain rounded-lg"
-                                />
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <h4 className="font-medium text-foreground">Specifications</h4>
-                                    <p className="text-sm text-muted-foreground">Area: {plan.area} sq.ft</p>
-                                    <p className="text-sm text-muted-foreground">Type: {plan.bhk}</p>
-                                  </div>
-                                  <div>
-                                    <h4 className="font-medium text-foreground">Features</h4>
-                                    <ul className="text-sm text-muted-foreground space-y-1">
-                                      {plan.features.map((feature, index) => (
-                                        <li key={index}>• {feature}</li>
-                                      ))}
-                                    </ul>
+                        {/* Preview Button */}
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full border border-neutral-light text-primary-blue hover:bg-primary-orange/5 hover:border-primary-orange/50 font-medium transition-all duration-200 text-sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setPreviewPlan(plan)
+                              }}
+                            >
+                              <Maximize2 className="h-4 w-4 mr-2" />
+                              Preview Layout
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                              <DialogTitle className="text-xl font-bold text-primary-blue">{plan.name} - Floor Plan</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-6">
+                              <Image
+                                src={plan.thumbnail}
+                                alt={plan.name}
+                                width={800}
+                                height={600}
+                                className="w-full rounded-lg shadow-md"
+                              />
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-4">
+                                  <h4 className="font-semibold text-lg text-primary-blue">Specifications:</h4>
+                                  <div className="space-y-3 text-dark-text">
+                                    <div className="flex justify-between py-2 border-b border-neutral-light">
+                                      <span>Area:</span>
+                                      <span className="font-medium">{plan.area} sq.ft</span>
+                                    </div>
+                                    <div className="flex justify-between py-2 border-b border-neutral-light">
+                                      <span>Type:</span>
+                                      <span className="font-medium">{plan.bhk}</span>
+                                    </div>
+                                    <div className="flex justify-between py-2 border-b border-neutral-light">
+                                      <span>Price:</span>
+                                      <span className="font-medium text-primary-orange">{plan.price}</span>
+                                    </div>
                                   </div>
                                 </div>
+                                <div className="space-y-4">
+                                  <h4 className="font-semibold text-lg text-primary-blue">Features:</h4>
+                                  <ul className="space-y-2 text-dark-text">
+                                    {plan.features.map((feature, index) => (
+                                      <li key={index} className="flex items-center space-x-2">
+                                        <div className="w-1.5 h-1.5 bg-primary-orange rounded-full" />
+                                        <span>{feature}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
                               </div>
-                            </DialogContent>
-                          </Dialog>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <FileText className="h-4 w-4 mr-2" />
-                            PDF
-                          </Button>
-                        </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
-
-              {/* Selected Plan Summary */}
-              {selectedPlan && (
-                <Card className="p-6 bg-primary/5 border-primary/20">
-                  <CardContent className="p-0">
-                    <div className="flex items-start space-x-4">
-                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                        <FileText className="h-6 w-6 text-primary" />
-                      </div>
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <h3 className="font-sans font-bold text-lg text-foreground">{selectedPlan.name}</h3>
-                          <Badge variant="secondary">{selectedPlan.bhk}</Badge>
-                        </div>
-                        <p className="text-muted-foreground">{selectedPlan.area} sq.ft • {selectedPlan.price}</p>
-                        <div className="flex flex-wrap gap-1">
-                          {selectedPlan.features.slice(0, 3).map((feature, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {feature}
-                            </Badge>
-                          ))}
-                          {selectedPlan.features.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{selectedPlan.features.length - 3} more
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </div>
-
-          {/* Sticky CTA */}
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-sm border-t border-border">
-            <div className="container mx-auto max-w-6xl">
-              <div className="flex items-center justify-between">
-                <Link href="/get-quote/society">
-                  <Button variant="outline" size="lg">
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back
+            ) : (
+              <div className="text-center py-12 md:py-16">
+                <div className="max-w-md mx-auto space-y-4">
+                  <Search className="h-12 md:h-16 w-12 md:w-16 text-dark-text/30 mx-auto" />
+                  <h3 className="text-lg md:text-xl font-semibold text-dark-text">No floor plans found</h3>
+                  <p className="text-dark-text/70 text-sm md:text-base">
+                    Try adjusting your search criteria or BHK filter to find more options.
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearchQuery("")
+                      setSelectedBHK("all")
+                    }}
+                    className="mt-4 border-neutral-light text-primary-blue hover:border-primary-orange/50"
+                  >
+                    Clear Filters
                   </Button>
-                </Link>
-                <Link href={selectedPlan ? "/get-quote/design" : "#"}>
-                  <Button size="lg" className="text-lg px-8 py-6 rounded-xl shadow-lg" disabled={!selectedPlan}>
-                    Continue to Design Selection
-                  </Button>
-                </Link>
+                </div>
               </div>
-              {!selectedPlan && (
-                <p className="text-center text-sm text-muted-foreground mt-2">Please select a floor plan to continue</p>
-              )}
-            </div>
+            )}
+
+            {/* Selected Plan Summary */}
+            {selectedPlan && (
+              <Card className="p-4 md:p-6 bg-primary-orange/5 border-primary-orange/20">
+                <CardContent className="p-0">
+                  <div className="flex items-center space-x-3 md:space-x-4">
+                    <div className="w-10 md:w-12 h-10 md:h-12 bg-primary-orange/10 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Home className="h-5 md:h-6 w-5 md:w-6 text-primary-orange" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg md:text-xl font-bold text-primary-blue truncate">{selectedPlan.name}</h3>
+                      <p className="text-sm md:text-base text-dark-text truncate">
+                        {selectedPlan.area} sq.ft • {selectedPlan.bhk} • {selectedPlan.price}
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2 flex-shrink-0">
+                      <Check className="h-5 md:h-6 w-5 md:w-6 text-primary-orange" />
+                      <span className="text-sm md:text-base font-semibold text-primary-orange hidden sm:inline">Selected</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
+
+        {/* Sticky CTA */}
+        <StickyCTA
+          backHref="/get-quote/society"
+          continueHref={selectedPlan ? "/get-quote/design" : undefined}
+          continueText="Continue to Design"
+          disabled={!selectedPlan}
+          showBackButton={true}
+          fullWidth={false}
+        />
       </div>
-      <div>
-        <Footer />
-      </div>
+      {/* Add margin to prevent content from appearing below sticky CTA */}
+      <div className="h-32"></div>
     </div>
   )
 }
