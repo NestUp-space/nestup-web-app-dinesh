@@ -1,0 +1,2215 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Cabinet Installation Guide</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    :root {
+      --primary: #FF6B00;
+      --primary-light: #FF8533;
+      --ash: #9CA3AF;
+      --ash-light: #E5E7EB;
+      --text-dark: #374151;
+      --text-medium: #6B7280;
+      --white: #FFFFFF;
+      --bg-light: #F5F5F5;
+      --wall-color: #F9FAFB;
+      --shadow: 0 4px 20px rgba(0,0,0,0.1);
+      --shadow-lg: 0 10px 40px rgba(0,0,0,0.15);
+      --box-select-color: #3B82F6;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      background: var(--bg-light);
+      color: var(--text-dark);
+    }
+
+    /* ========================================
+       MAIN LAYOUT - Full screen 3D
+       ======================================== */
+    .app-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #viewer {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, #E8EDF2 0%, #F5F7FA 100%);
+    }
+
+    /* ========================================
+       FLOATING BUTTONS (Always visible)
+       ======================================== */
+    .floating-btn {
+      position: absolute;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      transition: all 0.3s ease;
+      box-shadow: var(--shadow);
+      z-index: 100;
+    }
+
+    .floating-btn:hover {
+      transform: scale(1.1);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .floating-btn:active {
+      transform: scale(0.95);
+    }
+
+    #menuBtn {
+      top: 20px;
+      left: 20px;
+      background: var(--white);
+      color: var(--text-dark);
+    }
+
+    #printBtn {
+      top: 20px;
+      right: 20px;
+      background: var(--white);
+      color: var(--text-dark);
+    }
+
+    #fitBtn {
+      bottom: 100px;
+      right: 20px;
+      background: var(--primary);
+      color: var(--white);
+    }
+
+    /* ========================================
+       STEP CONTROLS (Bottom floating)
+       ======================================== */
+    .step-controls-floating {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--white);
+      padding: 12px 24px;
+      border-radius: 50px;
+      box-shadow: var(--shadow-lg);
+      z-index: 100;
+    }
+
+    .step-info {
+      text-align: center;
+      min-width: 100px;
+    }
+
+    .step-number {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .step-total {
+      font-size: 12px;
+      color: var(--text-medium);
+    }
+
+    .step-btn {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 2px solid var(--ash-light);
+      background: var(--white);
+      color: var(--text-dark);
+      font-size: 20px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .step-btn:hover:not(:disabled) {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .step-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .step-btn.next {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: var(--white);
+    }
+
+    .step-btn.next:hover:not(:disabled) {
+      background: var(--primary-light);
+    }
+
+    /* ========================================
+       CURRENT PLANK INFO (Bottom left)
+       ======================================== */
+    .current-plank-floating {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: var(--white);
+      padding: 16px 20px;
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      max-width: 280px;
+      z-index: 100;
+      display: none;
+    }
+
+    .current-plank-floating.show {
+      display: block;
+    }
+
+    .plank-id-large {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--primary);
+      font-family: monospace;
+    }
+
+    .plank-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-dark);
+      margin-top: 4px;
+    }
+
+    .plank-material {
+      font-size: 13px;
+      color: var(--text-medium);
+      margin-top: 2px;
+    }
+
+    .plank-dims {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-dark);
+      font-family: monospace;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--ash-light);
+    }
+
+    .assembly-direction {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: #FFF7ED;
+      border-radius: 8px;
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .direction-arrow {
+      font-size: 24px;
+    }
+
+    /* ========================================
+       BOX INFO PANEL (Bottom left - for box move mode)
+       ======================================== */
+    .current-box-floating {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: var(--white);
+      padding: 16px 20px;
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      max-width: 300px;
+      z-index: 100;
+      display: none;
+      border-left: 4px solid var(--box-select-color);
+    }
+
+    .current-box-floating.show {
+      display: block;
+    }
+
+    .box-name-large {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--box-select-color);
+    }
+
+    .box-details {
+      font-size: 13px;
+      color: var(--text-medium);
+      margin-top: 4px;
+    }
+
+    .box-position {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-dark);
+      font-family: monospace;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--ash-light);
+    }
+
+    .box-planks-count {
+      font-size: 12px;
+      color: var(--text-medium);
+      margin-top: 4px;
+    }
+
+    /* ========================================
+       SLIDE-IN PANEL (Left side)
+       ======================================== */
+    .slide-panel {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 340px;
+      height: 100%;
+      background: var(--white);
+      box-shadow: var(--shadow-lg);
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .slide-panel.open {
+      transform: translateX(0);
+    }
+
+    .panel-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--ash-light);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+
+    .close-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: none;
+      background: var(--ash-light);
+      color: var(--text-dark);
+      font-size: 20px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .close-btn:hover {
+      background: var(--primary);
+      color: var(--white);
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    /* Section styles */
+    .panel-section {
+      margin-bottom: 20px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-medium);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+    }
+
+    /* Dropdown */
+    .dropdown {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid var(--ash-light);
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-dark);
+      background: var(--white);
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239CA3AF'%3E%3Cpath d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+    }
+
+    .dropdown:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Box list */
+    .box-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .box-item {
+      padding: 14px;
+      border: 2px solid var(--ash-light);
+      border-radius: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .box-item:hover {
+      border-color: var(--primary);
+      background: #FFF7ED;
+    }
+
+    .box-item.selected {
+      border-color: var(--primary);
+      background: #FFF7ED;
+    }
+
+    .box-item-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-dark);
+    }
+
+    .box-item-meta {
+      font-size: 12px;
+      color: var(--text-medium);
+      margin-top: 4px;
+    }
+
+    /* Explode slider */
+    .slider-container {
+      padding: 16px;
+      background: var(--bg-light);
+      border-radius: 12px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .slider-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-dark);
+    }
+
+    .slider-value {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .explode-slider {
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: var(--ash-light);
+      appearance: none;
+      cursor: pointer;
+    }
+
+    .explode-slider::-webkit-slider-thumb {
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+      border: 3px solid var(--white);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    /* Checklist */
+    .checklist {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .checklist-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .checklist-item:hover {
+      background: var(--bg-light);
+    }
+
+    .checklist-checkbox {
+      width: 22px;
+      height: 22px;
+      border: 2px solid var(--ash);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: transparent;
+      transition: all 0.2s ease;
+    }
+
+    .checklist-item.checked .checklist-checkbox {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: var(--white);
+    }
+
+    .checklist-info {
+      flex: 1;
+    }
+
+    .checklist-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-dark);
+    }
+
+    .checklist-dims {
+      font-size: 11px;
+      color: var(--text-medium);
+      font-family: monospace;
+    }
+
+    .checklist-id {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      font-family: monospace;
+    }
+
+    /* Material Legend */
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .legend-color {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      border: 1px solid var(--ash-light);
+    }
+
+    .legend-name {
+      font-size: 13px;
+      color: var(--text-dark);
+    }
+
+    /* ========================================
+       OVERLAY (When panel is open)
+       ======================================== */
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.3);
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+      z-index: 150;
+    }
+
+    .overlay.show {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    /* ========================================
+       LOADING
+       ======================================== */
+    #loading {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--white);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid var(--ash-light);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      margin-top: 16px;
+      color: var(--text-medium);
+      font-size: 14px;
+    }
+
+    /* ========================================
+       TOOLTIP
+       ======================================== */
+    #tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: var(--white);
+      color: var(--text-dark);
+      padding: 12px 16px;
+      font-size: 13px;
+      border-radius: 12px;
+      display: none;
+      z-index: 300;
+      border-left: 4px solid var(--primary);
+      box-shadow: var(--shadow-lg);
+      max-width: 250px;
+      line-height: 1.5;
+    }
+
+    /* ========================================
+       RESPONSIVE
+       ======================================== */
+    @media (max-width: 768px) {
+      .slide-panel {
+        width: 100%;
+      }
+
+      .step-controls-floating {
+        padding: 10px 16px;
+        gap: 12px;
+      }
+
+      .step-number {
+        font-size: 20px;
+      }
+
+      .step-btn {
+        width: 44px;
+        height: 44px;
+        font-size: 18px;
+      }
+
+      .current-plank-floating,
+      .current-box-floating {
+        bottom: 90px;
+        left: 10px;
+        right: 10px;
+        max-width: none;
+      }
+
+      .plank-id-large {
+        font-size: 26px;
+      }
+
+      .floating-btn {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+      }
+
+      #fitBtn {
+        bottom: 90px;
+      }
+    }
+
+    /* Print styles */
+    @media print {
+      .floating-btn, .step-controls-floating, .slide-panel, .overlay, .edit-mode-buttons, .save-indicator {
+        display: none !important;
+      }
+
+      #viewer {
+        background: white !important;
+      }
+    }
+
+    /* Edit Mode Buttons */
+    .edit-mode-buttons {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 4px;
+      background: var(--white);
+      padding: 6px;
+      border-radius: 30px;
+      box-shadow: var(--shadow);
+      z-index: 100;
+    }
+
+    .edit-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      background: var(--bg-light);
+      color: var(--text-dark);
+      font-size: 18px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .edit-btn:hover {
+      background: var(--ash-light);
+    }
+
+    .edit-btn.active {
+      background: var(--primary);
+      color: var(--white);
+      border-color: var(--primary);
+    }
+
+    .edit-btn.box-mode.active {
+      background: var(--box-select-color);
+      border-color: var(--box-select-color);
+    }
+
+    /* Save Indicator */
+    .save-indicator {
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--primary);
+      color: var(--white);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      box-shadow: var(--shadow);
+      z-index: 100;
+    }
+
+    .save-indicator.show {
+      display: flex;
+    }
+
+    .save-indicator.success {
+      background: #22C55E;
+    }
+
+    .save-indicator.error {
+      background: #EF4444;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .save-indicator .save-icon {
+      animation: pulse 1s infinite;
+    }
+
+    .save-indicator.success .save-icon,
+    .save-indicator.error .save-icon {
+      animation: none;
+    }
+
+    /* Transform Controls hint */
+    .transform-hint {
+      position: absolute;
+      bottom: 160px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      display: none;
+      z-index: 100;
+    }
+
+    .transform-hint.show {
+      display: block;
+    }
+
+    .transform-hint.box-mode {
+      background: var(--box-select-color);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- 3D Viewer (Full screen) -->
+    <div id="viewer">
+      <div id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading Installation Guide...</div>
+      </div>
+    </div>
+
+    <!-- Tooltip -->
+    <div id="tooltip"></div>
+
+    <!-- Floating Menu Button -->
+    <button class="floating-btn" id="menuBtn" title="Menu">☰</button>
+
+    <!-- Floating Print Button -->
+    <button class="floating-btn" id="printBtn" title="Print">🖨️</button>
+
+    <!-- Floating Fit Button -->
+    <button class="floating-btn" id="fitBtn" title="Fit View">⊙</button>
+
+    <!-- Edit Mode Buttons -->
+    <div class="edit-mode-buttons" id="editModeButtons">
+      <button class="edit-btn active" id="viewModeBtn" title="View Mode">👁️</button>
+      <button class="edit-btn" id="moveModeBtn" title="Move Plank">✥</button>
+      <button class="edit-btn" id="rotateModeBtn" title="Rotate Plank">↻</button>
+      <button class="edit-btn box-mode" id="boxMoveModeBtn" title="Move Box">📦</button>
+    </div>
+
+    <!-- Save Indicator -->
+    <div class="save-indicator" id="saveIndicator">
+      <span class="save-icon">💾</span>
+      <span class="save-text">Saving...</span>
+    </div>
+
+    <!-- Transform Hint -->
+    <div class="transform-hint" id="transformHint">Click on a plank to select and edit</div>
+
+    <!-- Current Plank Info (Bottom left) -->
+    <div class="current-plank-floating" id="currentPlankInfo">
+      <div class="plank-id-large" id="plankIdLarge">--</div>
+      <div class="plank-name" id="plankNameDisplay">Select a box to start</div>
+      <div class="plank-room" id="plankRoomDisplay" style="font-size: 12px; color: #9CA3AF; margin-top: 2px;">--</div>
+      <div class="plank-material" id="plankMaterialDisplay">--</div>
+      <div class="plank-dims" id="plankDimsDisplay">-- × -- × -- mm</div>
+      <div class="assembly-direction" id="assemblyDirection">
+        <span class="direction-arrow" id="directionArrow">•</span>
+        <span id="directionText">Place part</span>
+      </div>
+    </div>
+
+    <!-- Current Box Info (Bottom left - for box move mode) -->
+    <div class="current-box-floating" id="currentBoxInfo">
+      <div class="box-name-large" id="boxNameLarge">--</div>
+      <div class="box-details" id="boxDetailsDisplay">--</div>
+      <div class="box-position" id="boxPositionDisplay">Position: -- , -- , --</div>
+      <div class="box-planks-count" id="boxPlanksCount">-- planks will be moved</div>
+    </div>
+
+    <!-- Step Controls (Bottom center) -->
+    <div class="step-controls-floating" id="stepControls">
+      <button class="step-btn prev" id="prevStepBtn" disabled>◀</button>
+      <div class="step-info">
+        <div class="step-number" id="stepNumber">0</div>
+        <div class="step-total" id="stepTotal">of 0</div>
+      </div>
+      <button class="step-btn next" id="nextStepBtn" disabled>▶</button>
+    </div>
+
+    <!-- Overlay -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- Slide-in Panel -->
+    <div class="slide-panel" id="slidePanel">
+      <div class="panel-header">
+        <div class="panel-title">Installation Guide</div>
+        <button class="close-btn" id="closePanel">✕</button>
+      </div>
+      <div class="panel-content">
+        <!-- Wall Selector -->
+        <div class="panel-section">
+          <div class="section-label">Select Wall</div>
+          <select class="dropdown" id="wallSelector">
+            <option value="">-- Choose Wall --</option>
+          </select>
+        </div>
+
+        <!-- Box List -->
+        <div class="panel-section">
+          <div class="section-label" id="boxListLabel">Boxes</div>
+          <div class="box-list" id="boxList">
+            <div style="padding: 20px; text-align: center; color: var(--text-medium);">
+              Select a wall first
+            </div>
+          </div>
+        </div>
+
+        <!-- Explode Slider -->
+        <div class="panel-section">
+          <div class="slider-container">
+            <div class="slider-header">
+              <span class="slider-label">Explode View</span>
+              <span class="slider-value" id="explodeValue">0%</span>
+            </div>
+            <input type="range" class="explode-slider" id="explodeSlider" min="0" max="100" value="0">
+          </div>
+        </div>
+
+        <!-- Checklist -->
+        <div class="panel-section" id="checklistSection" style="display: none;">
+          <div class="section-label">Parts Checklist</div>
+          <div class="checklist" id="checklist"></div>
+        </div>
+
+        <!-- Material Legend -->
+        <div class="panel-section">
+          <div class="section-label">Material Legend</div>
+          <div id="materialLegend"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data from Apps Script -->
+  <script>
+    const SHEET_DATA = <?!= data ?>;
+  </script>
+
+  <!-- TWEEN.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+
+  <!-- Three.js -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { TransformControls } from 'three/addons/controls/TransformControls.js';
+    import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+    import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+
+    // ========================================
+    // GLOBAL STATE
+    // ========================================
+    let scene, camera, renderer, controls, raycaster, mouse;
+    let transformControls;
+    let font = null;
+
+    const container = document.getElementById('viewer');
+    const tooltip = document.getElementById('tooltip');
+
+    const { walls, materialLegend, summary } = SHEET_DATA;
+    const FORWARD_DISTANCE = 1000;
+
+    let currentWallIndex = -1;
+    let currentBoxIndex = -1;
+    let currentStep = 0;
+    let explodeAmount = 0;
+
+    // Edit mode state
+    let editMode = 'view'; // 'view', 'move', 'rotate', 'boxMove'
+    let selectedPlankMesh = null;
+    let selectedBoxGroup = null;  // For box move mode
+
+    let wallGroup = new THREE.Group();
+    let boxGroups = [];
+    let plankMeshes = [];
+
+    // Store original box positions for delta calculation
+    let boxOriginalPositions = new Map();
+
+    // ========================================
+    // INITIALIZATION
+    // ========================================
+    init();
+
+    async function init() {
+      setupScene();
+      setupCamera();
+      setupRenderer();
+      setupControls();
+      setupLighting();
+      setupInteraction();
+      setupTransformControls();
+
+      await loadFont();
+      setupUI();
+      renderMaterialLegend();
+
+      document.getElementById('loading').style.display = 'none';
+      animate();
+    }
+
+    function setupScene() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xF5F7FA);
+      scene.add(wallGroup);
+    }
+
+    function setupCamera() {
+      const aspect = container.clientWidth / container.clientHeight;
+      camera = new THREE.PerspectiveCamera(45, aspect, 1, 100000);
+      camera.position.set(3000, 2000, 4000);
+    }
+
+    function setupRenderer() {
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      container.appendChild(renderer.domElement);
+    }
+
+    function setupControls() {
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.screenSpacePanning = true;
+      controls.minDistance = 500;
+      controls.maxDistance = 15000;
+    }
+
+    function setupLighting() {
+      const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+      scene.add(ambient);
+
+      const mainLight = new THREE.DirectionalLight(0xffffff, 0.6);
+      mainLight.position.set(2000, 3000, 2000);
+      mainLight.castShadow = true;
+      scene.add(mainLight);
+
+      const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+      fillLight.position.set(-1000, 1000, -1000);
+      scene.add(fillLight);
+    }
+
+    function setupInteraction() {
+      raycaster = new THREE.Raycaster();
+      mouse = new THREE.Vector2();
+
+      window.addEventListener('resize', onWindowResize);
+      container.addEventListener('pointermove', onPointerMove);
+      container.addEventListener('click', onPointerClick);
+    }
+
+    function setupTransformControls() {
+      transformControls = new TransformControls(camera, renderer.domElement);
+      transformControls.setSize(0.8);
+      scene.add(transformControls);
+
+      // Disable orbit controls while transforming
+      transformControls.addEventListener('dragging-changed', (event) => {
+        controls.enabled = !event.value;
+      });
+
+      // Save changes when transform ends
+      transformControls.addEventListener('objectChange', () => {
+        if (editMode === 'boxMove' && selectedBoxGroup) {
+          updateBoxInfoFromGroup(selectedBoxGroup);
+        } else if (selectedPlankMesh) {
+          updatePlankInfoFromMesh(selectedPlankMesh);
+        }
+      });
+
+      transformControls.addEventListener('mouseUp', () => {
+        if (editMode === 'boxMove' && selectedBoxGroup) {
+          saveSelectedBoxToSheet();
+        } else if (selectedPlankMesh) {
+          saveSelectedPlankToSheet();
+        }
+      });
+    }
+
+    async function loadFont() {
+      const fontLoader = new FontLoader();
+      try {
+        font = await new Promise((resolve, reject) => {
+          fontLoader.load(
+            'https://threejs.org/examples/fonts/helvetiker_bold.typeface.json',
+            resolve, undefined, reject
+          );
+        });
+      } catch (e) {
+        console.warn('Font loading failed:', e);
+      }
+    }
+
+    // ========================================
+    // UI SETUP
+    // ========================================
+    function setupUI() {
+      // Wall selector - show entity name of each Level 0
+      const wallSelector = document.getElementById('wallSelector');
+      walls.forEach((wall, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        // Show entity name (wall component name) and room for clarity
+        option.textContent = wall.entityName || `Wall ${index + 1}`;
+        if (wall.roomName) {
+          option.textContent += ` (${wall.roomName})`;
+        }
+        wallSelector.appendChild(option);
+      });
+
+      wallSelector.addEventListener('change', (e) => {
+        const index = parseInt(e.target.value);
+        if (!isNaN(index)) loadWall(index);
+      });
+
+      // Panel controls
+      document.getElementById('menuBtn').addEventListener('click', openPanel);
+      document.getElementById('closePanel').addEventListener('click', closePanel);
+      document.getElementById('overlay').addEventListener('click', closePanel);
+
+      // Other controls
+      document.getElementById('explodeSlider').addEventListener('input', onExplodeChange);
+      document.getElementById('prevStepBtn').addEventListener('click', () => changeStep(-1));
+      document.getElementById('nextStepBtn').addEventListener('click', () => changeStep(1));
+      document.getElementById('fitBtn').addEventListener('click', fitToView);
+      document.getElementById('printBtn').addEventListener('click', () => window.print());
+
+      // Edit mode buttons
+      document.getElementById('viewModeBtn').addEventListener('click', () => setEditMode('view'));
+      document.getElementById('moveModeBtn').addEventListener('click', () => setEditMode('move'));
+      document.getElementById('rotateModeBtn').addEventListener('click', () => setEditMode('rotate'));
+      document.getElementById('boxMoveModeBtn').addEventListener('click', () => setEditMode('boxMove'));
+
+      // Load first wall if exists
+      if (walls.length > 0) {
+        wallSelector.value = '0';
+        loadWall(0);
+      }
+    }
+
+    function openPanel() {
+      document.getElementById('slidePanel').classList.add('open');
+      document.getElementById('overlay').classList.add('show');
+    }
+
+    function closePanel() {
+      document.getElementById('slidePanel').classList.remove('open');
+      document.getElementById('overlay').classList.remove('show');
+    }
+
+    function renderMaterialLegend() {
+      const container = document.getElementById('materialLegend');
+      container.innerHTML = materialLegend.map(mat => `
+        <div class="legend-item">
+          <div class="legend-color" style="background: ${mat.color};"></div>
+          <div class="legend-name">${mat.name}</div>
+        </div>
+      `).join('');
+    }
+
+    // ========================================
+    // WALL LOADING
+    // ========================================
+    function loadWall(wallIndex) {
+      currentWallIndex = wallIndex;
+      currentBoxIndex = -1;
+      currentStep = 0;
+
+      // Clear edit selection
+      clearAllSelections();
+
+      const wall = walls[wallIndex];
+
+      // Update panel title to show wall name
+      document.querySelector('.panel-title').textContent = wall.entityName || `Wall ${wallIndex + 1}`;
+
+      wallGroup.clear();
+      boxGroups = [];
+      plankMeshes = [];
+      boxOriginalPositions.clear();
+
+      createWallSurface(wall);
+
+      wall.boxes.forEach((box, boxIndex) => {
+        createBox(box, boxIndex);
+      });
+
+      updateBoxList(wall);
+      updateStepControls();
+      hideCurrentPlankInfo();
+      hideCurrentBoxInfo();
+
+      setTimeout(fitToView, 100);
+    }
+
+    function clearAllSelections() {
+      if (selectedPlankMesh) {
+        selectedPlankMesh.material.emissive = new THREE.Color(0x000000);
+        selectedPlankMesh = null;
+      }
+      if (selectedBoxGroup) {
+        // Reset box highlight
+        selectedBoxGroup.userData.plankMeshes.forEach(mesh => {
+          mesh.material.emissive = new THREE.Color(0x000000);
+        });
+        selectedBoxGroup = null;
+      }
+      transformControls.detach();
+    }
+
+    function createWallSurface(wall) {
+      const geometry = new THREE.BoxGeometry(
+        wall.dimensions.lenX,
+        50,
+        wall.dimensions.lenZ
+      );
+
+      const material = new THREE.MeshLambertMaterial({
+        color: 0xF9FAFB,
+        transparent: true,
+        opacity: 0.8
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(
+        wall.dimensions.lenX / 2,
+        -25,
+        wall.dimensions.lenZ / 2
+      );
+      mesh.receiveShadow = true;
+
+      wallGroup.add(mesh);
+    }
+
+    // ========================================
+    // BOX CREATION
+    // ========================================
+    function createBox(box, boxIndex) {
+      const boxGroup3D = new THREE.Group();
+      boxGroup3D.userData = {
+        type: 'box',
+        data: box,
+        boxIndex: boxIndex,
+        plankMeshes: [],
+        originalY: box.position.z,
+        originalPosition: new THREE.Vector3(box.position.x, box.position.z, -box.position.y)
+      };
+
+      // Position box at EXACT coordinates (no modification)
+      boxGroup3D.position.set(
+        box.position.x,
+        box.position.z,
+        -box.position.y
+      );
+
+      // Store original position for delta calculation
+      boxOriginalPositions.set(boxIndex, boxGroup3D.position.clone());
+
+      box.planks.forEach((plank, plankIndex) => {
+        const plankMesh = createPlank(plank, plankIndex, box);
+        boxGroup3D.add(plankMesh);
+        boxGroup3D.userData.plankMeshes.push(plankMesh);
+        plankMeshes.push(plankMesh);
+      });
+
+      wallGroup.add(boxGroup3D);
+      boxGroups.push(boxGroup3D);
+    }
+
+    // ========================================
+    // PLANK CREATION
+    // ========================================
+    function createPlank(plank, plankIndex, parentBox) {
+      const geometry = new THREE.BoxGeometry(
+        plank.dimensions.lenX,
+        plank.dimensions.lenZ,
+        plank.dimensions.lenY
+      );
+
+      // Use material color
+      const color = new THREE.Color(plank.materialColor);
+      const material = new THREE.MeshLambertMaterial({
+        color: color,
+        transparent: true,
+        opacity: 0.95
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+
+      mesh.position.set(
+        plank.position.x + plank.dimensions.lenX / 2,
+        plank.position.z + plank.dimensions.lenZ / 2,
+        -(plank.position.y + plank.dimensions.lenY / 2)
+      );
+
+      mesh.userData = {
+        type: 'plank',
+        data: plank,
+        plankIndex: plankIndex,
+        parentBox: parentBox,
+        originalPosition: mesh.position.clone(),
+        explodeDirection: new THREE.Vector3(
+          plank.explodeDirection.x,
+          plank.explodeDirection.z,
+          -plank.explodeDirection.y
+        )
+      };
+
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+
+      // Add edges
+      const edges = new THREE.EdgesGeometry(geometry);
+      const edgeMaterial = new THREE.LineBasicMaterial({
+        color: 0x374151,
+        transparent: true,
+        opacity: 0.3
+      });
+      const wireframe = new THREE.LineSegments(edges, edgeMaterial);
+      mesh.add(wireframe);
+
+      // Add label on largest face
+      if (font) {
+        addSmartLabel(mesh, plank);
+      }
+
+      return mesh;
+    }
+
+    // ========================================
+    // SMART LABEL PLACEMENT
+    // ========================================
+    function addSmartLabel(mesh, plank) {
+      const { lenX, lenY, lenZ } = plank.dimensions;
+
+      // Find largest face
+      const faces = [
+        { area: lenX * lenZ, axis: 'front', w: lenX, h: lenZ },
+        { area: lenX * lenY, axis: 'top', w: lenX, h: lenY },
+        { area: lenY * lenZ, axis: 'side', w: lenY, h: lenZ }
+      ];
+      faces.sort((a, b) => b.area - a.area);
+      const face = faces[0];
+
+      if (face.w < 40 || face.h < 40) return;
+
+      // Calculate font size based on face area
+      let fontSize = Math.min(face.w * 0.12, face.h * 0.15, 35);
+      fontSize = Math.max(fontSize, 12);
+
+      // Create ID text
+      const idGeo = new TextGeometry(plank.id, {
+        font: font,
+        size: fontSize,
+        height: 0.5,
+        curveSegments: 4
+      });
+      idGeo.computeBoundingBox();
+      const idWidth = idGeo.boundingBox.max.x - idGeo.boundingBox.min.x;
+
+      const idMaterial = new THREE.MeshBasicMaterial({
+        color: 0x374151,
+        transparent: true,
+        opacity: 0.9
+      });
+
+      const idMesh = new THREE.Mesh(idGeo, idMaterial);
+
+      // Create dimensions text
+      const dimText = `${lenX}×${lenY}×${lenZ}`;
+      const dimFontSize = fontSize * 0.5;
+      const dimGeo = new TextGeometry(dimText, {
+        font: font,
+        size: dimFontSize,
+        height: 0.3,
+        curveSegments: 3
+      });
+      dimGeo.computeBoundingBox();
+      const dimWidth = dimGeo.boundingBox.max.x - dimGeo.boundingBox.min.x;
+
+      const dimMaterial = new THREE.MeshBasicMaterial({
+        color: 0x6B7280,
+        transparent: true,
+        opacity: 0.7
+      });
+
+      const dimMesh = new THREE.Mesh(dimGeo, dimMaterial);
+
+      // Position based on face orientation
+      if (face.axis === 'front') {
+        idMesh.position.set(-idWidth / 2, fontSize * 0.3, lenY / 2 + 1);
+        dimMesh.position.set(-dimWidth / 2, -fontSize * 0.5, lenY / 2 + 1);
+      } else if (face.axis === 'top') {
+        idMesh.position.set(-idWidth / 2, lenZ / 2 + 1, 0);
+        idMesh.rotation.x = -Math.PI / 2;
+        dimMesh.position.set(-dimWidth / 2, lenZ / 2 + 1, fontSize);
+        dimMesh.rotation.x = -Math.PI / 2;
+      } else {
+        idMesh.position.set(lenX / 2 + 1, fontSize * 0.3, 0);
+        idMesh.rotation.y = Math.PI / 2;
+        dimMesh.position.set(lenX / 2 + 1, -fontSize * 0.5, 0);
+        dimMesh.rotation.y = Math.PI / 2;
+      }
+
+      mesh.add(idMesh);
+      mesh.add(dimMesh);
+    }
+
+    // ========================================
+    // BOX SELECTION
+    // ========================================
+    function selectBox(boxIndex) {
+      const previousBoxIndex = currentBoxIndex;
+      currentBoxIndex = boxIndex;
+      currentStep = 0;
+      explodeAmount = 0;
+      document.getElementById('explodeSlider').value = 0;
+      document.getElementById('explodeValue').textContent = '0%';
+
+      // Update UI selection
+      document.querySelectorAll('.box-item').forEach((item, i) => {
+        item.classList.toggle('selected', i === boxIndex);
+      });
+
+      // Animate boxes
+      boxGroups.forEach((boxGroup3D, i) => {
+        const isSelected = i === boxIndex;
+        const wasPrevious = i === previousBoxIndex;
+
+        // Ghost non-selected
+        boxGroup3D.userData.plankMeshes.forEach(plankMesh => {
+          new TWEEN.Tween(plankMesh.material)
+            .to({ opacity: isSelected ? 0.95 : 0.15 }, 300)
+            .start();
+        });
+
+        // Move selected forward
+        if (isSelected) {
+          new TWEEN.Tween(boxGroup3D.position)
+            .to({ z: boxGroup3D.position.z + FORWARD_DISTANCE }, 500)
+            .easing(TWEEN.Easing.Quadratic.Out)
+            .start();
+        } else if (wasPrevious) {
+          // Move previous back
+          const originalZ = -walls[currentWallIndex].boxes[i].position.y;
+          new TWEEN.Tween(boxGroup3D.position)
+            .to({ z: originalZ }, 500)
+            .easing(TWEEN.Easing.Quadratic.Out)
+            .start();
+        }
+      });
+
+      // Show checklist
+      const box = walls[currentWallIndex].boxes[boxIndex];
+      renderChecklist(box);
+      document.getElementById('checklistSection').style.display = 'block';
+
+      // Update step controls
+      updateStepControls();
+      showCurrentPlankInfo();
+      updatePlankVisibility();
+
+      // Fit to selected box
+      setTimeout(() => fitToBox(boxIndex), 600);
+    }
+
+    function renderChecklist(box) {
+      const container = document.getElementById('checklist');
+      container.innerHTML = box.checklist.map((item, i) => `
+        <div class="checklist-item" data-index="${i}">
+          <div class="checklist-checkbox">✓</div>
+          <div class="checklist-info">
+            <div class="checklist-name">${item.name}</div>
+            <div class="checklist-dims">${item.material} • ${item.dimensions}</div>
+          </div>
+          <div class="checklist-id">${item.id}</div>
+        </div>
+      `).join('');
+
+      // Add click handlers
+      container.querySelectorAll('.checklist-item').forEach(item => {
+        item.addEventListener('click', () => {
+          item.classList.toggle('checked');
+          const idx = parseInt(item.dataset.index);
+          zoomToPlank(idx);
+        });
+      });
+    }
+
+    // ========================================
+    // STEP CONTROL
+    // ========================================
+    function changeStep(delta) {
+      if (currentBoxIndex < 0) return;
+
+      const box = walls[currentWallIndex].boxes[currentBoxIndex];
+      const maxStep = box.planks.length;
+
+      currentStep = Math.max(0, Math.min(currentStep + delta, maxStep));
+
+      updateStepControls();
+      showCurrentPlankInfo();
+      updatePlankVisibility();
+
+      if (currentStep > 0) {
+        zoomToPlank(currentStep - 1);
+      }
+    }
+
+    function updateStepControls() {
+      const hasBox = currentBoxIndex >= 0;
+      let maxStep = 0;
+
+      if (hasBox) {
+        maxStep = walls[currentWallIndex].boxes[currentBoxIndex].planks.length;
+      }
+
+      document.getElementById('stepNumber').textContent = hasBox ? currentStep : '--';
+      document.getElementById('stepTotal').textContent = hasBox ? `of ${maxStep}` : 'of --';
+
+      document.getElementById('prevStepBtn').disabled = !hasBox || currentStep <= 0;
+      document.getElementById('nextStepBtn').disabled = !hasBox || currentStep >= maxStep;
+    }
+
+    function showCurrentPlankInfo() {
+      const infoEl = document.getElementById('currentPlankInfo');
+
+      if (currentBoxIndex < 0 || currentStep === 0) {
+        infoEl.classList.remove('show');
+        return;
+      }
+
+      infoEl.classList.add('show');
+
+      const box = walls[currentWallIndex].boxes[currentBoxIndex];
+      const plank = box.planks[currentStep - 1];
+
+      document.getElementById('plankIdLarge').textContent = plank.id;
+      document.getElementById('plankNameDisplay').textContent = plank.entityName;
+      document.getElementById('plankRoomDisplay').textContent = box.roomName + ' • ' + box.entityName;
+      document.getElementById('plankMaterialDisplay').textContent = plank.material || 'No material';
+      document.getElementById('plankDimsDisplay').textContent =
+        `${plank.dimensions.lenX} × ${plank.dimensions.lenY} × ${plank.dimensions.lenZ} mm`;
+      document.getElementById('directionArrow').textContent = plank.assemblyDirection.arrow;
+      document.getElementById('directionText').textContent = plank.assemblyDirection.text;
+    }
+
+    function hideCurrentPlankInfo() {
+      document.getElementById('currentPlankInfo').classList.remove('show');
+    }
+
+    function showCurrentBoxInfo() {
+      if (!selectedBoxGroup) {
+        hideCurrentBoxInfo();
+        return;
+      }
+
+      const boxData = selectedBoxGroup.userData.data;
+      const boxEl = document.getElementById('currentBoxInfo');
+      
+      boxEl.classList.add('show');
+      document.getElementById('boxNameLarge').textContent = boxData.entityName || 'Box';
+      document.getElementById('boxDetailsDisplay').textContent = `${boxData.roomName} • ${boxData.boxType || 'Standard'}`;
+      
+      // Show current position
+      const pos = selectedBoxGroup.position;
+      document.getElementById('boxPositionDisplay').textContent = 
+        `Position: X=${Math.round(pos.x)}, Y=${Math.round(-pos.z)}, Z=${Math.round(pos.y)}`;
+      
+      document.getElementById('boxPlanksCount').textContent = 
+        `${boxData.planks.length} planks will be moved`;
+    }
+
+    function hideCurrentBoxInfo() {
+      document.getElementById('currentBoxInfo').classList.remove('show');
+    }
+
+    function updatePlankVisibility() {
+      if (currentBoxIndex < 0) return;
+
+      const boxGroup3D = boxGroups[currentBoxIndex];
+
+      boxGroup3D.userData.plankMeshes.forEach((plankMesh, plankIdx) => {
+        const stepNum = plankIdx + 1;
+        let opacity, emissive;
+
+        if (currentStep === 0) {
+          opacity = 0.95;
+          emissive = 0x000000;
+        } else if (stepNum < currentStep) {
+          opacity = 0.7;
+          emissive = 0x000000;
+        } else if (stepNum === currentStep) {
+          opacity = 1.0;
+          emissive = 0x225522;
+        } else {
+          opacity = 0.2;
+          emissive = 0x000000;
+        }
+
+        new TWEEN.Tween(plankMesh.material)
+          .to({ opacity: opacity }, 200)
+          .start();
+        plankMesh.material.emissive = new THREE.Color(emissive);
+      });
+    }
+
+    // ========================================
+    // EXPLODE
+    // ========================================
+    function onExplodeChange(e) {
+      explodeAmount = parseInt(e.target.value) / 100;
+      document.getElementById('explodeValue').textContent = `${e.target.value}%`;
+      updateExplode();
+    }
+
+    function updateExplode() {
+      if (currentBoxIndex < 0) return;
+
+      const boxGroup3D = boxGroups[currentBoxIndex];
+
+      boxGroup3D.userData.plankMeshes.forEach(plankMesh => {
+        const { originalPosition, explodeDirection } = plankMesh.userData;
+
+        plankMesh.position.set(
+          originalPosition.x + explodeDirection.x * explodeAmount,
+          originalPosition.y + explodeDirection.y * explodeAmount,
+          originalPosition.z + explodeDirection.z * explodeAmount
+        );
+      });
+    }
+
+    // ========================================
+    // ZOOM / FIT
+    // ========================================
+    function zoomToPlank(plankIndex) {
+      if (currentBoxIndex < 0) return;
+
+      const plankMesh = boxGroups[currentBoxIndex].userData.plankMeshes[plankIndex];
+      if (!plankMesh) return;
+
+      const worldPos = new THREE.Vector3();
+      plankMesh.getWorldPosition(worldPos);
+
+      const plankData = plankMesh.userData.data;
+      const maxDim = Math.max(plankData.dimensions.lenX, plankData.dimensions.lenY, plankData.dimensions.lenZ);
+      const distance = maxDim * 3;
+
+      new TWEEN.Tween(camera.position)
+        .to({
+          x: worldPos.x + distance * 0.5,
+          y: worldPos.y + distance * 0.3,
+          z: worldPos.z + distance * 0.8
+        }, 500)
+        .easing(TWEEN.Easing.Quadratic.Out)
+        .start();
+
+      new TWEEN.Tween(controls.target)
+        .to({ x: worldPos.x, y: worldPos.y, z: worldPos.z }, 500)
+        .easing(TWEEN.Easing.Quadratic.Out)
+        .onUpdate(() => controls.update())
+        .start();
+    }
+
+    function fitToBox(boxIndex) {
+      const boxGroup3D = boxGroups[boxIndex];
+      const box3 = new THREE.Box3().setFromObject(boxGroup3D);
+
+      if (box3.isEmpty()) return;
+
+      const size = box3.getSize(new THREE.Vector3());
+      const center = box3.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+
+      const fov = camera.fov * (Math.PI / 180);
+      let distance = maxDim / (2 * Math.tan(fov / 2)) * 2.5;
+
+      new TWEEN.Tween(camera.position)
+        .to({
+          x: center.x + distance * 0.6,
+          y: center.y + distance * 0.4,
+          z: center.z + distance * 0.8
+        }, 600)
+        .easing(TWEEN.Easing.Quadratic.Out)
+        .start();
+
+      new TWEEN.Tween(controls.target)
+        .to({ x: center.x, y: center.y, z: center.z }, 600)
+        .easing(TWEEN.Easing.Quadratic.Out)
+        .onUpdate(() => controls.update())
+        .start();
+    }
+
+    function fitToView() {
+      const box3 = new THREE.Box3().setFromObject(wallGroup);
+
+      if (box3.isEmpty()) return;
+
+      const size = box3.getSize(new THREE.Vector3());
+      const center = box3.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+
+      const fov = camera.fov * (Math.PI / 180);
+      let distance = maxDim / (2 * Math.tan(fov / 2)) * 1.8;
+
+      new TWEEN.Tween(camera.position)
+        .to({
+          x: center.x + distance * 0.5,
+          y: center.y + distance * 0.4,
+          z: center.z + distance * 0.9
+        }, 600)
+        .easing(TWEEN.Easing.Quadratic.Out)
+        .start();
+
+      new TWEEN.Tween(controls.target)
+        .to({ x: center.x, y: center.y, z: center.z }, 600)
+        .easing(TWEEN.Easing.Quadratic.Out)
+        .onUpdate(() => controls.update())
+        .start();
+    }
+
+    // ========================================
+    // UI UPDATES
+    // ========================================
+    function updateBoxList(wall) {
+      const boxList = document.getElementById('boxList');
+      const boxListLabel = document.getElementById('boxListLabel');
+
+      boxListLabel.textContent = `Boxes (${wall.boxes.length})`;
+
+      if (wall.boxes.length === 0) {
+        boxList.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-medium);">No boxes in this wall</div>';
+        return;
+      }
+
+      boxList.innerHTML = wall.boxes.map((box, index) => `
+        <div class="box-item" data-index="${index}">
+          <div class="box-item-name">${box.entityName || 'Box ' + (index + 1)}</div>
+          <div class="box-item-meta">${box.planks.length} planks</div>
+        </div>
+      `).join('');
+
+      boxList.querySelectorAll('.box-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const idx = parseInt(item.dataset.index);
+          selectBox(idx);
+          closePanel();
+        });
+      });
+    }
+
+    // ========================================
+    // INTERACTION
+    // ========================================
+    function onPointerMove(event) {
+      const rect = container.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(plankMeshes, false);
+
+      if (intersects.length > 0) {
+        const plank = intersects[0].object.userData.data;
+        const parentBox = intersects[0].object.userData.parentBox;
+
+        tooltip.style.display = 'block';
+        tooltip.style.left = `${event.clientX - container.getBoundingClientRect().left + 15}px`;
+        tooltip.style.top = `${event.clientY - container.getBoundingClientRect().top + 15}px`;
+
+        if (editMode === 'boxMove') {
+          // Show box info in tooltip
+          tooltip.innerHTML = `
+            <strong style="color: #3B82F6; font-size: 16px;">📦 ${parentBox.entityName || 'Box'}</strong><br>
+            <span style="color: #9CA3AF; font-size: 11px;">${parentBox.planks.length} planks</span><br>
+            <span style="font-family: monospace;">Click to select & move box</span>
+          `;
+        } else {
+          tooltip.innerHTML = `
+            <strong style="color: var(--primary); font-size: 16px;">${plank.id}</strong><br>
+            <strong>${plank.entityName}</strong><br>
+            <span style="color: #9CA3AF; font-size: 11px;">${plank.material || 'No material'}</span><br>
+            <span style="font-family: monospace;">${plank.dimensions.lenX} × ${plank.dimensions.lenY} × ${plank.dimensions.lenZ} mm</span>
+          `;
+        }
+      } else {
+        tooltip.style.display = 'none';
+      }
+    }
+
+    function onPointerClick(event) {
+      // Don't process clicks when interacting with transform controls
+      if (transformControls.dragging) return;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(plankMeshes, false);
+
+      if (intersects.length > 0) {
+        const plankMesh = intersects[0].object;
+        const plankData = plankMesh.userData.data;
+        const parentBox = plankMesh.userData.parentBox;
+
+        // BOX MOVE MODE - Select the entire box
+        if (editMode === 'boxMove') {
+          // Find the box group that contains this plank
+          const boxIndex = walls[currentWallIndex].boxes.findIndex(b => b.id === parentBox.id);
+          if (boxIndex >= 0) {
+            selectBoxForEdit(boxGroups[boxIndex]);
+          }
+          return;
+        }
+
+        // If in plank edit mode, select plank for editing
+        if (editMode === 'move' || editMode === 'rotate') {
+          selectPlankForEdit(plankMesh);
+          return;
+        }
+
+        // View mode - original behavior
+        // Find and select parent box
+        const boxIndex = walls[currentWallIndex].boxes.findIndex(b => b.id === parentBox.id);
+        if (boxIndex >= 0 && boxIndex !== currentBoxIndex) {
+          selectBox(boxIndex);
+        }
+
+        // Jump to plank step
+        currentStep = plankData.stepNumber;
+        updateStepControls();
+        showCurrentPlankInfo();
+        updatePlankVisibility();
+      } else {
+        // Clicked empty space - deselect
+        if (editMode === 'boxMove' && selectedBoxGroup) {
+          selectedBoxGroup.userData.plankMeshes.forEach(mesh => {
+            mesh.material.emissive = new THREE.Color(0x000000);
+          });
+          selectedBoxGroup = null;
+          transformControls.detach();
+          hideCurrentBoxInfo();
+        } else if (editMode !== 'view' && selectedPlankMesh) {
+          selectedPlankMesh.material.emissive = new THREE.Color(0x000000);
+          selectedPlankMesh = null;
+          transformControls.detach();
+        }
+      }
+    }
+
+    function onWindowResize() {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    // ========================================
+    // EDIT MODE FUNCTIONS
+    // ========================================
+    function setEditMode(mode) {
+      editMode = mode;
+
+      // Clear previous selections
+      clearAllSelections();
+
+      // Update button states
+      document.querySelectorAll('.edit-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(mode + 'ModeBtn').classList.add('active');
+
+      // Hide info panels
+      hideCurrentPlankInfo();
+      hideCurrentBoxInfo();
+
+      // Update transform controls and hints
+      const transformHint = document.getElementById('transformHint');
+      transformHint.classList.remove('box-mode');
+
+      if (mode === 'view') {
+        transformControls.detach();
+        transformHint.classList.remove('show');
+      } else if (mode === 'move') {
+        transformControls.setMode('translate');
+        transformHint.textContent = 'Click a plank to move it';
+        transformHint.classList.add('show');
+      } else if (mode === 'rotate') {
+        transformControls.setMode('rotate');
+        transformHint.textContent = 'Click a plank to rotate it';
+        transformHint.classList.add('show');
+      } else if (mode === 'boxMove') {
+        transformControls.setMode('translate');
+        transformHint.textContent = '📦 Click a box to select and move it (all planks will move)';
+        transformHint.classList.add('show');
+        transformHint.classList.add('box-mode');
+      }
+    }
+
+    function selectPlankForEdit(plankMesh) {
+      // Deselect previous
+      if (selectedPlankMesh && selectedPlankMesh !== plankMesh) {
+        selectedPlankMesh.material.emissive = new THREE.Color(0x000000);
+      }
+
+      selectedPlankMesh = plankMesh;
+
+      // Highlight selected
+      selectedPlankMesh.material.emissive = new THREE.Color(0x333300);
+
+      // Attach transform controls if in edit mode
+      if (editMode === 'move') {
+        transformControls.setMode('translate');
+        transformControls.attach(selectedPlankMesh);
+      } else if (editMode === 'rotate') {
+        transformControls.setMode('rotate');
+        transformControls.attach(selectedPlankMesh);
+      }
+
+      // Update info panel
+      const plankData = selectedPlankMesh.userData.data;
+      document.getElementById('plankIdLarge').textContent = plankData.id;
+      document.getElementById('plankNameDisplay').textContent = plankData.entityName;
+      document.getElementById('plankMaterialDisplay').textContent = plankData.material || 'No material';
+      document.getElementById('currentPlankInfo').classList.add('show');
+    }
+
+    function selectBoxForEdit(boxGroup) {
+      // Deselect previous box
+      if (selectedBoxGroup && selectedBoxGroup !== boxGroup) {
+        selectedBoxGroup.userData.plankMeshes.forEach(mesh => {
+          mesh.material.emissive = new THREE.Color(0x000000);
+        });
+      }
+
+      selectedBoxGroup = boxGroup;
+
+      // Highlight all planks in the box with blue tint
+      selectedBoxGroup.userData.plankMeshes.forEach(mesh => {
+        mesh.material.emissive = new THREE.Color(0x1a3366);
+      });
+
+      // Attach transform controls to the box group
+      transformControls.setMode('translate');
+      transformControls.attach(selectedBoxGroup);
+
+      // Show box info
+      showCurrentBoxInfo();
+    }
+
+    function updatePlankInfoFromMesh(mesh) {
+      // Update the plank data based on mesh position
+      const plankData = mesh.userData.data;
+      const parentBox = mesh.userData.parentBox;
+
+      // Get local position relative to box
+      const localPos = mesh.position.clone();
+      
+      // Convert from Three.js coords back to SketchUp/data coords
+      // Three.js: X = X, Y = Z (height), Z = -Y (depth)
+      // Data: X = X, Y = depth, Z = height
+      const halfLenX = plankData.dimensions.lenX / 2;
+      const halfLenY = plankData.dimensions.lenY / 2;
+      const halfLenZ = plankData.dimensions.lenZ / 2;
+
+      plankData.position.x = Math.round(localPos.x - halfLenX);
+      plankData.position.y = Math.round(-localPos.z - halfLenY);
+      plankData.position.z = Math.round(localPos.y - halfLenZ);
+
+      // Update displayed dimensions
+      document.getElementById('plankDimsDisplay').textContent =
+        `${plankData.dimensions.lenX} × ${plankData.dimensions.lenY} × ${plankData.dimensions.lenZ} mm`;
+    }
+
+    function updateBoxInfoFromGroup(boxGroup) {
+      // Update box info display with current position
+      const pos = boxGroup.position;
+      document.getElementById('boxPositionDisplay').textContent = 
+        `Position: X=${Math.round(pos.x)}, Y=${Math.round(-pos.z)}, Z=${Math.round(pos.y)}`;
+    }
+
+    function updatePlankDimensionsFromRotation(mesh) {
+      const plankData = mesh.userData.data;
+      const rotation = mesh.rotation;
+
+      // Get original dimensions
+      let lenX = plankData.dimensions.lenX;
+      let lenY = plankData.dimensions.lenY;
+      let lenZ = plankData.dimensions.lenZ;
+
+      // Check rotation angles (in radians) - snap to 90° increments
+      const snapAngle = (angle) => {
+        const deg = THREE.MathUtils.radToDeg(angle);
+        const snapped = Math.round(deg / 90) * 90;
+        return snapped % 360;
+      };
+
+      const rotX = snapAngle(rotation.x);
+      const rotY = snapAngle(rotation.y);
+      const rotZ = snapAngle(rotation.z);
+
+      // Swap dimensions based on rotation
+      // Rotation around Z axis (yaw): swaps X and Y
+      if (rotZ === 90 || rotZ === -90 || rotZ === 270 || rotZ === -270) {
+        [lenX, lenY] = [lenY, lenX];
+      }
+
+      // Rotation around X axis (pitch): swaps Y and Z
+      if (rotX === 90 || rotX === -90 || rotX === 270 || rotX === -270) {
+        [lenY, lenZ] = [lenZ, lenY];
+      }
+
+      // Rotation around Y axis (roll): swaps X and Z
+      if (rotY === 90 || rotY === -90 || rotY === 270 || rotY === -270) {
+        [lenX, lenZ] = [lenZ, lenX];
+      }
+
+      // Update plank data
+      plankData.dimensions.lenX = lenX;
+      plankData.dimensions.lenY = lenY;
+      plankData.dimensions.lenZ = lenZ;
+
+      // Update the mesh geometry to match new dimensions
+      mesh.geometry.dispose();
+      mesh.geometry = new THREE.BoxGeometry(lenX, lenZ, lenY);
+
+      // Reset rotation after applying dimension swap
+      mesh.rotation.set(0, 0, 0);
+
+      // Add edges back
+      const existingEdges = mesh.children.find(c => c.type === 'LineSegments');
+      if (existingEdges) {
+        mesh.remove(existingEdges);
+      }
+      const edges = new THREE.EdgesGeometry(mesh.geometry);
+      const edgeMaterial = new THREE.LineBasicMaterial({
+        color: 0x374151,
+        transparent: true,
+        opacity: 0.3
+      });
+      const wireframe = new THREE.LineSegments(edges, edgeMaterial);
+      mesh.add(wireframe);
+
+      // Update displayed dimensions
+      document.getElementById('plankDimsDisplay').textContent =
+        `${lenX} × ${lenY} × ${lenZ} mm`;
+
+      console.log(`Dimensions updated: ${lenX} × ${lenY} × ${lenZ}`);
+    }
+
+    function saveSelectedPlankToSheet() {
+      if (!selectedPlankMesh) return;
+
+      const plankData = selectedPlankMesh.userData.data;
+      const rowIndex = plankData.rowIndex;
+
+      if (!rowIndex) {
+        console.warn('No row index for plank');
+        return;
+      }
+
+      showSaveIndicator('saving');
+
+      // Check if we're in rotate mode - update dimensions too
+      if (editMode === 'rotate') {
+        updatePlankDimensionsFromRotation(selectedPlankMesh);
+        
+        // Save both position and dimensions
+        google.script.run
+          .withSuccessHandler(() => {
+            showSaveIndicator('success');
+            setTimeout(() => hideSaveIndicator(), 1500);
+          })
+          .withFailureHandler((error) => {
+            console.error('Save failed:', error);
+            showSaveIndicator('error');
+            setTimeout(() => hideSaveIndicator(), 2000);
+          })
+          .updatePlankFull(
+            rowIndex,
+            plankData.position.x,
+            plankData.position.y,
+            plankData.position.z,
+            plankData.dimensions.lenX,
+            plankData.dimensions.lenY,
+            plankData.dimensions.lenZ
+          );
+      } else {
+        // Just save position
+        google.script.run
+          .withSuccessHandler(() => {
+            showSaveIndicator('success');
+            setTimeout(() => hideSaveIndicator(), 1500);
+          })
+          .withFailureHandler((error) => {
+            console.error('Save failed:', error);
+            showSaveIndicator('error');
+            setTimeout(() => hideSaveIndicator(), 2000);
+          })
+          .updatePlankPosition(
+            rowIndex,
+            plankData.position.x,
+            plankData.position.y,
+            plankData.position.z
+          );
+      }
+    }
+
+    // ========================================
+    // BOX SAVE FUNCTIONS
+    // ========================================
+    function saveSelectedBoxToSheet() {
+      if (!selectedBoxGroup) return;
+
+      const boxData = selectedBoxGroup.userData.data;
+      const boxIndex = selectedBoxGroup.userData.boxIndex;
+      const originalPos = boxOriginalPositions.get(boxIndex);
+      const currentPos = selectedBoxGroup.position;
+
+      // Calculate delta movement
+      const deltaX = currentPos.x - originalPos.x;
+      const deltaY = currentPos.y - originalPos.y;  // This is Z in data coords
+      const deltaZ = currentPos.z - originalPos.z;  // This is -Y in data coords
+
+      showSaveIndicator('saving');
+
+      // Build array of plank updates
+      const plankUpdates = [];
+      
+      selectedBoxGroup.userData.plankMeshes.forEach(plankMesh => {
+        const plankData = plankMesh.userData.data;
+        
+        if (plankData.rowIndex) {
+          // Calculate new absolute position for each plank
+          // Apply delta in data coordinate system
+          const newX = plankData.position.x + deltaX;
+          const newY = plankData.position.y - deltaZ;  // deltaZ is -Y, so subtract
+          const newZ = plankData.position.z + deltaY;  // deltaY is Z
+          
+          plankUpdates.push({
+            rowIndex: plankData.rowIndex,
+            newX: Math.round(newX),
+            newY: Math.round(newY),
+            newZ: Math.round(newZ)
+          });
+
+          // Update the plank data in memory
+          plankData.position.x = Math.round(newX);
+          plankData.position.y = Math.round(newY);
+          plankData.position.z = Math.round(newZ);
+        }
+      });
+
+      // Calculate new box position
+      const newBoxX = boxData.position.x + deltaX;
+      const newBoxY = boxData.position.y - deltaZ;
+      const newBoxZ = boxData.position.z + deltaY;
+
+      // Update box data in memory
+      boxData.position.x = Math.round(newBoxX);
+      boxData.position.y = Math.round(newBoxY);
+      boxData.position.z = Math.round(newBoxZ);
+
+      // Update stored original position
+      boxOriginalPositions.set(boxIndex, currentPos.clone());
+
+      // Save to sheet
+      google.script.run
+        .withSuccessHandler((result) => {
+          if (result.success) {
+            showSaveIndicator('success');
+            console.log(`Box moved: ${result.updatedCount} planks updated`);
+          } else {
+            showSaveIndicator('error');
+            console.error('Save failed:', result.error);
+          }
+          setTimeout(() => hideSaveIndicator(), 1500);
+        })
+        .withFailureHandler((error) => {
+          console.error('Save failed:', error);
+          showSaveIndicator('error');
+          setTimeout(() => hideSaveIndicator(), 2000);
+        })
+        .updateBoxAndPlanksPosition(
+          boxData.rowIndex,
+          Math.round(newBoxX),
+          Math.round(newBoxY),
+          Math.round(newBoxZ),
+          plankUpdates
+        );
+    }
+
+    function showSaveIndicator(state) {
+      const indicator = document.getElementById('saveIndicator');
+      indicator.classList.remove('success', 'error');
+      
+      if (state === 'saving') {
+        indicator.querySelector('.save-text').textContent = editMode === 'boxMove' ? 'Saving box...' : 'Saving...';
+        indicator.querySelector('.save-icon').textContent = '💾';
+      } else if (state === 'success') {
+        indicator.classList.add('success');
+        indicator.querySelector('.save-text').textContent = editMode === 'boxMove' ? 'Box saved!' : 'Saved!';
+        indicator.querySelector('.save-icon').textContent = '✓';
+      } else if (state === 'error') {
+        indicator.classList.add('error');
+        indicator.querySelector('.save-text').textContent = 'Error!';
+        indicator.querySelector('.save-icon').textContent = '✕';
+      }
+      
+      indicator.classList.add('show');
+    }
+
+    function hideSaveIndicator() {
+      document.getElementById('saveIndicator').classList.remove('show');
+    }
+
+    // ========================================
+    // ANIMATION LOOP
+    // ========================================
+    function animate() {
+      requestAnimationFrame(animate);
+      TWEEN.update();
+      controls.update();
+      renderer.render(scene, camera);
+    }
+  </script>
+</body>
+</html>
