@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import type { Invoice, InvoiceItem } from "@/types/visualiser";
+import { useProcessedDataStore, useReportsStore } from "@/store/visualiserStore";
 
 const DEMO_INVOICE: Invoice = {
   customerName: "John Smith",
@@ -22,7 +23,29 @@ const DEMO_INVOICE: Invoice = {
 };
 
 export function InvoiceReport() {
-  const [invoice, setInvoice] = useState<Invoice>(DEMO_INVOICE);
+  const { getInvoice, processedData } = useProcessedDataStore();
+  const { invoiceData } = useReportsStore();
+  
+  // Convert processed invoice data to Invoice type
+  const processedInvoice = useMemo((): Invoice | null => {
+    const inv = invoiceData || getInvoice();
+    if (!inv || !processedData) return null;
+    
+    return {
+      customerName: processedData.customerName,
+      projectId: processedData.projectId,
+      date: processedData.date,
+      items: inv.items.map(item => ({
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.rate,
+        totalPrice: item.amount,
+      })),
+      totalAmount: inv.totalAmount,
+    };
+  }, [invoiceData, getInvoice, processedData]);
+  
+  const [invoice, setInvoice] = useState<Invoice>(processedInvoice || DEMO_INVOICE);
   const [showGST, setShowGST] = useState(true);
 
   const subtotal = invoice.items.reduce((sum, item) => sum + item.totalPrice, 0);

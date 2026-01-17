@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
-import { useGCodeStore, useAppStore } from "@/store/visualiserStore";
+import React, { useState, useCallback, useMemo } from "react";
+import { useGCodeStore, useAppStore, useProcessedDataStore } from "@/store/visualiserStore";
 import {
   generateGCodeForProject,
   generateGCodeZip,
   DEFAULT_CONFIG,
   type ProjectGCodeResult,
 } from "@/lib/visualiser/gcodeGenerator";
-import type { GCodePlank, GCodeConfig } from "@/types/visualiser";
+import type { GCodePlank, GCodeConfig, NestResult } from "@/types/visualiser";
 
 // Demo data
 const DEMO_PLANKS: Record<string, GCodePlank[]> = {
@@ -94,25 +94,61 @@ const DEMO_PLANKS: Record<string, GCodePlank[]> = {
   ],
 };
 
+// Convert NestResult to GCodePlank format
+function convertNestResultToGCodePlanks(nestResult: Record<number, NestResult[]>): Record<string, GCodePlank[]> {
+  const gcodePlanks: Record<string, GCodePlank[]> = {};
+  
+  for (const [sheetNum, planks] of Object.entries(nestResult)) {
+    const sheetKey = `Sheet_${sheetNum}`;
+    gcodePlanks[sheetKey] = planks.map(plank => ({
+      id: plank.id,
+      name: plank.name,
+      material: plank.material,
+      thickness: plank.thickness,
+      sheet: sheetKey,
+      x: plank.x,
+      y: plank.y,
+      placedWidth: plank.width,
+      placedHeight: plank.height,
+      rotated: plank.rotated,
+      features: {}, // Operations would come from hole data if available
+    }));
+  }
+  
+  return gcodePlanks;
+}
+
 export default function GCodeGenerator() {
   const { results, isGenerating, progress, setResults, setIsGenerating, setProgress } = useGCodeStore();
-  const { spreadsheetName } = useAppStore();
+  const { projectName } = useAppStore();
+  const { getNestResult, processedData } = useProcessedDataStore();
 
   const [config, setConfig] = useState<GCodeConfig>(DEFAULT_CONFIG);
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [previewContent, setPreviewContent] = useState<string>("");
+
+  // Get planks from processed data or use demo
+  const planksBySheet = useMemo(() => {
+    const nestResult = getNestResult();
+    if (Object.keys(nestResult).length > 0) {
+      return convertNestResultToGCodePlanks(nestResult);
+    }
+    return DEMO_PLANKS;
+  }, [getNestResult, processedData]);
 
   const handleGenerate = useCallback(async () => {
     setIsGenerating(true);
     setProgress(0);
 
     // Simulate progress
+    let progressValue = 0;
     const progressInterval = setInterval(() => {
-      setProgress((prev: number) => Math.min(prev + 10, 90));
+      progressValue = Math.min(progressValue + 10, 90);
+      setProgress(progressValue);
     }, 200);
 
     try {
-      const result = generateGCodeForProject(DEMO_PLANKS, { config });
+      const result = generateGCodeForProject(planksBySheet, { config });
       setResults(result.files);
       setProgress(100);
     } catch (error) {
@@ -121,7 +157,7 @@ export default function GCodeGenerator() {
       clearInterval(progressInterval);
       setIsGenerating(false);
     }
-  }, [config, setIsGenerating, setProgress, setResults]);
+  }, [config, planksBySheet, setIsGenerating, setProgress, setResults]);
 
   const handleDownloadZip = useCallback(async () => {
     if (results.length === 0) return;
@@ -133,21 +169,21 @@ export default function GCodeGenerator() {
       byMaterial: {},
     };
 
-    const blob = await generateGCodeZip(projectResult, spreadsheetName || "Nestup_Project");
+    const blob = await generateGCodeZip(projectResult, projectName || "Nestup_Project");
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${spreadsheetName || "Nestup_Project"}_GCode.zip`;
+    a.download = `${projectName || "Nestup_Project"}_GCode.zip`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [results, spreadsheetName]);
+  }, [results, projectName]);
 
   const handlePreview = useCallback((content: string) => {
     setPreviewContent(content);
   }, []);
 
-  const totalPlanks = Object.values(DEMO_PLANKS).flat().length;
-  const totalSheets = Object.keys(DEMO_PLANKS).length;
+  const totalPlanks = Object.values(planksBySheet).flat().length;
+  const totalSheets = Object.keys(planksBySheet).length;
 
   return (
     <div className="flex-1 flex flex-col bg-slate-900 text-white">

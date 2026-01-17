@@ -333,27 +333,387 @@ export interface SpreadsheetInfo {
 }
 
 // ---- 3D Designer Types ----
+
+// Helper types
+export interface Position3D {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface BoxDimensions {
+  boxWidth: number;
+  boxDepth: number;
+  boxHeight: number;
+  skirtingHeight?: number;
+}
+
+export interface BoxMaterials {
+  carcassPly?: string;
+  doorPly?: string;
+  backPly?: string;
+  carcassThickness?: number;
+  doorThickness?: number;
+  backplankThickness?: number;
+}
+
+// Wall for designer (extends base Wall)
+export interface DesignerWall {
+  id: string;
+  name: string;
+  roomName: string;
+  sortOrder: number;
+  
+  // Dimensions
+  width: number;   // mm
+  height: number;  // mm
+  depth: number;   // mm (wall thickness)
+  color: string;
+  
+  // LiDAR integration
+  isFromScan?: boolean;
+  scanId?: string;
+  scanConfidence?: number;
+  boundaryPoints?: Position3D[];
+  
+  // Contained boxes
+  boxes: DesignerBox[];
+}
+
+// Extended Box for designer
 export interface DesignerBox {
   id: string;
   name: string;
   roomName: string;
-  position: Vector3D;
-  dimensions: Dimensions;
+  boxModel?: string;
+  boxType?: string;
+  templateId?: string;
+  sortOrder?: number;
+  
+  // Position (local to wall, in mm)
+  position: Position3D;
+  rotationZ: number;
+  
+  // Dimensions (user-adjustable)
+  dimensions: BoxDimensions & Dimensions;
+  
+  // Thicknesses (derived from material selection)
+  carcassThickness: number;
+  doorThickness: number;
+  backplankThickness: number;
+  
+  // Material selections (display names)
+  carcassPly?: string;
+  doorPly?: string;
+  backPly?: string;
+  
+  // Planks
   planks: DesignerPlank[];
+  
+  // UI state (not persisted)
   isSelected?: boolean;
 }
 
+// Extended Plank for designer
 export interface DesignerPlank {
   id: string;
   name: string;
-  material: string;
-  color: string;
-  position: Vector3D;
-  dimensions: Dimensions;
+  plankRole?: PlankRole;
+  sortOrder?: number;
   parentBoxId: string;
-  isSelected?: boolean;
+  
+  // Position relative to box
+  position: Position3D;
+  
+  // Dimensions
+  dimensions: Dimensions;
+  
+  // Material
+  material?: string;
+  materialString?: string;
+  outerLaminateCode?: string;
+  innerLaminateCode?: string;
+  coreMaterial?: string;
+  color: string;
+  
+  // Formula storage (for recalculation)
+  dimensionFormulas?: {
+    lenX?: string;
+    lenY?: string;
+    lenZ?: string;
+  };
+  positionFormulas?: {
+    x?: string;
+    y?: string;
+    z?: string;
+  };
+  
+  // Operations
   operations?: PlankOperations;
+  
+  // UI state
+  isSelected?: boolean;
 }
+
+export type PlankRole = 
+  | 'left' 
+  | 'right' 
+  | 'top' 
+  | 'bottom' 
+  | 'back' 
+  | 'shelf' 
+  | 'door' 
+  | 'drawer_front'
+  | 'partition'
+  | 'rail'
+  | 'other';
+
+// ---- Catalog Types ----
+
+export interface Catalog {
+  id: string;
+  name: string;
+  description?: string;
+  version: string;
+  isDefault: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  
+  // Column mappings from CSV
+  columnConfig?: CatalogColumnConfig;
+  
+  // Templates
+  boxTemplates: BoxTemplate[];
+}
+
+export interface CatalogColumnConfig {
+  entityName: number;
+  level: number;
+  boxModel: number;
+  boxType: number;
+  lenX: number;
+  lenY: number;
+  lenZ: number;
+  posX: number;
+  posY: number;
+  posZ: number;
+  boxWidth: number;
+  boxDepth: number;
+  boxHeight: number;
+  skirtingHeight: number;
+  material: number;
+  grainDirection: number;
+}
+
+export interface BoxTemplate {
+  id: string;
+  catalogId: string;
+  
+  entityName: string;
+  boxModel?: string;
+  boxType?: string;
+  
+  // Default dimensions
+  defaultWidth: number;
+  defaultDepth: number;
+  defaultHeight: number;
+  defaultSkirtingHeight: number;
+  
+  // Plank templates with formulas
+  plankTemplates: PlankTemplate[];
+  
+  // Preview
+  thumbnailUrl?: string;
+  previewColor?: string;
+}
+
+export interface PlankTemplate {
+  id: string;
+  entityName: string;
+  plankRole: PlankRole;
+  sortOrder: number;
+  
+  // Dimension formulas (e.g., "=carcassThickness", "=boxWidth - 2*carcassThickness")
+  lenXFormula: string;
+  lenYFormula: string;
+  lenZFormula: string;
+  
+  // Position formulas
+  posXFormula: string;
+  posYFormula: string;
+  posZFormula: string;
+  
+  // Default material
+  defaultMaterial?: string;
+  defaultColor?: string;
+  
+  // Sub-components (holes, hardware)
+  subComponents?: SubComponentTemplate[];
+}
+
+export interface SubComponentTemplate {
+  id: string;
+  entityName: string;
+  type: 'hole' | 'slot' | 'hardware';
+  posXFormula: string;
+  posYFormula: string;
+  posZFormula?: string;
+  parameters?: Record<string, any>;
+}
+
+// ---- Material Types ----
+
+export interface PlywoodMaterial {
+  id: string;
+  brand: string;
+  gradeType?: string;
+  material: 'Plywood' | 'MDF' | 'HDHMR' | 'Block Board' | 'Particle Board';
+  thickness: number;
+  pricePerSqft?: number;
+  displayName: string;
+  isActive: boolean;
+}
+
+export interface Laminate {
+  id: string;
+  code: string;
+  brand: string;
+  colour?: string;
+  thickness: number;
+  pricePerSqft?: number;
+  photoUrl?: string;
+  previewColor: string;
+  isActive: boolean;
+  category?: string;
+}
+
+// ---- Formula Types ----
+
+export interface FormulaContext {
+  boxWidth: number;
+  boxDepth: number;
+  boxHeight: number;
+  skirtingHeight: number;
+  carcassThickness: number;
+  doorThickness: number;
+  backplankThickness: number;
+  // Aliases for compatibility
+  box_width?: number;
+  box_depth?: number;
+  box_height?: number;
+  skirting?: number;
+  carcus_thickness?: number;
+  door_thickness?: number;
+  backplank_thickness?: number;
+}
+
+export interface CalculatedPlank {
+  entityName: string;
+  plankRole: PlankRole;
+  lenX: number;
+  lenY: number;
+  lenZ: number;
+  positionX: number;
+  positionY: number;
+  positionZ: number;
+}
+
+// ---- Snap Types ----
+
+export interface SnapSettings {
+  enabled: boolean;
+  gridSize: number;         // 50 or 100mm
+  snapDistance: number;     // Activation distance (default: 20mm)
+  floorSnap: boolean;
+  wallSnap: boolean;
+  boxEdgeSnap: boolean;
+  gridSnap: boolean;
+  cornerSnap: boolean;
+}
+
+export interface SnapPoint {
+  type: 'endpoint' | 'midpoint' | 'center' | 'face' | 'grid' | 'edge';
+  position: Position3D;
+  color: string;
+  sourceId?: string;
+}
+
+export interface SnapResult {
+  snapped: boolean;
+  position: Position3D;
+  snapType?: SnapPoint['type'];
+  snapIndicators?: SnapIndicator[];
+}
+
+export interface SnapIndicator {
+  start: Position3D;
+  end: Position3D;
+  color: string;
+  label?: string;
+}
+
+// ---- Collision Types ----
+
+export interface BoundingBox {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  minZ: number;
+  maxZ: number;
+}
+
+export interface CollisionResult {
+  hasCollision: boolean;
+  collidingBoxIds: string[];
+  outOfBounds: {
+    left: boolean;
+    right: boolean;
+    top: boolean;
+    bottom: boolean;
+    front: boolean;
+    back: boolean;
+  };
+}
+
+// ---- LiDAR / Point Cloud Types ----
+
+export interface PointCloudData {
+  positions: Float32Array;
+  colors?: Float32Array;
+  normals?: Float32Array;
+  pointCount: number;
+  bounds: BoundingBox;
+}
+
+export interface DetectedSurface {
+  id: string;
+  surfaceType: 'FLOOR' | 'CEILING' | 'WALL' | 'UNKNOWN';
+  confidence: number;
+  
+  // Plane equation (ax + by + cz + d = 0)
+  planeA: number;
+  planeB: number;
+  planeC: number;
+  planeD: number;
+  
+  // Bounding box
+  bounds: BoundingBox;
+  
+  // Calculated dimensions
+  width: number;
+  height: number;
+  
+  // Boundary polygon
+  boundaryPoints?: Position3D[];
+  
+  // User confirmation
+  isConfirmed: boolean;
+  userLabel?: string;
+}
+
+// ---- Designer State Types (for component props) ----
 
 export interface DesignerState {
   boxes: DesignerBox[];
@@ -365,14 +725,8 @@ export interface DesignerState {
   snapEnabled: boolean;
 }
 
-export interface SnapPoint {
-  type: 'endpoint' | 'midpoint' | 'center' | 'face';
-  position: Vector3D;
-  color: string;
-}
-
 // ---- Edit Mode Types ----
-export type EditMode = 'view' | 'move' | 'rotate' | 'boxMove';
+export type EditMode = 'view' | 'move' | 'rotate' | 'boxMove' | 'place';
 
 // ---- Export Types ----
 export interface ExportOptions {
@@ -380,4 +734,20 @@ export interface ExportOptions {
   includeHoles?: boolean;
   includeDimensions?: boolean;
   singleSheet?: number | 'all';
+}
+
+export interface CutlistExportRow {
+  wallName: string;
+  boxName: string;
+  boxModel?: string;
+  plankName: string;
+  plankRole: string;
+  lenX: number;
+  lenY: number;
+  lenZ: number;
+  materialString?: string;
+  coreType?: string;
+  outerLaminateCode?: string;
+  innerLaminateCode?: string;
+  areaSqft: number;
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useCutlistStore, useAppStore } from "@/store/visualiserStore";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useCutlistStore, useAppStore, useProcessedDataStore } from "@/store/visualiserStore";
 import type { NestResult, CutlistData, CutlistHole } from "@/types/visualiser";
 
 // Demo data for testing
@@ -402,15 +402,79 @@ export default function CutlistVisualization() {
     setSearchTerm,
   } = useCutlistStore();
 
+  const { getNestResult, processedData } = useProcessedDataStore();
+  
   const [tooltipData, setTooltipData] = useState<{
     plank: NestResult | null;
     position: { x: number; y: number };
   }>({ plank: null, position: { x: 0, y: 0 } });
 
-  // Load demo data on mount
+  // Convert processed nest result to CutlistData format
+  const processedCutlistData = useMemo((): CutlistData | null => {
+    const nestResult = getNestResult();
+    if (Object.keys(nestResult).length === 0) return null;
+    
+    // Convert to numbered keys (already numeric from store)
+    const planks: Record<number, NestResult[]> = {};
+    const materialThicknessStats: Record<string, { color: string; count: number }> = {};
+    const sheetUtilization: Record<number, { percentage: string; usedArea: number }> = {};
+    
+    const SHEET_WIDTH = 1220;
+    const SHEET_HEIGHT = 2440;
+    const SHEET_AREA = (SHEET_WIDTH - 20) * (SHEET_HEIGHT - 20);
+    
+    let totalPlanks = 0;
+    
+    for (const [sheetNum, sheetPlanks] of Object.entries(nestResult)) {
+      const num = parseInt(sheetNum);
+      planks[num] = sheetPlanks;
+      totalPlanks += sheetPlanks.length;
+      
+      // Calculate utilization
+      const usedArea = sheetPlanks.reduce((sum, p) => sum + p.width * p.height, 0);
+      sheetUtilization[num] = {
+        percentage: ((usedArea / SHEET_AREA) * 100).toFixed(1),
+        usedArea
+      };
+      
+      // Track material stats
+      for (const plank of sheetPlanks) {
+        const matKey = `${plank.material}_${plank.thickness}mm`;
+        if (!materialThicknessStats[matKey]) {
+          materialThicknessStats[matKey] = {
+            color: plank.color || '#9E9E9E',
+            count: 0
+          };
+        }
+        materialThicknessStats[matKey].count++;
+      }
+    }
+    
+    return {
+      planks,
+      stats: {
+        totalPlanks,
+        totalSheets: Object.keys(planks).length,
+        materialThicknessStats,
+        sheetUtilization,
+      },
+      constants: { SHEET_WIDTH, SHEET_HEIGHT, SPACING: 10 },
+      clientDetails: processedData ? {
+        customerName: processedData.customerName,
+        projectId: processedData.projectId,
+      } : undefined,
+      spreadsheetName: processedData?.customerName,
+    };
+  }, [getNestResult, processedData]);
+
+  // Load data on mount (use processed if available, otherwise demo)
   useEffect(() => {
-    setData(DEMO_CUTLIST_DATA);
-  }, [setData]);
+    if (processedCutlistData) {
+      setData(processedCutlistData);
+    } else if (!data) {
+      setData(DEMO_CUTLIST_DATA);
+    }
+  }, [processedCutlistData, setData, data]);
 
   const handlePlankHover = useCallback((plank: NestResult | null, position: { x: number; y: number }) => {
     setTooltipData({ plank, position });

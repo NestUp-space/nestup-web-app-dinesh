@@ -415,16 +415,16 @@ export function generateGCodeForSheet(
   for (const plank of planks) {
     const plankCodes = generateGCodeForPlank(plank, config);
     
-    for (const [tool, lines] of plankCodes) {
+    plankCodes.forEach((lines, tool) => {
       const existing = toolOperations.get(tool) || [];
       existing.push(`; Plank: ${plank.id} - ${plank.name}`);
       existing.push(...lines);
       toolOperations.set(tool, existing);
-    }
+    });
   }
 
   // Generate files per tool
-  for (const [tool, operations] of toolOperations) {
+  toolOperations.forEach((operations, tool) => {
     const toolInfo = TOOLS[tool as keyof typeof TOOLS];
     const fileName = `${sheetName}_${tool}_${toolInfo?.name.replace(/\s+/g, "_") || "unknown"}.nc`;
     
@@ -446,7 +446,7 @@ export function generateGCodeForSheet(
       content,
       plankCount: planks.length,
     });
-  }
+  });
 
   return results;
 }

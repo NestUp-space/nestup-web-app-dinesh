@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import type { QASheetData } from "@/types/visualiser";
+import { useProcessedDataStore, useReportsStore } from "@/store/visualiserStore";
 
 const DEMO_QA_INPUT: QASheetData[] = [
   { plankId: "P001", plankName: "Left Side", material: "White MDF 18mm", dimensions: "720 × 560", status: "passed" },
@@ -15,7 +16,20 @@ const DEMO_QA_INPUT: QASheetData[] = [
 ];
 
 export function QAInputReport() {
-  const [data, setData] = useState<QASheetData[]>(DEMO_QA_INPUT);
+  const { getInputQA } = useProcessedDataStore();
+  const { qaInputData, setQaInputData } = useReportsStore();
+  
+  // Use processed data if available, otherwise use demo data
+  const initialData = qaInputData.length > 0 ? qaInputData : (getInputQA().length > 0 ? getInputQA() : DEMO_QA_INPUT);
+  const [data, setData] = useState<QASheetData[]>(initialData);
+  
+  // Sync with store when data changes
+  useEffect(() => {
+    const storeData = qaInputData.length > 0 ? qaInputData : getInputQA();
+    if (storeData.length > 0 && JSON.stringify(storeData) !== JSON.stringify(data)) {
+      setData(storeData);
+    }
+  }, [qaInputData, getInputQA]);
   const [filter, setFilter] = useState<"all" | "pending" | "passed" | "failed">("all");
 
   const filteredData = useMemo(() => {
@@ -151,8 +165,36 @@ export function QAInputReport() {
           >
             🖨️ Print Checklist
           </button>
-          <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors">
+          <button 
+            onClick={() => setQaInputData(data)}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors"
+          >
             💾 Save Progress
+          </button>
+          <button
+            onClick={() => {
+              const csvContent = [
+                ['Plank ID', 'Name', 'Material', 'Dimensions', 'Status', 'Notes'].join(','),
+                ...data.map(item => [
+                  item.plankId,
+                  item.plankName,
+                  item.material,
+                  item.dimensions,
+                  item.status,
+                  item.notes || ''
+                ].join(','))
+              ].join('\n');
+              const blob = new Blob([csvContent], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'input_qa_checklist.csv';
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
+          >
+            📥 Export CSV
           </button>
         </div>
       </div>

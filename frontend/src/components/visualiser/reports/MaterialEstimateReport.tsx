@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import type { MaterialEstimate } from "@/types/visualiser";
+import { useProcessedDataStore, useReportsStore } from "@/store/visualiserStore";
 
 // Demo data
 const DEMO_ESTIMATES: MaterialEstimate[] = [
@@ -9,54 +10,56 @@ const DEMO_ESTIMATES: MaterialEstimate[] = [
     materialThickness: "White MDF - 18mm",
     roomNames: "Kitchen, Living Room",
     plankCount: 45,
-    totalArea: 28500000,
+    totalArea: 28.5,
     sheetsUsed: 12,
-    avgAreaPerSheet: 2375000,
+    avgAreaPerSheet: 2.375,
     utilization: 79.8,
-    totalEdge: 145600,
+    totalEdge: 145.6,
   },
   {
     materialThickness: "White MDF - 8mm",
     roomNames: "Kitchen",
     plankCount: 12,
-    totalArea: 8200000,
+    totalArea: 8.2,
     sheetsUsed: 4,
-    avgAreaPerSheet: 2050000,
+    avgAreaPerSheet: 2.05,
     utilization: 68.9,
-    totalEdge: 32400,
+    totalEdge: 32.4,
   },
   {
     materialThickness: "Oak Veneer - 18mm",
     roomNames: "Living Room, Bedroom",
     plankCount: 28,
-    totalArea: 18900000,
+    totalArea: 18.9,
     sheetsUsed: 8,
-    avgAreaPerSheet: 2362500,
+    avgAreaPerSheet: 2.3625,
     utilization: 79.4,
-    totalEdge: 89200,
+    totalEdge: 89.2,
   },
   {
     materialThickness: "Oak Veneer - 12mm",
     roomNames: "Bedroom",
     plankCount: 8,
-    totalArea: 4100000,
+    totalArea: 4.1,
     sheetsUsed: 2,
-    avgAreaPerSheet: 2050000,
+    avgAreaPerSheet: 2.05,
     utilization: 68.9,
-    totalEdge: 18400,
+    totalEdge: 18.4,
   },
 ];
 
-const SHEET_AREA = 2976800; // 1220 × 2440 mm²
+const SHEET_AREA = 2.9768; // 1220 × 2440 mm² in m²
 
 export function MaterialEstimateReport() {
-  const [data, setData] = useState<MaterialEstimate[]>([]);
+  const { getMaterialEstimates } = useProcessedDataStore();
+  const { materialEstimates } = useReportsStore();
+  
   const [sortBy, setSortBy] = useState<keyof MaterialEstimate>("materialThickness");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-  useEffect(() => {
-    setData(DEMO_ESTIMATES);
-  }, []);
+  // Use processed data if available, otherwise use demo data
+  const storeData = materialEstimates.length > 0 ? materialEstimates : getMaterialEstimates();
+  const data = storeData.length > 0 ? storeData : DEMO_ESTIMATES;
 
   const sortedData = useMemo(() => {
     return [...data].sort((a, b) => {
@@ -97,12 +100,12 @@ export function MaterialEstimateReport() {
     }
   };
 
-  const formatArea = (mm2: number) => {
-    return (mm2 / 1000000).toFixed(2) + " m²";
+  const formatArea = (sqm: number) => {
+    return sqm.toFixed(2) + " m²";
   };
 
-  const formatEdge = (mm: number) => {
-    return (mm / 1000).toFixed(1) + " m";
+  const formatEdge = (meters: number) => {
+    return meters.toFixed(1) + " m";
   };
 
   return (
@@ -216,7 +219,30 @@ export function MaterialEstimateReport() {
           >
             🖨️ Print Report
           </button>
-          <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors">
+          <button 
+            onClick={() => {
+              const csvContent = [
+                ['Material & Thickness', 'Rooms', 'Planks', 'Total Area (m²)', 'Sheets', 'Utilization (%)', 'Edge Banding (m)'].join(','),
+                ...data.map(item => [
+                  item.materialThickness,
+                  `"${item.roomNames}"`,
+                  item.plankCount,
+                  item.totalArea.toFixed(2),
+                  item.sheetsUsed,
+                  item.utilization.toFixed(1),
+                  item.totalEdge.toFixed(1)
+                ].join(','))
+              ].join('\n');
+              const blob = new Blob([csvContent], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'material_estimate.csv';
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors"
+          >
             📥 Export CSV
           </button>
         </div>

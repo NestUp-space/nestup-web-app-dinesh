@@ -16,7 +16,10 @@ import {
   GCodeResult,
   MaterialEstimate,
   DesignerState,
+  QASheetData,
+  PressingListItem,
 } from '@/types/visualiser';
+import type { ProcessedData, FormattedPlank, PlankListItem } from '@/lib/visualiser/rawDataProcessor';
 
 // ---- Installation Guide State ----
 interface InstallationGuideState {
@@ -172,15 +175,15 @@ interface ReportsState {
   materialEstimates: MaterialEstimate[];
   sftResults: any[];
   invoiceData: any | null;
-  qaInputData: any[];
-  qaOutputData: any[];
-  pressingList: any[];
+  qaInputData: QASheetData[];
+  qaOutputData: QASheetData[];
+  pressingList: PressingListItem[];
   setMaterialEstimates: (estimates: MaterialEstimate[]) => void;
   setSftResults: (results: any[]) => void;
   setInvoiceData: (data: any) => void;
-  setQaInputData: (data: any[]) => void;
-  setQaOutputData: (data: any[]) => void;
-  setPressingList: (list: any[]) => void;
+  setQaInputData: (data: QASheetData[]) => void;
+  setQaOutputData: (data: QASheetData[]) => void;
+  setPressingList: (list: PressingListItem[]) => void;
   reset: () => void;
 }
 
@@ -212,14 +215,80 @@ export const useReportsStore = create<ReportsState>()(
   )
 );
 
-// ---- App-level State (Spreadsheet connection, etc.) ----
+// ---- Processed Data State (Main Pipeline Store) ----
+interface ProcessedDataState {
+  processedData: ProcessedData | null;
+  isProcessing: boolean;
+  processingProgress: number;
+  processingError: string | null;
+  setProcessedData: (data: ProcessedData | null) => void;
+  setIsProcessing: (processing: boolean) => void;
+  setProcessingProgress: (progress: number) => void;
+  setProcessingError: (error: string | null) => void;
+  // Getters for specific data
+  getFormattedPlanks: () => FormattedPlank[];
+  getPlankList: () => PlankListItem[];
+  getNestResult: () => Record<number, NestResult[]>;
+  getMaterialEstimates: () => MaterialEstimate[];
+  getInputQA: () => QASheetData[];
+  getOutputQA: () => QASheetData[];
+  getPressingList: () => PressingListItem[];
+  getInvoice: () => ProcessedData['invoice'] | null;
+  getSummary: () => ProcessedData['summary'] | null;
+  reset: () => void;
+}
+
+export const useProcessedDataStore = create<ProcessedDataState>()(
+  devtools(
+    persist(
+      (set, get) => ({
+        processedData: null,
+        isProcessing: false,
+        processingProgress: 0,
+        processingError: null,
+        setProcessedData: (data) => set({ processedData: data, processingError: null }),
+        setIsProcessing: (processing) => set({ isProcessing: processing }),
+        setProcessingProgress: (progress) => set({ processingProgress: progress }),
+        setProcessingError: (error) => set({ processingError: error, isProcessing: false }),
+        getFormattedPlanks: () => get().processedData?.formattedPlanks || [],
+        getPlankList: () => get().processedData?.plankList || [],
+        getNestResult: () => get().processedData?.nestResult || {},
+        getMaterialEstimates: () => get().processedData?.materialEstimate || [],
+        getInputQA: () => get().processedData?.inputQA || [],
+        getOutputQA: () => get().processedData?.outputQA || [],
+        getPressingList: () => get().processedData?.pressingList || [],
+        getInvoice: () => get().processedData?.invoice || null,
+        getSummary: () => get().processedData?.summary || null,
+        reset: () => set({
+          processedData: null,
+          isProcessing: false,
+          processingProgress: 0,
+          processingError: null,
+        }),
+      }),
+      { name: 'processed-data-store' }
+    ),
+    { name: 'processed-data-store' }
+  )
+);
+
+// ---- CSV Data Type ----
+interface CSVSheet {
+  headers: string[];
+  data: string[][];
+}
+
+// ---- App-level State (CSV data, project info, etc.) ----
 interface AppState {
-  spreadsheetId: string | null;
-  spreadsheetName: string | null;
+  projectName: string | null;
+  projectDescription: string | null;
   isConnected: boolean;
   isLoading: boolean;
   error: string | null;
-  setSpreadsheet: (id: string, name: string) => void;
+  csvData: Record<string, CSVSheet> | null;
+  setProject: (name: string, description: string) => void;
+  setCSVData: (data: Record<string, CSVSheet>) => void;
+  getCSVSheet: (sheetName: string) => CSVSheet | null;
   setIsConnected: (connected: boolean) => void;
   setIsLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -229,24 +298,31 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   devtools(
     persist(
-      (set) => ({
-        spreadsheetId: null,
-        spreadsheetName: null,
+      (set, get) => ({
+        projectName: null,
+        projectDescription: null,
         isConnected: false,
         isLoading: false,
         error: null,
-        setSpreadsheet: (id, name) => set({ 
-          spreadsheetId: id, 
-          spreadsheetName: name,
+        csvData: null,
+        setProject: (name, description) => set({ 
+          projectName: name, 
+          projectDescription: description,
           isConnected: true 
         }),
+        setCSVData: (data) => set({ csvData: data }),
+        getCSVSheet: (sheetName) => {
+          const state = get();
+          return state.csvData?.[sheetName] || null;
+        },
         setIsConnected: (connected) => set({ isConnected: connected }),
         setIsLoading: (loading) => set({ isLoading: loading }),
         setError: (error) => set({ error }),
         disconnect: () => set({ 
-          spreadsheetId: null, 
-          spreadsheetName: null, 
-          isConnected: false 
+          projectName: null, 
+          projectDescription: null, 
+          isConnected: false,
+          csvData: null 
         }),
       }),
       { name: 'visualiser-app-store' }

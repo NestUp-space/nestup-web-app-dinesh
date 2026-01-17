@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import type { PressingListItem } from "@/types/visualiser";
+import { useProcessedDataStore, useReportsStore } from "@/store/visualiserStore";
 
 const DEMO_PRESSING_LIST: PressingListItem[] = [
   {
@@ -40,7 +41,12 @@ const DEMO_PRESSING_LIST: PressingListItem[] = [
 ];
 
 export function PressingListReport() {
-  const [data, setData] = useState<PressingListItem[]>(DEMO_PRESSING_LIST);
+  const { getPressingList } = useProcessedDataStore();
+  const { pressingList } = useReportsStore();
+  
+  // Use processed data if available, otherwise use demo data
+  const storeData = pressingList.length > 0 ? pressingList : getPressingList();
+  const data = storeData.length > 0 ? storeData : DEMO_PRESSING_LIST;
   const [checkedSheets, setCheckedSheets] = useState<Set<number>>(new Set());
   const [expandedSheets, setExpandedSheets] = useState<Set<number>>(new Set([1]));
 
