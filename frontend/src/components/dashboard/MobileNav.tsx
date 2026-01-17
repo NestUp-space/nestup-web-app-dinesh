@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from "next/legacy/image"; // Added Image import
 import { Button } from './button'; 
 import { Sheet, SheetContent, SheetTrigger } from './sheet'; 
-import { Home, Users2, LineChart, PanelLeft, Settings, BookCopy, FolderKanban, Workflow } from 'lucide-react'; // Removed Package2
+import { Home, Users2, LineChart, PanelLeft, Settings, BookCopy, FolderKanban, Workflow, ScanLine } from 'lucide-react'; // Removed Package2, Added ScanLine
 import { useUser } from '@/context/UserContext';
 import LogoText from "@img/NestupLogoText.svg"; // Added LogoText import
 import { isAdmin, hasPermission } from '@/lib/authUtils'; // Assuming hasPermission might be more generic if roles differ
@@ -71,6 +71,13 @@ export function MobileNav() {
               <Workflow className="h-5 w-5" />BIM Process
                           </Link>)
           )}
+          <Link
+            href="/dashboard/lidar"
+            className="flex items-center gap-3 rounded-md px-3 py-2 text-dark-text-bw transition-all hover:bg-lighter-bw hover:text-theme-color"
+          >
+            <ScanLine className="h-5 w-5" />
+            LiDAR Scanner
+          </Link>
           {/* <Link
             href="#"
             className="flex items-center gap-3 rounded-md px-3 py-2 text-dark-text-bw transition-all hover:bg-lighter-bw hover:text-theme-color"

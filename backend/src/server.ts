@@ -14,6 +14,7 @@ import bimRouter from "@/bim/routes/bim.routes"; // BIM router
 import catalogueRouter from "./catalogue/routes/model.routes"; // Model management router - CHANGED TO RELATIVE PATH
 import materialRouter from "@/routes/material.routes"; // Material router
 import siteVisitBoxRouter from "@/routes/siteVisitBox.routes"; // SiteVisitBox router
+import lidarRouter from "./lidar/routes/lidar.routes"; // LiDAR router
 import errorHandler from "@/common/middleware/errorHandler";
 import rateLimiter from "@/common/middleware/rateLimiter";
 import requestLogger from "@/common/middleware/requestLogger";
@@ -119,6 +120,7 @@ app.get("/api/v1/catalogue/ping", (_req, res) => { // req prefixed with _
 app.use("/api/v1/catalogue", catalogueRouter); // Consolidated Catalogue routes
 app.use("/api/materials", materialRouter); // Material routes, specific path
 app.use("/api/site-visit-boxes", siteVisitBoxRouter); // SiteVisitBox routes, specific path
+app.use("/api/lidar", lidarRouter); // LiDAR routes for session management
 
 
 // Swagger UI

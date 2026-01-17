@@ -70,7 +70,81 @@ INDEX.md update completed.
 - Replace detailed content with summary links
 - Maintain context history for future reference
 
-### 4. `decision_template.md` ✅ Available
+### 4. `backend/src/scripts/createAdminUser.ts` ✅ Working
+**Purpose:** Creates a new admin user with full permissions in the database.
+
+**Usage:**
+```bash
+# From backend directory using npm script
+cd backend && npm run create:admin -- --email admin@example.com --name "Admin User" --password "SecurePass123!" --phone "9876543210"
+
+# Or directly with ts-node
+cd backend && npx ts-node src/scripts/createAdminUser.ts \
+  --email admin@example.com \
+  --name "Admin User" \
+  --password "SecurePass123!" \
+  --phone "9876543210"
+```
+
+**Options:**
+| Flag | Short | Description | Required |
+|------|-------|-------------|----------|
+| `--email` | `-e` | Email address for the admin user | Yes |
+| `--name` | `-n` | Display name for the admin user | Yes |
+| `--password` | `-p` | Password (min 8 chars, uppercase, lowercase, number) | Yes |
+| `--phone` | `-t` | Phone number (10-15 digits) | Yes |
+| `--help` | `-h` | Show help message | No |
+
+**Features:**
+- Input validation for email, password strength, and phone format
+- Checks for existing users with same email/phone
+- Automatically finds and assigns admin role
+- Password is securely hashed with bcrypt
+- User is created as verified and active
+- Detailed success/error output
+
+**Example Output:**
+```
+🔐 Create Admin User Script
+
+==================================================
+
+📋 Validating inputs...
+  ✓ Email: admin@example.com
+  ✓ Password: [validated]
+  ✓ Phone: 9876543210
+  ✓ Name: Admin User
+
+🔍 Checking for existing users...
+  ✓ Email is available
+  ✓ Phone number is available
+
+🔎 Finding admin role...
+  ✓ Found admin role: "admin" (ID: 1)
+
+🔒 Hashing password...
+  ✓ Password hashed
+
+👤 Creating admin user...
+  ✓ User created successfully!
+
+==================================================
+✅ Admin User Created Successfully!
+
+User Details:
+  ID:      5
+  Name:    Admin User
+  Email:   admin@example.com
+  Phone:   9876543210
+  Role:    admin (admin)
+  Active:  true
+  Verified: true
+  Created: 2026-01-17T10:30:00.000Z
+
+==================================================
+```
+
+### 5. `decision_template.md` ✅ Available
 **Purpose:** Provides a standardized template for recording decisions in `DECISION_LOG.md`.
 
 **Usage:**

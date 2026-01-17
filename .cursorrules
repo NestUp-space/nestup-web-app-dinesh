@@ -1,0 +1,140 @@
+# Project Sauron - LiDAR Implementation Rules
+
+## Project Context
+This is the Nestup Web App - a modular interior design platform for furniture manufacturing.
+The LiDAR feature (Project Sauron) enables automated room scanning and module placement.
+
+## Architecture Patterns
+
+### Backend (Express + Prisma)
+- Follow Route → Controller → Service → Repository pattern
+- Controllers in `backend/src/controllers/` or feature folders
+- Services in `backend/src/services/` 
+- Use Zod for API validation (existing pattern)
+- Use `ServiceResponse` pattern for consistent API responses
+- File uploads use Multer with S3 storage
+
+### Frontend (Next.js 14 + TypeScript)
+- Use `"use client"` directive for client components
+- Follow existing patterns from `CabinetDesigner.tsx` for 3D components
+- Use shadcn/ui components exclusively for UI (`frontend/src/components/ui/`)
+- Zustand for 3D viewer state management
+- SWR with `apiClient` for API data fetching
+- Custom hooks in `frontend/src/hooks/`
+
+### 3D Development (Three.js)
+- Use `@react-three/fiber` with `@react-three/drei` helpers
+- Measurements in millimeters internally
+- Coordinate system: X=width, Y=depth (into screen), Z=height
+- Follow patterns from `frontend/src/components/visualiser/CabinetDesigner.tsx`:
+  - OrbitControls for camera
+  - Grid component for floor
+  - Html component for labels
+  - Separate Scene, Toolbar, PropertiesPanel components
+
+## Code Style
+
+### TypeScript
+- Strict mode enabled
+- Use interfaces over types for objects
+- Export types from dedicated type files
+- Use Zod schemas for runtime validation
+
+### React Components
+- Functional components with hooks only
+- Use `useCallback` for event handlers passed to children
+- Use `useMemo` for expensive computations
+- Separate state management from rendering logic
+
+### File Naming
+- Components: PascalCase (e.g., `Room3DViewer.tsx`)
+- Hooks: camelCase with `use` prefix (e.g., `useLidarSession.ts`)
+- Services: camelCase with `.service.ts` suffix
+- Types: camelCase with `.types.ts` suffix
+
+## LiDAR-Specific Patterns
+
+### Session Management
+- Sessions stored in `LidarSession` model
+- Status flow: CREATED → UPLOADING → PROCESSING → PROCESSED → DESIGNING → COMPLETED
+- Use optimistic updates for better UX
+
+### Scan Data Processing
+- 2D scans (CSV format): Process in TypeScript
+- 3D scans (PLY/PCD): Process via Python service (future)
+- Store raw data in S3, processed data in PostgreSQL JSON fields
+
+### Wall Detection (2D)
+- Convert polar coordinates (angle, range) to Cartesian (x, y)
+- Use RANSAC-like line fitting for wall detection
+- Store walls as start/end points with length
+
+### Module Placement
+- Modules snap to wall surfaces
+- Collision detection prevents overlaps
+- Real-time 3D preview updates
+
+## Memory System Integration
+
+### When making changes:
+1. Update relevant `.mbk` files for code documentation
+2. Log significant decisions in `DECISION_LOG.md`
+3. Update `PROJECT_CONTEXT_AND_ROADMAP.md` for major features
+4. Create context snapshots for complex implementations
+
+### LTM File Locations
+- `.long_term_memory/DECISION_LOG.md` - Architecture decisions
+- `.long_term_memory/PROJECT_CONTEXT_AND_ROADMAP.md` - Roadmap
+- `.long_term_memory/GUARDRAILS.md` - Coding standards
+
+## API Conventions
+
+### Endpoints
+- LiDAR routes: `/api/lidar/...`
+- Use RESTful conventions
+- Include pagination for list endpoints
+- Return consistent response format
+
+### Response Format
+```typescript
+{
+  success: boolean;
+  data?: T;
+  message?: string;
+  error?: string;
+}
+```
+
+## Testing
+
+### Backend
+- Use Vitest for unit tests
+- Test services independently from controllers
+- Mock Prisma client for database tests
+
+### Frontend
+- Test hooks with `@testing-library/react-hooks`
+- Test components with `@testing-library/react`
+- Mock API responses with MSW
+
+## Dependencies to Use
+
+### Already Available
+- Three.js: `three`, `@react-three/fiber`, `@react-three/drei`
+- State: `zustand`
+- UI: shadcn/ui (Radix primitives)
+- Animation: `framer-motion`
+- Forms: `react-hook-form`, `zod`
+- Data: `swr`
+
+### To Add for LiDAR
+- Job Queue: `bull` + `ioredis`
+- Excel Export: `xlsx`
+
+## Common Gotchas
+
+1. **Coordinate Systems**: Three.js Y is up, but our data uses Z as up
+2. **Units**: Always use millimeters internally, convert for display
+3. **BigInt**: Prisma BigInt needs special handling in JSON responses
+4. **File Uploads**: Max chunk size 1MB for resumable uploads
+5. **Session State**: Always check session status before operations

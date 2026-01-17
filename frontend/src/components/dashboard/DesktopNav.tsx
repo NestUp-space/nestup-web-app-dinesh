@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from "next/legacy/image";
 import { NavItem } from './nav-item';
-import { Home, Users, LineChart, Settings, LogOut, HelpCircle, User as UserIcon, BookCopy, FolderKanban, Workflow } from 'lucide-react'; // Added FolderKanban, Workflow
+import { Home, Users, LineChart, Settings, LogOut, HelpCircle, User as UserIcon, BookCopy, FolderKanban, Workflow, ScanLine } from 'lucide-react'; // Added FolderKanban, Workflow, ScanLine
 import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
 import { useUser } from '@/context/UserContext';
 import { isAdmin, hasPermission } from '@/lib/authUtils';
@@ -57,6 +57,11 @@ export function DesktopNav() {
             <Workflow className="h-5 w-5 mr-3" />BIM Process
                       </NavItem>)
         )}
+
+        <NavItem href="/dashboard/lidar" label="LiDAR Scanner">
+          <ScanLine className="h-5 w-5 mr-3" />
+          LiDAR Scanner
+        </NavItem>
 
         {/* <NavItem href="#" label="Analytics">
           <LineChart className="h-5 w-5 mr-3" />
