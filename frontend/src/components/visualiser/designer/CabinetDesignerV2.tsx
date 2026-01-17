@@ -387,7 +387,8 @@ export default function CabinetDesignerV2() {
           makeDefault 
           position={[1500, 1350, 5000]} 
           fov={50}
-          onUpdate={(self) => self.lookAt(1500, 1350, 0)}
+          near={1}
+          far={50000}
         />
         <Suspense fallback={null}>
           <Scene

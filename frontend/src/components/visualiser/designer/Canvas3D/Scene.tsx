@@ -66,6 +66,7 @@ export function Scene({
   const { camera, raycaster, pointer } = useThree();
   const controlsRef = useRef<any>(null);
   const floorPlaneRef = useRef<THREE.Mesh>(null);
+  const isInitializedRef = useRef(false);
   
   // Ghost position state
   const [ghostPosition, setGhostPosition] = useState<Position3D>({ x: 0, y: 0, z: 0 });
@@ -155,6 +156,19 @@ export function Scene({
     }
   });
 
+  // Initialize camera and controls on mount
+  useEffect(() => {
+    if (!controlsRef.current || isInitializedRef.current) return;
+    
+    // Set initial camera position (front view looking at wall center)
+    const distance = Math.max(wall?.width || 2000, wall?.height || 2000) * 1.5;
+    camera.position.set(target.x, target.y, distance);
+    controlsRef.current.target.set(target.x, target.y, target.z);
+    controlsRef.current.update();
+    
+    isInitializedRef.current = true;
+  }, [camera, wall, target.x, target.y, target.z]);
+
   // Handle view mode changes
   useEffect(() => {
     if (!controlsRef.current) return;
@@ -214,26 +228,6 @@ export function Scene({
     }
   }, [onSelectBox, onSelectPlank, placingTemplate, isValidPlacement, ghostPosition, onPlaceBox]);
 
-  // Create sky gradient texture with useMemo
-  const skyTexture = useMemo(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 2;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      const gradient = ctx.createLinearGradient(0, 0, 0, 512);
-      gradient.addColorStop(0, '#5B9BD5');    // Sky blue at top
-      gradient.addColorStop(0.3, '#87CEEB');  // Lighter blue
-      gradient.addColorStop(0.6, '#C5E3F2');  // Very light blue
-      gradient.addColorStop(1, '#FFFFFF');    // White at horizon
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, 2, 512);
-    }
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
-    return texture;
-  }, []);
-
   return (
     <>
       {/* Lighting - Enhanced for SketchUp style */}
@@ -258,6 +252,7 @@ export function Scene({
       {/* Camera Controls */}
       <OrbitControls
         ref={controlsRef}
+        target={[target.x, target.y, target.z]}
         enableDamping
         dampingFactor={0.05}
         minDistance={300}
@@ -388,7 +383,7 @@ export function Scene({
         </group>
       )}
 
-      {/* Wall boundary wireframe */}
+      {/* Wall */}
       {wall && (
         <WallMesh 
           wall={wall} 
