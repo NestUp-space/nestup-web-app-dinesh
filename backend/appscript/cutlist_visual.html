@@ -1,0 +1,1713 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Cutlist Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: 300;
+        }
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .header button {
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            background-color: #fff;
+            color: #667eea;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .header button:hover {
+            background-color: #f0f2ff;
+            border-color: #c4c9f7;
+        }
+        .stats {
+            display: flex;
+            gap: 30px;
+            font-size: 14px;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            display: block;
+        }
+        .main-container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+        .sidebar {
+            width: 300px;
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .controls {
+            margin-bottom: 30px;
+        }
+        .control-group {
+            margin-bottom: 20px;
+        }
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+        }
+        .control-group select,
+        .control-group input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .control-group input[type="range"] {
+            padding: 0;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+        .materials-legend h3, .sheets-utilization h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 16px;
+        }
+        .material-item, .sheet-item {
+            margin-bottom: 12px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .material-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .material-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+        }
+        .material-info { flex: 1; }
+        .material-name { font-weight: 500; font-size: 14px; }
+        .material-count { font-size: 12px; color: #666; }
+        .sheet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .sheet-number { font-weight: 500; font-size: 14px; }
+        .sheet-utilization { font-size: 12px; color: #666; }
+        .utilization-bar {
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .utilization-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            transition: width 0.3s ease;
+        }
+        .visualization-area {
+            flex: 1;
+            padding: 20px;
+            overflow: auto;
+            background: #fafafa;
+        }
+        .sheet-container {
+            margin-bottom: 40px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .sheet-header-viz {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .sheet-title { font-size: 18px; font-weight: 500; color: #333; }
+        .sheet-info { font-size: 14px; color: #666; margin-top: 5px; }
+        
+        /* --- CSS FOR ZOOM/PAN --- */
+        .sheet-canvas {
+            position: relative;
+            margin: 20px;
+            border: 2px solid #333;
+            background: #fff;
+            border-radius: 4px;
+            transform-origin: top left;
+        }
+        
+        .plank {
+            position: absolute;
+            border: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-direction: column;
+        }
+        .plank:hover {
+            z-index: 10;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .plank-id {
+            background: rgba(255,255,255,0.9);
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-size: 8px;
+            z-index: 20;
+            position: relative;
+        }
+        .plank-dimensions {
+            background: rgba(255,255,255,0.9);
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-size: 8px;
+            z-index: 20;
+            position: relative;
+            margin-top: 2px;
+        }
+        
+        /* Enhanced Hole styles */
+        .hole {
+            position: absolute;
+            pointer-events: none;
+            z-index: 5;
+        }
+        .hole-circular {
+            border-radius: 50%;
+        }
+        .hole-rectangular {
+            border-radius: 2px;
+            transform: none;
+        }
+        .hole-standard {
+            background-color: rgba(0, 0, 0, 0.7);
+            border: 1px solid #000;
+        }
+        .hole-vb {
+            background-color: transparent;
+            border: 2px dashed #FF0000;
+        }
+        .hole-groove {
+            background-color: rgba(255, 165, 0, 0.5);
+            border: 2px solid #FF8C00;
+        }
+        .hole-profile {
+            background-color: rgba(0, 150, 255, 0.5);
+            border: 2px solid #0066CC;
+        }
+        .hole-slot {
+            background-color: rgba(0, 200, 100, 0.5);
+            border: 2px solid #00AA55;
+        }
+        .hole-dowel {
+            background-color: rgba(0, 100, 255, 0.7);
+            border: 1px solid #0064FF;
+        }
+        .hole-screw {
+            background-color: rgba(128, 0, 128, 0.7);
+            border: 1px solid #800080;
+        }
+        
+        /* L-Cut visualization styles */
+        .l-cut-shape {
+            position: absolute;
+            pointer-events: none;
+            z-index: 6;
+        }
+        .l-cut-line {
+            position: absolute;
+            background-color: #E91E63;
+            height: 2px;
+            transform-origin: left center;
+            z-index: 6;
+        }
+        .l-cut-point {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: #E91E63;
+            border: 1px solid #AD1457;
+            z-index: 7;
+            cursor: help;
+        }
+        .l-cut-point.start { background-color: #4CAF50; border-color: #2E7D32; }
+        .l-cut-point.center { background-color: #FF9800; border-color: #E65100; }
+        .l-cut-point.end { background-color: #F44336; border-color: #C62828; }
+        
+        /* L-Cut warning for degenerate/invalid data */
+        .l-cut-warning {
+            position: absolute;
+            pointer-events: auto;
+            z-index: 10;
+            cursor: help;
+            background: rgba(255, 87, 34, 0.2);
+            border: 2px dashed #FF5722;
+            border-radius: 4px;
+            padding: 2px 6px;
+        }
+
+        /* Enhanced Tooltip */
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.95);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            pointer-events: auto;
+            z-index: 1000;
+            max-width: 300px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border: 1px solid #555;
+            max-height: 350px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .tooltip h4 {
+            margin: 0 0 8px 0;
+            color: #4ECDC4;
+            font-size: 14px;
+        }
+        .tooltip .plank-info {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #555;
+        }
+        .tooltip .hole-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 0;
+            border-bottom: 1px solid #333;
+        }
+        .tooltip .hole-item:last-child {
+            border-bottom: none;
+        }
+        .hole-type-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        .hole-type-vb { background-color: #FF0000; }
+        .hole-type-screw { background-color: #800080; }
+        .hole-type-groove { background-color: #FF8C00; }
+        .hole-type-profile { background-color: #0066CC; }
+        .hole-type-slot { background-color: #00AA55; }
+        .hole-type-dowel { background-color: #0064FF; }
+        .hole-type-standard { background-color: #000000; }
+
+        .no-data {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        .no-data h3 { margin-bottom: 10px; font-size: 18px; }
+        .no-data p { font-size: 14px; }
+
+        /* Hole size legend */
+        .hole-legend {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        .hole-legend h4 {
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .hole-legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+        .hole-legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 6px;
+            border: 1px solid #ddd;
+        }
+
+        /* Loading spinner */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Search and filter */
+        .search-box {
+            margin-bottom: 15px;
+        }
+        .search-box input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        /* Print container style kept for compatibility */
+        .print-container {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            background: white;
+            padding: 0;
+            margin: 0;
+        }
+
+        @media (max-width: 768px) {
+            .main-container { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; max-height: 200px; }
+            .visualization-area { height: calc(100vh - 280px); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>📐 Cutlist Visualization Dashboard</h1>
+        
+        <div class="header-buttons">
+            <button id="downloadBtn" title="Download the Nest Result sheet as a CSV file">📥 Download CSV</button>
+            <button id="downloadPdfBtn" title="Download the current sheet as a PDF">📄 Download PDF</button>
+            <button id="downloadAllPdfBtn" title="Download all sheets as a multi-page PDF">📚 Download All PDF</button>
+            <button id="printLabelsBtn" title="Print all labels">🖨️ Print Labels</button>
+            <button id="viewLabelsBtn" title="View all labels in a new tab">🏷️ View Labels</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-value" id="totalPlanks">0</span>
+                <span>Total Planks</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="totalSheets">0</span>
+                <span>Sheets Used</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="overallUtilization">0%</span>
+                <span>Overall Utilization</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="controls">
+                <div class="control-group">
+                    <label for="sheetSelect">Sheet Selection:</label>
+                    <select id="sheetSelect">
+                        <option value="all">All Sheets</option>
+                    </select>
+                </div>
+                <div class="control-group search-box">
+                    <label for="plankSearch">Search Planks:</label>
+                    <input type="text" id="plankSearch" placeholder="Enter plank ID or name...">
+                </div>
+                <div class="control-group">
+                    <label for="zoomSlider">Zoom: <span id="zoomValue">50%</span></label>
+                    <input type="range" id="zoomSlider" min="10" max="200" value="50">
+                </div>
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="showIds" checked>
+                        <label for="showIds">Show Plank IDs</label>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="showDimensions">
+                        <label for="showDimensions">Show Dimensions</label>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="showHoles" checked>
+                        <label for="showHoles">Show Holes & Features</label>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="showHoleLabels">
+                        <label for="showHoleLabels">Show Hole Labels</label>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="highlightSearch" checked>
+                        <label for="highlightSearch">Highlight Search Results</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="hole-legend">
+                <h4>Feature Types:</h4>
+                <div class="hole-legend-item">
+                    <div class="hole-legend-color hole-type-screw"></div>
+                    <span>Screw Holes (4mm)</span>
+                </div>
+                <div class="hole-legend-item">
+                    <div class="hole-legend-color hole-type-vb"></div>
+                    <span>VB_Main_Hole (20mm)</span>
+                </div>
+                <div class="hole-legend-item">
+                    <div class="hole-legend-color hole-type-dowel"></div>
+                    <span>VB_double_hole (5mm)</span>
+                </div>
+                <div class="hole-legend-item">
+                    <div class="hole-legend-color hole-type-groove"></div>
+                    <span>Grooves</span>
+                </div>
+                <div class="hole-legend-item">
+                    <div class="hole-legend-color hole-type-profile"></div>
+                    <span>Profiles</span>
+                </div>
+                <div class="hole-legend-item">
+                    <div class="hole-legend-color hole-type-slot"></div>
+                    <span>Slots</span>
+                </div>
+                <div class="hole-legend-item">
+                    <div class="hole-legend-color" style="background-color: #E91E63;"></div>
+                    <span>L-Cuts (Notches)</span>
+                </div>
+            </div>
+
+            <div class="materials-legend">
+                <h3>Materials</h3>
+                <div id="materialsList"></div>
+            </div>
+            <div class="sheets-utilization">
+                <h3>Sheet Utilization</h3>
+                <div id="sheetsList"></div>
+            </div>
+        </div>
+        <div class="visualization-area" id="visualizationArea">
+            <div class="no-data">
+                <h3>No Data Available</h3>
+                <p>Please run the createCutlist function first to generate visualization data.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip" style="display: none;"></div>
+
+    <script>
+        // Global variables
+        let planks = [];
+        let stats = {};
+        let sheetWidth = 2440;
+        let sheetHeight = 1220;
+        let currentZoom = 0.5;
+        let selectedSheet = 'all';
+        let showIds = true;
+        let showDimensions = false;
+        let showHoles = true;
+        let showHoleLabels = false;
+        let highlightSearch = true;
+        let searchTerm = '';
+
+        // Global variables for Label Generation & PDF
+        let allSheetLayouts = {}; 
+        let sheetConstants = {}; 
+
+        // --- Client details (loaded in init) ---
+        let customerName = '';
+        let firmName = '';
+        
+        // --- Material sheet numbering cache ---
+        let materialSheetNumbers = {};
+        
+        /**
+         * Get clean material name (remove room info and thickness)
+         */
+        function getCleanMaterial(material) {
+            if (!material) return 'Sheet';
+            return String(material).replace(/\s*\([^)]+\)/g, '').replace(/-\s*\d+mm/i, '').trim();
+        }
+        
+        /**
+         * Calculate per-material sheet number for display
+         * e.g., If Pink has sheets 1,2,3 and Black has sheets 4,5
+         * Returns: Pink->1,2,3 and Black->1,2
+         */
+        function getMaterialSheetNumber(currentSheetNum, targetMaterial) {
+            const cacheKey = `${targetMaterial}_${currentSheetNum}`;
+            if (materialSheetNumbers[cacheKey] !== undefined) {
+                return materialSheetNumbers[cacheKey];
+            }
+            
+            let count = 0;
+            const sortedSheets = Object.keys(allSheetLayouts).sort((a, b) => parseInt(a) - parseInt(b));
+            
+            for (const sheetNum of sortedSheets) {
+                const sheetPlanks = allSheetLayouts[sheetNum];
+                if (!sheetPlanks || sheetPlanks.length === 0) continue;
+                
+                const mat = getCleanMaterial(sheetPlanks[0]?.material);
+                if (mat === targetMaterial) {
+                    count++;
+                    if (parseInt(sheetNum) === parseInt(currentSheetNum)) {
+                        materialSheetNumbers[cacheKey] = count;
+                        return count;
+                    }
+                }
+            }
+            return 1;
+        }
+        
+        /**
+         * Get display title for a sheet: "Material Sheet N"
+         */
+        function getSheetDisplayTitle(sheetNum, sheetPlanks) {
+            const firstPlank = sheetPlanks[0] || {};
+            const matName = getCleanMaterial(firstPlank.material);
+            const materialSheetNum = getMaterialSheetNumber(sheetNum, matName);
+            return `${matName} Sheet ${materialSheetNum}`;
+        }
+        
+        // --- HELPER FOR PLANK TABLE ---
+        function generatePlankSummaryTable(sheetPlanks) {
+            let rows = '';
+            sheetPlanks.forEach(p => {
+                rows += `
+                <tr>
+                    <td>${p.id}</td>
+                    <td>${p.name || ''}</td>
+                    <td>${p.width}×${p.height}</td>
+                    <td>${p.holes ? p.holes.length : 0}</td>
+                </tr>
+                `;
+            });
+            return `
+                <table style="width:100%; font-size:10px; border-collapse:collapse;">
+                <thead>
+                    <tr>
+                    <th style="text-align:left; border-bottom:1px solid #333;">ID</th>
+                    <th style="text-align:left; border-bottom:1px solid #333;">Name</th>
+                    <th style="text-align:left; border-bottom:1px solid #333;">Size</th>
+                    <th style="text-align:left; border-bottom:1px solid #333;">Holes</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+                </table>
+            `;
+        }
+
+        // --- NEW PDF GENERATION: VECTOR DRAWING METHOD ---
+        // Updated to use CNC Bottom-Left Origin logic
+        const sheetNameRaw = (<?!= data ?>.spreadsheetName || 'Cutlist');
+
+        // Sanitize filename
+        const safeSheetName = sheetNameRaw
+          .replace(/[\\/:*?"<>|]/g, '')
+          .trim();
+
+        async function generateVectorPdf(printAll) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+            
+            const pageW = 210;
+            const pageH = 297;
+            const margin = 10;
+            
+            // Define areas
+            const headerH = 30;
+            const tableH = 80; // Reserve space for the table at bottom
+            const vizAreaH = pageH - margin*2 - headerH - tableH; 
+            const vizAreaW = pageW - margin*2;
+
+            const clientName = (<?!= data ?>.clientName || 'Client');
+            
+            // Determine sheets to print
+            let sheetsToPrint = [];
+            if (printAll) {
+                sheetsToPrint = Object.keys(allSheetLayouts).sort((a,b)=>a-b);
+            } else {
+                if (selectedSheet === 'all') {
+                    sheetsToPrint = [Object.keys(allSheetLayouts)[0]];
+                } else {
+                    sheetsToPrint = [selectedSheet];
+                }
+            }
+
+            if(sheetsToPrint.length === 0 || !sheetsToPrint[0]) {
+                alert("No sheets to print.");
+                return;
+            }
+
+            // Loop through sheets
+            for (let i = 0; i < sheetsToPrint.length; i++) {
+                if (i > 0) doc.addPage();
+                
+                const sheetNum = sheetsToPrint[i];
+                const sheetPlanks = allSheetLayouts[sheetNum];
+                const firstPlank = sheetPlanks[0] || {};
+
+                // --- PER-MATERIAL SHEET TITLE ---
+                // Display as "Material Sheet N" where N restarts for each material
+                const sheetTitle = getSheetDisplayTitle(sheetNum, sheetPlanks);
+                const matName = getCleanMaterial(firstPlank.material);
+                // --- END TITLE LOGIC ---
+                
+                // 1. HEADER
+                doc.setFontSize(14);
+                doc.setFont("helvetica", "bold");
+                doc.text(sheetTitle, margin, margin + 8);
+                
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "normal");
+                // Simplified header since title has info now
+                doc.text(`Material: ${matName}`, margin, margin + 14);
+                
+                doc.text(clientName, pageW - margin, margin + 8, { align: 'right' });
+                doc.text(new Date().toLocaleDateString(), pageW - margin, margin + 14, { align: 'right' });
+                
+                doc.setLineWidth(0.5);
+                doc.line(margin, margin + 22, pageW - margin, margin + 22);
+
+                // 2. DRAW SHEET (Vector Geometry)
+                // Calculate Scale to fit A4 width/height constraints
+                const scaleX = vizAreaW / sheetWidth;
+                const scaleY = vizAreaH / sheetHeight;
+                const finalScale = Math.min(scaleX, scaleY);
+                
+                // Centering Logic
+                const drawW = sheetWidth * finalScale;
+                const drawH = sheetHeight * finalScale;
+                const startX = margin + (vizAreaW - drawW) / 2;
+                const startY = margin + headerH + (vizAreaH - drawH) / 2;
+
+                // Draw Sheet Border
+                doc.setDrawColor(0);
+                doc.rect(startX, startY, drawW, drawH); 
+
+                // Draw Planks
+                sheetPlanks.forEach(p => {
+                    const px = startX + (p.x * finalScale);
+                    // CNC FIX: Flip Y for sheet placement
+                    // Origin (0,0) is bottom-left, so Y increases UP.
+                    // PDF Y increases DOWN.
+                    // Correct Y = startY + (SheetHeight - PlankY - PlankHeight) * scale
+                    const py = startY + ((sheetHeight - p.y - p.height) * finalScale);
+                    
+                    const pw = p.width * finalScale;
+                    const ph = p.height * finalScale;
+
+                    // Fill Plank
+                    doc.setFillColor(240, 240, 240); // Light Grey
+                    doc.setDrawColor(50);
+                    doc.rect(px, py, pw, ph, 'FD');
+
+                    // Draw ID (Only if it fits)
+                    if (pw > 5 && ph > 4) {
+                        doc.setFontSize(Math.min(8, ph));
+                        doc.setTextColor(0);
+                        doc.text(String(p.id), px + pw/2, py + ph/2, { align: 'center', baseline: 'middle' });
+                    }
+
+                    // Draw Holes (Vector)
+                    if (p.holes) {
+                        // REMOVED "isVertical" check for swapping dimensions.
+                        // Trusting data: Length is X, Width is Y (relative to plank)
+                        
+                        p.holes.forEach(h => {
+                             // Correct Hole Logic:
+                             // In CNC, hole.y is from the BOTTOM of the plank.
+                             // In PDF, we draw from TOP.
+                             
+                             let rawW, rawH;
+                             
+                             if (h.isRectangular) {
+                                  // --- FIX: NO SWAPPING BASED ON PLANK SHAPE ---
+                                  rawW = h.length || 10;
+                                  rawH = h.width || 5;
+                             } else {
+                                  // Circular
+                                  rawW = h.diameter || 5;
+                                  rawH = h.diameter || 5;
+                             }
+
+                             const finalHoleW = rawW * finalScale;
+                             const finalHoleH = rawH * finalScale;
+
+                             // CNC FIX: Flip Y inside plank
+                             // Hole Y = PlankTop + (PlankHeight - HoleY - HoleHeight)
+                             const hx = px + (h.x * finalScale);
+                             const hy = py + ((p.height - h.y - rawH) * finalScale);
+
+                             if (h.isRectangular) {
+                                  const type = (h.type || "").toLowerCase();
+                                  if (type.includes("groove")) {
+                                      doc.setDrawColor(255, 140, 0); // Orange Stroke
+                                      doc.setFillColor(255, 140, 0); // Orange Fill
+                                      doc.rect(hx, hy, finalHoleW, finalHoleH, 'FD'); 
+                                  } else {
+                                      doc.setDrawColor(100);
+                                      doc.rect(hx, hy, finalHoleW, finalHoleH);
+                                  }
+                             } else {
+                                  // Circle
+                                  doc.setDrawColor(100);
+                                  // For circle, PDF circle uses center. 
+                                  // hx, hy is currently top-left corner of bounding box.
+                                  // radius = width / 2
+                                  const r = finalHoleW / 2;
+                                  doc.circle(hx + r, hy + r, r);
+                             }
+                        });
+                    }
+                });
+
+                // 3. TABLE (Bottom)
+                const tableTop = pageH - margin - tableH;
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(0);
+                doc.text("Part List (First 15)", margin, tableTop);
+                
+                let rowY = tableTop + 5;
+                doc.setFontSize(8);
+                doc.text("ID", margin, rowY);
+                doc.text("Name", margin + 15, rowY);
+                doc.text("Size (mm)", margin + 70, rowY);
+                
+                doc.line(margin, rowY + 1, pageW - margin, rowY + 1);
+                rowY += 5;
+                doc.setFont("helvetica", "normal");
+                
+                // Limit table to fit (approx 15 lines)
+                const planksToShow = sheetPlanks.slice(0, 15);
+                planksToShow.forEach(p => {
+                    doc.text(String(p.id), margin, rowY);
+                    
+                    let name = p.name || "";
+                    if(name.length > 35) name = name.substring(0, 35) + "...";
+                    doc.text(name, margin + 15, rowY);
+                    
+                    doc.text(`${Math.round(p.width)} x ${Math.round(p.height)}`, margin + 70, rowY);
+                    rowY += 4;
+                });
+                
+                // 4. FOOTER
+                doc.setFontSize(8);
+                doc.text(`Page ${i + 1} of ${sheetsToPrint.length}`, pageW / 2, pageH - 5, { align: 'center' });
+            }
+
+           const fileName = printAll
+           ? `${safeSheetName}_AllSheets.pdf`
+           : `${safeSheetName}_${selectedSheet}.pdf`;
+
+           // Save locally (existing behavior)
+           doc.save(fileName);
+           
+           // Also save to Drive project folder (dual storage)
+           try {
+               const pdfBase64 = doc.output('datauristring').split(',')[1];
+               google.script.run
+                   .withSuccessHandler(showFolderLinkPopup)
+                   .withFailureHandler(function(err) { console.log('PDF save to Drive failed:', err); })
+                   .savePdfToProjectFolder(pdfBase64, fileName);
+           } catch(e) {
+               console.log('Could not save PDF to Drive:', e);
+           }
+        }
+        
+        /**
+         * Show popup with link to project folder after file is saved
+         */
+        function showFolderLinkPopup(folderUrl) {
+            // Remove any existing popup
+            const existing = document.getElementById('folderLinkPopup');
+            if (existing) existing.remove();
+            
+            const popup = document.createElement('div');
+            popup.id = 'folderLinkPopup';
+            popup.innerHTML = `
+                <div style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+                            background:white; padding:25px; border-radius:12px; 
+                            box-shadow:0 8px 32px rgba(0,0,0,0.3); z-index:10000; text-align:center; min-width:300px;">
+                    <div style="font-size:48px; margin-bottom:10px;">✓</div>
+                    <h3 style="margin:0 0 15px 0; color:#2e7d32;">File Saved to Project Folder!</h3>
+                    <a href="${folderUrl}" target="_blank" 
+                       style="display:inline-block; background:#4caf50; color:white; padding:12px 24px; 
+                              border-radius:6px; text-decoration:none; font-weight:bold; margin-bottom:15px;">
+                        📂 Open Project Folder
+                    </a>
+                    <br><br>
+                    <button onclick="document.getElementById('folderLinkPopup').remove()" 
+                            style="background:#757575; color:white; border:none; padding:8px 20px; 
+                                   border-radius:4px; cursor:pointer;">
+                        Close
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(popup);
+            
+            // Auto-close after 10 seconds
+            setTimeout(() => {
+                const p = document.getElementById('folderLinkPopup');
+                if (p) p.remove();
+            }, 10000);
+        }
+        // --- END OF NEW PDF LOGIC ---
+
+        /**
+         * Enhanced tooltip with detailed hole information
+         */
+        function createEnhancedTooltip(plankData) {
+            const holeCount = plankData.holes ? plankData.holes.length : 0;
+            
+            // Group holes by type for summary
+            const holeSummary = {};
+            if (plankData.holes) {
+                plankData.holes.forEach(hole => {
+                    const type = hole.description || hole.type || 'unknown';
+                    holeSummary[type] = (holeSummary[type] || 0) + 1;
+                });
+            }
+
+            let holeSummaryHTML = '';
+            Object.entries(holeSummary).forEach(([type, count]) => {
+                const typeClass = getHoleTypeClass(type);
+                holeSummaryHTML += `
+                    <div class="hole-item">
+                        <span><span class="hole-type-indicator ${typeClass}"></span>${type}</span>
+                        <span>${count}</span>
+                    </div>
+                `;
+            });
+
+            let holeDetailsHTML = '';
+            if (plankData.holes && plankData.holes.length > 0) {
+                holeDetailsHTML = `
+                    <div class="hole-list">
+                        ${plankData.holes.map(hole => {
+                            const typeClass = getHoleTypeClass(hole.description || hole.type);
+                            const dimensions = hole.isRectangular ? 
+                                `L:${hole.length} W:${hole.width}mm` : 
+                                `⌀:${hole.diameter}mm`;
+                            return `
+                                <div class="hole-item">
+                                    <span><span class="hole-type-indicator ${typeClass}"></span>${hole.description || hole.type}</span>
+                                    <span>X:${hole.x} Y:${hole.y} ${dimensions}</span>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            } else {
+                holeDetailsHTML = '<div style="color: #999; font-style: italic;">No holes or features</div>';
+            }
+
+            // L-Cut info with validation
+            let lCutHTML = '';
+            if (plankData.l_cuts && plankData.l_cuts.length > 0) {
+                const lCutDetails = plankData.l_cuts.map((lc, i) => {
+                    // Validate: check if points are distinct
+                    const EPSILON = 0.1;
+                    const startEqualsCenter = Math.abs(lc.start.x - lc.center.x) < EPSILON && 
+                                              Math.abs(lc.start.y - lc.center.y) < EPSILON;
+                    const centerEqualsEnd = Math.abs(lc.center.x - lc.end.x) < EPSILON && 
+                                            Math.abs(lc.center.y - lc.end.y) < EPSILON;
+                    const isDegenerate = startEqualsCenter || centerEqualsEnd;
+                    
+                    const warningHTML = isDegenerate 
+                        ? `<div style="color: #FF5722; font-weight: bold; font-size: 10px;">⚠️ INVALID: Points not distinct - check SketchUp export</div>` 
+                        : '';
+                    
+                    return `
+                        <div style="font-size: 11px; margin-top: 4px; ${isDegenerate ? 'background: rgba(255,87,34,0.1); padding: 4px; border-radius: 3px;' : ''}">
+                            ${warningHTML}
+                            <span style="color: #4CAF50;">Start:</span> (${lc.start.x.toFixed(1)}, ${lc.start.y.toFixed(1)})
+                            <span style="color: #FF9800;">Center:</span> (${lc.center.x.toFixed(1)}, ${lc.center.y.toFixed(1)})
+                            <span style="color: #F44336;">End:</span> (${lc.end.x.toFixed(1)}, ${lc.end.y.toFixed(1)})
+                        </div>
+                    `;
+                }).join('');
+                
+                lCutHTML = `
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #555;">
+                        <strong style="color: #E91E63;">L-Cuts (Notches):</strong> ${plankData.l_cuts.length}
+                        ${lCutDetails}
+                    </div>
+                `;
+            }
+
+            return `
+                <h4>${plankData.id} - ${plankData.name || 'Unnamed'}</h4>
+                <div class="plank-info">
+                    <div><strong>Material:</strong> ${plankData.material}</div>
+                    <div><strong>Size:</strong> ${plankData.width} × ${plankData.height} mm</div>
+                    <div><strong>Thickness:</strong> ${plankData.thickness}mm</div>
+                    ${plankData.rotated ? '<div><strong>Rotated:</strong> Yes</div>' : ''}
+                    <div><strong>Total Features:</strong> ${holeCount}</div>
+                </div>
+                ${holeDetailsHTML}
+                ${lCutHTML}
+            `;
+        }
+
+        /**
+         * Get CSS class for hole type
+         */
+        function getHoleTypeClass(holeType) {
+            if (!holeType) return 'hole-type-standard';
+            
+            const type = holeType.toLowerCase();
+            if (type.includes('vb')) return 'hole-type-vb';
+            if (type.includes('screw')) return 'hole-type-screw';
+            if (type.includes('dowel')) return 'hole-type-dowel';
+            if (type.includes('groove')) return 'hole-type-groove';
+            if (type.includes('profile')) return 'hole-type-profile';
+            if (type.includes('slot')) return 'hole-type-slot';
+            return 'hole-type-standard';
+        }
+
+        /**
+         * Get hole class for rendering
+         */
+        function getHoleClass(hole) {
+            const description = (hole.description || hole.type || '').toLowerCase();
+            if (description.includes('vb')) return 'hole-vb';
+            if (description.includes('screw')) return 'hole-screw';
+            if (description.includes('dowel')) return 'hole-dowel';
+            if (description.includes('groove')) return 'hole-groove';
+            if (description.includes('profile')) return 'hole-profile';
+            if (description.includes('slot')) return 'hole-slot';
+            return 'hole-standard';
+        }
+
+        /**
+         * Handle CSV download - Dual storage: local + Drive
+         */
+        function handleDownload() {
+            if (planks.length === 0) {
+                alert('No data to download');
+                return;
+            }
+            
+            // Create CSV content
+            let csvContent = "ID,Material,Width,Height,Thickness,Sheet,X,Y,Rotated\n";
+            
+            planks.forEach(plank => {
+                csvContent += `"${plank.id}","${plank.material}",${plank.width},${plank.height},${plank.thickness},${plank.sheetNum},${plank.x},${plank.y},${plank.rotated}\n`;
+            });
+            
+            const filename = `${safeSheetName}_Cutlist.csv`;
+            
+            // Create and trigger local download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Also save to Drive project folder (dual storage)
+            try {
+                google.script.run
+                    .withSuccessHandler(showFolderLinkPopup)
+                    .withFailureHandler(function(err) { console.log('CSV save to Drive failed:', err); })
+                    .saveCsvToProjectFolder(csvContent, filename);
+            } catch(e) {
+                console.log('Could not save CSV to Drive:', e);
+            }
+        }
+
+        // --- MAIN INIT ---
+
+        const originalInit = function() {
+            try {
+                const data = <?!= data ?>;
+                const sheetGroups = data.planks || {};
+                stats = data.stats || {};
+                const constants = data.constants || {};
+                
+                sheetWidth = constants.SHEET_WIDTH || 1220;
+                sheetHeight = constants.SHEET_HEIGHT || 2440;
+                
+                planks = [];
+                Object.values(sheetGroups).forEach(sheetPlanks => {
+                    planks.push(...sheetPlanks);
+                });
+
+                if (planks.length === 0) {
+                    showNoData();
+                    return;
+                }
+                setupControls();
+                updateStats();
+                renderVisualization();
+            } catch (error) {
+                console.error('Error initializing visualization:', error);
+                showNoData();
+            }
+        }
+        
+        function init() {
+            try {
+                const data = <?!= data ?>;
+                allSheetLayouts = data.planks || {}; // Store for labels
+                sheetConstants = data.constants || { SHEET_WIDTH: 1220, SHEET_HEIGHT: 2440 };
+
+                // --- NEW: Safely read client details for labels ---
+                const details = data.clientDetails || {};
+                customerName = details.customerName || '';
+                firmName = details.firmName || '';
+
+            } catch (e) {
+                console.error("Could not parse label data:", e);
+            }
+            originalInit(); // Run the original init function
+        }
+
+
+        function showNoData() {
+            document.getElementById('visualizationArea').innerHTML = `
+                <div class="no-data">
+                    <h3>No Data Available</h3>
+                    <p>Please run the createCutlist function first to generate visualization data.</p>
+                </div>`;
+        }
+
+        const originalSetupControls = function() {
+            const sheetSelect = document.getElementById('sheetSelect');
+            const sheetNumbers = [...new Set(planks.map(p => p.sheetNum))].sort((a, b) => a - b);
+            
+            // Clear dropdown before populating
+            sheetSelect.innerHTML = '<option value="all">All Sheets</option>';
+            sheetNumbers.forEach(sheetNum => {
+                const option = document.createElement('option');
+                option.value = sheetNum;
+                // Get material name for this sheet and display as "Material Sheet N"
+                const sheetPlanks = allSheetLayouts[sheetNum] || [];
+                const matName = getCleanMaterial(sheetPlanks[0]?.material);
+                const materialSheetNum = getMaterialSheetNumber(sheetNum, matName);
+                option.textContent = `${matName} Sheet ${materialSheetNum}`;
+                sheetSelect.appendChild(option);
+            });
+
+            document.getElementById('sheetSelect').addEventListener('change', (e) => {
+                selectedSheet = e.target.value;
+                renderVisualization();
+            });
+            
+            document.getElementById('plankSearch').addEventListener('input', (e) => {
+                searchTerm = e.target.value.toLowerCase();
+                renderVisualization();
+            });
+            
+            document.getElementById('zoomSlider').addEventListener('input', (e) => {
+                currentZoom = e.target.value / 100;
+                document.getElementById('zoomValue').textContent = e.target.value + '%';
+                renderVisualization();
+            });
+            document.getElementById('showIds').addEventListener('change', (e) => {
+                showIds = e.target.checked;
+                renderVisualization();
+            });
+            document.getElementById('showDimensions').addEventListener('change', (e) => {
+                showDimensions = e.target.checked;
+                renderVisualization();
+            });
+            document.getElementById('showHoles').addEventListener('change', (e) => {
+                showHoles = e.target.checked;
+                renderVisualization();
+            });
+            document.getElementById('showHoleLabels').addEventListener('change', (e) => {
+                showHoleLabels = e.target.checked;
+                renderVisualization();
+            });
+            document.getElementById('highlightSearch').addEventListener('change', (e) => {
+                highlightSearch = e.target.checked;
+                renderVisualization();
+            });
+            
+            // Setup download buttons
+            document.getElementById('downloadBtn').addEventListener('click', handleDownload);
+            
+            // UPDATED: Use Vector PDF Function
+            document.getElementById('downloadPdfBtn').addEventListener('click', () => generateVectorPdf(false));
+            document.getElementById('downloadAllPdfBtn').addEventListener('click', () => generateVectorPdf(true));
+        }
+
+        function setupControls() {
+            originalSetupControls(); 
+            document.getElementById('printLabelsBtn').addEventListener('click', () => generateLabelPage(true));
+            document.getElementById('viewLabelsBtn').addEventListener('click', () => generateLabelPage(false));
+        }
+
+        function updateStats() {
+            document.getElementById('totalPlanks').textContent = stats.totalPlanks || 0;
+            document.getElementById('totalSheets').textContent = stats.totalSheets || 0;
+            
+            let overallUtil = 0;
+            if (stats.sheetUtilization && Object.keys(stats.sheetUtilization).length > 0) {
+                const utils = Object.values(stats.sheetUtilization);
+                const totalUtil = utils.reduce((sum, sheet) => sum + parseFloat(sheet.percentage), 0);
+                overallUtil = (totalUtil / utils.length).toFixed(1);
+            }
+            document.getElementById('overallUtilization').textContent = overallUtil + '%';
+
+            const materialsList = document.getElementById('materialsList');
+            materialsList.innerHTML = '';
+            if (stats.materialThicknessStats) {
+                Object.entries(stats.materialThicknessStats).forEach(([materialThickness, info]) => {
+                    materialsList.innerHTML += `
+                        <div class="material-item">
+                            <div class="material-color" style="background-color: ${info.color}"></div>
+                            <div class="material-info">
+                                <div class="material-name">${materialThickness}</div>
+                                <div class="material-count">${info.count} planks</div>
+                            </div>
+                        </div>`;
+                });
+            }
+
+            const sheetsList = document.getElementById('sheetsList');
+            sheetsList.innerHTML = '';
+            if (stats.sheetUtilization) {
+                Object.entries(stats.sheetUtilization).forEach(([sheetNum, sheetInfo]) => {
+                    sheetsList.innerHTML += `
+                        <div class="sheet-item">
+                            <div class="sheet-header">
+                                <span class="sheet-number">Sheet ${sheetNum}</span>
+                                <span class="sheet-utilization">${sheetInfo.percentage}%</span>
+                            </div>
+                            <div class="utilization-bar">
+                                <div class="utilization-fill" style="width: ${sheetInfo.percentage}%"></div>
+                            </div>
+                        </div>`;
+                });
+            }
+        }
+
+        function renderVisualization() {
+            const area = document.getElementById('visualizationArea');
+            const data = <?!= data ?>;
+            const sheetGroups = data.planks || {};
+            
+            let sheetsToRender = {};
+            if (selectedSheet === 'all') {
+                sheetsToRender = sheetGroups;
+            } else if (sheetGroups[selectedSheet]) {
+                sheetsToRender[selectedSheet] = sheetGroups[selectedSheet];
+            }
+
+            if (Object.keys(sheetsToRender).length === 0) {
+                area.innerHTML = '<div class="no-data"><h3>No planks found for selected sheet</h3></div>';
+                return;
+            }
+
+            let html = '';
+            Object.entries(sheetsToRender).forEach(([sheetNum, sheetPlanks]) => {
+                html += renderSheet(parseInt(sheetNum), sheetPlanks);
+            });
+            area.innerHTML = html;
+            setupPlankInteractions();
+        }
+
+        // --- SCREEN RENDERER (Modified for CNC Bottom-Left Origin) ---
+        function renderSheet(sheetNum, sheetPlanks, zoomOverride = null) {
+            const effectiveZoom = zoomOverride !== null ? zoomOverride : currentZoom; 
+            const scaledWidth = sheetWidth * effectiveZoom;
+            const scaledHeight = sheetHeight * effectiveZoom;
+            
+            // --- TITLE LOGIC: Per-Material Sheet Numbering ---
+            // Display as "Material Sheet N" where N restarts for each material
+            const displayTitle = getSheetDisplayTitle(sheetNum, sheetPlanks);
+            // -------------------
+
+            const filteredPlanks = searchTerm && !zoomOverride ? 
+                sheetPlanks.filter(plank => 
+                    plank.id.toLowerCase().includes(searchTerm) || 
+                    (plank.name && plank.name.toLowerCase().includes(searchTerm))
+                ) : sheetPlanks;
+            
+            const plankElements = filteredPlanks.map(plank => {
+                const x = plank.x * effectiveZoom;
+                
+                // CNC FIX: Flip Y for Plank Placement on Sheet
+                // Original: const y = plank.y * effectiveZoom;
+                // Fixed: Origin is Bottom-Left, so Y increases UP. Browser Y increases DOWN.
+                const y = (sheetHeight - plank.y - plank.height) * effectiveZoom;
+                
+                const width = plank.width * effectiveZoom;
+                const height = plank.height * effectiveZoom;
+                const materialColor = plank.color || '#9E9E9E';
+                
+                const isVerticalPlank = plank.height > plank.width; 
+
+                const isSearchMatch = searchTerm && (
+                    plank.id.toLowerCase().includes(searchTerm) || 
+                    (plank.name && plank.name.toLowerCase().includes(searchTerm))
+                );
+                
+                const highlightStyle = isSearchMatch && highlightSearch ? 
+                    'box-shadow: 0 0 0 3px #FF6B6B; z-index: 15;' : '';
+
+                let holeElements = '';
+                if (showHoles && plank.holes && plank.holes.length > 0) {
+                    holeElements = plank.holes.map((hole, index) => {
+                        const holeClass = getHoleClass(hole);
+                        
+                        let holeStyle = '';
+                        let shapeClass = 'hole-circular';
+                        
+                        let hX = hole.x * effectiveZoom;
+                        
+                        // We will calculate hY below based on shape
+                        let hY;
+
+                        if (hole.isRectangular) {
+                            // --- FIX: REMOVED isVerticalPlank LOGIC ---
+                            // Trust the data: Length = X, Width = Y
+                            let rawW = (hole.length || 10);
+                            let rawH = (hole.width || 5);
+
+                            let hW = rawW * effectiveZoom;
+                            let hH = rawH * effectiveZoom;
+
+                            // CNC FIX: Flip Y inside Plank
+                            // Hole Y is distance from BOTTOM of plank. Browser draws from TOP.
+                            // Visual Y = PlankHeight - HoleY - HoleHeight
+                            hY = (plank.height - hole.y - rawH) * effectiveZoom;
+
+                            holeStyle = `
+                                left: ${hX}px; 
+                                top: ${hY}px; 
+                                width: ${hW}px; 
+                                height: ${hH}px;
+                            `;
+                            shapeClass = 'hole-rectangular';
+                        } else {
+                            const diameter = (hole.diameter || 5) * effectiveZoom;
+                            
+                            // CNC FIX: Flip Y for Circles
+                            // Hole Y is from BOTTOM. 
+                            // Visual Y = PlankHeight - HoleY - Diameter
+                            hY = (plank.height - hole.y - (hole.diameter || 5)) * effectiveZoom;
+
+                            holeStyle = `
+                                left: ${hX}px; 
+                                top: ${hY}px; 
+                                width: ${diameter}px; 
+                                height: ${diameter}px;
+                            `;
+                            shapeClass = 'hole-circular';
+                        }
+
+                        let labelHTML = '';
+                        if (showHoleLabels) {
+                            const labelText = hole.description || hole.type;
+                            labelHTML = `<div style="font-size: 10px; position:absolute; top:-15px; white-space:nowrap; color:blue;">${labelText}</div>`; 
+                        }
+                        
+                        return `<div class="hole ${holeClass} ${shapeClass}" style="${holeStyle}" 
+                                    data-hole-index="${index}">
+                                    ${labelHTML}
+                                </div>`;
+                    }).join('');
+                }
+                
+                // L-Cut visualization with validation for degenerate data
+                let lCutElements = '';
+                if (showHoles && plank.l_cuts && plank.l_cuts.length > 0) {
+                    lCutElements = plank.l_cuts.map((lcut, index) => {
+                        // Validate L-cut data: all three points must be distinct
+                        const EPSILON = 0.1;
+                        const startEqualsCenter = Math.abs(lcut.start.x - lcut.center.x) < EPSILON && 
+                                                  Math.abs(lcut.start.y - lcut.center.y) < EPSILON;
+                        const centerEqualsEnd = Math.abs(lcut.center.x - lcut.end.x) < EPSILON && 
+                                                Math.abs(lcut.center.y - lcut.end.y) < EPSILON;
+                        const isDegenerate = startEqualsCenter || centerEqualsEnd;
+                        
+                        // CNC coordinate system: Y increases upward, but browser Y increases downward
+                        // Clamp coordinates to plank boundaries to handle any edge cases
+                        const clampedStartX = Math.max(0, Math.min(lcut.start.x, plank.width));
+                        const clampedStartY = Math.max(0, Math.min(lcut.start.y, plank.height));
+                        const clampedCenterX = Math.max(0, Math.min(lcut.center.x, plank.width));
+                        const clampedCenterY = Math.max(0, Math.min(lcut.center.y, plank.height));
+                        const clampedEndX = Math.max(0, Math.min(lcut.end.x, plank.width));
+                        const clampedEndY = Math.max(0, Math.min(lcut.end.y, plank.height));
+                        
+                        // Convert relative coordinates with Y-flip
+                        const startX = clampedStartX * effectiveZoom;
+                        const startY = (plank.height - clampedStartY) * effectiveZoom;
+                        const centerX = clampedCenterX * effectiveZoom;
+                        const centerY = (plank.height - clampedCenterY) * effectiveZoom;
+                        const endX = clampedEndX * effectiveZoom;
+                        const endY = (plank.height - clampedEndY) * effectiveZoom;
+                        
+                        // Plank dimensions in display coordinates
+                        const plankWidth = plank.width * effectiveZoom;
+                        const plankHeight = plank.height * effectiveZoom;
+                        
+                        // If degenerate, show warning indicator instead of broken lines
+                        if (isDegenerate) {
+                            const warningX = Math.max(startX, centerX, endX) / 2;
+                            const warningY = Math.max(startY, centerY, endY) / 2;
+                            return `
+                                <div class="l-cut-shape l-cut-warning" 
+                                     style="left:${warningX}px; top:${warningY}px;"
+                                     title="WARNING: Invalid L-Cut data - points are not distinct. Check SketchUp export.">
+                                    <span style="color:#FF5722; font-size:16px; font-weight:bold;">⚠️</span>
+                                </div>
+                            `;
+                        }
+                        
+                        // Determine which corner the L-cut is near (to draw the filled notch area)
+                        // The L-cut removes material from one corner of the plank
+                        // Corners: TL(0,0), TR(W,0), BR(W,H), BL(0,H) in browser coords (Y flipped)
+                        const corners = [
+                            { x: 0, y: 0, name: 'top-left' },
+                            { x: plankWidth, y: 0, name: 'top-right' },
+                            { x: plankWidth, y: plankHeight, name: 'bottom-right' },
+                            { x: 0, y: plankHeight, name: 'bottom-left' }
+                        ];
+                        
+                        // Find closest corner to the center point (that's the cut corner)
+                        let cutCorner = corners[0];
+                        let minDist = Infinity;
+                        corners.forEach(corner => {
+                            const dist = Math.sqrt(Math.pow(centerX - corner.x, 2) + Math.pow(centerY - corner.y, 2));
+                            if (dist < minDist) {
+                                minDist = dist;
+                                cutCorner = corner;
+                            }
+                        });
+                        
+                        // Build the L-shaped notch polygon: corner -> start -> center -> end -> corner
+                        // The polygon represents the material that will be removed
+                        const notchPolygon = `${cutCorner.x},${cutCorner.y} ${startX},${startY} ${centerX},${centerY} ${endX},${endY}`;
+                        
+                        // Draw lines for the cut path: start -> center -> end
+                        const line1Length = Math.sqrt(Math.pow(centerX - startX, 2) + Math.pow(centerY - startY, 2));
+                        const line1Angle = Math.atan2(centerY - startY, centerX - startX) * 180 / Math.PI;
+                        
+                        const line2Length = Math.sqrt(Math.pow(endX - centerX, 2) + Math.pow(endY - centerY, 2));
+                        const line2Angle = Math.atan2(endY - centerY, endX - centerX) * 180 / Math.PI;
+                        
+                        return `
+                            <div class="l-cut-shape" style="width:${plankWidth}px; height:${plankHeight}px;">
+                                <!-- SVG showing the L-cut notch area -->
+                                <svg style="position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; overflow:visible;">
+                                    <!-- Filled polygon showing material to be removed (the notch) -->
+                                    <polygon points="${notchPolygon}" 
+                                             fill="rgba(233,30,99,0.25)" stroke="#E91E63" stroke-width="2"/>
+                                    <!-- L-shaped cut path outline (the actual tool path) -->
+                                    <polyline points="${startX},${startY} ${centerX},${centerY} ${endX},${endY}" 
+                                              fill="none" stroke="#C2185B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <!-- CSS lines for backup/fallback -->
+                                <div class="l-cut-line" style="left:${startX}px; top:${startY}px; width:${line1Length}px; transform:rotate(${line1Angle}deg);"></div>
+                                <div class="l-cut-line" style="left:${centerX}px; top:${centerY}px; width:${line2Length}px; transform:rotate(${line2Angle}deg);"></div>
+                                <!-- Control points with tooltips -->
+                                <div class="l-cut-point start" style="left:${startX - 3}px; top:${startY - 3}px;" title="L-Cut ${index + 1} Start (${lcut.start.x.toFixed(1)}, ${lcut.start.y.toFixed(1)})"></div>
+                                <div class="l-cut-point center" style="left:${centerX - 3}px; top:${centerY - 3}px;" title="L-Cut ${index + 1} Center (${lcut.center.x.toFixed(1)}, ${lcut.center.y.toFixed(1)})"></div>
+                                <div class="l-cut-point end" style="left:${endX - 3}px; top:${endY - 3}px;" title="L-Cut ${index + 1} End (${lcut.end.x.toFixed(1)}, ${lcut.end.y.toFixed(1)})"></div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                return `
+                    <div class="plank" 
+                         style="left: ${x}px; top: ${y}px; width: ${width}px; height: ${height}px; background-color: ${materialColor}; ${highlightStyle}"
+                         data-plank='${JSON.stringify(plank)}'>
+                        ${(showIds || zoomOverride) ? `<div class="plank-id" style="font-size:10px">${plank.id}</div>` : ''}
+                        ${(showDimensions || zoomOverride) ? `<div class="plank-dimensions" style="font-size:9px">${plank.width}×${plank.height}</div>` : ''}
+                        ${holeElements}
+                        ${lCutElements}
+                    </div>`;
+            }).join('');
+            
+            const usedArea = sheetPlanks.reduce((sum, p) => sum + (p.width * p.height), 0);
+            const totalArea = (sheetWidth - 2 * 10) * (sheetHeight - 2 * 10);
+            const utilization = totalArea > 0 ? ((usedArea / totalArea) * 100).toFixed(1) : 0;
+
+            const searchInfo = searchTerm && !zoomOverride ? 
+                `<div class="sheet-info">Showing ${filteredPlanks.length} of ${sheetPlanks.length} planks</div>` : '';
+
+            return `
+${zoomOverride ? '' : `
+<div class="sheet-header-viz">
+    <div class="sheet-title">${displayTitle}</div>
+    <div class="sheet-info">${sheetPlanks.length} planks • ${utilization}% utilization</div>
+    ${searchInfo}
+</div>
+`}
+                <div class="sheet-canvas" style="width: ${scaledWidth}px; height: ${scaledHeight}px;">
+                    ${plankElements}
+                </div>
+            </div>`;
+        }
+        
+        function setupPlankInteractions() {
+            const tooltip = document.getElementById('tooltip');
+            const planks = document.querySelectorAll('.plank');
+            const vizArea = document.getElementById('visualizationArea');
+
+            planks.forEach(plank => {
+                plank.addEventListener('mouseenter', (e) => {
+                    const plankData = JSON.parse(e.currentTarget.getAttribute('data-plank'));
+                    tooltip.innerHTML = createEnhancedTooltip(plankData);
+                    tooltip.style.display = 'block';
+                });
+
+                plank.addEventListener('mousemove', (e) => {
+                    tooltip.style.left = (e.pageX + 15) + 'px';
+                    tooltip.style.top = (e.pageY + 15) + 'px';
+                });
+            });
+            
+            tooltip.addEventListener('mouseleave', () => {
+                tooltip.style.display = 'none';
+            });
+
+            vizArea.addEventListener('mousemove', (e) => {
+                if (!e.target.closest('.plank') && !e.target.closest('.tooltip')) {
+                    tooltip.style.display = 'none';
+                }
+            });
+        }
+
+        // --- LABEL GENERATION ---
+        function generateLabelPage(autoPrint = false) {
+            if (Object.keys(allSheetLayouts).length === 0) {
+                alert('No layout data found. Cannot generate labels.');
+                return;
+            }
+
+            let allLabelsHtml = '';
+            const sortedSheetNumbers = Object.keys(allSheetLayouts).sort((a, b) => a - b);
+
+            for (const sheetNum of sortedSheetNumbers) {
+                const planksOnThisSheet = allSheetLayouts[sheetNum];
+                for (const plank of planksOnThisSheet) {
+                    allLabelsHtml += createLabelForPlank(plank, planksOnThisSheet);
+                }
+            }
+
+            openPrintableWindow(allLabelsHtml, autoPrint);
+        }
+
+      function createLabelForPlank(plank, allPlanksOnSheet) {
+    const roomMatch = plank.material.match(/\(([^)]+)\)/);
+    const roomName = roomMatch ? roomMatch[1] : 'N/A'; 
+    let cleanMaterial = plank.material.replace(/\s*\([^)]+\)/g, '').trim();
+    cleanMaterial = cleanMaterial.replace(new RegExp(`-\\s*${plank.thickness}(mm)?`, 'i'), '').trim();
+
+    const miniMapSvg = generateMiniMapSvg(plank, allPlanksOnSheet);
+
+    // --- CHANGE: Use originalWidth/Height if available, else fallback to width/height ---
+    const displayW = plank.originalWidth || plank.width;
+    const displayH = plank.originalHeight || plank.height;
+    const displayEB = plank.ebValue || 0;
+    
+    // --- PER-MATERIAL SHEET NUMBERING FOR LABELS ---
+    const matForSheet = getCleanMaterial(plank.material);
+    const materialSheetNum = getMaterialSheetNumber(plank.sheetNum, matForSheet);
+    const sheetDisplayText = `${matForSheet} Sheet ${materialSheetNum}`;
+
+    return `
+        <div class="label-container">
+            <div class="label-left">
+                <div class="header-text">Nestup</div>
+                <div class="plank-name">${plank.name}</div>
+                <div class="plank-material">${cleanMaterial} - ${plank.thickness}mm</div>
+                <div class="sheet-info">Sheet: ${sheetDisplayText}</div>
+
+                <div class="plank-size">${parseFloat(displayW).toFixed(1)} x ${parseFloat(displayH).toFixed(1)}</div>
+                
+                <div class="room-name">${roomName}</div>
+                 ${firmName ? `<div class="firm-name">${firmName}</div>` : ``}
+                ${customerName ? `<div class="customer-name">${customerName}</div>` : ``}
+            </div>
+            <div class="label-right">
+                <div class="plank-id">${plank.id}</div>
+                ${miniMapSvg}
+                <div class="eb-info">EB - ${displayEB} mm</div>
+            </div>
+        </div>
+    `;
+}
+        
+
+        // --- FIXED: SVG Minimap Y-Flip for Bottom-Left Origin ---
+        function generateMiniMapSvg(currentPlank, allPlanksOnSheet) {
+            const SHEET_W = sheetConstants.SHEET_WIDTH;
+            const SHEET_H = sheetConstants.SHEET_HEIGHT;
+
+            let otherPlanksSvg = '';
+            for (const p of allPlanksOnSheet) {
+                // Correct Y logic for SVG (0,0 is top-left, CNC is bottom-left)
+                const svgY = SHEET_H - p.y - p.height;
+                
+                if (p.id !== currentPlank.id) {
+                    otherPlanksSvg += `<rect x="${p.x}" y="${svgY}" width="${p.width}" height="${p.height}" class="plank-other"/>`;
+                }
+            }
+
+            // Correct Y logic for Highlighted Plank
+            const currentSvgY = SHEET_H - currentPlank.y - currentPlank.height;
+
+            return `
+                <svg class="minimap" viewBox="0 0 ${SHEET_W} ${SHEET_H}">
+                    <rect x="0" y="0" width="${SHEET_W}" height="${SHEET_H}" class="sheet-bg"/>
+                    ${otherPlanksSvg}
+                    <rect x="${currentPlank.x}" y="${currentSvgY}" width="${currentPlank.width}" height="${currentPlank.height}" class="plank-highlight"/>
+                </svg>
+            `;
+        }
+
+        function openPrintableWindow(content, autoPrint = false) {
+            const newWindow = window.open('', '_blank');
+            
+            // Also save labels to Drive project folder
+            try {
+                // Create a simple HTML blob for labels
+                const labelsHtml = `<!DOCTYPE html><html><head><title>Labels</title></head><body>${content}</body></html>`;
+                const filename = `${safeSheetName}_Labels.html`;
+                google.script.run
+                    .withSuccessHandler(showFolderLinkPopup)
+                    .withFailureHandler(function(err) { console.log('Labels save to Drive failed:', err); })
+                    .saveLabelsHtmlToProjectFolder(labelsHtml, filename);
+            } catch(e) {
+                console.log('Could not save Labels to Drive:', e);
+            }
+            
+            newWindow.document.write(`
+                <html>
+                <head>
+                    <title>Print Labels</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 5mm; background: #f0f0f0; }
+                        .label-container {
+                            width: 75mm; 
+                            height: 50mm; 
+                            border: 1px dashed #999;
+                            margin: 2mm;
+                            padding: 3mm;
+                            display: flex;
+                            box-sizing: border-box;
+                            background: white;
+                            page-break-inside: avoid; 
+                        }
+                        .label-left { flex: 2; display: flex; flex-direction: column; font-size: 10pt; line-height: 1.4; overflow: hidden; }
+                        .label-right { flex: 1.2; display: flex; flex-direction: column; align-items: center; text-align: center; }
+                        .header-text { font-size: 8pt; font-weight: bold; }
+                        .plank-name { font-size: 11pt; font-weight: bold; margin-top: 2mm; }
+                        .plank-material { font-size: 10pt; }
+                        .plank-size { font-size: 9pt; }
+                        .sheet-info { font-size: 10pt; margin-top: auto; font-weight: bold; }
+                        .room-name { font-size: 9pt; font-weight: bold; }
+                        
+                        /* NEW STYLES FOR CLIENT INFO */
+                        .firm-name { font-size: 14pt; font-weight: 900; margin-top: 1mm; }
+                        .customer-name { font-size: 14pt; font-weight: 900; margin-bottom: 1mm; }
+
+                        .plank-id { font-size: 24pt; font-weight: bold; }
+                        .minimap { 
+                            height: calc(100% - 32px);
+                            width: auto; 
+                            border: 1px solid #000;
+                            aspect-ratio: ${sheetConstants.SHEET_WIDTH} / ${sheetConstants.SHEET_HEIGHT};
+                        }
+                        .sheet-bg { fill: #fff; }
+                        .plank-other { fill: #fff; stroke: #aaa; stroke-width: 25px; }
+                        .plank-highlight { fill: #000; stroke: #000; stroke-width: 25px; }
+                        .eb-info { font-size: 7pt; margin-top: 1mm; }
+                        @media print {
+                            body { background: #fff; padding: 0; }
+                            .label-container { border: 1px solid #000; margin: 0; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${content}
+                </body>
+                </html>
+            `);
+            newWindow.document.close();
+            newWindow.focus();
+            
+            if (autoPrint) {
+                setTimeout(() => {
+                    newWindow.print();
+                }, 500); 
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+        
+    </script>
+</body>
+</html>

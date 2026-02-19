@@ -1,6 +1,8 @@
 /**
- * Dialog Components
- * Export all dialog components for the designer
+ * Dialogs Index
+ * Pre-generation dialogs for the Designer
  */
 
-export { ExportDialog } from './ExportDialog';
+export { EdgeBindingDialog, type EBSettings } from './EdgeBindingDialog';
+export { ClientDetailsDialog } from './ClientDetailsDialog';
+export type { CustomerDetails } from '@/store/designerStore';

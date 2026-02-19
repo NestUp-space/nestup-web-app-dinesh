@@ -1,359 +1,429 @@
+'use client';
+
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { useDesignerStore, useSelectedBox } from '@/store/designerStore';
+import { LaminateOption } from '@/types/visualiser';
+import { localConvertDriveUrl } from '@/lib/visualiser/catalogParser';
+
+// Laminate color mapping for 3D visualization
+const LAMINATE_COLOR_MAP: Record<string, string> = {
+  // Common wood tones
+  'walnut': '#5D4037',
+  'oak': '#D2B48C',
+  'cherry': '#B5651D',
+  'maple': '#FFE4B5',
+  'teak': '#8B6914',
+  'mahogany': '#C04000',
+  'ash': '#E8DCC8',
+  'beech': '#E6C9A8',
+  // Colors
+  'white': '#FAFAFA',
+  'black': '#1A1A1A',
+  'grey': '#808080',
+  'gray': '#808080',
+  'cream': '#FFFDD0',
+  'ivory': '#FFFFF0',
+  // Laminates
+  'anthracite': '#383838',
+  'stone': '#A0A0A0',
+  'sand': '#C2B280',
+};
+
 /**
- * LaminatePanel Component
- * Slide-out panel for assigning laminates to planks
+ * LaminatePanel - EXACT PORT from Apps Script openLaminateSidePanel
+ * 
+ * Features:
+ * - Shows laminate options with images from Google Drive URLs
+ * - Filter by brand
+ * - Search by code/colour
+ * - Apply laminate to selected planks
+ * - Side selection (outer/inner/both)
  */
 
-"use client";
-
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useDesignerStore, selectSelectedBox } from "@/store/designerStore";
-import { 
-  computeMaterialString, 
-  getCoreMaterialFromPly,
-  determinePlankCategory,
-  DEFAULT_LAMINATE_OPTIONS,
-} from "@/lib/visualiser/materialUtils";
-import type { Laminate, DesignerPlank } from "@/types/visualiser";
-
-// ============================================
-// Laminate Card Component
-// ============================================
-
-interface LaminateCardProps {
-  laminate: Laminate;
-  isSelected: boolean;
-  onClick: () => void;
+interface LaminatePanelProps {
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-function LaminateCard({ laminate, isSelected, onClick }: LaminateCardProps) {
-  return (
-    <div
-      onClick={onClick}
-      className={`p-2 rounded-dls-md border-2 cursor-pointer transition-all ${
-        isSelected
-          ? "border-primary-orange bg-lighter-interactive/20 shadow-md"
-          : "border-light-bw hover:border-medium-border hover:shadow"
-      }`}
-    >
-      {/* Color preview */}
-      <div
-        className="w-full aspect-square rounded-dls-sm mb-2 border"
-        style={{ backgroundColor: laminate.previewColor }}
-      />
-      
-      {/* Info */}
-      <div className="text-xs font-medium text-neutral-dark truncate">
-        {laminate.code}
-      </div>
-      <div className="text-[10px] text-technical-gray truncate">
-        {laminate.colour}
-      </div>
-      <div className="text-[10px] text-light-interactive-bw">
-        {laminate.brand}
-      </div>
-    </div>
-  );
-}
-
-// ============================================
-// Plank Checkbox Component
-// ============================================
-
-interface PlankCheckboxProps {
-  plank: DesignerPlank;
-  isChecked: boolean;
-  onChange: (checked: boolean) => void;
-}
-
-function PlankCheckbox({ plank, isChecked, onChange }: PlankCheckboxProps) {
-  const category = determinePlankCategory(plank.plankRole || plank.name);
+/**
+ * Get a display color from a laminate for 3D visualization
+ */
+function getLaminateDisplayColor(laminate: LaminateOption): string {
+  // Try to get color from laminate colour/code
+  const searchTerms = [
+    laminate.colour?.toLowerCase() || '',
+    laminate.code?.toLowerCase() || '',
+  ];
   
-  return (
-    <label className="flex items-center gap-2 p-2 rounded-dls-sm hover:bg-lighter-bg cursor-pointer">
-      <input
-        type="checkbox"
-        checked={isChecked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="w-4 h-4 rounded border-light-bw text-primary-orange focus:ring-primary-orange"
-      />
-      <span
-        className="w-3 h-3 rounded-sm border"
-        style={{ backgroundColor: plank.color }}
-      />
-      <span className="text-sm text-neutral-dark flex-1">{plank.name}</span>
-      <span className={`text-xs px-1.5 py-0.5 rounded-dls-sm ${
-        category === 'door' ? 'bg-purple-100 text-purple-700' :
-        category === 'back' ? 'bg-primary-blue/20 text-primary-blue' :
-        'bg-lighter-bg text-technical-gray'
-      }`}>
-        {category}
-      </span>
-    </label>
-  );
-}
-
-// ============================================
-// Main LaminatePanel Component
-// ============================================
-
-export function LaminatePanel() {
-  const isLaminatePanelOpen = useDesignerStore((state) => state.isLaminatePanelOpen);
-  const laminateOptions = useDesignerStore((state) => state.laminateOptions);
-  const selectedBox = useDesignerStore(selectSelectedBox);
-  
-  const toggleLaminatePanel = useDesignerStore((state) => state.toggleLaminatePanel);
-  const setLaminateOptions = useDesignerStore((state) => state.setLaminateOptions);
-  const bulkUpdatePlankMaterials = useDesignerStore((state) => state.bulkUpdatePlankMaterials);
-  const updatePlank = useDesignerStore((state) => state.updatePlank);
-
-  // Local state
-  const [selectedPlankIds, setSelectedPlankIds] = useState<string[]>([]);
-  const [selectedLaminateId, setSelectedLaminateId] = useState<string | null>(null);
-  const [applyBothSides, setApplyBothSides] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterBrand, setFilterBrand] = useState<string>('all');
-  const [filterCategory, setFilterCategory] = useState<string>('all');
-
-  // Initialize laminates if empty
-  useEffect(() => {
-    if (laminateOptions.length === 0) {
-      setLaminateOptions(DEFAULT_LAMINATE_OPTIONS);
+  for (const term of searchTerms) {
+    for (const [colorKey, colorValue] of Object.entries(LAMINATE_COLOR_MAP)) {
+      if (term.includes(colorKey)) {
+        return colorValue;
+      }
     }
-  }, [laminateOptions.length, setLaminateOptions]);
+  }
+  
+  // Default: use a pleasant wood color
+  return '#D4A574';
+}
 
+export const LaminatePanel: React.FC<LaminatePanelProps> = ({ isOpen, onClose }) => {
+  const selectedBox = useSelectedBox();
+  const { laminateLibrary, updatePlank, selectPlank, selectedPlankId, applyLaminateToBox } = useDesignerStore();
+  
+  // State
+  const [brandFilter, setBrandFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSide, setSelectedSide] = useState<'outer' | 'inner' | 'both'>('outer');
+  const [selectedLaminate, setSelectedLaminate] = useState<LaminateOption | null>(null);
+  const [selectedPlankIds, setSelectedPlankIds] = useState<string[]>([]);
+  
   // Reset selection when box changes
   useEffect(() => {
     setSelectedPlankIds([]);
-    setSelectedLaminateId(null);
+    setSelectedLaminate(null);
   }, [selectedBox?.id]);
 
-  // Get unique brands and categories
-  const { brands, categories } = useMemo(() => {
-    const brands = Array.from(new Set(laminateOptions.map(l => l.brand))).filter(Boolean);
-    const categories = Array.from(new Set(laminateOptions.map(l => l.category))).filter(Boolean);
-    return { brands, categories };
-  }, [laminateOptions]);
+  // Get unique brands from laminate library
+  const brands = useMemo(() => {
+    const brandSet = new Set<string>();
+    laminateLibrary.forEach(lam => {
+      if (lam.brand) brandSet.add(lam.brand);
+    });
+    return Array.from(brandSet).sort();
+  }, [laminateLibrary]);
 
   // Filter laminates
   const filteredLaminates = useMemo(() => {
-    return laminateOptions.filter(laminate => {
-      const matchesSearch = 
-        laminate.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        laminate.colour?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        laminate.brand.toLowerCase().includes(searchTerm.toLowerCase());
+    return laminateLibrary.filter(lam => {
+      // Brand filter
+      if (brandFilter !== 'all' && lam.brand !== brandFilter) {
+        return false;
+      }
       
-      const matchesBrand = filterBrand === 'all' || laminate.brand === filterBrand;
-      const matchesCategory = filterCategory === 'all' || laminate.category === filterCategory;
+      // Search filter
+      if (searchTerm) {
+        const searchIn = [
+          lam.code || '',
+          lam.colour || '',
+          lam.brand || '',
+          lam.displayName || ''
+        ].join(' ').toLowerCase();
+        
+        if (!searchIn.includes(searchTerm.toLowerCase())) {
+          return false;
+        }
+      }
       
-      return matchesSearch && matchesBrand && matchesCategory && laminate.isActive;
+      return true;
     });
-  }, [laminateOptions, searchTerm, filterBrand, filterCategory]);
+  }, [laminateLibrary, brandFilter, searchTerm]);
 
-  // Handle plank selection toggle
-  const handlePlankToggle = useCallback((plankId: string, checked: boolean) => {
-    setSelectedPlankIds(prev => 
-      checked 
-        ? [...prev, plankId]
-        : prev.filter(id => id !== plankId)
-    );
+  // Use centralized URL conversion function
+  const convertDriveUrl = useCallback((url: string): string => {
+    return localConvertDriveUrl(url);
   }, []);
 
-  // Select/deselect all planks
-  const handleSelectAll = useCallback((checked: boolean) => {
-    if (checked && selectedBox) {
+  // Toggle plank selection
+  const togglePlankSelection = (plankId: string) => {
+    setSelectedPlankIds(prev => 
+      prev.includes(plankId) 
+        ? prev.filter(id => id !== plankId)
+        : [...prev, plankId]
+    );
+  };
+
+  // Select all planks
+  const selectAllPlanks = () => {
+    if (selectedBox) {
       setSelectedPlankIds(selectedBox.planks.map(p => p.id));
-    } else {
-      setSelectedPlankIds([]);
     }
-  }, [selectedBox]);
+  };
 
-  // Apply laminate to selected planks
-  const handleApply = useCallback(() => {
-    if (!selectedBox || !selectedLaminateId || selectedPlankIds.length === 0) return;
-    
-    const laminate = laminateOptions.find(l => l.id === selectedLaminateId);
-    if (!laminate) return;
-    
-    // Get core material from box's plywood selection
-    const carcassPly = selectedBox.carcassPly;
-    const coreType = getCoreMaterialFromPly(carcassPly || '');
-    
-    // Compute material string
-    const innerCode = applyBothSides ? laminate.code : undefined;
-    const materialString = computeMaterialString(coreType, laminate.code, innerCode);
-    
-    // Update each selected plank
-    for (const plankId of selectedPlankIds) {
-      const plank = selectedBox.planks.find(p => p.id === plankId);
-      if (plank) {
-        updatePlank(selectedBox.id, plankId, {
-          outerLaminateCode: laminate.code,
-          innerLaminateCode: innerCode,
-          materialString,
-          color: laminate.previewColor,
-        });
-      }
-    }
-    
-    // Clear selection
+  // Deselect all planks
+  const deselectAllPlanks = () => {
     setSelectedPlankIds([]);
-    setSelectedLaminateId(null);
-  }, [selectedBox, selectedLaminateId, selectedPlankIds, applyBothSides, laminateOptions, updatePlank]);
+  };
 
-  if (!isLaminatePanelOpen) return null;
+  // Apply laminate to selected planks with visual update (including texture)
+  const applyLaminate = useCallback(() => {
+    if (!selectedLaminate) return;
+    
+    // Get the display color for 3D visualization (fallback when no texture)
+    const displayColor = getLaminateDisplayColor(selectedLaminate);
+    
+    // Get texture URL - ensure it's converted to thumbnail format
+    const rawPhotoUrl = selectedLaminate.photoUrl || '';
+    const textureUrl = rawPhotoUrl ? localConvertDriveUrl(rawPhotoUrl) : '';
+    
+    console.log(`[LaminatePanel] Applying laminate: ${selectedLaminate.code}, texture URL: ${textureUrl}`);
+    
+    // If planks are selected, apply to those planks only
+    if (selectedPlankIds.length > 0) {
+      selectedPlankIds.forEach(plankId => {
+        const updates: Record<string, unknown> = {
+          materialColor: displayColor,
+          laminateCode: selectedLaminate.code,
+          laminateBrand: selectedLaminate.brand,
+          // Add texture URL for 3D rendering - this is the key for texture mapping
+          textureUrl: textureUrl,
+        };
+        
+        if (selectedSide === 'outer' || selectedSide === 'both') {
+          updates.outerLaminate = selectedLaminate.code;
+          updates.outerLaminateUrl = textureUrl;
+        }
+        
+        if (selectedSide === 'inner' || selectedSide === 'both') {
+          updates.innerLaminate = selectedLaminate.code;
+          updates.innerLaminateUrl = textureUrl;
+        }
+        
+        updatePlank(plankId, updates);
+      });
+      
+      console.log(`[LaminatePanel] Applied ${selectedLaminate.code} to ${selectedPlankIds.length} planks (${selectedSide}), texture: ${textureUrl ? 'yes' : 'no'}`);
+    }
+    // If a box is selected but no planks, apply to entire box
+    else if (selectedBox) {
+      applyLaminateToBox(selectedBox.id, selectedLaminate, selectedSide);
+      console.log(`[LaminatePanel] Applied ${selectedLaminate.code} to box "${selectedBox.entityName}" (${selectedSide})`);
+    }
+  }, [selectedLaminate, selectedPlankIds, selectedBox, selectedSide, updatePlank, applyLaminateToBox]);
+  
+  // Quick apply: clicking a laminate directly applies it to selected box
+  const handleLaminateClick = useCallback((laminate: LaminateOption) => {
+    setSelectedLaminate(laminate);
+    
+    // If box is selected and no planks selected, apply immediately
+    if (selectedBox && selectedPlankIds.length === 0) {
+      // Ensure photoUrl is converted for texture loading
+      const laminateWithConvertedUrl = {
+        ...laminate,
+        photoUrl: laminate.photoUrl ? localConvertDriveUrl(laminate.photoUrl) : '',
+      };
+      
+      applyLaminateToBox(selectedBox.id, laminateWithConvertedUrl, selectedSide);
+      console.log(`[LaminatePanel] Quick-applied ${laminate.code} to box "${selectedBox.entityName}", texture: ${laminateWithConvertedUrl.photoUrl}`);
+    }
+  }, [selectedBox, selectedPlankIds, selectedSide, applyLaminateToBox]);
+
+  if (!isOpen) return null;
 
   return (
-    <div className="absolute top-0 right-0 h-full w-96 bg-lightest-bg shadow-2xl z-40 flex flex-col">
+    <div className="fixed inset-y-0 left-0 w-80 bg-white shadow-xl z-50 flex flex-col border-r border-gray-200">
       {/* Header */}
-      <div className="px-4 py-3 bg-lighter-bg border-b border-light-bw flex items-center justify-between">
-        <h3 className="font-semibold text-neutral-dark">Laminate Selection</h3>
+      <div className="px-4 py-3 border-b border-gray-200 bg-white flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-gray-900">🎨 Laminate Picker</h2>
         <button
-          onClick={toggleLaminatePanel}
-          className="p-1.5 hover:bg-light-bg rounded-dls-sm transition-colors"
+          onClick={onClose}
+          className="text-gray-400 hover:text-orange-500"
         >
-          ✕
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
       </div>
 
-      {!selectedBox ? (
-        <div className="flex-1 flex items-center justify-center text-technical-gray p-8 text-center">
-          <div>
-            <div className="text-4xl mb-2">📦</div>
-            <p>Select a box to assign laminates to its planks</p>
+      {/* Filters */}
+      <div className="px-4 py-3 border-b border-gray-200 space-y-3">
+        {/* Search */}
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search laminates..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-gray-50 border border-gray-200 rounded px-3 py-2 pl-9 text-sm text-gray-900 focus:border-orange-500 focus:outline-none focus:bg-white"
+          />
+          <svg className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+
+        {/* Brand Filter */}
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Brand</label>
+          <div className="flex flex-wrap gap-1">
+            <button
+              onClick={() => setBrandFilter('all')}
+              className={`px-2 py-1 text-xs rounded ${
+                brandFilter === 'all'
+                  ? 'bg-orange-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              All
+            </button>
+            {brands.map(brand => (
+              <button
+                key={brand}
+                onClick={() => setBrandFilter(brand)}
+                className={`px-2 py-1 text-xs rounded ${
+                  brandFilter === brand
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {brand}
+              </button>
+            ))}
           </div>
         </div>
-      ) : (
-        <>
-          {/* Plank Selection */}
-          <div className="px-4 py-3 border-b border-light-bw">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-semibold text-neutral-dark">
-                Select Planks ({selectedPlankIds.length}/{selectedBox.planks.length})
-              </h4>
-              <label className="flex items-center gap-2 text-xs text-technical-gray">
+      </div>
+
+      {/* Plank Selection (when box is selected) */}
+      {selectedBox && (
+        <div className="px-4 py-3 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs text-gray-500">Select Planks</label>
+            <div className="space-x-2">
+              <button
+                onClick={selectAllPlanks}
+                className="text-xs text-orange-500 hover:text-orange-600"
+              >
+                All
+              </button>
+              <button
+                onClick={deselectAllPlanks}
+                className="text-xs text-gray-400 hover:text-gray-600"
+              >
+                None
+              </button>
+            </div>
+          </div>
+          <div className="max-h-24 overflow-y-auto space-y-1">
+            {selectedBox.planks.map(plank => (
+              <label
+                key={plank.id}
+                className="flex items-center gap-2 text-xs cursor-pointer hover:bg-orange-50 px-1 py-0.5 rounded"
+              >
                 <input
                   type="checkbox"
-                  checked={selectedPlankIds.length === selectedBox.planks.length}
-                  onChange={(e) => handleSelectAll(e.target.checked)}
-                  className="rounded border-light-bw text-primary-orange focus:ring-primary-orange"
+                  checked={selectedPlankIds.includes(plank.id)}
+                  onChange={() => togglePlankSelection(plank.id)}
+                  className="rounded border-gray-300 bg-white text-orange-500 focus:ring-orange-500"
                 />
-                All
+                <span className="text-gray-700">{plank.entityName}</span>
               </label>
-            </div>
-            <div className="max-h-40 overflow-y-auto space-y-0.5 bg-lighter-bg rounded-dls-md p-1">
-              {selectedBox.planks.map(plank => (
-                <PlankCheckbox
-                  key={plank.id}
-                  plank={plank}
-                  isChecked={selectedPlankIds.includes(plank.id)}
-                  onChange={(checked) => handlePlankToggle(plank.id, checked)}
-                />
-              ))}
-            </div>
+            ))}
           </div>
+        </div>
+      )}
 
-          {/* Filters */}
-          <div className="px-4 py-3 border-b border-light-bw space-y-2">
-            {/* Search */}
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search laminates..."
-              className="w-full px-3 py-2 text-sm text-neutral-dark border border-light-bw rounded-dls-md focus:ring-2 focus:ring-primary-orange focus:border-transparent"
-            />
-            
-            {/* Brand & Category filters */}
-            <div className="flex gap-2">
-              <select
-                value={filterBrand}
-                onChange={(e) => setFilterBrand(e.target.value)}
-                className="flex-1 px-2 py-1.5 text-sm text-neutral-dark border border-light-bw rounded-dls-md"
-              >
-                <option value="all">All Brands</option>
-                {brands.map(brand => (
-                  <option key={brand} value={brand}>{brand}</option>
-                ))}
-              </select>
-              <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="flex-1 px-2 py-1.5 text-sm text-neutral-dark border border-light-bw rounded-dls-md"
-              >
-                <option value="all">All Types</option>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+      {/* Side Selection */}
+      <div className="px-4 py-3 border-b border-gray-200">
+        <label className="block text-xs text-gray-500 mb-2">Apply to Side</label>
+        <div className="flex gap-2">
+          {(['outer', 'inner', 'both'] as const).map(side => (
+            <button
+              key={side}
+              onClick={() => setSelectedSide(side)}
+              className={`flex-1 px-2 py-1.5 text-xs rounded capitalize ${
+                selectedSide === side
+                  ? 'bg-orange-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {side}
+            </button>
+          ))}
+        </div>
+      </div>
 
-          {/* Laminate Grid */}
-          <div className="flex-1 overflow-y-auto p-4">
-            {filteredLaminates.length === 0 ? (
-              <div className="text-center text-technical-gray py-8">
-                No laminates match your search
-              </div>
+      {/* Laminate Grid */}
+      <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+        {filteredLaminates.length === 0 ? (
+          <div className="text-center text-gray-400 py-8">
+            {laminateLibrary.length === 0 ? (
+              <>
+                <svg className="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <p className="text-sm">No laminates loaded</p>
+                <p className="text-xs mt-1">Add laminate library CSV to sample_data</p>
+              </>
             ) : (
-              <div className="grid grid-cols-3 gap-2">
-                {filteredLaminates.map(laminate => (
-                  <LaminateCard
-                    key={laminate.id}
-                    laminate={laminate}
-                    isSelected={selectedLaminateId === laminate.id}
-                    onClick={() => setSelectedLaminateId(laminate.id)}
-                  />
-                ))}
-              </div>
+              <p className="text-sm">No laminates match your filters</p>
             )}
           </div>
-
-          {/* Apply Section */}
-          <div className="px-4 py-3 border-t border-light-bw bg-lighter-bg">
-            {/* Both Sides Toggle */}
-            <label className="flex items-center gap-2 mb-3">
-              <input
-                type="checkbox"
-                checked={applyBothSides}
-                onChange={(e) => setApplyBothSides(e.target.checked)}
-                className="w-4 h-4 rounded border-light-bw text-primary-orange focus:ring-primary-orange"
-              />
-              <span className="text-sm text-neutral-dark">
-                Apply to both sides (BSL)
-              </span>
-            </label>
-            
-            {/* Preview */}
-            {selectedLaminateId && selectedPlankIds.length > 0 && (
-              <div className="mb-3 p-2 bg-lightest-bg rounded-dls-md border border-light-bw text-sm">
-                <div className="text-technical-gray">Preview:</div>
-                <div className="font-medium text-neutral-dark">
-                  {computeMaterialString(
-                    getCoreMaterialFromPly(selectedBox.carcassPly || ''),
-                    laminateOptions.find(l => l.id === selectedLaminateId)?.code || '',
-                    applyBothSides ? laminateOptions.find(l => l.id === selectedLaminateId)?.code : undefined
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {filteredLaminates.map(laminate => (
+              <div
+                key={laminate.id || laminate.code}
+                onClick={() => handleLaminateClick(laminate)}
+                className={`rounded-lg overflow-hidden cursor-pointer transition-all border ${
+                  selectedLaminate?.code === laminate.code
+                    ? 'ring-2 ring-orange-500 shadow-lg shadow-orange-200 border-orange-300'
+                    : 'border-gray-200 hover:border-orange-300 hover:shadow-md'
+                }`}
+              >
+                {/* Laminate Image */}
+                <div className="aspect-square bg-gray-100 relative">
+                  {laminate.photoUrl ? (
+                    <img
+                      src={convertDriveUrl(laminate.photoUrl)}
+                      alt={laminate.code}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback if image fails to load
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300">
+                      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  )}
+                  
+                  {/* Price badge */}
+                  {laminate.price && (
+                    <div className="absolute top-1 right-1 bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded">
+                      ₹{laminate.price}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Laminate Info */}
+                <div className="p-2 bg-white">
+                  <div className="text-xs font-medium text-gray-900 truncate">
+                    {laminate.code}
+                  </div>
+                  <div className="text-[10px] text-gray-500 truncate">
+                    {laminate.colour || laminate.brand}
+                  </div>
+                  {laminate.thickness && (
+                    <div className="text-[10px] text-gray-400">
+                      {laminate.thickness}mm
+                    </div>
                   )}
                 </div>
               </div>
-            )}
-            
-            {/* Apply Button */}
-            <button
-              onClick={handleApply}
-              disabled={!selectedLaminateId || selectedPlankIds.length === 0}
-              className={`w-full py-2 rounded-dls-md font-medium transition-colors ${
-                selectedLaminateId && selectedPlankIds.length > 0
-                  ? "bg-primary-orange text-white hover:bg-dark-color"
-                  : "bg-lighter-bg text-technical-gray cursor-not-allowed"
-              }`}
-            >
-              Apply to {selectedPlankIds.length} plank{selectedPlankIds.length !== 1 ? 's' : ''}
-            </button>
+            ))}
           </div>
-        </>
-      )}
+        )}
+      </div>
+
+      {/* Apply Button */}
+      <div className="px-4 py-3 border-t border-gray-200 bg-white">
+        <button
+          onClick={applyLaminate}
+          disabled={!selectedLaminate || selectedPlankIds.length === 0}
+          className={`w-full px-4 py-2 rounded text-sm font-medium ${
+            selectedLaminate && selectedPlankIds.length > 0
+              ? 'bg-orange-500 hover:bg-orange-600 text-white'
+              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+          }`}
+        >
+          {selectedLaminate 
+            ? `Apply ${selectedLaminate.code} to ${selectedPlankIds.length} plank${selectedPlankIds.length !== 1 ? 's' : ''}`
+            : 'Select a laminate'
+          }
+        </button>
+      </div>
     </div>
   );
-}
-
-export default LaminatePanel;
+};

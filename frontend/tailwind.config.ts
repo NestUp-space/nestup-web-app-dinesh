@@ -17,6 +17,19 @@ const config: Config = {
     },
   	extend: {
   		colors: {
+        // ArUco measurement flow (nestup-*)
+        nestup: {
+          warm: '#F9FAFB',
+          beige: '#FFF7ED',
+          sand: '#E5E7EB',
+          accent: '#F97316',
+          'accent-dark': '#EA580C',
+          charcoal: '#111827',
+          'charcoal-light': '#6B7280',
+          success: '#15803D',
+          warning: '#A16207',
+          error: '#B91C1C',
+        },
         // DLS Color Palette
         'primary-blue': '#1A365D',
         'primary-orange': '#FF8A00',
@@ -106,6 +119,8 @@ const config: Config = {
   			}
   		},
   		borderRadius: {
+        nestup: '12px',
+        'nestup-lg': '16px',
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)',
@@ -114,6 +129,11 @@ const config: Config = {
         'dls-md': '8px',
         'dls-lg': '12px',
   		},
+      boxShadow: {
+        nestup: '0 2px 8px rgba(0, 0, 0, 0.06)',
+        'nestup-lg': '0 4px 16px rgba(0, 0, 0, 0.08)',
+        'nestup-hover': '0 6px 20px rgba(0, 0, 0, 0.12)',
+      },
       fontFamily: {
         sans: ['var(--font-inter)', 'sans-serif'],
         body: ['var(--font-source-sans-pro)', 'sans-serif'],

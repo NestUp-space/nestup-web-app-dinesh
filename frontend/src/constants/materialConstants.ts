@@ -1,27 +1,45 @@
-export const MATERIAL_THICKNESS = {
-  expose: 18,    // External/exposed plank thickness in mm
-  inner: 18,     // Internal plank thickness in mm
-  back: 6        // Back panel thickness in mm
+/**
+ * Material Constants
+ * Plywood thickness values and other material-related constants
+ */
+
+// Standard plywood thickness values in mm
+export const PLY_THICKNESS_VALUES = [
+  6,
+  8,
+  12,
+  15,
+  18,
+  19,
+  25,
+] as const;
+
+export type PlyThickness = (typeof PLY_THICKNESS_VALUES)[number];
+
+// Standard sheet dimensions in mm
+export const SHEET_DIMENSIONS = {
+  width: 1220,
+  height: 2440,
 } as const;
 
-export const EDGE_BANDING = {
-  INNER_EDGEBANDING: 1,  // Internal edge banding thickness in mm
-  COLOR_EDGEBANDING: 2   // Exposed/color edge banding thickness in mm
-} as const;
+// Edge banding widths
+export const EDGE_BANDING_WIDTHS = [
+  '22',
+  '35',
+  '45',
+] as const;
 
-export const PLY_THICKNESS_OPTIONS = {
-  T3_2: 3.2,   // 3.2mm
-  T4: 4,       // 4mm
-  T6: 6,       // 6mm
-  T8: 8,       // 8mm
-  T9: 9,       // 9mm
-  T12: 12,     // 12mm
-  T15: 15,     // 15mm
-  T18: 18,     // 18mm
-  T19: 19,     // 19mm
-  T20: 20,     // 20mm
-  T25: 25      // 25mm
-} as const;
+// Plywood types
+export const PLY_TYPES = [
+  'Plywood',
+  'HDHMR',
+  'MDF',
+  'Block Board',
+] as const;
 
-// Array of ply thickness values for UI rendering
-export const PLY_THICKNESS_VALUES = [3.2, 4, 6, 8, 9, 12, 15, 18, 19, 20, 25] as const;
+export type PlyType = (typeof PLY_TYPES)[number];
+
+// Grain direction options
+export const GRAIN_DIRECTIONS = ['Y', 'N'] as const;
+
+export type GrainDirection = (typeof GRAIN_DIRECTIONS)[number];

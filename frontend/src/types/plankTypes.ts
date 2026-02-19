@@ -1,51 +1,77 @@
-export interface Hole {
-  x: number;
-  y: number;
-  z: number;
-  t: number;  // thickness/diameter
-}
-
-export interface Groove {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  z: number;
-  t: number;  // depth
-}
-
-export interface PlankDetails {
-  width: number;      // W - from width calculation
-  length: number;     // L - from length calculation
-  materialCode: string; // MC - from material calculation
-  plankId: string;    // e.g., "01P1LT"
-  holes: Hole[];      // placeholder for future
-  grooves: Groove[];  // placeholder for future
-}
+/**
+ * Plank Types
+ * Types for model and plank definitions used in the model management system
+ */
 
 export interface RuntimeInput {
   inputName: string;
-  displayLabel?: string | null;
-  value: string | number;
+  displayLabel: string;
+  defaultValue?: string | number;
+  value?: string | number;
+  type?: 'text' | 'number' | 'select';
+  options?: string[];
 }
 
-export interface ModelPlank {
-  plankNumber: string;     // e.g., "P1"
-  plankIdentifier: string; // e.g., "LT"
-  widthLogic: string;      // JavaScript logic for width calculation
-  lengthLogic: string;     // JavaScript logic for length calculation
-  materialCode: string;    // JavaScript logic for material code selection
-  displayName?: string;    // Optional display name for the plank
-  description?: string;    // Optional description of the plank's purpose
-  order?: number;          // Optional display/processing order
+export interface PlankDefinition {
+  plankNumber: string;
+  plankIdentifier: string;
+  displayName: string;
+  description?: string;
+  order: number;
+  widthLogic: string;
+  lengthLogic: string;
+  materialCode: string;
 }
 
 export interface Model {
   id: string;
   name: string;
-  planks: ModelPlank[];
-  runtimeInputs: Array<{
-    inputName: string;
-    displayLabel?: string | null;
-  }>;
+  description?: string;
+  runtimeInputs: RuntimeInput[];
+  planks: PlankDefinition[];
 }
+
+export interface PlankDetails {
+  plankId: string;
+  plankNumber?: string;
+  plankIdentifier?: string;
+  displayName?: string;
+  width: number;
+  height?: number;
+  length?: number;
+  material?: string;
+  materialCode?: string;
+  order?: number;
+  holes?: any[];
+  grooves?: any[];
+}
+
+export interface CalculationResult {
+  success: boolean;
+  value?: any;
+  error?: string;
+}
+
+export interface GlobalConstants {
+  MATERIAL_THICKNESS: {
+    expose: number;
+    inner: number;
+    back: number;
+  };
+  EDGE_BANDING: {
+    INNER_EDGEBANDING: number;
+    COLOR_EDGEBANDING: number;
+  };
+}
+
+export const DEFAULT_GLOBAL_CONSTANTS: GlobalConstants = {
+  MATERIAL_THICKNESS: {
+    expose: 18,
+    inner: 18,
+    back: 6,
+  },
+  EDGE_BANDING: {
+    INNER_EDGEBANDING: 1,
+    COLOR_EDGEBANDING: 2,
+  },
+};

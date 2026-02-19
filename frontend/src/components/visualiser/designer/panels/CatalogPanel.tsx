@@ -1,428 +1,363 @@
-/**
- * CatalogPanel Component
- * Displays cabinet templates for placement and handles catalog uploads
- */
+'use client';
 
-"use client";
+import React, { useState, useMemo } from 'react';
+import { useDesignerStore } from '@/store/designerStore';
+import { CatalogModel } from '@/types/visualiser';
+import { BoxDefaultsManager } from '@/lib/visualiser/boxDefaultsManager';
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useDesignerStore } from "@/store/designerStore";
-import { parseCatalogCSV, createDemoCatalog } from "@/lib/visualiser/catalogParser";
-import type { BoxTemplate, Catalog } from "@/types/visualiser";
+export const CatalogPanel: React.FC = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-// ============================================
-// Template Card Component
-// ============================================
+  const {
+    catalogModels,
+    catalogBoxesWithPlanks,
+    selectedWallId,
+    addBoxFromCatalog,
+    setPlacingModel,
+    placingModelId,
+    walls,
+  } = useDesignerStore();
 
-interface TemplateCardProps {
-  template: BoxTemplate;
-  isSelected: boolean;
-  onSelect: () => void;
-  onDoubleClick: () => void;
-}
+  // Get unique categories (box types)
+  const categories = useMemo(() => {
+    const types = new Set(catalogModels.map((m) => m.boxType).filter(Boolean));
+    return ['all', ...Array.from(types)];
+  }, [catalogModels]);
 
-function TemplateCard({ template, isSelected, onSelect, onDoubleClick }: TemplateCardProps) {
-  return (
-    <div
-      className={`p-3 rounded-dls-md border-2 cursor-pointer transition-all ${
-        isSelected
-          ? "border-primary-orange bg-lighter-interactive/20"
-          : "border-light-bw hover:border-medium-border hover:bg-lighter-bg"
-      }`}
-      onClick={onSelect}
-      onDoubleClick={onDoubleClick}
-    >
-      {/* Preview */}
-      <div 
-        className="w-full aspect-square rounded-dls-md mb-2 flex items-center justify-center text-4xl"
-        style={{ backgroundColor: template.previewColor || '#FFEBD1' }}
-      >
-        {template.boxType?.includes('wall') ? '🗄️' : 
-         template.boxType?.includes('tall') ? '🚪' : '📦'}
-      </div>
-      
-      {/* Info */}
-      <div className="text-sm font-medium text-neutral-dark truncate">
-        {template.entityName}
-      </div>
-      {template.boxModel && (
-        <div className="text-xs text-technical-gray">
-          {template.boxModel}
-        </div>
-      )}
-      <div className="text-xs text-light-interactive-bw mt-1">
-        {template.defaultWidth} × {template.defaultDepth} × {template.defaultHeight}
-      </div>
-      <div className="text-xs text-light-interactive-bw">
-        {template.plankTemplates.length} planks
-      </div>
-    </div>
-  );
-}
+  // Filter models
+  const filteredModels = useMemo(() => {
+    return catalogModels.filter((model) => {
+      const matchesSearch =
+        searchTerm === '' ||
+        model.entityName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        model.boxModel.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        model.boxType.toLowerCase().includes(searchTerm.toLowerCase());
 
-// ============================================
-// Upload Dialog Component
-// ============================================
+      const matchesCategory =
+        selectedCategory === 'all' || model.boxType === selectedCategory;
 
-interface UploadDialogProps {
-  onClose: () => void;
-  onUpload: (catalog: Catalog) => void;
-}
+      return matchesSearch && matchesCategory;
+    });
+  }, [catalogModels, searchTerm, selectedCategory]);
 
-function UploadDialog({ onClose, onUpload }: UploadDialogProps) {
-  const [file, setFile] = useState<File | null>(null);
-  const [catalogName, setCatalogName] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [warnings, setWarnings] = useState<string[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Group by room or type
+  const groupedModels = useMemo(() => {
+    const groups: Record<string, CatalogModel[]> = {};
+    filteredModels.forEach((model) => {
+      const key = model.boxType || 'Other';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(model);
+    });
+    return groups;
+  }, [filteredModels]);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setCatalogName(selectedFile.name.replace(/\.[^.]+$/, ''));
-      setError(null);
-      setWarnings([]);
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!file) return;
-
-    setIsProcessing(true);
-    setError(null);
-
-    const result = await parseCatalogCSV(file, catalogName);
-
-    setIsProcessing(false);
-
-    if (!result.success) {
-      setError(result.errors?.join('\n') || 'Unknown error');
+  const handleAddToWall = (model: CatalogModel) => {
+    if (!selectedWallId) {
+      alert('Please select a wall first to add a box.');
       return;
     }
 
-    if (result.warnings) {
-      setWarnings(result.warnings);
+    const wall = walls.find((w) => w.id === selectedWallId);
+    if (!wall) return;
+
+    // Find the matching catalog box with planks
+    const catalogBox = catalogBoxesWithPlanks.find(
+      (b) => b.id === model.id || b.entityName === model.entityName
+    );
+    
+    // Debug: Log the matching results
+    console.log(`[CatalogPanel] Looking for model ID "${model.id}" or entityName "${model.entityName}"`);
+    console.log(`[CatalogPanel] Available catalogBoxes:`, catalogBoxesWithPlanks.map(b => ({ id: b.id, name: b.entityName, planks: b.planks.length })));
+    console.log(`[CatalogPanel] Found matching box:`, catalogBox ? { id: catalogBox.id, planks: catalogBox.planks.length } : 'NOT FOUND');
+    
+    if (catalogBox) {
+      // Log Level 3 data in the found box
+      let totalSubComponents = 0;
+      catalogBox.planks.forEach((p) => {
+        totalSubComponents += p.subComponents?.length || 0;
+      });
+      console.log(`[CatalogPanel] Box has ${catalogBox.planks.length} planks with ${totalSubComponents} total subComponents`);
     }
 
-    if (result.catalog) {
-      onUpload(result.catalog);
+    // Use BoxDefaultsManager to calculate position (EXACT PORT from Apps Script)
+    // First box: X=0, Y=boxDepth (back against wall), Z=0 (on floor)
+    // Subsequent boxes: X=prevX+prevWidth, Y=same, Z=same
+    const position = BoxDefaultsManager.calculateNextPosition(
+      {
+        boxWidth: model.boxWidth,
+        boxDepth: model.boxDepth,
+        boxHeight: model.boxHeight,
+        skirting: model.skirting,
+        skirtingWidth: model.skirtingWidth,
+        carcusThickness: model.carcusThickness,
+        doorThickness: model.doorThickness,
+        backplankThickness: model.backplankThickness,
+      },
+      wall.boxes
+    );
+
+    console.log('[CatalogPanel] Calculated position:', position);
+
+    if (catalogBox) {
+      // Use addBoxFromCatalog to get the planks from the catalog
+      const boxId = addBoxFromCatalog(selectedWallId, catalogBox.id, position);
+      
+      if (boxId) {
+        // Store this box as lastPlaced for next box positioning
+        BoxDefaultsManager.storeLastPlaced({
+          position,
+          boxWidth: model.boxWidth,
+          boxDepth: model.boxDepth,
+          boxHeight: model.boxHeight,
+          skirting: model.skirting,
+          skirtingWidth: model.skirtingWidth,
+          carcusThickness: model.carcusThickness,
+          doorThickness: model.doorThickness,
+          backplankThickness: model.backplankThickness,
+        });
+        
+        // Set wall defaults if this is the first box
+        if (wall.boxes.length === 0) {
+          BoxDefaultsManager.setWallDefaults(wall.entityName, {
+            position,
+            boxWidth: model.boxWidth,
+            boxDepth: model.boxDepth,
+            boxHeight: model.boxHeight,
+            skirting: model.skirting,
+            skirtingWidth: model.skirtingWidth,
+            carcassThickness: model.carcusThickness,
+            doorThickness: model.doorThickness,
+            backplankThickness: model.backplankThickness,
+          });
+        }
+        
+        console.log(`[CatalogPanel] Added box "${model.entityName}" with ${catalogBox.planks.length} planks at position (${position.x}, ${position.y}, ${position.z})`);
+      }
+    } else {
+      console.warn(`[CatalogPanel] Catalog box with planks not found for "${model.entityName}"`);
     }
   };
 
+  const handleStartPlacing = (model: CatalogModel) => {
+    setPlacingModel(model.id);
+    // In a full implementation, this would enable click-to-place mode
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-lightest-bg rounded-dls-lg shadow-2xl w-full max-w-md mx-4">
-        <div className="px-6 py-4 border-b border-light-bw">
-          <h3 className="text-lg font-semibold text-neutral-dark">Upload Catalog</h3>
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-gray-200 bg-white">
+        <h2 className="text-sm font-semibold text-gray-900">Cabinet Catalog</h2>
+      </div>
+
+      {/* Search & Filter */}
+      <div className="p-3 border-b border-gray-200 space-y-2">
+        {/* Search */}
+        <div className="relative">
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search cabinets..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-gray-50 border border-gray-200 rounded pl-9 pr-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:bg-white"
+          />
         </div>
 
-        <div className="p-6 space-y-4">
-          {/* File Drop Zone */}
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-dls-md p-8 text-center cursor-pointer transition-colors ${
-              file
-                ? "border-accent-green bg-accent-green/10"
-                : "border-light-bw hover:border-medium-border hover:bg-lighter-bg"
-            }`}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-            {file ? (
-              <>
-                <div className="text-4xl mb-2">📄</div>
-                <div className="text-sm font-medium text-neutral-dark">{file.name}</div>
-                <div className="text-xs text-technical-gray mt-1">
-                  {(file.size / 1024).toFixed(1)} KB
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="text-4xl mb-2">📁</div>
-                <div className="text-sm text-technical-gray">
-                  Click to select or drag CSV file
-                </div>
-              </>
-            )}
+        {/* Category Filter */}
+        <select
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          className="w-full bg-gray-50 border border-gray-200 rounded px-3 py-2 text-sm text-gray-900 focus:border-orange-500 focus:outline-none focus:bg-white"
+        >
+          {categories.map((cat) => (
+            <option key={cat} value={cat}>
+              {cat === 'all' ? 'All Categories' : cat}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Wall Selection Notice */}
+      {!selectedWallId && (
+        <div className="px-4 py-2 bg-orange-50 border-b border-orange-100">
+          <p className="text-xs text-orange-600">
+            Select a wall first to add cabinets
+          </p>
+        </div>
+      )}
+
+      {/* Models List */}
+      <div className="flex-1 overflow-y-auto p-2 bg-gray-50">
+        {Object.keys(groupedModels).length === 0 ? (
+          <div className="text-center py-8 text-gray-400">
+            <p className="text-sm">No cabinets found</p>
           </div>
-
-          {/* Catalog Name */}
-          {file && (
-            <div>
-              <label className="block text-sm font-medium text-neutral-dark mb-1">
-                Catalog Name
-              </label>
-              <input
-                type="text"
-                value={catalogName}
-                onChange={(e) => setCatalogName(e.target.value)}
-                className="w-full px-3 py-2 text-neutral-dark border border-light-bw rounded-dls-md focus:ring-2 focus:ring-primary-orange focus:border-transparent"
-              />
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-dls-md">
-              <div className="text-sm text-red-700 whitespace-pre-wrap">{error}</div>
-            </div>
-          )}
-
-          {/* Warnings */}
-          {warnings.length > 0 && (
-            <div className="p-3 bg-warm-gold/20 border border-warm-gold rounded-dls-md">
-              <div className="text-sm text-dark-text">
-                {warnings.map((w, i) => (
-                  <div key={i}>{w}</div>
+        ) : (
+          Object.entries(groupedModels).map(([group, models]) => (
+            <div key={group} className="mb-4">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-2 mb-2">
+                {group} ({models.length})
+              </h3>
+              <div className="space-y-1">
+                {models.map((model) => (
+                  <CatalogItem
+                    key={model.id}
+                    model={model}
+                    isPlacing={placingModelId === model.id}
+                    isWallSelected={!!selectedWallId}
+                    onAdd={() => handleAddToWall(model)}
+                    onStartPlacing={() => handleStartPlacing(model)}
+                  />
                 ))}
               </div>
             </div>
-          )}
+          ))
+        )}
+      </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-neutral-dark hover:bg-lighter-bg rounded-dls-md transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleUpload}
-              disabled={!file || isProcessing}
-              className={`px-4 py-2 rounded-dls-md transition-colors ${
-                !file || isProcessing
-                  ? "bg-lighter-bg text-technical-gray cursor-not-allowed"
-                  : "bg-primary-orange text-white hover:bg-dark-color"
-              }`}
-            >
-              {isProcessing ? "Processing..." : "Upload"}
-            </button>
-          </div>
+      {/* Quick Add Section */}
+      <div className="border-t border-gray-200 p-3 bg-white">
+        <p className="text-xs text-gray-500 mb-2">Quick Stats</p>
+        <div className="text-xs text-gray-400">
+          {catalogModels.length} models in catalog
         </div>
       </div>
     </div>
   );
+};
+
+// ============================================
+// CATALOG ITEM
+// ============================================
+
+interface CatalogItemProps {
+  model: CatalogModel;
+  isPlacing: boolean;
+  isWallSelected: boolean;
+  onAdd: () => void;
+  onStartPlacing: () => void;
 }
 
-// ============================================
-// Main CatalogPanel Component
-// ============================================
-
-export function CatalogPanel() {
-  const boxTemplates = useDesignerStore((state) => state.boxTemplates);
-  const catalogs = useDesignerStore((state) => state.catalogs);
-  const activeCatalogId = useDesignerStore((state) => state.activeCatalogId);
-  const placingTemplateId = useDesignerStore((state) => state.placingTemplateId);
-  const isCatalogPanelOpen = useDesignerStore((state) => state.isCatalogPanelOpen);
-  
-  const setBoxTemplates = useDesignerStore((state) => state.setBoxTemplates);
-  const addCatalog = useDesignerStore((state) => state.addCatalog);
-  const setActiveCatalog = useDesignerStore((state) => state.setActiveCatalog);
-  const setPlacingTemplate = useDesignerStore((state) => state.setPlacingTemplate);
-  const toggleCatalogPanel = useDesignerStore((state) => state.toggleCatalogPanel);
-
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showUploadDialog, setShowUploadDialog] = useState(false);
-  const [filterType, setFilterType] = useState<string>('all');
-
-  // Initialize with demo catalog if none exist
-  useEffect(() => {
-    if (catalogs.length === 0) {
-      const demoCatalog = createDemoCatalog();
-      addCatalog(demoCatalog);
-      setActiveCatalog(demoCatalog.id);
-      setBoxTemplates(demoCatalog.boxTemplates);
-    }
-  }, [catalogs.length, addCatalog, setActiveCatalog, setBoxTemplates]);
-
-  // Get active catalog's templates
-  const activeCatalog = catalogs.find(c => c.id === activeCatalogId);
-  const displayTemplates = activeCatalog?.boxTemplates || boxTemplates;
-
-  // Filter templates
-  const filteredTemplates = displayTemplates.filter(template => {
-    const matchesSearch = 
-      template.entityName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      template.boxModel?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesType = filterType === 'all' || 
-      template.boxType?.includes(filterType);
-    
-    return matchesSearch && matchesType;
-  });
-
-  // Get unique box types for filter
-  const boxTypes = Array.from(
-    new Set(displayTemplates.map(t => t.boxType).filter(Boolean))
-  );
-
-  const handleUpload = useCallback((catalog: Catalog) => {
-    addCatalog(catalog);
-    setActiveCatalog(catalog.id);
-    setBoxTemplates(catalog.boxTemplates);
-    setShowUploadDialog(false);
-  }, [addCatalog, setActiveCatalog, setBoxTemplates]);
-
-  const handleTemplateSelect = useCallback((templateId: string) => {
-    if (placingTemplateId === templateId) {
-      setPlacingTemplate(null);
-    } else {
-      setPlacingTemplate(templateId);
-    }
-  }, [placingTemplateId, setPlacingTemplate]);
-
-  const handleTemplateDoubleClick = useCallback((templateId: string) => {
-    setPlacingTemplate(templateId);
-    // TODO: Automatically start placement mode
-  }, [setPlacingTemplate]);
-
-  if (!isCatalogPanelOpen) {
-    return (
-      <button
-        onClick={toggleCatalogPanel}
-        className="absolute top-36 left-4 bg-lightest-bg/95 backdrop-blur p-2 rounded-dls-md shadow-lg z-30 hover:bg-lighter-bg transition-colors"
-        title="Show Catalog"
-      >
-        📦
-      </button>
-    );
-  }
+const CatalogItem: React.FC<CatalogItemProps> = ({
+  model,
+  isPlacing,
+  isWallSelected,
+  onAdd,
+  onStartPlacing,
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <>
-      <div className="absolute top-36 left-4 w-72 bg-lightest-bg/95 backdrop-blur rounded-dls-lg shadow-lg overflow-hidden z-30">
-        {/* Header */}
-        <div className="px-4 py-3 bg-lighter-bg border-b border-light-bw flex items-center justify-between">
-          <h3 className="font-semibold text-neutral-dark">Catalog</h3>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setShowUploadDialog(true)}
-              className="p-1.5 hover:bg-light-bg rounded-dls-sm transition-colors"
-              title="Upload Catalog"
+    <div
+      className={`rounded border transition-all ${
+        isPlacing
+          ? 'border-orange-500 bg-orange-50'
+          : 'border-gray-200 bg-white hover:border-orange-300 hover:shadow-sm'
+      }`}
+    >
+      {/* Header */}
+      <div
+        className="flex items-center justify-between p-2 cursor-pointer"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          {/* Icon */}
+          <div className="w-8 h-8 rounded bg-orange-100 flex items-center justify-center shrink-0">
+            <svg
+              className="w-4 h-4 text-orange-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
             >
-              📤
-            </button>
-            <button
-              onClick={toggleCatalogPanel}
-              className="p-1.5 hover:bg-light-bg rounded-dls-sm transition-colors"
-              title="Hide Panel"
-            >
-              ✕
-            </button>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+              />
+            </svg>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-gray-900 truncate">
+              {model.boxModel || model.entityName}
+            </p>
+            <p className="text-xs text-gray-500 truncate">
+              {model.boxWidth} × {model.boxDepth} × {model.boxHeight} mm
+            </p>
           </div>
         </div>
-
-        {/* Catalog Selector */}
-        {catalogs.length > 1 && (
-          <div className="px-4 py-2 border-b border-light-bw">
-            <select
-              value={activeCatalogId || ''}
-              onChange={(e) => {
-                setActiveCatalog(e.target.value);
-                const catalog = catalogs.find(c => c.id === e.target.value);
-                if (catalog) {
-                  setBoxTemplates(catalog.boxTemplates);
-                }
-              }}
-              className="w-full px-2 py-1.5 text-sm text-neutral-dark border border-light-bw rounded-dls-md focus:ring-2 focus:ring-primary-orange"
-            >
-              {catalogs.map(catalog => (
-                <option key={catalog.id} value={catalog.id}>
-                  {catalog.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Search */}
-        <div className="px-4 py-2 border-b border-light-bw">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search templates..."
-            className="w-full px-3 py-2 text-sm text-neutral-dark border border-light-bw rounded-dls-md focus:ring-2 focus:ring-primary-orange focus:border-transparent"
+        <svg
+          className={`w-4 h-4 text-gray-400 transition-transform ${
+            isExpanded ? 'rotate-180' : ''
+          }`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
           />
-        </div>
-
-        {/* Type Filter */}
-        {boxTypes.length > 0 && (
-          <div className="px-4 py-2 border-b border-light-bw flex gap-1 flex-wrap">
-            <button
-              onClick={() => setFilterType('all')}
-              className={`px-2 py-1 text-xs rounded-dls-sm transition-colors ${
-                filterType === 'all'
-                  ? 'bg-primary-orange text-white'
-                  : 'bg-lighter-bg text-technical-gray hover:bg-light-bg'
-              }`}
-            >
-              All
-            </button>
-            {boxTypes.map(type => (
-              <button
-                key={type}
-                onClick={() => setFilterType(type!)}
-                className={`px-2 py-1 text-xs rounded-dls-sm capitalize transition-colors ${
-                  filterType === type
-                    ? 'bg-primary-orange text-white'
-                    : 'bg-lighter-bg text-technical-gray hover:bg-light-bg'
-                }`}
-              >
-                {type?.replace('_', ' ')}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Template Grid */}
-        <div className="p-3 max-h-96 overflow-y-auto">
-          {filteredTemplates.length === 0 ? (
-            <div className="text-center py-8 text-technical-gray text-sm">
-              {searchTerm ? 'No templates match your search' : 'No templates available'}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              {filteredTemplates.map(template => (
-                <TemplateCard
-                  key={template.id}
-                  template={template}
-                  isSelected={placingTemplateId === template.id}
-                  onSelect={() => handleTemplateSelect(template.id)}
-                  onDoubleClick={() => handleTemplateDoubleClick(template.id)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Instructions */}
-        {placingTemplateId && (
-          <div className="px-4 py-3 bg-lighter-interactive/20 border-t border-light-border">
-            <div className="text-sm text-dark-text">
-              <strong>Click on wall</strong> to place the cabinet, or press <strong>Esc</strong> to cancel.
-            </div>
-          </div>
-        )}
+        </svg>
       </div>
 
-      {/* Upload Dialog */}
-      {showUploadDialog && (
-        <UploadDialog
-          onClose={() => setShowUploadDialog(false)}
-          onUpload={handleUpload}
-        />
-      )}
-    </>
-  );
-}
+      {/* Expanded Content */}
+      {isExpanded && (
+        <div className="px-2 pb-2 border-t border-gray-100">
+          <div className="grid grid-cols-2 gap-2 py-2 text-xs">
+            <div>
+              <span className="text-gray-400">Type:</span>{' '}
+              <span className="text-gray-700">{model.boxType}</span>
+            </div>
+            <div>
+              <span className="text-gray-400">Skirting:</span>{' '}
+              <span className="text-gray-700">{model.skirting}mm</span>
+            </div>
+            <div>
+              <span className="text-gray-400">Carcass:</span>{' '}
+              <span className="text-gray-700">{model.carcusThickness}mm</span>
+            </div>
+            <div>
+              <span className="text-gray-400">Door:</span>{' '}
+              <span className="text-gray-700">{model.doorThickness}mm</span>
+            </div>
+          </div>
 
-export default CatalogPanel;
+          {/* Action Buttons */}
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAdd();
+              }}
+              disabled={!isWallSelected}
+              className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                isWallSelected
+                  ? 'bg-orange-500 text-white hover:bg-orange-600'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              Add to Wall
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

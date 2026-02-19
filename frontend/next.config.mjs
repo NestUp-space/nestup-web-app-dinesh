@@ -2,6 +2,7 @@
 const nextConfig = {
   // Disable React Strict Mode to prevent double rendering in development
   reactStrictMode: false,
+  // ArUco wall measurement is now integrated in the Next.js app at /measurements/* (no proxy).
   images: {
     remotePatterns: [
       {

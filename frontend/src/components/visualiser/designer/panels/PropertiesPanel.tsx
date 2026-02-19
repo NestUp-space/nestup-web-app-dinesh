@@ -1,517 +1,595 @@
-/**
- * PropertiesPanel Component
- * Displays and allows editing of selected box/plank properties
- * Handles dimension changes with formula recalculation
- */
+'use client';
 
-"use client";
+import React, { useState, useCallback } from 'react';
+import {
+  useDesignerStore,
+  useSelectedWall,
+  useSelectedBox,
+  useSelectedPlank,
+  useDesignSummary,
+} from '@/store/designerStore';
+import { DESIGNER_CONFIG } from '@/lib/visualiser/catalogParser';
+import { Wall, Box, PlywoodOption } from '@/types/visualiser';
+import { BoxDimensions } from '@/lib/visualiser/plankFormulaSystem';
 
-import React, { useState, useCallback, useEffect } from "react";
-import { useDesignerStore, selectSelectedBox } from "@/store/designerStore";
-import { 
-  recalculatePlanks, 
-  createFormulaContext,
-  determinePlankCategory 
-} from "@/lib/visualiser/formulaEngine";
-import type { DesignerBox, PlankTemplate } from "@/types/visualiser";
+export const PropertiesPanel: React.FC = () => {
+  const selectedWall = useSelectedWall();
+  const selectedBox = useSelectedBox();
+  const selectedPlank = useSelectedPlank();
+  const summary = useDesignSummary();
 
-// ============================================
-// Dimension Input Component
-// ============================================
+  const {
+    updateWall,
+    updateBox,
+    updateBoxDimensions,
+    deleteWall,
+    deleteBox,
+    rotateBox,
+    plywoodLibrary,
+    setProjectName,
+    projectName,
+  } = useDesignerStore();
 
-interface DimensionInputProps {
-  label: string;
-  value: number;
-  unit?: string;
-  min?: number;
-  max?: number;
-  step?: number;
-  onChange: (value: number) => void;
-  disabled?: boolean;
-}
-
-function DimensionInput({
-  label,
-  value,
-  unit = "mm",
-  min = 0,
-  max = 10000,
-  step = 1,
-  onChange,
-  disabled = false,
-}: DimensionInputProps) {
-  const [localValue, setLocalValue] = useState(String(value));
-
-  useEffect(() => {
-    setLocalValue(String(value));
-  }, [value]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setLocalValue(e.target.value);
-  };
-
-  const handleBlur = () => {
-    const numValue = parseFloat(localValue);
-    if (!isNaN(numValue) && numValue >= min && numValue <= max) {
-      onChange(numValue);
-    } else {
-      setLocalValue(String(value));
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      (e.target as HTMLInputElement).blur();
-    }
-  };
+  // Determine what to show
+  const hasSelection = selectedWall || selectedBox || selectedPlank;
 
   return (
-    <div className="flex items-center gap-2">
-      <label className="text-sm text-technical-gray w-16">{label}</label>
-      <div className="flex-1 flex items-center gap-1">
-        <input
-          type="number"
-          value={localValue}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-          disabled={disabled}
-          min={min}
-          max={max}
-          step={step}
-          className={`w-full px-2 py-1.5 text-sm border rounded-dls-sm focus:ring-2 focus:ring-primary-orange focus:border-transparent ${
-            disabled 
-              ? "bg-lighter-bg text-technical-gray border-light-bw" 
-              : "bg-white text-neutral-dark border-light-bw"
-          }`}
-        />
-        <span className="text-xs text-light-interactive-bw w-8">{unit}</span>
-      </div>
-    </div>
-  );
-}
-
-// ============================================
-// Position Input Component
-// ============================================
-
-interface PositionInputsProps {
-  x: number;
-  y: number;
-  z: number;
-  onChange: (axis: "x" | "y" | "z", value: number) => void;
-  disabled?: boolean;
-}
-
-function PositionInputs({ x, y, z, onChange, disabled }: PositionInputsProps) {
-  return (
-    <div className="space-y-2">
-      <DimensionInput
-        label="X"
-        value={Math.round(x)}
-        onChange={(v) => onChange("x", v)}
-        disabled={disabled}
-      />
-      <DimensionInput
-        label="Y"
-        value={Math.round(y)}
-        onChange={(v) => onChange("y", v)}
-        disabled={disabled}
-      />
-      <DimensionInput
-        label="Z"
-        value={Math.round(z)}
-        onChange={(v) => onChange("z", v)}
-        disabled={disabled}
-      />
-    </div>
-  );
-}
-
-// ============================================
-// Plank List Item Component
-// ============================================
-
-interface PlankListItemProps {
-  plank: {
-    id: string;
-    name: string;
-    plankRole?: string;
-    dimensions: { lenX: number; lenY: number; lenZ: number };
-    color: string;
-    materialString?: string;
-  };
-  isSelected: boolean;
-  onClick: () => void;
-}
-
-function PlankListItem({ plank, isSelected, onClick }: PlankListItemProps) {
-  const category = determinePlankCategory(plank.plankRole || plank.name);
-  
-  return (
-    <div
-      onClick={onClick}
-      className={`p-2 rounded-dls-md cursor-pointer transition-colors ${
-        isSelected
-          ? "bg-lighter-interactive/30 border border-light-border"
-          : "bg-lighter-bg hover:bg-light-bg"
-      }`}
-    >
-      <div className="flex items-center gap-2">
-        <span
-          className="w-3 h-3 rounded-sm border flex-shrink-0"
-          style={{ backgroundColor: plank.color }}
-        />
-        <span className="text-sm font-medium text-neutral-dark truncate">
-          {plank.name}
-        </span>
-        {plank.plankRole && (
-          <span className="text-xs text-light-interactive-bw capitalize">
-            ({plank.plankRole})
-          </span>
-        )}
-      </div>
-      <div className="text-xs text-technical-gray ml-5 mt-0.5">
-        {Math.round(plank.dimensions.lenX)} × {Math.round(plank.dimensions.lenY)} × {Math.round(plank.dimensions.lenZ)}mm
-      </div>
-      {plank.materialString && (
-        <div className="text-xs text-light-interactive-bw ml-5">
-          {plank.materialString}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ============================================
-// Main PropertiesPanel Component
-// ============================================
-
-export function PropertiesPanel() {
-  const selectedBoxId = useDesignerStore((state) => state.selectedBoxId);
-  const selectedPlankIds = useDesignerStore((state) => state.selectedPlankIds);
-  const explodeAmount = useDesignerStore((state) => state.explodeAmount);
-  const boxTemplates = useDesignerStore((state) => state.boxTemplates);
-  const isPropertiesPanelOpen = useDesignerStore((state) => state.isPropertiesPanelOpen);
-  
-  const setExplodeAmount = useDesignerStore((state) => state.setExplodeAmount);
-  const updateBox = useDesignerStore((state) => state.updateBox);
-  const updateBoxPosition = useDesignerStore((state) => state.updateBoxPosition);
-  const updateBoxDimensions = useDesignerStore((state) => state.updateBoxDimensions);
-  const replacePlanks = useDesignerStore((state) => state.replacePlanks);
-  const selectPlanks = useDesignerStore((state) => state.selectPlanks);
-  const togglePropertiesPanel = useDesignerStore((state) => state.togglePropertiesPanel);
-  const toggleLaminatePanel = useDesignerStore((state) => state.toggleLaminatePanel);
-  
-  const selectedBox = useDesignerStore(selectSelectedBox);
-
-  const selectedPlank = selectedBox?.planks.find((p) =>
-    selectedPlankIds.includes(p.id)
-  );
-
-  // Handle dimension change with plank recalculation
-  const handleDimensionChange = useCallback(
-    (dimension: "boxWidth" | "boxDepth" | "boxHeight" | "skirtingHeight", value: number) => {
-      if (!selectedBox) return;
-
-      // Get template if available
-      const template = boxTemplates.find((t) => t.id === selectedBox.templateId);
-
-      // Update dimensions
-      const newDimensions = {
-        ...selectedBox.dimensions,
-        [dimension]: value,
-        // Also update lenX/Y/Z for compatibility
-        ...(dimension === "boxWidth" && { lenX: value }),
-        ...(dimension === "boxDepth" && { lenY: value }),
-        ...(dimension === "boxHeight" && { lenZ: value }),
-      };
-
-      updateBoxDimensions(selectedBox.id, newDimensions);
-
-      // Recalculate planks if we have a template
-      if (template && template.plankTemplates.length > 0) {
-        const updatedBox: DesignerBox = {
-          ...selectedBox,
-          dimensions: newDimensions,
-        };
-
-        const newPlanks = recalculatePlanks(updatedBox, template.plankTemplates);
-        replacePlanks(selectedBox.id, newPlanks);
-      }
-    },
-    [selectedBox, boxTemplates, updateBoxDimensions, replacePlanks]
-  );
-
-  // Handle position change
-  const handlePositionChange = useCallback(
-    (axis: "x" | "y" | "z", value: number) => {
-      if (!selectedBox) return;
-
-      updateBoxPosition(selectedBox.id, {
-        ...selectedBox.position,
-        [axis]: value,
-      });
-    },
-    [selectedBox, updateBoxPosition]
-  );
-
-  // Handle plank selection
-  const handlePlankClick = useCallback(
-    (plankId: string) => {
-      if (selectedPlankIds.includes(plankId)) {
-        selectPlanks(selectedPlankIds.filter((id) => id !== plankId));
-      } else {
-        selectPlanks([plankId]);
-      }
-    },
-    [selectedPlankIds, selectPlanks]
-  );
-
-  if (!isPropertiesPanelOpen) {
-    return (
-      <button
-        onClick={togglePropertiesPanel}
-        className="absolute top-20 right-4 bg-lightest-bg/95 backdrop-blur p-2 rounded-dls-md shadow-lg z-30 hover:bg-lighter-bg transition-colors"
-        title="Show Properties"
-      >
-        ⚙️
-      </button>
-    );
-  }
-
-  return (
-    <div className="absolute top-4 right-4 w-80 bg-lightest-bg/95 backdrop-blur rounded-dls-lg shadow-lg overflow-hidden z-30">
-      <div className="px-4 py-3 bg-lighter-bg border-b border-light-bw flex items-center justify-between">
-        <h3 className="font-semibold text-neutral-dark">Properties</h3>
-        <button
-          onClick={togglePropertiesPanel}
-          className="p-1.5 hover:bg-light-bg rounded-dls-sm transition-colors"
-          title="Hide Panel"
-        >
-          ✕
-        </button>
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-gray-200 bg-white">
+        <h2 className="text-sm font-semibold text-gray-900">Properties</h2>
       </div>
 
-      <div className="p-4 space-y-4 max-h-[calc(100vh-150px)] overflow-y-auto">
-        {/* Explode Control */}
-        <div>
-          <div className="flex justify-between mb-2">
-            <span className="text-sm font-medium text-neutral-dark">Explode View</span>
-            <span className="text-sm font-bold text-primary-orange">
-              {Math.round(explodeAmount * 100)}%
-            </span>
-          </div>
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+        {/* Project Info */}
+        <div className="space-y-2">
+          <label className="block text-xs text-gray-500 uppercase tracking-wide">
+            Project Name
+          </label>
           <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={explodeAmount}
-            onChange={(e) => setExplodeAmount(Number(e.target.value))}
-            className="w-full accent-primary-orange"
+            type="text"
+            value={projectName}
+            onChange={(e) => setProjectName(e.target.value)}
+            className="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
           />
         </div>
 
-        {/* Box Properties */}
-        {selectedBox && (
-          <>
-            {/* Box Info */}
-            <div className="p-3 bg-primary-blue/10 rounded-dls-md">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-semibold text-primary-blue">
-                  📦 {selectedBox.name}
-                </h4>
-                {selectedBox.boxModel && (
-                  <span className="text-xs bg-primary-blue/20 text-primary-blue px-2 py-0.5 rounded-dls-sm">
-                    {selectedBox.boxModel}
-                  </span>
-                )}
-              </div>
-              {selectedBox.boxType && (
-                <div className="text-xs text-primary-blue/80 mb-2 capitalize">
-                  Type: {selectedBox.boxType.replace("_", " ")}
-                </div>
-              )}
-            </div>
-
-            {/* Dimensions */}
-            <div className="p-3 bg-lighter-bg rounded-dls-md">
-              <h5 className="text-sm font-semibold text-neutral-dark mb-3">
-                Dimensions
-              </h5>
-              <div className="space-y-2">
-                <DimensionInput
-                  label="Width"
-                  value={selectedBox.dimensions.boxWidth || selectedBox.dimensions.lenX}
-                  onChange={(v) => handleDimensionChange("boxWidth", v)}
-                  min={100}
-                  max={5000}
-                />
-                <DimensionInput
-                  label="Depth"
-                  value={selectedBox.dimensions.boxDepth || selectedBox.dimensions.lenY}
-                  onChange={(v) => handleDimensionChange("boxDepth", v)}
-                  min={100}
-                  max={2000}
-                />
-                <DimensionInput
-                  label="Height"
-                  value={selectedBox.dimensions.boxHeight || selectedBox.dimensions.lenZ}
-                  onChange={(v) => handleDimensionChange("boxHeight", v)}
-                  min={100}
-                  max={3000}
-                />
-                <DimensionInput
-                  label="Skirting"
-                  value={selectedBox.dimensions.skirtingHeight || 0}
-                  onChange={(v) => handleDimensionChange("skirtingHeight", v)}
-                  min={0}
-                  max={500}
-                />
-              </div>
-            </div>
-
-            {/* Position */}
-            <div className="p-3 bg-lighter-bg rounded-dls-md">
-              <h5 className="text-sm font-semibold text-neutral-dark mb-3">
-                Position
-              </h5>
-              <PositionInputs
-                x={selectedBox.position.x}
-                y={selectedBox.position.y}
-                z={selectedBox.position.z}
-                onChange={handlePositionChange}
-              />
-            </div>
-
-            {/* Rotation */}
-            <div className="p-3 bg-lighter-bg rounded-dls-md">
-              <h5 className="text-sm font-semibold text-neutral-dark mb-3">
-                Rotation
-              </h5>
-              <DimensionInput
-                label="Z"
-                value={selectedBox.rotationZ || 0}
-                unit="°"
-                onChange={(v) => updateBox(selectedBox.id, { rotationZ: v })}
-                min={0}
-                max={360}
-                step={90}
-              />
-            </div>
-
-            {/* Material Thicknesses */}
-            <div className="p-3 bg-lighter-bg rounded-dls-md">
-              <h5 className="text-sm font-semibold text-neutral-dark mb-3">
-                Material Thickness
-              </h5>
-              <div className="space-y-2">
-                <DimensionInput
-                  label="Carcass"
-                  value={selectedBox.carcassThickness}
-                  onChange={(v) => {
-                    updateBox(selectedBox.id, { carcassThickness: v });
-                    handleDimensionChange("boxWidth", selectedBox.dimensions.boxWidth || selectedBox.dimensions.lenX);
-                  }}
-                  min={6}
-                  max={50}
-                />
-                <DimensionInput
-                  label="Door"
-                  value={selectedBox.doorThickness}
-                  onChange={(v) => {
-                    updateBox(selectedBox.id, { doorThickness: v });
-                    handleDimensionChange("boxWidth", selectedBox.dimensions.boxWidth || selectedBox.dimensions.lenX);
-                  }}
-                  min={6}
-                  max={50}
-                />
-                <DimensionInput
-                  label="Back"
-                  value={selectedBox.backplankThickness}
-                  onChange={(v) => {
-                    updateBox(selectedBox.id, { backplankThickness: v });
-                    handleDimensionChange("boxWidth", selectedBox.dimensions.boxWidth || selectedBox.dimensions.lenX);
-                  }}
-                  min={3}
-                  max={25}
-                />
-              </div>
-            </div>
-
-            {/* Planks List */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h5 className="text-sm font-semibold text-neutral-dark">
-                  Planks ({selectedBox.planks.length})
-                </h5>
-                <button
-                  onClick={toggleLaminatePanel}
-                  className="text-xs text-primary-orange hover:text-dark-color"
-                >
-                  Edit Laminates →
-                </button>
-              </div>
-              <div className="space-y-1 max-h-64 overflow-y-auto">
-                {selectedBox.planks.map((plank) => (
-                  <PlankListItem
-                    key={plank.id}
-                    plank={plank}
-                    isSelected={selectedPlankIds.includes(plank.id)}
-                    onClick={() => handlePlankClick(plank.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Selected Plank Details */}
-        {selectedPlank && (
-          <div className="p-3 bg-lighter-interactive/20 rounded-dls-md">
-            <h4 className="font-semibold text-dark-text mb-2">
-              🪵 {selectedPlank.name}
-            </h4>
-            <div className="text-sm text-technical-gray space-y-1">
-              <div>ID: {selectedPlank.id}</div>
-              {selectedPlank.plankRole && (
-                <div className="capitalize">Role: {selectedPlank.plankRole}</div>
-              )}
-              <div>
-                Size: {Math.round(selectedPlank.dimensions.lenX)} ×{" "}
-                {Math.round(selectedPlank.dimensions.lenY)} ×{" "}
-                {Math.round(selectedPlank.dimensions.lenZ)}mm
-              </div>
-              <div>
-                Position: ({Math.round(selectedPlank.position.x)},{" "}
-                {Math.round(selectedPlank.position.y)},{" "}
-                {Math.round(selectedPlank.position.z)})
-              </div>
-              {selectedPlank.materialString && (
-                <div>Material: {selectedPlank.materialString}</div>
-              )}
-            </div>
-            <div className="mt-2 flex items-center gap-2">
-              <span className="text-sm text-technical-gray">Color:</span>
-              <div
-                className="w-6 h-6 rounded-dls-sm border"
-                style={{ backgroundColor: selectedPlank.color }}
-              />
-            </div>
+        {/* Summary Stats */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-orange-50 rounded p-2 text-center border border-orange-100">
+            <div className="text-lg font-bold text-orange-600">{summary.totalWalls}</div>
+            <div className="text-xs text-gray-500">Walls</div>
           </div>
-        )}
-
-        {/* No Selection */}
-        {!selectedBox && (
-          <div className="text-center text-technical-gray py-8">
-            <div className="text-4xl mb-2">📦</div>
-            <p className="text-sm">Select a box to view and edit properties</p>
+          <div className="bg-orange-50 rounded p-2 text-center border border-orange-100">
+            <div className="text-lg font-bold text-orange-600">{summary.totalBoxes}</div>
+            <div className="text-xs text-gray-500">Boxes</div>
           </div>
-        )}
+          <div className="bg-orange-50 rounded p-2 text-center border border-orange-100">
+            <div className="text-lg font-bold text-orange-600">{summary.totalPlanks}</div>
+            <div className="text-xs text-gray-500">Planks</div>
+          </div>
+        </div>
+
+        <div className="border-t border-gray-200 pt-4" />
+
+        {/* Selection Properties */}
+        {!hasSelection ? (
+          <div className="text-center text-gray-400 py-8">
+            <svg
+              className="w-12 h-12 mx-auto mb-2 opacity-50"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1}
+                d="M15 15l-2 5L9 9l11 4-5 2z"
+              />
+            </svg>
+            <p className="text-sm">Select a wall or box to edit</p>
+          </div>
+        ) : selectedBox ? (
+          <BoxProperties
+            box={selectedBox}
+            onUpdate={updateBox}
+            onUpdateDimensions={updateBoxDimensions}
+            onDelete={deleteBox}
+            onRotate={rotateBox}
+            plywoodLibrary={plywoodLibrary}
+          />
+        ) : selectedWall ? (
+          <WallProperties
+            wall={selectedWall}
+            onUpdate={updateWall}
+            onDelete={deleteWall}
+          />
+        ) : null}
       </div>
     </div>
   );
+};
+
+// ============================================
+// WALL PROPERTIES
+// ============================================
+
+interface WallPropertiesProps {
+  wall: Wall;
+  onUpdate: (id: string, updates: Partial<Wall>) => void;
+  onDelete: (id: string) => void;
 }
 
-export default PropertiesPanel;
+const WallProperties: React.FC<WallPropertiesProps> = ({ wall, onUpdate, onDelete }) => {
+  const locations = ['North', 'South', 'East', 'West'];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-orange-500">Wall Properties</h3>
+        <button
+          onClick={() => onDelete(wall.id)}
+          className="text-red-500 hover:text-red-600 text-xs"
+        >
+          Delete
+        </button>
+      </div>
+
+      {/* Name */}
+      <div>
+        <label className="block text-xs text-gray-500 mb-1">Name</label>
+        <input
+          type="text"
+          value={wall.entityName}
+          onChange={(e) => onUpdate(wall.id, { entityName: e.target.value })}
+          className="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+        />
+      </div>
+
+      {/* Room Name */}
+      <div>
+        <label className="block text-xs text-gray-500 mb-1">Room</label>
+        <input
+          type="text"
+          value={wall.roomName}
+          onChange={(e) => onUpdate(wall.id, { roomName: e.target.value })}
+          className="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+        />
+      </div>
+
+      {/* Location */}
+      <div>
+        <label className="block text-xs text-gray-500 mb-1">Location</label>
+        <select
+          value={wall.unitLocation}
+          onChange={(e) => onUpdate(wall.id, { unitLocation: e.target.value })}
+          className="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+        >
+          {locations.map((loc) => (
+            <option key={loc} value={loc}>
+              {loc}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Dimensions */}
+      <div>
+        <label className="block text-xs text-gray-500 mb-2">Dimensions (mm)</label>
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <label className="block text-[10px] text-gray-400 mb-1">Width</label>
+            <input
+              type="number"
+              value={wall.dimensions.lenX}
+              onChange={(e) =>
+                onUpdate(wall.id, {
+                  dimensions: { ...wall.dimensions, lenX: Number(e.target.value) },
+                })
+              }
+              className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] text-gray-400 mb-1">Depth</label>
+            <input
+              type="number"
+              value={wall.dimensions.lenY}
+              onChange={(e) =>
+                onUpdate(wall.id, {
+                  dimensions: { ...wall.dimensions, lenY: Number(e.target.value) },
+                })
+              }
+              className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] text-gray-400 mb-1">Height</label>
+            <input
+              type="number"
+              value={wall.dimensions.lenZ}
+              onChange={(e) =>
+                onUpdate(wall.id, {
+                  dimensions: { ...wall.dimensions, lenZ: Number(e.target.value) },
+                })
+              }
+              className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Position */}
+      <div>
+        <label className="block text-xs text-gray-500 mb-2">Position (mm)</label>
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <label className="block text-[10px] text-gray-400 mb-1">X</label>
+            <input
+              type="number"
+              value={wall.position.x}
+              onChange={(e) =>
+                onUpdate(wall.id, {
+                  position: { ...wall.position, x: Number(e.target.value) },
+                })
+              }
+              className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] text-gray-400 mb-1">Y</label>
+            <input
+              type="number"
+              value={wall.position.y}
+              onChange={(e) =>
+                onUpdate(wall.id, {
+                  position: { ...wall.position, y: Number(e.target.value) },
+                })
+              }
+              className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] text-gray-400 mb-1">Z</label>
+            <input
+              type="number"
+              value={wall.position.z}
+              onChange={(e) =>
+                onUpdate(wall.id, {
+                  position: { ...wall.position, z: Number(e.target.value) },
+                })
+              }
+              className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Boxes count */}
+      <div className="text-xs text-gray-500">
+        Contains {wall.boxes.length} box{wall.boxes.length !== 1 ? 'es' : ''}
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// BOX PROPERTIES - EXACT PORT FROM APPS SCRIPT
+// ============================================
+
+interface BoxPropertiesProps {
+  box: Box;
+  onUpdate: (id: string, updates: Partial<Box>) => void;
+  onUpdateDimensions: (boxId: string, dimensions: Partial<BoxDimensions>) => void;
+  onDelete: (id: string) => void;
+  onRotate: (id: string, degrees: number) => void;
+  plywoodLibrary: PlywoodOption[];
+}
+
+const BoxProperties: React.FC<BoxPropertiesProps> = ({
+  box,
+  onUpdate,
+  onUpdateDimensions,
+  onDelete,
+  onRotate,
+  plywoodLibrary,
+}) => {
+  const editableOptions = DESIGNER_CONFIG.editableOptions;
+  
+  // Dimension keys that trigger formula recalculation
+  const dimensionKeys = ['boxWidth', 'boxDepth', 'boxHeight', 'skirting', 'skirtingWidth', 
+                         'carcusThickness', 'doorThickness', 'backplankThickness'];
+  
+  // Handle dimension changes with formula-based plank recalculation
+  const handleDimensionChange = useCallback((key: string, value: number) => {
+    if (dimensionKeys.includes(key)) {
+      // Use the formula-based update that recalculates all planks
+      onUpdateDimensions(box.id, { [key]: value } as Partial<BoxDimensions>);
+    } else {
+      // Regular update for non-dimension fields
+      onUpdate(box.id, { [key]: value });
+    }
+  }, [box.id, onUpdate, onUpdateDimensions]);
+
+  // Handle plywood selection with auto-thickness
+  const handlePlywoodChange = useCallback((key: string, displayName: string, thicknessTarget?: string) => {
+    const selected = plywoodLibrary.find((p) => p.displayName === displayName);
+    
+    if (selected && thicknessTarget) {
+      // Update both the plywood selection and its thickness
+      // Use dimension update to trigger plank recalculation
+      onUpdate(box.id, { [key]: displayName });
+      onUpdateDimensions(box.id, { [thicknessTarget]: selected.thickness } as Partial<BoxDimensions>);
+    } else {
+      onUpdate(box.id, { [key]: displayName });
+    }
+  }, [box.id, onUpdate, onUpdateDimensions, plywoodLibrary]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-orange-500">📦 Component Options</h3>
+        <button
+          onClick={() => onDelete(box.id)}
+          className="text-red-500 hover:text-red-600 text-xs"
+        >
+          Delete
+        </button>
+      </div>
+
+      {/* Model Info */}
+      <div className="bg-orange-50 border border-orange-100 rounded p-3">
+        <div className="text-xs text-gray-500">Model</div>
+        <div className="font-medium text-gray-900">{box.boxModel || box.entityName || 'Custom'}</div>
+        <div className="text-xs text-gray-500 mt-1">{box.boxType || 'Standard'}</div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => onRotate(box.id, 90)}
+          className="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm text-gray-700 flex items-center justify-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Rotate 90°
+        </button>
+      </div>
+
+      {/* === DIMENSIONS SECTION === */}
+      <div className="border-t border-gray-200 pt-4">
+        <div className="text-xs text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+          📐 Dimensions
+        </div>
+        
+        {/* Box Dimensions */}
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <div>
+            <label className="block text-[10px] text-gray-400 mb-1">Width (mm)</label>
+            <input
+              type="number"
+              value={box.boxWidth || ''}
+              onChange={(e) => handleDimensionChange('boxWidth', Number(e.target.value))}
+              className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] text-gray-400 mb-1">Depth (mm)</label>
+            <input
+              type="number"
+              value={box.boxDepth || ''}
+              onChange={(e) => handleDimensionChange('boxDepth', Number(e.target.value))}
+              className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] text-gray-400 mb-1">Height (mm)</label>
+            <input
+              type="number"
+              value={box.boxHeight || ''}
+              onChange={(e) => handleDimensionChange('boxHeight', Number(e.target.value))}
+              className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Skirting */}
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <div>
+            <label className="block text-[10px] text-gray-400 mb-1">Skirting Height</label>
+            <input
+              type="number"
+              value={box.skirting || ''}
+              onChange={(e) => handleDimensionChange('skirting', Number(e.target.value))}
+              className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] text-gray-400 mb-1">Skirting Width</label>
+            <input
+              type="number"
+              value={box.skirtingWidth || ''}
+              onChange={(e) => handleDimensionChange('skirtingWidth', Number(e.target.value))}
+              className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* === MATERIALS SECTION === */}
+      <div className="border-t border-gray-200 pt-4">
+        <div className="text-xs text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+          🪵 Materials
+        </div>
+
+        {/* Carcass Plywood */}
+        <div className="mb-3">
+          <label className="block text-xs text-gray-500 mb-1">Carcass Plywood</label>
+          <select
+            value={box.carcusPly || ''}
+            onChange={(e) => handlePlywoodChange('carcusPly', e.target.value, 'carcusThickness')}
+            className="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+          >
+            <option value="">Select Plywood...</option>
+            {plywoodLibrary.map((ply) => (
+              <option key={ply.id || ply.sno} value={ply.displayName}>
+                {ply.displayName}
+              </option>
+            ))}
+          </select>
+          <div className="text-[10px] text-gray-400 mt-1">
+            Thickness: {box.carcusThickness || 18}mm
+          </div>
+        </div>
+
+        {/* Door Plywood */}
+        <div className="mb-3">
+          <label className="block text-xs text-gray-500 mb-1">Door Plywood</label>
+          <select
+            value={box.doorPly || ''}
+            onChange={(e) => handlePlywoodChange('doorPly', e.target.value, 'doorThickness')}
+            className="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+          >
+            <option value="">Select Plywood...</option>
+            {plywoodLibrary.map((ply) => (
+              <option key={ply.id || ply.sno} value={ply.displayName}>
+                {ply.displayName}
+              </option>
+            ))}
+          </select>
+          <div className="text-[10px] text-gray-400 mt-1">
+            Thickness: {box.doorThickness || 18}mm
+          </div>
+        </div>
+
+        {/* Back Panel Plywood */}
+        <div className="mb-3">
+          <label className="block text-xs text-gray-500 mb-1">Back Panel Plywood</label>
+          <select
+            value={box.backPly || ''}
+            onChange={(e) => handlePlywoodChange('backPly', e.target.value, 'backplankThickness')}
+            className="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+          >
+            <option value="">Select Plywood...</option>
+            {plywoodLibrary.filter(p => p.thickness <= 12).map((ply) => (
+              <option key={ply.id || ply.sno} value={ply.displayName}>
+                {ply.displayName}
+              </option>
+            ))}
+          </select>
+          <div className="text-[10px] text-gray-400 mt-1">
+            Thickness: {box.backplankThickness || 6}mm
+          </div>
+        </div>
+      </div>
+
+      {/* === POSITION SECTION === */}
+      <div className="border-t border-gray-200 pt-4">
+        <div className="text-xs text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+          📍 Position
+        </div>
+        
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <div>
+            <label className="block text-[10px] text-gray-400 mb-1">X</label>
+            <input
+              type="number"
+              value={box.position.x}
+              onChange={(e) =>
+                onUpdate(box.id, {
+                  position: { ...box.position, x: Number(e.target.value) },
+                })
+              }
+              className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] text-gray-400 mb-1">Y</label>
+            <input
+              type="number"
+              value={box.position.y}
+              onChange={(e) =>
+                onUpdate(box.id, {
+                  position: { ...box.position, y: Number(e.target.value) },
+                })
+              }
+              className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] text-gray-400 mb-1">Z</label>
+            <input
+              type="number"
+              value={box.position.z}
+              onChange={(e) =>
+                onUpdate(box.id, {
+                  position: { ...box.position, z: Number(e.target.value) },
+                })
+              }
+              className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Rotation */}
+        <div>
+          <label className="block text-[10px] text-gray-400 mb-1">Rotation Z (°)</label>
+          <input
+            type="number"
+            value={box.rotZ || 0}
+            onChange={(e) => onUpdate(box.id, { rotZ: Number(e.target.value) })}
+            step={15}
+            className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
+          />
+        </div>
+      </div>
+
+      {/* Planks Summary */}
+      <div className="border-t border-gray-200 pt-4">
+        <div className="text-xs text-gray-500 uppercase tracking-wide mb-2">
+          Planks ({box.planks.length})
+        </div>
+        <div className="max-h-32 overflow-y-auto space-y-1">
+          {box.planks.slice(0, 10).map((plank) => (
+            <div key={plank.id} className="text-xs text-gray-700 flex justify-between">
+              <span>{plank.entityName}</span>
+              <span className="text-gray-400">
+                {plank.dimensions.lenX}×{plank.dimensions.lenY}×{plank.dimensions.lenZ}
+              </span>
+            </div>
+          ))}
+          {box.planks.length > 10 && (
+            <div className="text-xs text-gray-400">
+              ... and {box.planks.length - 10} more
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Apply Button */}
+      <div className="pt-4">
+        <button
+          onClick={() => {
+            // Force a recalculation with current values
+            onUpdateDimensions(box.id, {
+              boxWidth: box.boxWidth,
+              boxDepth: box.boxDepth,
+              boxHeight: box.boxHeight,
+              skirting: box.skirting,
+              skirtingWidth: box.skirtingWidth,
+              carcusThickness: box.carcusThickness,
+              doorThickness: box.doorThickness,
+              backplankThickness: box.backplankThickness,
+            });
+          }}
+          className="w-full px-4 py-2 bg-orange-500 hover:bg-orange-600 rounded text-sm text-white font-medium"
+        >
+          Apply Changes
+        </button>
+      </div>
+    </div>
+  );
+};

@@ -1,485 +1,391 @@
-"use client";
+'use client';
 
-import { useState, useRef, useCallback } from "react";
-import Link from "next/link";
-import { useAppStore, useProcessedDataStore, useReportsStore } from "@/store/visualiserStore";
-import { processRawData, type ProcessingOptions } from "@/lib/visualiser/rawDataProcessor";
+import React from 'react';
+import Link from 'next/link';
+import { useDesignerStore, useDesignSummary } from '@/store/designerStore';
 
-interface FeatureCard {
-  title: string;
-  description: string;
-  icon: string;
-  href: string;
-  color: string;
-}
+export default function VisualiserPage() {
+  const { projectName, lastSaved, clearDesign } = useDesignerStore();
+  const summary = useDesignSummary();
 
-const features: FeatureCard[] = [
-  {
-    title: "3D Installation Guide",
-    description: "Step-by-step cabinet assembly visualization with interactive 3D viewer",
-    icon: "🔧",
-    href: "/visualiser/installation-guide",
-    color: "from-blue-500 to-cyan-500",
-  },
-  {
-    title: "Cutlist Visualization",
-    description: "View and export 2D sheet layouts with material optimization",
-    icon: "📐",
-    href: "/visualiser/cutlist",
-    color: "from-purple-500 to-pink-500",
-  },
-  {
-    title: "3D Cabinet Designer",
-    description: "Full 3D design tool for creating and editing cabinet layouts",
-    icon: "🎨",
-    href: "/visualiser/designer",
-    color: "from-orange-500 to-red-500",
-  },
-  {
-    title: "G-Code Generator",
-    description: "Generate CNC machine code for automated manufacturing",
-    icon: "⚙️",
-    href: "/visualiser/gcode",
-    color: "from-emerald-500 to-teal-500",
-  },
-  {
-    title: "Reports",
-    description: "Material estimates, invoices, QA sheets, and pressing lists",
-    icon: "📋",
-    href: "/visualiser/reports",
-    color: "from-amber-500 to-yellow-500",
-  },
-];
-
-interface UploadedFile {
-  name: string;
-  data: string[][];
-  headers: string[];
-}
-
-export default function VisualiserDashboard() {
-  const { projectName, isConnected, setProject, disconnect, setCSVData } = useAppStore();
-  const { 
-    processedData, 
-    isProcessing: isPipelineProcessing, 
-    setProcessedData, 
-    setIsProcessing: setPipelineProcessing,
-    setProcessingProgress,
-    processingProgress,
-    reset: resetProcessedData 
-  } = useProcessedDataStore();
-  const { 
-    setMaterialEstimates, 
-    setQaInputData, 
-    setQaOutputData, 
-    setPressingList, 
-    setInvoiceData,
-    reset: resetReports 
-  } = useReportsStore();
-  
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const [customerName, setCustomerName] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const parseCSV = (content: string): { headers: string[]; data: string[][] } => {
-    const lines = content.trim().split(/\r?\n/);
-    if (lines.length === 0) return { headers: [], data: [] };
-    
-    const parseRow = (row: string): string[] => {
-      const result: string[] = [];
-      let current = "";
-      let inQuotes = false;
-      
-      for (let i = 0; i < row.length; i++) {
-        const char = row[i];
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          result.push(current.trim());
-          current = "";
-        } else {
-          current += char;
-        }
-      }
-      result.push(current.trim());
-      return result;
-    };
-
-    const headers = parseRow(lines[0]);
-    const data = lines.slice(1).map(parseRow).filter(row => row.some(cell => cell !== ""));
-    
-    return { headers, data };
-  };
-
-  const handleFiles = useCallback(async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    
-    setIsProcessing(true);
-    setError(null);
-    
-    try {
-      const newFiles: UploadedFile[] = [];
-      
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (!file.name.endsWith('.csv')) {
-          setError(`File "${file.name}" is not a CSV file`);
-          continue;
-        }
-        
-        const content = await file.text();
-        const { headers, data } = parseCSV(content);
-        
-        newFiles.push({
-          name: file.name.replace('.csv', ''),
-          headers,
-          data,
-        });
-      }
-      
-      if (newFiles.length > 0) {
-        setUploadedFiles(prev => [...prev, ...newFiles]);
-      }
-    } catch (err) {
-      setError("Failed to process CSV file(s)");
-    } finally {
-      setIsProcessing(false);
-    }
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(false);
-    handleFiles(e.dataTransfer.files);
-  }, [handleFiles]);
-
-  const handleLoadData = async () => {
-    if (uploadedFiles.length === 0) {
-      setError("Please upload at least one CSV file");
-      return;
-    }
-    
-    setIsProcessing(true);
-    setPipelineProcessing(true);
-    setProcessingProgress(0);
-    setError(null);
-    
-    try {
-      // Store CSV data in app state
-      const csvDataMap: Record<string, { headers: string[]; data: string[][] }> = {};
-      uploadedFiles.forEach(file => {
-        csvDataMap[file.name] = { headers: file.headers, data: file.data };
-      });
-      setCSVData(csvDataMap);
-      setProcessingProgress(20);
-      
-      // Process the first file through the pipeline (main data file)
-      const mainFile = uploadedFiles[0];
-      const options: ProcessingOptions = {
-        nestingAlgorithm: 'maxrects',
-        customerName: customerName || mainFile.name,
-        projectId: `PRJ-${Date.now()}`,
-      };
-      
-      setProcessingProgress(40);
-      
-      // Process raw data through the complete pipeline
-      const processed = processRawData(mainFile.headers, mainFile.data, options);
-      
-      setProcessingProgress(80);
-      
-      // Store processed data
-      setProcessedData(processed);
-      
-      // Also populate reports store for backward compatibility
-      setMaterialEstimates(processed.materialEstimate);
-      setQaInputData(processed.inputQA);
-      setQaOutputData(processed.outputQA);
-      setPressingList(processed.pressingList);
-      setInvoiceData(processed.invoice);
-      
-      setProcessingProgress(100);
-      
-      // Set project info
-      setProject(
-        processed.customerName,
-        `${processed.summary.totalPlanks} planks • ${processed.summary.totalSheets} sheets • ${processed.summary.totalBoxes} boxes`
+  const handleNewProject = () => {
+    if (summary.totalWalls > 0) {
+      const confirmed = window.confirm(
+        'This will clear your current design. Are you sure?'
       );
-      
-    } catch (err) {
-      console.error("Processing error:", err);
-      setError(`Failed to process data: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    } finally {
-      setIsProcessing(false);
-      setPipelineProcessing(false);
+      if (!confirmed) return;
     }
-  };
-
-  const removeFile = (index: number) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    clearDesign();
   };
 
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-white text-gray-900">
       {/* Header */}
-      <header className="h-14 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-900/50 backdrop-blur sticky top-0 z-10">
-        <div>
-          <h1 className="text-lg font-semibold">Visualiser Dashboard</h1>
-          <p className="text-xs text-slate-400">Cabinet Manufacturing Tools</p>
-        </div>
-        {isConnected && (
-          <div className="flex items-center gap-4">
-            <div className="text-sm">
-              <span className="text-slate-400">Project: </span>
-              <span className="text-emerald-400 font-medium">{projectName}</span>
+      <header className="border-b border-gray-200 bg-white/80 backdrop-blur-sm">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
+                <svg
+                  className="h-6 w-6 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">NestUp Visualiser</h1>
+                <p className="text-sm text-gray-500">3D Cabinet Designer</p>
+              </div>
             </div>
-            <button
-              onClick={() => {
-                disconnect();
-                resetProcessedData();
-                resetReports();
-                setUploadedFiles([]);
-                setCustomerName("");
-              }}
-              className="px-3 py-1.5 text-sm bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+            <Link
+              href="/"
+              className="text-sm text-gray-500 hover:text-orange-500 transition-colors"
             >
-              Clear Data
-            </button>
+              Back to Home
+            </Link>
           </div>
-        )}
+        </div>
       </header>
 
-      <div className="p-6 max-w-7xl mx-auto">
-        {/* CSV Upload Panel */}
-        {!isConnected && (
-          <div className="mb-8 p-6 bg-slate-800/50 rounded-2xl border border-slate-700">
-            <h2 className="text-xl font-semibold mb-2">📁 Import CSV Data</h2>
-            <p className="text-slate-400 text-sm mb-4">
-              Upload your CSV file(s) to start visualizing cabinet data. Multiple sheets supported.
+      {/* Main Content */}
+      <main className="container mx-auto px-6 py-12">
+        {/* Wall measurement CTA: only shown when NEXT_PUBLIC_SHOW_WALL_MEASURE=true (e.g. localhost or trial). Hidden on main site by default. */}
+        {process.env.NEXT_PUBLIC_SHOW_WALL_MEASURE === 'true' && (
+          <div className="mb-8 rounded-xl bg-orange-50 border-2 border-orange-300 p-6 shadow-sm">
+            <h2 className="text-xl font-semibold text-orange-800 mb-2">Measure your wall, then design</h2>
+            <p className="text-sm text-orange-700/90 mb-4">
+              Use the NestUp wall measurement app to capture your wall and get dimensions. On the results page, click &quot;Continue to design&quot; — the 3D designer will open with a wall already sized to your measurements.
             </p>
-            
-            {/* Drag & Drop Zone */}
-            <div
-              onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-              onDragLeave={() => setDragActive(false)}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
-                dragActive 
-                  ? "border-orange-500 bg-orange-500/10" 
-                  : "border-slate-600 hover:border-slate-500 hover:bg-slate-800/30"
-              }`}
+            <a
+              href={process.env.NEXT_PUBLIC_ARUCO_APP_URL || '/measurements'}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg font-semibold text-white hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/25"
             >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                multiple
-                onChange={(e) => handleFiles(e.target.files)}
-                className="hidden"
-              />
-              
-              <div className="text-4xl mb-3">📄</div>
-              <p className="text-slate-300 font-medium">
-                {dragActive ? "Drop files here..." : "Drag & drop CSV files here"}
-              </p>
-              <p className="text-slate-500 text-sm mt-1">or click to browse</p>
-              
-              {isProcessing && (
-                <div className="absolute inset-0 bg-slate-900/80 rounded-xl flex items-center justify-center">
-                  <svg className="animate-spin h-8 w-8 text-orange-500" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                </div>
-              )}
-            </div>
-            
-            {/* Uploaded Files List */}
-            {uploadedFiles.length > 0 && (
-              <div className="mt-4 space-y-4">
-                <p className="text-sm font-medium text-slate-400">Uploaded Files ({uploadedFiles.length})</p>
-                {uploadedFiles.map((file, index) => (
-                  <div 
-                    key={index}
-                    className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-700"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">📊</span>
-                      <div>
-                        <p className="text-sm font-medium text-slate-200">{file.name}.csv</p>
-                        <p className="text-xs text-slate-500">{file.data.length} rows × {file.headers.length} columns</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => removeFile(index)}
-                      className="w-8 h-8 rounded-full bg-slate-800 hover:bg-red-500/20 hover:text-red-400 flex items-center justify-center transition-colors"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-                
-                {/* Customer Name Input */}
-                <div>
-                  <label className="block text-sm text-slate-400 mb-1">Customer Name (Optional)</label>
-                  <input
-                    type="text"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Enter customer name..."
-                    className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-orange-500 transition-colors"
-                  />
-                </div>
-                
-                {/* Processing Progress */}
-                {isProcessing && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Processing data...</span>
-                      <span className="text-orange-400">{processingProgress}%</span>
-                    </div>
-                    <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-300"
-                        style={{ width: `${processingProgress}%` }}
-                      />
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      {processingProgress < 20 && "Preparing data..."}
-                      {processingProgress >= 20 && processingProgress < 40 && "Parsing CSV data..."}
-                      {processingProgress >= 40 && processingProgress < 80 && "Running nesting algorithm..."}
-                      {processingProgress >= 80 && processingProgress < 100 && "Generating reports..."}
-                      {processingProgress === 100 && "Complete!"}
-                    </div>
-                  </div>
-                )}
-                
-                <button
-                  onClick={handleLoadData}
-                  disabled={isProcessing}
-                  className="w-full mt-3 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {isProcessing ? (
-                    <>
-                      <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Processing...
-                    </>
-                  ) : (
-                    <>🚀 Process Data & Start</>
-                  )}
-                </button>
-              </div>
-            )}
-            
-            {error && (
-              <p className="mt-3 text-red-400 text-sm">{error}</p>
-            )}
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              </svg>
+              Open wall measurement app
+            </a>
+          </div>
+        )}
 
-            <div className="mt-4 p-4 bg-slate-900/50 rounded-xl">
-              <p className="text-xs text-slate-500 mb-2">Demo Mode Available</p>
-              <button
-                onClick={() => setProject("Demo Project", "Demo data loaded")}
-                className="text-sm text-orange-400 hover:text-orange-300 transition-colors"
+        {/* Current Project Card — resume existing design (not the same as ArUco "Continue to design") */}
+        {summary.totalWalls > 0 && (
+          <div className="mb-8 rounded-xl bg-orange-50 border border-orange-200 p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-orange-600">
+                  Current Project
+                </h2>
+                <p className="text-xl font-bold mt-1 text-gray-900">{projectName}</p>
+                {lastSaved && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Last saved: {new Date(lastSaved).toLocaleString()}
+                  </p>
+                )}
+                <div className="flex gap-6 mt-4 text-sm">
+                  <div>
+                    <span className="text-gray-500">Walls:</span>{' '}
+                    <span className="font-semibold text-gray-900">{summary.totalWalls}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Boxes:</span>{' '}
+                    <span className="font-semibold text-gray-900">{summary.totalBoxes}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Planks:</span>{' '}
+                    <span className="font-semibold text-gray-900">{summary.totalPlanks}</span>
+                  </div>
+                </div>
+              </div>
+              <Link
+                href="/visualiser/designer"
+                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg font-semibold text-white hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/25"
               >
-                → Load demo data instead
-              </button>
+                Open designer
+              </Link>
             </div>
           </div>
         )}
 
-        {/* Feature Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {features.map((feature) => (
-            <Link
-              key={feature.href}
-              href={feature.href}
-              className="group relative p-6 bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 hover:border-slate-600 rounded-2xl transition-all duration-300"
-            >
-              {/* Gradient overlay on hover */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-5 rounded-2xl transition-opacity`} />
-              
-              <div className="relative">
-                <div className="text-4xl mb-4">{feature.icon}</div>
-                <h3 className="text-lg font-semibold mb-2 group-hover:text-orange-400 transition-colors">
-                  {feature.title}
-                </h3>
-                <p className="text-sm text-slate-400">{feature.description}</p>
-                
-                <div className="mt-4 flex items-center text-sm text-slate-500 group-hover:text-orange-400 transition-colors">
-                  <span>Open</span>
-                  <svg className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </div>
-            </Link>
-          ))}
+        {/* Action Cards */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* New Design Card */}
+          <Link
+            href="/visualiser/designer"
+            onClick={handleNewProject}
+            className="group rounded-xl bg-white border border-gray-200 p-6 hover:border-orange-400 hover:shadow-lg hover:shadow-orange-100 transition-all"
+          >
+            <div className="h-12 w-12 rounded-lg bg-orange-100 flex items-center justify-center mb-4 group-hover:bg-orange-200 transition-colors">
+              <svg
+                className="h-6 w-6 text-orange-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold mb-2 text-gray-900">New Design</h3>
+            <p className="text-sm text-gray-500">
+              Start a fresh 3D cabinet design from scratch
+            </p>
+          </Link>
+
+          {/* Open Designer Card */}
+          <Link
+            href="/visualiser/designer"
+            className="group rounded-xl bg-white border border-gray-200 p-6 hover:border-orange-400 hover:shadow-lg hover:shadow-orange-100 transition-all"
+          >
+            <div className="h-12 w-12 rounded-lg bg-orange-100 flex items-center justify-center mb-4 group-hover:bg-orange-200 transition-colors">
+              <svg
+                className="h-6 w-6 text-orange-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"
+                />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold mb-2 text-gray-900">3D Designer</h3>
+            <p className="text-sm text-gray-500">
+              Open the full 3D cabinet designer with tools and materials
+            </p>
+          </Link>
+
+          {/* Generate Files Card */}
+          <Link
+            href="/visualiser/generate"
+            className={`group rounded-xl bg-white border border-gray-200 p-6 transition-all ${
+              summary.totalPlanks > 0
+                ? 'hover:border-orange-400 hover:shadow-lg hover:shadow-orange-100'
+                : 'opacity-50 cursor-not-allowed'
+            }`}
+            onClick={(e) => {
+              if (summary.totalPlanks === 0) {
+                e.preventDefault();
+                alert('Please create a design first before generating files.');
+              }
+            }}
+          >
+            <div className="h-12 w-12 rounded-lg bg-orange-100 flex items-center justify-center mb-4 group-hover:bg-orange-200 transition-colors">
+              <svg
+                className="h-6 w-6 text-orange-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold mb-2 text-gray-900">Generate Files</h3>
+            <p className="text-sm text-gray-500">
+              Generate cutlist, material estimates, and reports
+            </p>
+          </Link>
+
+          {/* Reports Card */}
+          <Link
+            href="/visualiser/reports/cutlist"
+            className={`group rounded-xl bg-white border border-gray-200 p-6 transition-all ${
+              summary.totalPlanks > 0
+                ? 'hover:border-orange-400 hover:shadow-lg hover:shadow-orange-100'
+                : 'opacity-50 cursor-not-allowed'
+            }`}
+            onClick={(e) => {
+              if (summary.totalPlanks === 0) {
+                e.preventDefault();
+              }
+            }}
+          >
+            <div className="h-12 w-12 rounded-lg bg-orange-100 flex items-center justify-center mb-4 group-hover:bg-orange-200 transition-colors">
+              <svg
+                className="h-6 w-6 text-orange-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold mb-2 text-gray-900">View Reports</h3>
+            <p className="text-sm text-gray-500">
+              View cutlist visualization and material reports
+            </p>
+          </Link>
+
+          {/* Import Design Card */}
+          <label className="group rounded-xl bg-white border border-gray-200 p-6 hover:border-orange-400 hover:shadow-lg hover:shadow-orange-100 transition-all cursor-pointer">
+            <input
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    try {
+                      const data = JSON.parse(event.target?.result as string);
+                      if (data.walls) {
+                        useDesignerStore.getState().loadDesign(data);
+                        alert('Design imported successfully!');
+                      } else {
+                        alert('Invalid design file format.');
+                      }
+                    } catch {
+                      alert('Error reading file.');
+                    }
+                  };
+                  reader.readAsText(file);
+                }
+              }}
+            />
+            <div className="h-12 w-12 rounded-lg bg-orange-100 flex items-center justify-center mb-4 group-hover:bg-orange-200 transition-colors">
+              <svg
+                className="h-6 w-6 text-orange-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold mb-2 text-gray-900">Import Design</h3>
+            <p className="text-sm text-gray-500">
+              Load a previously saved design file (.json)
+            </p>
+          </label>
+
+          {/* Export Design Card */}
+          <button
+            onClick={() => {
+              if (summary.totalWalls === 0) {
+                alert('No design to export.');
+                return;
+              }
+              const data = useDesignerStore.getState().getDesignData();
+              const blob = new Blob([JSON.stringify(data, null, 2)], {
+                type: 'application/json',
+              });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${projectName.replace(/\s+/g, '_')}_design.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className={`group rounded-xl bg-white border border-gray-200 p-6 text-left transition-all ${
+              summary.totalWalls > 0
+                ? 'hover:border-orange-400 hover:shadow-lg hover:shadow-orange-100'
+                : 'opacity-50 cursor-not-allowed'
+            }`}
+          >
+            <div className="h-12 w-12 rounded-lg bg-orange-100 flex items-center justify-center mb-4 group-hover:bg-orange-200 transition-colors">
+              <svg
+                className="h-6 w-6 text-orange-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold mb-2 text-gray-900">Export Design</h3>
+            <p className="text-sm text-gray-500">
+              Save your current design as a JSON file
+            </p>
+          </button>
         </div>
 
-        {/* Quick Stats */}
-        {isConnected && processedData && (
-          <div className="mt-8">
-            <h3 className="text-lg font-semibold mb-4 text-slate-300">📊 Project Summary</h3>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
-                <p className="text-2xl font-bold text-blue-400">{processedData.summary.totalWalls}</p>
-                <p className="text-sm text-slate-400">Walls/Rooms</p>
+        {/* Quick Info */}
+        <div className="mt-12 rounded-xl bg-orange-50 border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold mb-4 text-gray-900">How it works</h3>
+          <div className="grid md:grid-cols-4 gap-6 text-sm">
+            <div className="flex items-start gap-3">
+              <div className="h-8 w-8 rounded-full bg-orange-500 text-white flex items-center justify-center font-bold shrink-0">
+                1
               </div>
-              <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
-                <p className="text-2xl font-bold text-emerald-400">{processedData.summary.totalBoxes}</p>
-                <p className="text-sm text-slate-400">Boxes</p>
-              </div>
-              <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
-                <p className="text-2xl font-bold text-purple-400">{processedData.summary.totalPlanks}</p>
-                <p className="text-sm text-slate-400">Planks</p>
-              </div>
-              <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
-                <p className="text-2xl font-bold text-amber-400">{processedData.summary.totalSheets}</p>
-                <p className="text-sm text-slate-400">Sheets Used</p>
-              </div>
-              <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
-                <p className="text-2xl font-bold text-pink-400">{processedData.summary.totalEdgeBanding}m</p>
-                <p className="text-sm text-slate-400">Edge Banding</p>
+              <div>
+                <p className="font-medium text-gray-900">Create Walls</p>
+                <p className="text-gray-500">
+                  Add walls and define room layout
+                </p>
               </div>
             </div>
-            
-            {/* Materials breakdown */}
-            <div className="mt-4 p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
-              <p className="text-sm text-slate-400 mb-2">Materials Used:</p>
-              <div className="flex flex-wrap gap-2">
-                {processedData.summary.materials.map((mat, i) => (
-                  <span key={i} className="px-3 py-1 bg-slate-700/50 rounded-full text-sm text-slate-300">
-                    {mat}
-                  </span>
-                ))}
+            <div className="flex items-start gap-3">
+              <div className="h-8 w-8 rounded-full bg-orange-500 text-white flex items-center justify-center font-bold shrink-0">
+                2
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Place Cabinets</p>
+                <p className="text-gray-500">
+                  Add boxes from catalog to walls
+                </p>
               </div>
             </div>
-            
-            {/* Nesting stats */}
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-xl border border-emerald-500/20">
-                <p className="text-sm text-emerald-400 mb-1">Average Utilization</p>
-                <p className="text-2xl font-bold text-emerald-300">{processedData.nestStats.avgUtilization.toFixed(1)}%</p>
+            <div className="flex items-start gap-3">
+              <div className="h-8 w-8 rounded-full bg-orange-500 text-white flex items-center justify-center font-bold shrink-0">
+                3
               </div>
-              <div className="p-4 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-xl border border-blue-500/20">
-                <p className="text-sm text-blue-400 mb-1">Material Groups</p>
-                <p className="text-2xl font-bold text-blue-300">{Object.keys(processedData.nestStats.byMaterial).length}</p>
+              <div>
+                <p className="font-medium text-gray-900">Customize</p>
+                <p className="text-gray-500">
+                  Adjust dimensions and materials
+                </p>
               </div>
-              <div className="p-4 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-xl border border-purple-500/20">
-                <p className="text-sm text-purple-400 mb-1">Invoice Total</p>
-                <p className="text-2xl font-bold text-purple-300">₹{processedData.invoice.totalAmount.toLocaleString()}</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="h-8 w-8 rounded-full bg-orange-500 text-white flex items-center justify-center font-bold shrink-0">
+                4
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Generate Files</p>
+                <p className="text-gray-500">
+                  Create cutlist and reports
+                </p>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

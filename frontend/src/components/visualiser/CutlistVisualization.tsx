@@ -1,716 +1,1000 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useCutlistStore, useAppStore, useProcessedDataStore } from "@/store/visualiserStore";
-import type { NestResult, CutlistData, CutlistHole } from "@/types/visualiser";
+/**
+ * Cutlist Visualization Component
+ * Redesigned with Orange, White, and Navy Blue color scheme
+ * 
+ * Features:
+ * - Interactive sheet visualization with zoom/pan
+ * - Level 3 features (holes, grooves, L-cuts) prominently displayed
+ * - Plank hover tooltips with detailed info
+ * - Sheet selection dropdown
+ * - Toggle for IDs, dimensions, holes, hole labels
+ * - Search/highlight functionality
+ * - Material legend and utilization display
+ */
 
-// Demo data for testing
-const DEMO_CUTLIST_DATA: CutlistData = {
-  planks: {
-    1: [
-      { id: "P001", name: "Left Side", material: "White MDF", thickness: 18, sheetNum: 1, x: 10, y: 10, width: 720, height: 560, rotated: false, color: "#FF6B6B", holes: [] },
-      { id: "P002", name: "Right Side", material: "White MDF", thickness: 18, sheetNum: 1, x: 740, y: 10, width: 720, height: 560, rotated: false, color: "#FF6B6B", holes: [] },
-      { id: "P003", name: "Bottom Panel", material: "White MDF", thickness: 18, sheetNum: 1, x: 10, y: 580, width: 564, height: 560, rotated: false, color: "#FF6B6B", holes: [
-        { x: 50, y: 50, diameter: 5, type: "screw", isRectangular: false, description: "Screw 1" },
-        { x: 514, y: 50, diameter: 5, type: "screw", isRectangular: false, description: "Screw 2" },
-      ]},
-      { id: "P004", name: "Top Panel", material: "White MDF", thickness: 18, sheetNum: 1, x: 584, y: 580, width: 564, height: 560, rotated: false, color: "#FF6B6B", holes: [] },
-    ],
-    2: [
-      { id: "P005", name: "Back Panel", material: "White MDF", thickness: 8, sheetNum: 2, x: 10, y: 10, width: 684, height: 564, rotated: false, color: "#4ECDC4", holes: [] },
-      { id: "P006", name: "Shelf 1", material: "Oak Veneer", thickness: 18, sheetNum: 2, x: 704, y: 10, width: 500, height: 400, rotated: false, color: "#45B7D1", holes: [
-        { x: 10, y: 200, length: 480, width: 8, type: "groove", isRectangular: true, description: "Groove 1" },
-      ]},
-    ],
-  },
-  stats: {
-    totalPlanks: 6,
-    totalSheets: 2,
-    materialThicknessStats: {
-      "White MDF_18mm": { color: "#FF6B6B", count: 4 },
-      "White MDF_8mm": { color: "#4ECDC4", count: 1 },
-      "Oak Veneer_18mm": { color: "#45B7D1", count: 1 },
-    },
-    sheetUtilization: {
-      1: { percentage: "72.5", usedArea: 2156160 },
-      2: { percentage: "45.2", usedArea: 1344960 },
-    },
-  },
-  constants: {
-    SHEET_WIDTH: 1220,
-    SHEET_HEIGHT: 2440,
-    SPACING: 10,
-  },
-  clientDetails: {
-    customerName: "Demo Customer",
-    firmName: "Nestup Demo",
-  },
-  spreadsheetName: "Demo Project",
+import { useState, useMemo, useCallback, useRef } from 'react';
+import { NestResult, SHEET_CONSTANTS } from '@/types/visualiser';
+import { CustomerDetails } from '@/store/designerStore';
+
+// ============================================
+// COLOR CONSTANTS
+// ============================================
+
+const COLORS = {
+  primary: '#F97316',      // Orange-500
+  primaryDark: '#EA580C',  // Orange-600
+  primaryLight: '#FDBA74', // Orange-300
+  white: '#FFFFFF',
+  navy: '#1E3A5F',         // Navy blue for text
+  navyLight: '#2D4A6F',    // Lighter navy
+  navyDark: '#0F2847',     // Darker navy
+  background: '#FFF7ED',   // Orange-50
+  surface: '#FFFFFF',
+  border: '#FED7AA',       // Orange-200
+  text: '#1E3A5F',         // Navy for text
+  textLight: '#64748B',    // Slate-500
+  success: '#22C55E',      // Green-500
+  error: '#EF4444',        // Red-500
 };
 
 // ============================================
-// Utility Functions
+// TYPES
 // ============================================
 
-function getHoleTypeClass(holeType: string): string {
-  if (!holeType) return "hole-standard";
-  const type = holeType.toLowerCase();
-  if (type.includes("vb")) return "hole-vb";
-  if (type.includes("screw")) return "hole-screw";
-  if (type.includes("dowel")) return "hole-dowel";
-  if (type.includes("groove")) return "hole-groove";
-  if (type.includes("profile")) return "hole-profile";
-  if (type.includes("slot")) return "hole-slot";
-  return "hole-standard";
+interface CutlistVisualizationProps {
+  nestResults: NestResult[];
+  customerDetails?: CustomerDetails;
+  sheetWidth?: number;
+  sheetHeight?: number;
+  onDownloadPDF?: (allSheets: boolean) => void;
+  onPrintLabels?: () => void;
+  onDownloadCSV?: () => void;
 }
 
-// ============================================
-// PDF Generation
-// ============================================
-
-async function generatePDF(
-  cutlistData: CutlistData, 
-  selectedSheet: number | 'all',
-  customerName?: string
-) {
-  const { jsPDF } = await import("jspdf");
-  const doc = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
-  
-  const pageW = 210;
-  const pageH = 297;
-  const margin = 10;
-  const headerH = 30;
-  const tableH = 80;
-  const vizAreaH = pageH - margin * 2 - headerH - tableH;
-  const vizAreaW = pageW - margin * 2;
-
-  const sheetsToRender = selectedSheet === 'all' 
-    ? Object.keys(cutlistData.planks).map(Number).sort((a, b) => a - b)
-    : [selectedSheet as number];
-
-  for (let i = 0; i < sheetsToRender.length; i++) {
-    if (i > 0) doc.addPage();
-    
-    const sheetNum = sheetsToRender[i];
-    const sheetPlanks = cutlistData.planks[sheetNum];
-    const firstPlank = sheetPlanks[0];
-    
-    // Get material info
-    let matName = firstPlank?.material || "Sheet";
-    matName = matName.replace(/-\s*\d+mm/i, "").trim();
-    const thick = firstPlank?.thickness || "";
-    const sheetTitle = `${matName} ${thick}mm - Sheet ${sheetNum}`;
-
-    // Header
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text(sheetTitle, margin, margin + 8);
-    
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Material: ${matName}`, margin, margin + 14);
-    
-    if (customerName) {
-      doc.text(customerName, pageW - margin, margin + 8, { align: "right" });
-    }
-    doc.text(new Date().toLocaleDateString(), pageW - margin, margin + 14, { align: "right" });
-    
-    doc.setLineWidth(0.5);
-    doc.line(margin, margin + 22, pageW - margin, margin + 22);
-
-    // Calculate scale
-    const sheetWidth = cutlistData.constants.SHEET_WIDTH;
-    const sheetHeight = cutlistData.constants.SHEET_HEIGHT;
-    const scaleX = vizAreaW / sheetWidth;
-    const scaleY = vizAreaH / sheetHeight;
-    const finalScale = Math.min(scaleX, scaleY);
-    
-    const drawW = sheetWidth * finalScale;
-    const drawH = sheetHeight * finalScale;
-    const startX = margin + (vizAreaW - drawW) / 2;
-    const startY = margin + headerH + (vizAreaH - drawH) / 2;
-
-    // Draw sheet border
-    doc.setDrawColor(0);
-    doc.rect(startX, startY, drawW, drawH);
-
-    // Draw planks
-    sheetPlanks.forEach(p => {
-      const px = startX + p.x * finalScale;
-      const py = startY + (sheetHeight - p.y - p.height) * finalScale;
-      const pw = p.width * finalScale;
-      const ph = p.height * finalScale;
-
-      // Fill plank
-      doc.setFillColor(240, 240, 240);
-      doc.setDrawColor(50);
-      doc.rect(px, py, pw, ph, "FD");
-
-      // Draw ID
-      if (pw > 5 && ph > 4) {
-        doc.setFontSize(Math.min(8, ph));
-        doc.setTextColor(0);
-        doc.text(String(p.id), px + pw / 2, py + ph / 2, { align: "center", baseline: "middle" });
-      }
-    });
-
-    // Table
-    const tableTop = pageH - margin - tableH;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(0);
-    doc.text("Part List (First 15)", margin, tableTop);
-    
-    let rowY = tableTop + 5;
-    doc.setFontSize(8);
-    doc.text("ID", margin, rowY);
-    doc.text("Name", margin + 15, rowY);
-    doc.text("Size (mm)", margin + 70, rowY);
-    
-    doc.line(margin, rowY + 1, pageW - margin, rowY + 1);
-    rowY += 5;
-    doc.setFont("helvetica", "normal");
-    
-    const planksToShow = sheetPlanks.slice(0, 15);
-    planksToShow.forEach(p => {
-      doc.text(String(p.id), margin, rowY);
-      let name = p.name || "";
-      if (name.length > 35) name = name.substring(0, 35) + "...";
-      doc.text(name, margin + 15, rowY);
-      doc.text(`${Math.round(p.width)} x ${Math.round(p.height)}`, margin + 70, rowY);
-      rowY += 4;
-    });
-
-    // Footer
-    doc.setFontSize(8);
-    doc.text(`Page ${i + 1} of ${sheetsToRender.length}`, pageW / 2, pageH - 5, { align: "center" });
-  }
-
-  const fileName = selectedSheet === 'all' 
-    ? `Cutlist_All_Sheets.pdf`
-    : `Cutlist_Sheet_${selectedSheet}.pdf`;
-  doc.save(fileName);
-}
-
-// ============================================
-// Components
-// ============================================
-
-interface PlankTooltipProps {
-  plank: NestResult;
-  position: { x: number; y: number };
-}
-
-function PlankTooltip({ plank, position }: PlankTooltipProps) {
-  const holeCount = plank.holes?.length || 0;
-  
-  return (
-    <div 
-      className="fixed z-50 bg-gray-900/95 text-white p-3 rounded-lg shadow-xl max-w-xs border border-gray-700"
-      style={{ left: position.x + 15, top: position.y + 15 }}
-    >
-      <h4 className="text-cyan-400 font-bold text-sm mb-2">
-        {plank.id} - {plank.name || "Unnamed"}
-      </h4>
-      <div className="text-xs space-y-1 border-b border-gray-700 pb-2 mb-2">
-        <div><strong>Material:</strong> {plank.material}</div>
-        <div><strong>Size:</strong> {plank.width} × {plank.height} mm</div>
-        <div><strong>Thickness:</strong> {plank.thickness}mm</div>
-        {plank.rotated && <div><strong>Rotated:</strong> Yes</div>}
-        <div><strong>Total Features:</strong> {holeCount}</div>
-      </div>
-      {plank.holes && plank.holes.length > 0 && (
-        <div className="text-xs space-y-1">
-          {plank.holes.slice(0, 5).map((hole, i) => (
-            <div key={i} className="flex justify-between">
-              <span>{hole.description || hole.type}</span>
-              <span className="text-gray-400">
-                {hole.isRectangular 
-                  ? `${hole.length}×${hole.width}mm`
-                  : `⌀${hole.diameter}mm`}
-              </span>
-            </div>
-          ))}
-          {plank.holes.length > 5 && (
-            <div className="text-gray-400">+{plank.holes.length - 5} more...</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface SheetCanvasProps {
+interface SheetData {
   sheetNum: number;
   planks: NestResult[];
-  constants: { SHEET_WIDTH: number; SHEET_HEIGHT: number };
-  zoom: number;
-  showIds: boolean;
-  showDimensions: boolean;
-  showHoles: boolean;
-  searchTerm: string;
-  highlightSearch: boolean;
-  onPlankHover: (plank: NestResult | null, position: { x: number; y: number }) => void;
+  utilization: number;
+  material: string;
+  thickness: number;
 }
 
-function SheetCanvas({
-  sheetNum,
-  planks,
-  constants,
-  zoom,
-  showIds,
-  showDimensions,
-  showHoles,
-  searchTerm,
-  highlightSearch,
-  onPlankHover,
-}: SheetCanvasProps) {
-  const scaledWidth = constants.SHEET_WIDTH * (zoom / 100);
-  const scaledHeight = constants.SHEET_HEIGHT * (zoom / 100);
-  
-  const firstPlank = planks[0];
-  let matName = firstPlank?.material || "Sheet";
-  matName = matName.replace(/-\s*\d+mm/i, "").trim();
-  const thick = firstPlank?.thickness || "";
-  const displayTitle = `${matName} ${thick}mm - Sheet ${sheetNum}`;
+// L-cut interface for type safety
+interface LCutData {
+  start: { x: number; y: number };
+  center: { x: number; y: number };
+  end: { x: number; y: number };
+}
 
-  const usedArea = planks.reduce((sum, p) => sum + p.width * p.height, 0);
-  const totalArea = (constants.SHEET_WIDTH - 20) * (constants.SHEET_HEIGHT - 20);
-  const utilization = totalArea > 0 ? ((usedArea / totalArea) * 100).toFixed(1) : "0";
-
-  return (
-    <div className="mb-10 bg-white rounded-lg shadow-lg overflow-hidden">
-      {/* Header */}
-      <div className="bg-gray-100 px-5 py-4 border-b border-gray-200">
-        <div className="text-lg font-medium text-gray-800">{displayTitle}</div>
-        <div className="text-sm text-gray-500">
-          {planks.length} planks • {utilization}% utilization
-        </div>
-      </div>
-
-      {/* Canvas */}
-      <div 
-        className="relative m-5 border-2 border-gray-800 bg-white rounded"
-        style={{ width: scaledWidth, height: scaledHeight }}
-      >
-        {planks.map((plank) => {
-          const x = plank.x * (zoom / 100);
-          const y = (constants.SHEET_HEIGHT - plank.y - plank.height) * (zoom / 100);
-          const width = plank.width * (zoom / 100);
-          const height = plank.height * (zoom / 100);
-
-          const isSearchMatch = searchTerm && (
-            plank.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (plank.name?.toLowerCase().includes(searchTerm.toLowerCase()))
-          );
-
-          return (
-            <div
-              key={plank.id}
-              className="absolute border border-gray-800 flex flex-col items-center justify-center cursor-pointer hover:shadow-lg hover:z-10 transition-shadow"
-              style={{
-                left: x,
-                top: y,
-                width,
-                height,
-                backgroundColor: plank.color || "#9E9E9E",
-                boxShadow: isSearchMatch && highlightSearch ? "0 0 0 3px #FF6B6B" : undefined,
-                zIndex: isSearchMatch && highlightSearch ? 15 : 1,
-              }}
-              onMouseEnter={(e) => onPlankHover(plank, { x: e.clientX, y: e.clientY })}
-              onMouseMove={(e) => onPlankHover(plank, { x: e.clientX, y: e.clientY })}
-              onMouseLeave={() => onPlankHover(null, { x: 0, y: 0 })}
-            >
-              {showIds && (
-                <span className="bg-white/90 px-1 py-0.5 rounded text-[10px] font-bold text-gray-800 z-20">
-                  {plank.id}
-                </span>
-              )}
-              {showDimensions && (
-                <span className="bg-white/90 px-1 py-0.5 rounded text-[9px] text-gray-600 mt-0.5 z-20">
-                  {plank.width}×{plank.height}
-                </span>
-              )}
-
-              {/* Holes */}
-              {showHoles && plank.holes?.map((hole, i) => {
-                const holeClass = getHoleTypeClass(hole.type);
-                const holeX = hole.x * (zoom / 100);
-                const holeY = (plank.height - hole.y - (hole.isRectangular ? (hole.width || 5) : (hole.diameter || 5))) * (zoom / 100);
-                
-                if (hole.isRectangular) {
-                  const holeW = (hole.length || 10) * (zoom / 100);
-                  const holeH = (hole.width || 5) * (zoom / 100);
-                  return (
-                    <div
-                      key={i}
-                      className={`absolute pointer-events-none z-5 ${
-                        holeClass === "hole-groove" 
-                          ? "bg-orange-500/50 border-2 border-orange-600" 
-                          : "border border-gray-500"
-                      }`}
-                      style={{ left: holeX, top: holeY, width: holeW, height: holeH }}
-                    />
-                  );
-                } else {
-                  const diameter = (hole.diameter || 5) * (zoom / 100);
-                  return (
-                    <div
-                      key={i}
-                      className={`absolute rounded-full pointer-events-none z-5 ${
-                        holeClass === "hole-vb" 
-                          ? "bg-transparent border-2 border-dashed border-red-500"
-                          : holeClass === "hole-screw"
-                          ? "bg-purple-700/70 border border-purple-800"
-                          : "bg-black/70 border border-black"
-                      }`}
-                      style={{ left: holeX, top: holeY, width: diameter, height: diameter }}
-                    />
-                  );
-                }
-              })}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+// Extend NestResult for L-cuts
+interface NestResultWithLCuts extends NestResult {
+  l_cuts?: LCutData[];
 }
 
 // ============================================
-// Main Component
+// HOLE TYPE CONFIGURATION
 // ============================================
 
-export default function CutlistVisualization() {
-  const {
-    data,
-    selectedSheet,
-    zoom,
-    showIds,
-    showDimensions,
-    showHoles,
-    showHoleLabels,
-    highlightSearch,
-    searchTerm,
-    setData,
-    setSelectedSheet,
-    setZoom,
-    setShowIds,
-    setShowDimensions,
-    setShowHoles,
-    setHighlightSearch,
-    setSearchTerm,
-  } = useCutlistStore();
+const HOLE_TYPES: Record<string, { label: string; color: string; bgColor: string; borderStyle: string; size: string }> = {
+  vb: {
+    label: 'VB Main Hole',
+    color: '#DC2626',
+    bgColor: 'rgba(220, 38, 38, 0.15)',
+    borderStyle: 'dashed',
+    size: '20mm',
+  },
+  screw: {
+    label: 'Screw Holes',
+    color: '#7C3AED',
+    bgColor: 'rgba(124, 58, 237, 0.6)',
+    borderStyle: 'solid',
+    size: '4mm',
+  },
+  dowel: {
+    label: 'Dowel / VB Double',
+    color: '#2563EB',
+    bgColor: 'rgba(37, 99, 235, 0.6)',
+    borderStyle: 'solid',
+    size: '5mm',
+  },
+  groove: {
+    label: 'Grooves',
+    color: '#F97316',
+    bgColor: 'rgba(249, 115, 22, 0.4)',
+    borderStyle: 'solid',
+    size: 'Variable',
+  },
+  profile: {
+    label: 'Profiles',
+    color: '#0891B2',
+    bgColor: 'rgba(8, 145, 178, 0.4)',
+    borderStyle: 'solid',
+    size: 'Variable',
+  },
+  slot: {
+    label: 'Slots',
+    color: '#16A34A',
+    bgColor: 'rgba(22, 163, 74, 0.4)',
+    borderStyle: 'solid',
+    size: 'Variable',
+  },
+  lcut: {
+    label: 'L-Cuts (Notches)',
+    color: '#DB2777',
+    bgColor: 'rgba(219, 39, 119, 0.25)',
+    borderStyle: 'solid',
+    size: 'Variable',
+  },
+};
 
-  const { getNestResult, processedData } = useProcessedDataStore();
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+const DEFAULT_COLORS = [
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#FED766', '#2AB7CA',
+  '#F08A5D', '#B22727', '#54A0FF', '#5F27CD', '#FF9F43',
+];
+
+function getHoleTypeConfig(holeType: string) {
+  const type = (holeType || '').toLowerCase();
+  if (type.includes('vb') && !type.includes('double')) return HOLE_TYPES.vb;
+  if (type.includes('screw')) return HOLE_TYPES.screw;
+  if (type.includes('dowel') || type.includes('double')) return HOLE_TYPES.dowel;
+  if (type.includes('groove')) return HOLE_TYPES.groove;
+  if (type.includes('profile')) return HOLE_TYPES.profile;
+  if (type.includes('slot')) return HOLE_TYPES.slot;
+  return { color: '#374151', bgColor: 'rgba(55, 65, 81, 0.6)', borderStyle: 'solid', label: 'Standard', size: '' };
+}
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
+
+export function CutlistVisualization({
+  nestResults,
+  customerDetails,
+  sheetWidth = SHEET_CONSTANTS.SHEET_WIDTH,
+  sheetHeight = SHEET_CONSTANTS.SHEET_HEIGHT,
+  onDownloadPDF,
+  onPrintLabels,
+  onDownloadCSV,
+}: CutlistVisualizationProps) {
+  // State
+  const [zoom, setZoom] = useState(50);
+  const [selectedSheet, setSelectedSheet] = useState<'all' | number>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showIds, setShowIds] = useState(true);
+  const [showDimensions, setShowDimensions] = useState(false);
+  const [showHoles, setShowHoles] = useState(true);
+  const [showHoleLabels, setShowHoleLabels] = useState(false);
+  const [highlightSearch, setHighlightSearch] = useState(true);
   
-  const [tooltipData, setTooltipData] = useState<{
-    plank: NestResult | null;
-    position: { x: number; y: number };
-  }>({ plank: null, position: { x: 0, y: 0 } });
+  // Tooltip state
+  const [tooltipData, setTooltipData] = useState<NestResult | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Convert processed nest result to CutlistData format
-  const processedCutlistData = useMemo((): CutlistData | null => {
-    const nestResult = getNestResult();
-    if (Object.keys(nestResult).length === 0) return null;
+  // Group planks by sheet
+  const sheetData = useMemo(() => {
+    const sheets = new Map<number, NestResult[]>();
     
-    // Convert to numbered keys (already numeric from store)
-    const planks: Record<number, NestResult[]> = {};
-    const materialThicknessStats: Record<string, { color: string; count: number }> = {};
-    const sheetUtilization: Record<number, { percentage: string; usedArea: number }> = {};
-    
-    const SHEET_WIDTH = 1220;
-    const SHEET_HEIGHT = 2440;
-    const SHEET_AREA = (SHEET_WIDTH - 20) * (SHEET_HEIGHT - 20);
-    
-    let totalPlanks = 0;
-    
-    for (const [sheetNum, sheetPlanks] of Object.entries(nestResult)) {
-      const num = parseInt(sheetNum);
-      planks[num] = sheetPlanks;
-      totalPlanks += sheetPlanks.length;
-      
-      // Calculate utilization
-      const usedArea = sheetPlanks.reduce((sum, p) => sum + p.width * p.height, 0);
-      sheetUtilization[num] = {
-        percentage: ((usedArea / SHEET_AREA) * 100).toFixed(1),
-        usedArea
-      };
-      
-      // Track material stats
-      for (const plank of sheetPlanks) {
-        const matKey = `${plank.material}_${plank.thickness}mm`;
-        if (!materialThicknessStats[matKey]) {
-          materialThicknessStats[matKey] = {
-            color: plank.color || '#9E9E9E',
-            count: 0
-          };
-        }
-        materialThicknessStats[matKey].count++;
+    nestResults.forEach((plank) => {
+      const sheetNum = plank.sheetNum || 1;
+      if (!sheets.has(sheetNum)) {
+        sheets.set(sheetNum, []);
       }
-    }
+      sheets.get(sheetNum)!.push(plank);
+    });
+
+    // Calculate utilization for each sheet
+    const SHEET_AREA = (sheetWidth - 2 * SHEET_CONSTANTS.MARGIN) * (sheetHeight - 2 * SHEET_CONSTANTS.MARGIN);
     
-    return {
-      planks,
-      stats: {
-        totalPlanks,
-        totalSheets: Object.keys(planks).length,
-        materialThicknessStats,
-        sheetUtilization,
-      },
-      constants: { SHEET_WIDTH, SHEET_HEIGHT, SPACING: 10 },
-      clientDetails: processedData ? {
-        customerName: processedData.customerName,
-        projectId: processedData.projectId,
-      } : undefined,
-      spreadsheetName: processedData?.customerName,
-    };
-  }, [getNestResult, processedData]);
+    const result: SheetData[] = [];
+    sheets.forEach((planks, sheetNum) => {
+      const usedArea = planks.reduce((sum, p) => sum + p.width * p.height, 0);
+      const firstPlank = planks[0];
+      
+      result.push({
+        sheetNum,
+        planks,
+        utilization: (usedArea / SHEET_AREA) * 100,
+        material: firstPlank?.material || 'Unknown',
+        thickness: firstPlank?.thickness || 18,
+      });
+    });
 
-  // Load data on mount (use processed if available, otherwise demo)
-  useEffect(() => {
-    if (processedCutlistData) {
-      setData(processedCutlistData);
-    } else if (!data) {
-      setData(DEMO_CUTLIST_DATA);
-    }
-  }, [processedCutlistData, setData, data]);
+    return result.sort((a, b) => a.sheetNum - b.sheetNum);
+  }, [nestResults, sheetWidth, sheetHeight]);
 
-  const handlePlankHover = useCallback((plank: NestResult | null, position: { x: number; y: number }) => {
-    setTooltipData({ plank, position });
-  }, []);
-
-  const handleDownloadCSV = useCallback(() => {
-    if (!data) return;
+  // Material colors
+  const materialColors = useMemo(() => {
+    const colors = new Map<string, string>();
+    let colorIndex = 0;
     
-    let csvContent = "ID,Material,Width,Height,Thickness,Sheet,X,Y,Rotated\n";
-    Object.values(data.planks).flat().forEach(plank => {
-      csvContent += `"${plank.id}","${plank.material}",${plank.width},${plank.height},${plank.thickness},${plank.sheetNum},${plank.x},${plank.y},${plank.rotated}\n`;
+    nestResults.forEach((plank) => {
+      const key = `${plank.material}_${plank.thickness}`;
+      if (!colors.has(key)) {
+        colors.set(key, plank.color || DEFAULT_COLORS[colorIndex % DEFAULT_COLORS.length]);
+        colorIndex++;
+      }
     });
     
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", "cutlist-data.csv");
-    link.click();
-  }, [data]);
+    return colors;
+  }, [nestResults]);
 
-  const handleDownloadPDF = useCallback(async (allSheets: boolean) => {
-    if (!data) return;
-    await generatePDF(data, allSheets ? 'all' : selectedSheet, data.clientDetails?.customerName);
-  }, [data, selectedSheet]);
+  // Material stats
+  const materialStats = useMemo(() => {
+    const stats = new Map<string, { color: string; count: number }>();
+    
+    nestResults.forEach((plank) => {
+      const key = `${plank.material}_${plank.thickness}mm`;
+      const existing = stats.get(key);
+      if (existing) {
+        existing.count++;
+      } else {
+        const colorKey = `${plank.material}_${plank.thickness}`;
+        stats.set(key, {
+          color: materialColors.get(colorKey) || '#9E9E9E',
+          count: 1,
+        });
+      }
+    });
+    
+    return stats;
+  }, [nestResults, materialColors]);
 
-  if (!data) {
+  // Filtered sheets for display
+  const sheetsToDisplay = useMemo(() => {
+    if (selectedSheet === 'all') {
+      return sheetData;
+    }
+    return sheetData.filter((s) => s.sheetNum === selectedSheet);
+  }, [sheetData, selectedSheet]);
+
+  // Overall stats
+  const overallStats = useMemo(() => {
+    const totalUtilization = sheetData.length > 0
+      ? sheetData.reduce((sum, s) => sum + s.utilization, 0) / sheetData.length
+      : 0;
+    
+    // Count Level 3 features
+    let totalFeatures = 0;
+    nestResults.forEach(plank => {
+      totalFeatures += plank.holes?.length || 0;
+      totalFeatures += (plank as NestResultWithLCuts).l_cuts?.length || 0;
+    });
+    
+    return {
+      totalPlanks: nestResults.length,
+      totalSheets: sheetData.length,
+      overallUtilization: totalUtilization.toFixed(1),
+      totalFeatures,
+    };
+  }, [nestResults, sheetData]);
+
+  // Scale factor for zoom
+  const scale = zoom / 100;
+
+  // Handle plank hover
+  const handlePlankMouseEnter = useCallback((plank: NestResult, event: React.MouseEvent) => {
+    setTooltipData(plank);
+    setTooltipPosition({ x: event.clientX + 15, y: event.clientY + 15 });
+  }, []);
+
+  const handlePlankMouseMove = useCallback((event: React.MouseEvent) => {
+    setTooltipPosition({ x: event.clientX + 15, y: event.clientY + 15 });
+  }, []);
+
+  const handlePlankMouseLeave = useCallback(() => {
+    setTooltipData(null);
+  }, []);
+
+  // Check if plank matches search
+  const isSearchMatch = useCallback((plank: NestResult) => {
+    if (!searchQuery) return false;
+    const query = searchQuery.toLowerCase();
     return (
-      <div className="flex-1 flex items-center justify-center bg-slate-900">
-        <p className="text-slate-400">Loading cutlist data...</p>
+      plank.id.toLowerCase().includes(query) ||
+      plank.name.toLowerCase().includes(query)
+    );
+  }, [searchQuery]);
+
+  // Validate L-cut data: check if points are distinct
+  const isLCutDegenerate = (lcut: LCutData): boolean => {
+    const EPSILON = 0.1;
+    const startEqualsCenter = Math.abs(lcut.start.x - lcut.center.x) < EPSILON && 
+                              Math.abs(lcut.start.y - lcut.center.y) < EPSILON;
+    const centerEqualsEnd = Math.abs(lcut.center.x - lcut.end.x) < EPSILON && 
+                            Math.abs(lcut.center.y - lcut.end.y) < EPSILON;
+    return startEqualsCenter || centerEqualsEnd;
+  };
+
+  // Render L-cut SVG for a plank
+  const renderLCuts = (plank: NestResultWithLCuts, plankW: number, plankH: number) => {
+    if (!showHoles || !plank.l_cuts || plank.l_cuts.length === 0) return null;
+
+    return plank.l_cuts.map((lcut, index) => {
+      // Check for degenerate data
+      if (isLCutDegenerate(lcut)) {
+        const warningX = (Math.max(lcut.start.x, lcut.center.x, lcut.end.x) / 2) * scale;
+        const warningY = ((plank.height - Math.max(lcut.start.y, lcut.center.y, lcut.end.y)) / 2) * scale;
+        return (
+          <div
+            key={`lcut-warning-${index}`}
+            className="absolute z-10 cursor-help rounded px-1.5 py-0.5"
+            style={{ 
+              left: warningX, 
+              top: warningY,
+              backgroundColor: 'rgba(249, 115, 22, 0.2)',
+              border: `2px dashed ${COLORS.primary}`,
+            }}
+            title="WARNING: Invalid L-Cut data - points are not distinct. Check SketchUp export."
+          >
+            <span className="text-base font-bold" style={{ color: COLORS.primary }}>⚠️</span>
+          </div>
+        );
+      }
+
+      // CNC coordinate system: Y increases upward, browser Y increases downward
+      const startX = lcut.start.x * scale;
+      const startY = (plank.height - lcut.start.y) * scale;
+      const centerX = lcut.center.x * scale;
+      const centerY = (plank.height - lcut.center.y) * scale;
+      const endX = lcut.end.x * scale;
+      const endY = (plank.height - lcut.end.y) * scale;
+
+      // Determine cut corner
+      const corners = [
+        { x: 0, y: 0, name: 'top-left' },
+        { x: plankW, y: 0, name: 'top-right' },
+        { x: plankW, y: plankH, name: 'bottom-right' },
+        { x: 0, y: plankH, name: 'bottom-left' }
+      ];
+      
+      let cutCorner = corners[0];
+      let minDist = Infinity;
+      corners.forEach(corner => {
+        const dist = Math.sqrt(Math.pow(centerX - corner.x, 2) + Math.pow(centerY - corner.y, 2));
+        if (dist < minDist) {
+          minDist = dist;
+          cutCorner = corner;
+        }
+      });
+
+      const notchPolygon = `${cutCorner.x},${cutCorner.y} ${startX},${startY} ${centerX},${centerY} ${endX},${endY}`;
+
+      return (
+        <div
+          key={`lcut-${index}`}
+          className="absolute pointer-events-none z-10"
+          style={{ width: plankW, height: plankH, left: 0, top: 0 }}
+        >
+          <svg
+            className="absolute overflow-visible"
+            style={{ width: '100%', height: '100%' }}
+            viewBox={`0 0 ${plankW} ${plankH}`}
+            preserveAspectRatio="none"
+          >
+            <polygon
+              points={notchPolygon}
+              fill={HOLE_TYPES.lcut.bgColor}
+              stroke={HOLE_TYPES.lcut.color}
+              strokeWidth="2"
+            />
+            <polyline
+              points={`${startX},${startY} ${centerX},${centerY} ${endX},${endY}`}
+              fill="none"
+              stroke="#9D174D"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          {/* Control points */}
+          <div
+            className="absolute w-2 h-2 rounded-full"
+            style={{ left: startX - 4, top: startY - 4, backgroundColor: '#22C55E', border: '1px solid #166534' }}
+            title={`L-Cut ${index + 1} Start (${lcut.start.x.toFixed(1)}, ${lcut.start.y.toFixed(1)})`}
+          />
+          <div
+            className="absolute w-2 h-2 rounded-full"
+            style={{ left: centerX - 4, top: centerY - 4, backgroundColor: COLORS.primary, border: '1px solid #C2410C' }}
+            title={`L-Cut ${index + 1} Center (${lcut.center.x.toFixed(1)}, ${lcut.center.y.toFixed(1)})`}
+          />
+          <div
+            className="absolute w-2 h-2 rounded-full"
+            style={{ left: endX - 4, top: endY - 4, backgroundColor: '#EF4444', border: '1px solid #B91C1C' }}
+            title={`L-Cut ${index + 1} End (${lcut.end.x.toFixed(1)}, ${lcut.end.y.toFixed(1)})`}
+          />
+        </div>
+      );
+    });
+  };
+
+  if (nestResults.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64 rounded-lg" style={{ backgroundColor: COLORS.background }}>
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ backgroundColor: COLORS.primaryLight }}>
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke={COLORS.primary}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <p className="text-lg font-medium" style={{ color: COLORS.navy }}>No Cutlist Data</p>
+          <p className="text-sm mt-1" style={{ color: COLORS.textLight }}>Generate files first to see visualization</p>
+        </div>
       </div>
     );
   }
 
-  const sheetNumbers = Object.keys(data.planks).map(Number).sort((a, b) => a - b);
-  const sheetsToRender = selectedSheet === 'all' 
-    ? sheetNumbers 
-    : [selectedSheet as number];
-  
-  const totalPlanks = Object.values(data.planks).flat().length;
-
   return (
-    <div className="flex-1 flex flex-col bg-slate-100">
+    <div className="flex flex-col h-full" style={{ backgroundColor: COLORS.background }}>
       {/* Header */}
-      <header className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-5 py-4 flex justify-between items-center shadow-lg">
-        <h1 className="text-xl font-light">📐 Cutlist Visualization Dashboard</h1>
+      <div className="px-6 py-4 flex items-center justify-between" style={{ backgroundColor: COLORS.primary }}>
+        <h2 className="text-xl font-semibold text-white">Cutlist Visualization</h2>
         
-        <div className="flex gap-2">
-          <button
-            onClick={handleDownloadCSV}
-            className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors"
-          >
-            📥 Download CSV
-          </button>
-          <button
-            onClick={() => handleDownloadPDF(false)}
-            className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors"
-          >
-            📄 Download PDF
-          </button>
-          <button
-            onClick={() => handleDownloadPDF(true)}
-            className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors"
-          >
-            📚 Download All PDF
-          </button>
-        </div>
-
-        <div className="flex gap-8 text-sm">
-          <div className="text-center">
-            <span className="text-xl font-bold block">{data.stats.totalPlanks}</span>
-            <span className="text-white/70">Total Planks</span>
-          </div>
-          <div className="text-center">
-            <span className="text-xl font-bold block">{data.stats.totalSheets}</span>
-            <span className="text-white/70">Sheets Used</span>
-          </div>
-          <div className="text-center">
-            <span className="text-xl font-bold block">
-              {Object.values(data.stats.sheetUtilization).length > 0
-                ? (Object.values(data.stats.sheetUtilization).reduce(
-                    (sum, s) => sum + parseFloat(s.percentage), 0
-                  ) / Object.values(data.stats.sheetUtilization).length).toFixed(1)
-                : 0}%
-            </span>
-            <span className="text-white/70">Overall Utilization</span>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
-        <aside className="w-72 bg-white border-r border-gray-200 p-5 overflow-y-auto">
-          {/* Sheet Selector */}
-          <div className="mb-5">
-            <label className="block text-sm font-medium text-gray-600 mb-2">Sheet Selection</label>
-            <select
-              value={selectedSheet}
-              onChange={(e) => setSelectedSheet(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-              className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-indigo-500"
+        <div className="flex items-center gap-3">
+          {onDownloadCSV && (
+            <button
+              onClick={onDownloadCSV}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-md"
+              style={{ backgroundColor: COLORS.white, color: COLORS.primary }}
             >
-              <option value="all">All Sheets</option>
-              {sheetNumbers.map(num => (
-                <option key={num} value={num}>Sheet {num}</option>
+              Download CSV
+            </button>
+          )}
+          {onDownloadPDF && (
+            <>
+              <button
+                onClick={() => onDownloadPDF(false)}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-md"
+                style={{ backgroundColor: COLORS.white, color: COLORS.primary }}
+              >
+                Download PDF
+              </button>
+              <button
+                onClick={() => onDownloadPDF(true)}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-md"
+                style={{ backgroundColor: COLORS.white, color: COLORS.primary }}
+              >
+                Download All
+              </button>
+            </>
+          )}
+          {onPrintLabels && (
+            <button
+              onClick={onPrintLabels}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-md"
+              style={{ backgroundColor: COLORS.white, color: COLORS.primary }}
+            >
+              Print Labels
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-8 text-sm">
+          <div className="text-center">
+            <span className="block text-xl font-bold text-white">{overallStats.totalPlanks}</span>
+            <span className="text-white/80 text-xs">Total Planks</span>
+          </div>
+          <div className="text-center">
+            <span className="block text-xl font-bold text-white">{overallStats.totalSheets}</span>
+            <span className="text-white/80 text-xs">Sheets Used</span>
+          </div>
+          <div className="text-center">
+            <span className="block text-xl font-bold text-white">{overallStats.overallUtilization}%</span>
+            <span className="text-white/80 text-xs">Utilization</span>
+          </div>
+          <div className="text-center">
+            <span className="block text-xl font-bold px-3 py-0.5 rounded-lg" style={{ backgroundColor: COLORS.white, color: COLORS.primary }}>
+              {overallStats.totalFeatures}
+            </span>
+            <span className="text-white/80 text-xs">Level 3 Features</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <div className="w-80 bg-white overflow-y-auto p-5 flex-shrink-0 border-r" style={{ borderColor: COLORS.border }}>
+          {/* Controls */}
+          <div className="space-y-5 mb-6">
+            {/* Sheet Selection */}
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: COLORS.navy }}>Sheet Selection</label>
+              <select
+                value={selectedSheet}
+                onChange={(e) => setSelectedSheet(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                className="w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2"
+                style={{ borderColor: COLORS.border, color: COLORS.navy }}
+              >
+                <option value="all">All Sheets ({sheetData.length})</option>
+                {sheetData.map((sheet) => (
+                  <option key={sheet.sheetNum} value={sheet.sheetNum}>
+                    Sheet {sheet.sheetNum} - {sheet.material}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Search */}
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: COLORS.navy }}>Search Planks</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="ID or name..."
+                  className="w-full px-3 py-2.5 pl-10 border rounded-lg text-sm focus:outline-none focus:ring-2"
+                  style={{ borderColor: COLORS.border, color: COLORS.navy }}
+                />
+                <svg className="w-5 h-5 absolute left-3 top-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Zoom */}
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-sm font-medium" style={{ color: COLORS.navy }}>Zoom</label>
+                <span className="text-sm font-semibold px-2 py-0.5 rounded" style={{ backgroundColor: COLORS.primaryLight, color: COLORS.primaryDark }}>
+                  {zoom}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={10}
+                max={200}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+                style={{ 
+                  background: `linear-gradient(to right, ${COLORS.primary} 0%, ${COLORS.primary} ${(zoom - 10) / 1.9}%, #E5E7EB ${(zoom - 10) / 1.9}%, #E5E7EB 100%)` 
+                }}
+              />
+            </div>
+
+            {/* Toggle Options */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium" style={{ color: COLORS.navy }}>Display Options</h3>
+              <ToggleOption checked={showIds} onChange={setShowIds} label="Show Plank IDs" />
+              <ToggleOption checked={showDimensions} onChange={setShowDimensions} label="Show Dimensions" />
+              <ToggleOption checked={showHoles} onChange={setShowHoles} label="Show Level 3 Features" highlight />
+              <ToggleOption checked={showHoleLabels} onChange={setShowHoleLabels} label="Show Feature Labels" />
+              <ToggleOption checked={highlightSearch} onChange={setHighlightSearch} label="Highlight Search" />
+            </div>
+          </div>
+
+          {/* Feature Types Legend */}
+          <div className="p-4 rounded-xl mb-6" style={{ backgroundColor: COLORS.background }}>
+            <h4 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: COLORS.navy }}>
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS.primary }}></span>
+              Level 3 Feature Types
+            </h4>
+            <div className="space-y-2 text-xs">
+              {Object.entries(HOLE_TYPES).map(([key, config]) => (
+                <div key={key} className="flex items-center gap-2">
+                  <div 
+                    className="w-4 h-4 rounded-full border-2"
+                    style={{ 
+                      backgroundColor: config.bgColor, 
+                      borderColor: config.color,
+                      borderStyle: config.borderStyle,
+                    }}
+                  />
+                  <span className="flex-1" style={{ color: COLORS.navy }}>{config.label}</span>
+                  <span className="text-gray-400">{config.size}</span>
+                </div>
               ))}
-            </select>
-          </div>
-
-          {/* Search */}
-          <div className="mb-5">
-            <label className="block text-sm font-medium text-gray-600 mb-2">Search Planks</label>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Enter plank ID or name..."
-              className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-indigo-500"
-            />
-          </div>
-
-          {/* Zoom */}
-          <div className="mb-5">
-            <label className="block text-sm font-medium text-gray-600 mb-2">
-              Zoom: <span className="text-indigo-600 font-bold">{zoom}%</span>
-            </label>
-            <input
-              type="range"
-              min={10}
-              max={200}
-              value={zoom}
-              onChange={(e) => setZoom(Number(e.target.value))}
-              className="w-full accent-indigo-500"
-            />
-          </div>
-
-          {/* Toggle Options */}
-          <div className="space-y-3 mb-6">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={showIds} onChange={(e) => setShowIds(e.target.checked)} className="accent-indigo-500" />
-              <span className="text-sm text-gray-700">Show Plank IDs</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={showDimensions} onChange={(e) => setShowDimensions(e.target.checked)} className="accent-indigo-500" />
-              <span className="text-sm text-gray-700">Show Dimensions</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={showHoles} onChange={(e) => setShowHoles(e.target.checked)} className="accent-indigo-500" />
-              <span className="text-sm text-gray-700">Show Holes & Features</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={highlightSearch} onChange={(e) => setHighlightSearch(e.target.checked)} className="accent-indigo-500" />
-              <span className="text-sm text-gray-700">Highlight Search Results</span>
-            </label>
-          </div>
-
-          {/* Feature Legend */}
-          <div className="p-3 bg-gray-50 rounded-lg mb-5">
-            <h4 className="text-sm font-semibold text-gray-700 mb-2">Feature Types</h4>
-            <div className="space-y-1.5 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-purple-800 border border-purple-900" />
-                <span>Screw Holes (4mm)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full border-2 border-dashed border-red-500" />
-                <span>VB Main Hole (20mm)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-600" />
-                <span>VB Double Hole (5mm)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-orange-500 border border-orange-600" />
-                <span>Grooves</span>
-              </div>
             </div>
           </div>
 
           {/* Materials Legend */}
-          <div className="mb-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Materials</h3>
-            {Object.entries(data.stats.materialThicknessStats).map(([key, info]) => (
-              <div key={key} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg mb-2">
-                <div className="w-5 h-5 rounded border" style={{ backgroundColor: info.color }} />
-                <div className="flex-1">
-                  <div className="text-sm font-medium">{key}</div>
-                  <div className="text-xs text-gray-500">{info.count} planks</div>
+          <div className="mb-6">
+            <h4 className="font-semibold text-sm mb-3" style={{ color: COLORS.navy }}>Materials</h4>
+            <div className="space-y-2">
+              {Array.from(materialStats.entries()).map(([key, stats]) => (
+                <div key={key} className="flex items-center gap-3 p-2.5 rounded-lg" style={{ backgroundColor: COLORS.background }}>
+                  <div
+                    className="w-5 h-5 rounded border"
+                    style={{ backgroundColor: stats.color, borderColor: COLORS.border }}
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium" style={{ color: COLORS.navy }}>{key}</p>
+                    <p className="text-xs" style={{ color: COLORS.textLight }}>{stats.count} planks</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
           {/* Sheet Utilization */}
           <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Sheet Utilization</h3>
-            {Object.entries(data.stats.sheetUtilization).map(([sheetNum, info]) => (
-              <div key={sheetNum} className="p-2 bg-gray-50 rounded-lg mb-2">
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="font-medium">Sheet {sheetNum}</span>
-                  <span className="text-gray-500">{info.percentage}%</span>
+            <h4 className="font-semibold text-sm mb-3" style={{ color: COLORS.navy }}>Sheet Utilization</h4>
+            <div className="space-y-2">
+              {sheetData.map((sheet) => (
+                <div 
+                  key={sheet.sheetNum} 
+                  className="p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md"
+                  style={{ 
+                    borderColor: selectedSheet === sheet.sheetNum ? COLORS.primary : COLORS.border,
+                    backgroundColor: selectedSheet === sheet.sheetNum ? COLORS.background : COLORS.white,
+                  }}
+                  onClick={() => setSelectedSheet(sheet.sheetNum)}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-sm font-medium" style={{ color: COLORS.navy }}>Sheet {sheet.sheetNum}</span>
+                    <span className="text-sm font-semibold" style={{ color: COLORS.primary }}>{sheet.utilization.toFixed(1)}%</span>
+                  </div>
+                  <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#E5E7EB' }}>
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ 
+                        width: `${sheet.utilization}%`,
+                        background: `linear-gradient(90deg, ${COLORS.primary}, ${COLORS.primaryLight})`,
+                      }}
+                    />
+                  </div>
+                  <div className="text-xs mt-1" style={{ color: COLORS.textLight }}>
+                    {sheet.planks.length} planks
+                  </div>
                 </div>
-                <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-green-500 to-green-400 transition-all"
-                    style={{ width: `${info.percentage}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </aside>
+        </div>
 
         {/* Visualization Area */}
-        <main className="flex-1 p-5 overflow-auto bg-slate-50">
-          {sheetsToRender.map(sheetNum => (
-            <SheetCanvas
-              key={sheetNum}
-              sheetNum={sheetNum}
-              planks={data.planks[sheetNum] || []}
-              constants={data.constants}
-              zoom={zoom}
-              showIds={showIds}
-              showDimensions={showDimensions}
-              showHoles={showHoles}
-              searchTerm={searchTerm}
-              highlightSearch={highlightSearch}
-              onPlankHover={handlePlankHover}
-            />
+        <div ref={containerRef} className="flex-1 overflow-auto p-6" style={{ backgroundColor: '#F8FAFC' }}>
+          {sheetsToDisplay.map((sheet) => (
+            <div key={sheet.sheetNum} className="mb-8 bg-white rounded-2xl shadow-lg overflow-hidden border" style={{ borderColor: COLORS.border }}>
+              {/* Sheet Header */}
+              <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: COLORS.border, backgroundColor: COLORS.background }}>
+                <div>
+                  <h3 className="text-lg font-semibold" style={{ color: COLORS.navy }}>
+                    {sheet.material.replace(/\s*\([^)]+\)/g, '').replace(/-\s*\d+mm/i, '').trim()} {sheet.thickness}mm - Sheet {sheet.sheetNum}
+                  </h3>
+                  <p className="text-sm" style={{ color: COLORS.textLight }}>
+                    {sheet.planks.length} planks • {sheet.utilization.toFixed(1)}% utilization
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ backgroundColor: COLORS.white }}>
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS.primary }}></span>
+                  <span className="text-sm font-medium" style={{ color: COLORS.navy }}>
+                    {sheet.planks.reduce((sum, p) => sum + (p.holes?.length || 0) + ((p as NestResultWithLCuts).l_cuts?.length || 0), 0)} Features
+                  </span>
+                </div>
+              </div>
+
+              {/* Sheet Canvas */}
+              <div className="p-6">
+                <div
+                  className="relative border-2 rounded-lg mx-auto"
+                  style={{
+                    width: sheetWidth * scale,
+                    height: sheetHeight * scale,
+                    borderColor: COLORS.navy,
+                    backgroundColor: COLORS.white,
+                  }}
+                >
+                  {/* Planks */}
+                  {sheet.planks.map((plank) => {
+                    const isMatch = isSearchMatch(plank);
+                    const colorKey = `${plank.material}_${plank.thickness}`;
+                    const plankColor = materialColors.get(colorKey) || plank.color || '#9E9E9E';
+
+                    // CNC origin is bottom-left, browser Y is top-down
+                    const x = plank.x * scale;
+                    const y = (sheetHeight - plank.y - plank.height) * scale;
+                    const w = plank.width * scale;
+                    const h = plank.height * scale;
+
+                    const hasFeatures = (plank.holes && plank.holes.length > 0) || ((plank as NestResultWithLCuts).l_cuts && (plank as NestResultWithLCuts).l_cuts!.length > 0);
+
+                    return (
+                      <div
+                        key={plank.id}
+                        className={`absolute border flex flex-col items-center justify-center cursor-pointer transition-all hover:z-10 hover:shadow-xl ${
+                          isMatch && highlightSearch ? 'ring-4 z-20' : ''
+                        } ${hasFeatures && showHoles ? 'ring-1' : ''}`}
+                        style={{
+                          left: x,
+                          top: y,
+                          width: w,
+                          height: h,
+                          backgroundColor: plankColor,
+                          borderColor: COLORS.navyDark,
+                          borderWidth: 1,
+                          ringColor: isMatch && highlightSearch ? COLORS.primary : hasFeatures ? COLORS.primaryLight : 'transparent',
+                        } as React.CSSProperties & { ringColor?: string }}
+                        onMouseEnter={(e) => handlePlankMouseEnter(plank, e)}
+                        onMouseMove={handlePlankMouseMove}
+                        onMouseLeave={handlePlankMouseLeave}
+                      >
+                        {showIds && w > 25 && h > 20 && (
+                          <span 
+                            className="px-1.5 py-0.5 rounded text-[8px] font-bold shadow-sm"
+                            style={{ backgroundColor: COLORS.white, color: COLORS.navy }}
+                          >
+                            {plank.id}
+                          </span>
+                        )}
+                        {showDimensions && w > 50 && h > 35 && (
+                          <span 
+                            className="px-1 rounded text-[7px] mt-0.5"
+                            style={{ backgroundColor: 'rgba(255,255,255,0.9)', color: COLORS.textLight }}
+                          >
+                            {plank.width.toFixed(0)}×{plank.height.toFixed(0)}
+                          </span>
+                        )}
+
+                        {/* Holes */}
+                        {showHoles && plank.holes && plank.holes.map((hole, holeIndex) => {
+                          const config = getHoleTypeConfig(hole.type || hole.description);
+                          
+                          if (hole.isRectangular) {
+                            const holeW = (hole.width || 10) * scale;
+                            const holeH = (hole.length || 5) * scale;
+                            const holeX = hole.x * scale;
+                            const holeY = (plank.height - hole.y - (hole.length || 5)) * scale;
+
+                            return (
+                              <div
+                                key={holeIndex}
+                                className="absolute rounded"
+                                style={{
+                                  left: holeX,
+                                  top: holeY,
+                                  width: holeW,
+                                  height: holeH,
+                                  backgroundColor: config.bgColor,
+                                  borderWidth: 2,
+                                  borderStyle: config.borderStyle as 'solid' | 'dashed',
+                                  borderColor: config.color,
+                                }}
+                              >
+                                {showHoleLabels && holeW > 15 && (
+                                  <span 
+                                    className="absolute -top-4 left-0 text-[8px] whitespace-nowrap px-1 rounded"
+                                    style={{ backgroundColor: config.color, color: 'white' }}
+                                  >
+                                    {hole.description || hole.type}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          } else {
+                            const diameter = (hole.diameter || 5) * scale;
+                            const holeX = hole.x * scale;
+                            const holeY = (plank.height - hole.y - (hole.diameter || 5)) * scale;
+
+                            return (
+                              <div
+                                key={holeIndex}
+                                className="absolute rounded-full"
+                                style={{
+                                  left: holeX,
+                                  top: holeY,
+                                  width: diameter,
+                                  height: diameter,
+                                  backgroundColor: config.bgColor,
+                                  borderWidth: hole.type?.toLowerCase().includes('vb') ? 2 : 1,
+                                  borderStyle: config.borderStyle as 'solid' | 'dashed',
+                                  borderColor: config.color,
+                                }}
+                              >
+                                {showHoleLabels && diameter > 15 && (
+                                  <span 
+                                    className="absolute -top-4 left-0 text-[8px] whitespace-nowrap px-1 rounded"
+                                    style={{ backgroundColor: config.color, color: 'white' }}
+                                  >
+                                    {hole.description || hole.type}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          }
+                        })}
+
+                        {/* L-Cuts */}
+                        {renderLCuts(plank as NestResultWithLCuts, w, h)}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           ))}
-        </main>
+        </div>
       </div>
 
       {/* Tooltip */}
-      {tooltipData.plank && (
-        <PlankTooltip plank={tooltipData.plank} position={tooltipData.position} />
+      {tooltipData && (
+        <PlankTooltip 
+          plank={tooltipData as NestResultWithLCuts} 
+          position={tooltipPosition}
+          isLCutDegenerate={isLCutDegenerate}
+        />
       )}
     </div>
   );
 }
+
+// ============================================
+// TOGGLE OPTION COMPONENT
+// ============================================
+
+const ToggleOption: React.FC<{ checked: boolean; onChange: (v: boolean) => void; label: string; highlight?: boolean }> = ({ 
+  checked, 
+  onChange, 
+  label, 
+  highlight 
+}) => (
+  <label className={`flex items-center gap-3 cursor-pointer p-2 rounded-lg transition-colors ${highlight ? 'border' : ''}`}
+    style={{ 
+      backgroundColor: highlight && checked ? COLORS.background : 'transparent',
+      borderColor: highlight ? COLORS.primary : 'transparent',
+    }}
+  >
+    <div className="relative">
+      <input 
+        type="checkbox" 
+        checked={checked} 
+        onChange={(e) => onChange(e.target.checked)}
+        className="sr-only"
+      />
+      <div 
+        className="w-10 h-5 rounded-full transition-colors"
+        style={{ backgroundColor: checked ? COLORS.primary : '#E5E7EB' }}
+      />
+      <div 
+        className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform"
+        style={{ transform: checked ? 'translateX(20px)' : 'translateX(0)' }}
+      />
+    </div>
+    <span className={`text-sm ${highlight ? 'font-medium' : ''}`} style={{ color: COLORS.navy }}>
+      {label}
+    </span>
+  </label>
+);
+
+// ============================================
+// PLANK TOOLTIP COMPONENT
+// ============================================
+
+interface PlankTooltipProps {
+  plank: NestResultWithLCuts;
+  position: { x: number; y: number };
+  isLCutDegenerate: (lcut: LCutData) => boolean;
+}
+
+const PlankTooltip: React.FC<PlankTooltipProps> = ({ plank, position, isLCutDegenerate }) => {
+  const holeCount = plank.holes?.length || 0;
+  const lcutCount = plank.l_cuts?.length || 0;
+
+  // Group holes by type
+  const holeSummary: Record<string, number> = {};
+  if (plank.holes) {
+    plank.holes.forEach(hole => {
+      const type = hole.description || hole.type || 'unknown';
+      holeSummary[type] = (holeSummary[type] || 0) + 1;
+    });
+  }
+
+  return (
+    <div
+      className="fixed z-50 max-w-sm rounded-xl shadow-2xl overflow-hidden"
+      style={{
+        left: position.x,
+        top: position.y,
+        backgroundColor: COLORS.navyDark,
+        border: `1px solid ${COLORS.navy}`,
+      }}
+    >
+      {/* Header */}
+      <div className="px-4 py-3 border-b" style={{ borderColor: COLORS.navy, backgroundColor: COLORS.navy }}>
+        <h4 className="font-bold text-white flex items-center gap-2">
+          <span className="px-2 py-0.5 rounded text-xs" style={{ backgroundColor: COLORS.primary }}>
+            {plank.id}
+          </span>
+          {plank.name || 'Unnamed'}
+        </h4>
+      </div>
+
+      {/* Details */}
+      <div className="px-4 py-3 text-sm space-y-2">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+          <span className="text-gray-400">Material</span>
+          <span className="text-white font-medium">{plank.material}</span>
+          
+          <span className="text-gray-400">Size</span>
+          <span className="text-white font-medium">{plank.width.toFixed(0)} × {plank.height.toFixed(0)} mm</span>
+          
+          <span className="text-gray-400">Thickness</span>
+          <span className="text-white font-medium">{plank.thickness}mm</span>
+          
+          {plank.rotated && (
+            <>
+              <span className="text-gray-400">Rotated</span>
+              <span className="text-white font-medium">Yes</span>
+            </>
+          )}
+        </div>
+
+        {/* Level 3 Features */}
+        <div className="pt-2 border-t" style={{ borderColor: COLORS.navy }}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold" style={{ color: COLORS.primaryLight }}>
+              Level 3 Features
+            </span>
+            <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: COLORS.primary, color: 'white' }}>
+              {holeCount + lcutCount} total
+            </span>
+          </div>
+          
+          {Object.entries(holeSummary).length > 0 ? (
+            <div className="space-y-1 max-h-32 overflow-y-auto">
+              {Object.entries(holeSummary).map(([type, count]) => {
+                const config = getHoleTypeConfig(type);
+                return (
+                  <div key={type} className="flex justify-between items-center text-xs py-0.5">
+                    <span className="flex items-center gap-1.5 text-white">
+                      <span 
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: config.color }}
+                      />
+                      {type}
+                    </span>
+                    <span className="text-gray-400">{count}×</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-gray-500 text-xs italic">No holes</div>
+          )}
+        </div>
+
+        {/* L-Cut Info */}
+        {plank.l_cuts && plank.l_cuts.length > 0 && (
+          <div className="pt-2 border-t" style={{ borderColor: COLORS.navy }}>
+            <span className="text-xs font-semibold" style={{ color: HOLE_TYPES.lcut.color }}>
+              L-Cuts: {plank.l_cuts.length}
+            </span>
+            {plank.l_cuts.map((lc, i) => {
+              const degenerate = isLCutDegenerate(lc);
+              return (
+                <div 
+                  key={i} 
+                  className={`text-[10px] mt-1 ${degenerate ? 'p-1 rounded' : ''}`}
+                  style={{ backgroundColor: degenerate ? 'rgba(249, 115, 22, 0.2)' : 'transparent' }}
+                >
+                  {degenerate && (
+                    <div className="font-bold mb-0.5" style={{ color: COLORS.primary }}>
+                      ⚠ Invalid: Points not distinct
+                    </div>
+                  )}
+                  <span className="text-gray-400">
+                    <span className="text-green-400">S:</span>({lc.start.x.toFixed(0)},{lc.start.y.toFixed(0)})
+                    {' → '}
+                    <span style={{ color: COLORS.primary }}>C:</span>({lc.center.x.toFixed(0)},{lc.center.y.toFixed(0)})
+                    {' → '}
+                    <span className="text-red-400">E:</span>({lc.end.x.toFixed(0)},{lc.end.y.toFixed(0)})
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default CutlistVisualization;

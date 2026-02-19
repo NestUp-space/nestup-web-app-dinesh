@@ -41,44 +41,35 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Load user on initial mount
+  // Load user on initial mount (with timeout so a down backend doesn't hang the app)
   useEffect(() => {
-    const loadUser = async () => {
-      console.log('UserContext - useEffect triggered. Checking authentication status.');
-      const token = localStorage.getItem('token');
-      console.log('UserContext - Token from localStorage:', token);
-      const authenticated = isAuthenticated();
-      console.log('UserContext - isAuthenticated() returned:', authenticated);
+    const PROFILE_FETCH_TIMEOUT_MS = 5000;
 
-      if (authenticated) {
-        try {
-          console.log('UserContext - User is authenticated, attempting to get user profile.');
-          const userData = await getUserProfile();
-          console.log('UserContext - User profile response:', userData);
-          if (userData && userData.success && userData.user) { // Added null check for userData.user
-            console.log('UserContext - Setting user. Profile data:', userData.user);
-            console.log('UserContext - Permissions from profile data:', userData.user.permissions);
+    const loadUser = async () => {
+      const token = localStorage.getItem('token');
+      const authenticated = isAuthenticated();
+
+      try {
+        if (authenticated) {
+          const userData = await Promise.race([
+            getUserProfile(),
+            new Promise<null>((_, reject) =>
+              setTimeout(() => reject(new Error('Profile fetch timeout')), PROFILE_FETCH_TIMEOUT_MS)
+            ),
+          ]);
+          if (userData && userData.success && userData.user) {
             setUser(userData.user);
-          } else {
-            console.warn('UserContext - Failed to get user profile or user data is missing. Response:', userData);
-            // Optionally clear token if profile fetch fails despite being "authenticated"
-            // localStorage.removeItem("token"); 
           }
-        } catch (error) {
-          console.error("UserContext - Error loading user profile:", error);
-          // Clear invalid token if there's an error during fetch
-          localStorage.removeItem("token");
         }
-      } else {
-        console.log('UserContext - User is NOT authenticated. Skipping profile load.');
+      } catch (error) {
+        console.warn("UserContext - Profile load failed or timed out:", error);
+        if (authenticated) localStorage.removeItem("token");
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
-      console.log('UserContext - setIsLoading(false) called.');
     };
 
-    console.log('UserContext - Calling loadUser()');
     loadUser();
-    console.log('UserContext - loadUser() call finished.');
   }, []);
 
   // Login function to set user and token
