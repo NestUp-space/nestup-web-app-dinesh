@@ -355,7 +355,7 @@ export default function SessionDetailPage() {
                         BOM not generated
                       </h3>
                       <p className="text-gray-500 text-center mb-4">
-                        Place modules and click "Generate BOM" to create the
+                        Place modules and click &quot;Generate BOM&quot; to create the
                         bill of materials.
                       </p>
                     </CardContent>

@@ -42,7 +42,7 @@ const createSafeMath = (): MathJsInstance => {
   dangerousFunctions.forEach(fn => {
     try {
       // Attempt to make these functions throw instead of executing
-      (math as Record<string, unknown>)[fn as string] = () => {
+      (math as unknown as Record<string, unknown>)[fn as string] = () => {
         throw new Error(`Function ${fn} is disabled for security reasons`);
       };
     } catch {

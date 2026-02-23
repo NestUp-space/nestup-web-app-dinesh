@@ -415,7 +415,7 @@ export function generateGCodeForSheet(
   for (const plank of planks) {
     const plankCodes = generateGCodeForPlank(plank, config);
     
-    for (const [tool, lines] of plankCodes) {
+    for (const [tool, lines] of Array.from(plankCodes.entries())) {
       const existing = toolOperations.get(tool) || [];
       existing.push(`; Plank: ${plank.id} - ${plank.name}`);
       existing.push(...lines);
@@ -424,7 +424,7 @@ export function generateGCodeForSheet(
   }
 
   // Generate files per tool
-  for (const [tool, operations] of toolOperations) {
+  for (const [tool, operations] of Array.from(toolOperations.entries())) {
     const toolInfo = TOOLS[tool as keyof typeof TOOLS];
     const fileName = `${sheetName}_${tool}_${toolInfo?.name.replace(/\s+/g, "_") || "unknown"}.nc`;
     

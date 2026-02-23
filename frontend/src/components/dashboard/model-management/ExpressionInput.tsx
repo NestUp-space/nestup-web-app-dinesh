@@ -156,7 +156,7 @@ export default function ExpressionInput({
       return { isValid: false, error: result.error };
     }
 
-    return { isValid: true, value: result.value };
+    return { isValid: true, value: result.value as string | number | undefined };
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {

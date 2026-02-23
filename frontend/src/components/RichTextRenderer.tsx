@@ -82,10 +82,9 @@ export const RichTextRenderer: React.FC<RichTextRendererProps> = ({
           </p>
         );
 
-      case 'heading':
-        const level = Math.min(Math.max(block.level || 1, 1), 6);
-        const HeadingTag = `h${level}` as keyof JSX.IntrinsicElements;
-        const headingClasses = {
+      case 'heading': {
+        const level = Math.min(Math.max(block.level || 1, 1), 6) as 1 | 2 | 3 | 4 | 5 | 6;
+        const headingClasses: Record<1 | 2 | 3 | 4 | 5 | 6, string> = {
           1: "text-3xl font-bold mb-6 mt-8 text-gray-900",
           2: "text-2xl font-bold mb-4 mt-6 text-gray-900",
           3: "text-xl font-bold mb-3 mt-5 text-gray-900",
@@ -93,12 +92,10 @@ export const RichTextRenderer: React.FC<RichTextRendererProps> = ({
           5: "text-base font-bold mb-2 mt-3 text-gray-900",
           6: "text-sm font-bold mb-1 mt-2 text-gray-900"
         };
-        
-        return (
-          <HeadingTag key={index} className={headingClasses[level as keyof typeof headingClasses]}>
-            {block.children?.map((child) => child.text).join('') || ''}
-          </HeadingTag>
-        );
+        const text = block.children?.map((child) => child.text).join('') || '';
+        const HeadingTag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+        return React.createElement(HeadingTag, { key: index, className: headingClasses[level] }, text);
+      }
 
       case 'list':
         const ListTag = block.format === 'ordered' ? 'ol' : 'ul';

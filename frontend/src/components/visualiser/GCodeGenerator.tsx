@@ -108,7 +108,8 @@ export default function GCodeGenerator() {
 
     // Simulate progress
     const progressInterval = setInterval(() => {
-      setProgress((prev: number) => Math.min(prev + 10, 90));
+      const current = useGCodeStore.getState().progress;
+      setProgress(Math.min(current + 10, 90));
     }, 200);
 
     try {
