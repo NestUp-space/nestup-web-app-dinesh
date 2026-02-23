@@ -1,6 +1,5 @@
-import { PrismaClient, Booking, BookingStatus, Prisma } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { Booking, BookingStatus, Prisma } from '@prisma/client';
+import prisma from '../config/db';
 
 class BookingRepository {
   async create(data: Prisma.BookingCreateInput): Promise<Booking> {

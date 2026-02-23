@@ -2,8 +2,7 @@ import { logger } from '../config/logger';
 import { zohoCrmService } from './zohoCrm.service';
 import { googleCalendarService } from './googleCalendar.service';
 import { SiteVisitBooking } from '../dtos/siteVisitBooking.dto';
-import { PrismaClient } from '@prisma/client';
-
+import prisma from '../config/db';
 interface BookingResult {
   success: boolean;
   bookingId: string;
@@ -13,7 +12,7 @@ interface BookingResult {
 }
 
 export class BookingService {
-  private prisma = new PrismaClient();
+  private prisma = prisma;
 
   async createBooking(bookingData: SiteVisitBooking): Promise<BookingResult> {
     const result: BookingResult = {

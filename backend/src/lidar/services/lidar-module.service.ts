@@ -3,15 +3,14 @@
  * Handles module template management and module placement
  */
 
-import { PrismaClient, ModuleCategory, LidarSessionStatus, Prisma } from '@prisma/client';
+import { ModuleCategory, LidarSessionStatus, Prisma } from '@prisma/client';
+import prisma from '../../config/db';
 import {
   ModuleTemplateResponse,
   PlaceModuleInput,
   PlacedModuleResponse,
   ModuleDimensions,
 } from '../types/lidar.types';
-
-const prisma = new PrismaClient();
 
 export class LidarModuleService {
   /**

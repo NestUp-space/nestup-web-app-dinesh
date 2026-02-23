@@ -1,6 +1,7 @@
-import { PrismaClient, ModelBomItem } from '@prisma/client';
+import { ModelBomItem } from '@prisma/client';
 import { JavaScriptFunctionService } from '../../catalogue/services/javascript-function.service';
 import { GLOBAL_CONSTANTS } from '../../catalogue/config/globalConstants'; // Import centralized constants
+import prisma from '../../config/db';
 
 interface PlankGenerationContext {
     boxNumber: string;
@@ -23,8 +24,7 @@ export class PlankGenerationService {
     private jsFunctionService: JavaScriptFunctionService;
 
     constructor() {
-        this.prisma = new PrismaClient();
-        this.jsFunctionService = new JavaScriptFunctionService(); // Instantiate the service
+                this.jsFunctionService = new JavaScriptFunctionService(); // Instantiate the service
     }
 
     async generatePlanksForBox(context: PlankGenerationContext): Promise<GeneratedPlank[]> {

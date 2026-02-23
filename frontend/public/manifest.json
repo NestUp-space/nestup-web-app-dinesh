@@ -1,0 +1,19 @@
+{
+  "name": "Nestup.space",
+  "short_name": "Nestup",
+  "description": "Designer Modular Factory — Modular interior design and furniture manufacturing platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#FF8A00",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/img/NestupLogoOnly.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"]
+}

@@ -1,8 +1,8 @@
 'use client'; // Ensure this component is client-side
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/dashboard/card';
-import { Button } from '@/components/dashboard/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 interface UserCardProps {
   user: {

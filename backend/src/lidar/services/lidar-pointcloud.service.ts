@@ -3,10 +3,9 @@
  * Handles direct point cloud data storage and retrieval
  */
 
-import { PrismaClient, UploadStatus, LidarSessionStatus, ScanFormat, Prisma } from '@prisma/client';
+import { UploadStatus, LidarSessionStatus, ScanFormat, Prisma } from '@prisma/client';
 import { ScanPoint2D, ParsedScanData } from '../types/lidar.types';
-
-const prisma = new PrismaClient();
+import prisma from '../../config/db';
 
 export interface PointCloudUploadData {
   points: ScanPoint2D[];

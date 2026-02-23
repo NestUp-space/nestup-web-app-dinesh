@@ -107,7 +107,7 @@ async function main() {
     // For security, it's better to prompt for a password or use a secure, temporary one.
     // If user doesn't exist, create them.
     console.log(`User ${adminUserEmail} not found. Creating user...`);
-    const tempPassword = 'Password123!'; // Placeholder password
+    const tempPassword = process.env.ADMIN_INITIAL_PASSWORD || (() => { throw new Error('ADMIN_INITIAL_PASSWORD env var is required'); })();
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
     
     // Generate a unique phone number placeholder to avoid unique constraint errors if script is run multiple times
@@ -125,7 +125,8 @@ async function main() {
         isActive: true,
       }
     });
-    console.log(`User ${adminUserEmail} created with roleId ${adminRole.id}. NAME: ${adminUserName}. IMPORTANT: PLEASE CHANGE THE DEFAULT PASSWORD ('${tempPassword}') IMMEDIATELY.`);
+    // Security: Never log passwords, even temporary ones
+    console.log(`User ${adminUserEmail} created with roleId ${adminRole.id}. NAME: ${adminUserName}. IMPORTANT: PLEASE CHANGE THE DEFAULT PASSWORD IMMEDIATELY.`);
   }
 
   console.log('Admin role and user setup script finished.');

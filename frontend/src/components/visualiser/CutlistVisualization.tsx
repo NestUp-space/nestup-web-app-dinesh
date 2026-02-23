@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useCutlistStore, useAppStore } from "@/store/visualiserStore";
+import { useCutlistStore, useAppStore } from "@/stores/visualiserStore";
 import type { NestResult, CutlistData, CutlistHole } from "@/types/visualiser";
 
 // Demo data for testing

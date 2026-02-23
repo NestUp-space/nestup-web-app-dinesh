@@ -3,9 +3,9 @@ import Link from "next/link";
 import Image from "next/legacy/image";
 
 import Logo from "@img/NestupLogoText.svg";
-import CallToActionSection from "./CallToActionSection";
+import CallToActionSection from "@/components/landing-page/CallToActionSection";
 import instaLogo from "@img/icons8-instagram.svg";
-import NavLink from "./Navlink";
+import NavLink from "@/components/landing-page/Navlink";
 import { links } from "@constants/navLinks";
 
 export function Footer() {

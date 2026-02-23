@@ -13,10 +13,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/dashboard/dialog";
-import { Button } from "@/components/dashboard/button";
-import { Input } from "@/components/dashboard/input";
-import { Label } from "@/components/dashboard/label";
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { AlertCircle, Loader2 } from "lucide-react"; // Added Loader2
 import { VIEW_PERMISSIONS, EDIT_PERMISSIONS, PermissionTemplate } from './PermissionTemplates'; // Added PermissionTemplate type
 import { cn } from '@/lib/utils';

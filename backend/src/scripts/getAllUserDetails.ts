@@ -8,7 +8,6 @@ async function getAllUserDetails() {
       select: {
         id: true,
         email: true,
-        password: true,
         name: true,
         role: {
           select: {
@@ -22,7 +21,6 @@ async function getAllUserDetails() {
       console.log(`User ID: ${user.id}`);
       console.log(`  Name: ${user.name}`);
       console.log(`  Email: ${user.email}`);
-      console.log(`  Password: ${user.password}`);
       console.log(`  Role: ${user.role?.role}`);
       console.log('---');
     });

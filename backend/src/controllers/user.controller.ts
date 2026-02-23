@@ -1,12 +1,29 @@
 import { Request, Response } from 'express';
+import { z } from 'zod';
 import { UserService } from '../services/user.service';
 import { StatusCodes } from 'http-status-codes';
 import { CustomRequest } from '../middlewares/auth.middleware';
 
+const createUserSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  name: z.string().min(1).max(255),
+  phoneNumber: z.string().min(6).max(20),
+  roleId: z.number().int().positive(),
+});
+
 export class UserController {
   static async createUser(req: Request, res: Response) {
     try {
-      const { email, password, name, phoneNumber, roleId } = req.body;
+      const parsed = createUserSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(StatusCodes.BAD_REQUEST).json({
+          success: false,
+          message: 'Validation failed',
+          errors: parsed.error.flatten().fieldErrors,
+        });
+      }
+      const { email, password, name, phoneNumber, roleId } = parsed.data;
       const newUser = await UserService.createUser({ email, password, name, phoneNumber, roleId });
       return res.status(StatusCodes.CREATED).json({
         success: true,

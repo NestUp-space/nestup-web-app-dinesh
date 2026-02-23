@@ -1,7 +1,12 @@
 const fetch = require('node-fetch');
 
-const API_TOKEN = 'fcea3056120a439858d07deae4c7cbcd549c8ef0e20c3cf207ade1ab8dfa1a1d8245387438e4c7673578526360a739f41e4989e1b318331c66c620278a41c249a977022e00448a3ac566f4daf4612652913e1e88721bdd893ed69093690522b089e9ded841210110b8af51e1d572847777e46041ee495a5c12d8bb963c7aadfe';
-const STRAPI_URL = 'http://127.0.0.1:1338';
+const API_TOKEN = process.env.STRAPI_API_TOKEN || '';
+const STRAPI_URL = process.env.STRAPI_URL || 'http://127.0.0.1:1338';
+
+if (!API_TOKEN) {
+  console.error('Error: STRAPI_API_TOKEN environment variable is required');
+  process.exit(1);
+}
 
 async function createTestPost() {
   try {

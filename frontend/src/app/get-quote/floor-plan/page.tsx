@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Home, Check, Maximize2, Search, Filter, MapPin } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
-import Navbar from "@/components/landing-page/Navbar"
+import Navbar from "@/components/layout/Navbar"
 import StickyCTA from "@/components/common/StickyCTA"
 import { QuoteProgress } from "@/components/quote/quote-progress"
 import { floorPlans, type FloorPlan } from "@/data/get-quote/floorPlans"

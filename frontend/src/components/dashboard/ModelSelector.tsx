@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button } from '@/components/dashboard/button';
+import { Button } from '@/components/ui/button';
 import { useGet, usePost, usePut, useDelete } from '@/hooks/useApi';
 import { Project, Subtask } from '@/types';
 import { PlankDetails } from '@/types/plankTypes'; // Import PlankDetails

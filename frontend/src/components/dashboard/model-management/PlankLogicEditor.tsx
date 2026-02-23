@@ -4,9 +4,9 @@ import React from 'react';
 import { useFormContext, Controller } from 'react-hook-form';
 import CollapsibleVariables from './CollapsibleVariables';
 import ExpressionInput from './ExpressionInput';
-import { Input } from '@/components/dashboard/input';
-import { Label } from '@/components/dashboard/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/dashboard/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 interface RuntimeInput {

@@ -3,13 +3,14 @@
 import React from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import Providers from '@/components/dashboard/providers';
-import { DesktopNav } from '@/components/dashboard/DesktopNav';
-import { MobileNav } from '@/components/dashboard/MobileNav';
+import { DesktopNav } from '@/components/layout/DesktopNav';
+import { MobileNav } from '@/components/layout/MobileNav';
 import { useUser } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import Image from "next/legacy/image";
 import LogoText from "@img/NestupLogoText.svg";
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function DashboardLayout({
   children
@@ -27,7 +28,11 @@ export default function DashboardLayout({
 
   // Optionally, show a loading state or return null while loading
   if (isLoading) {
-    return <div>Loading...</div>; // Or a loading spinner
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
   }
 
   if (!user) {

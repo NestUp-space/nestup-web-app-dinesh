@@ -1,6 +1,5 @@
-import { PrismaClient, ProjectModelInstance, GeneratedPlankList } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { ProjectModelInstance, GeneratedPlankList } from '@prisma/client';
+import prisma from '../../config/db';
 
 export class ProjectModelInstanceRepository {
   constructor() {

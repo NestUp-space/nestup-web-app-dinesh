@@ -2,10 +2,10 @@
 
 import React from 'react';
 import { useFormContext, Controller, UseFieldArrayRemove } from 'react-hook-form';
-import { Button } from '@/components/dashboard/button';
-import { Input } from '@/components/dashboard/input';
-import { Label } from '@/components/dashboard/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/dashboard/select';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

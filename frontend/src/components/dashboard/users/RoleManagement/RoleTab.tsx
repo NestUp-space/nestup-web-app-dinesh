@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from "@/components/dashboard/card";
-import { Button } from "@/components/dashboard/button";
-import { Input } from "@/components/dashboard/input"; // Import Input
-import { Switch } from "@/components/dashboard/switch";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/dashboard/collapsible";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input"; // Import Input
+import { Switch } from "@/components/ui/switch";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, AlertCircle, Edit3, Save, XCircle, Loader2 } from "lucide-react"; // Import icons, Added Loader2
 import { SECTIONS, ACTIONS } from "./PermissionTemplates";
 import { cn } from "@/lib/utils";

@@ -55,3 +55,14 @@ out/
 
 # Large files
 frontend.zip
+
+# Large reference assets (move to external storage / CDN)
+Reference/point_clouds.csv
+Reference/Nest Up Space.svg
+Reference/Landing Page.svg
+frontend/public/Reference/point_clouds.csv
+
+# CMS runtime artifacts
+backend/cms/.tmp/
+backend/cms/public/uploads/*.png
+backend/cms/public/uploads/*.jpg

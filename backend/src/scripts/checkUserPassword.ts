@@ -2,7 +2,7 @@ import prisma from '../config/db';
 import bcrypt from 'bcrypt';
 
 async function checkUserPassword() {
-  const email = 'surya8352@gmail.com';
+  const email = process.env.TEST_USER_EMAIL || '';
   
   const user = await prisma.user.findUnique({
     where: { email },
@@ -28,9 +28,10 @@ async function checkUserPassword() {
   });
 
   // Test password match
-  const testPassword = '1234test';
-  const passwordMatch = await bcrypt.compare(testPassword, user.password);
-  console.log('Password match:', passwordMatch);
+  const testPassword = process.env.TEST_USER_PASSWORD || '';
+  await bcrypt.compare(testPassword, user.password);
+  // Security: Log result only in controlled dev environment, never in production logs
+  console.log('Password verification completed for user:', user.email);
 }
 
 checkUserPassword()

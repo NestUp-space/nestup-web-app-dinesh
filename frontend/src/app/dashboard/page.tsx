@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { DashboardBreadcrumb } from '@/components/dashboard/dashboardBreadcrumb'; // Import DashboardBreadcrumb
+import { DashboardBreadcrumb } from '@/components/layout/dashboardBreadcrumb'; // Import DashboardBreadcrumb
 
 export default function DashboardOverviewPage() {
   return (

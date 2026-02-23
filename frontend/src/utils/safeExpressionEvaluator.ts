@@ -1,231 +1,247 @@
 /**
  * Safe Expression Evaluator
- * Replaces unsafe new Function() calls with a secure evaluation system
+ * Uses a restricted token-based evaluator instead of new Function().
  */
 
 interface EvaluationContext {
-  runtimeInputs: Record<string, any>;
-  globalConstants: Record<string, any>;
+  runtimeInputs: Record<string, unknown>;
+  globalConstants: Record<string, unknown>;
 }
 
 interface EvaluationResult {
   success: boolean;
-  value?: any;
+  value?: unknown;
   error?: string;
 }
 
-// Allowed variable names and operations
-const ALLOWED_VARIABLES = new Set([
-  'boxDepth', 'boxHeight', 'leftAdjacency', 'rightAdjacency',
-  'skirting', 'outerMaterialCode', 'innerMaterialCode',
-  'MATERIAL_THICKNESS', 'EDGE_BANDING',
-  'Width', 'Height', 'Material'
-]);
+const DANGEROUS_PATTERNS = [
+  /eval\s*\(/, /Function\s*\(/, /setTimeout\s*\(/, /setInterval\s*\(/,
+  /document\./, /window\./, /global\./, /process\./, /require\s*\(/,
+  /import\s+/, /export\s+/, /__proto__/, /constructor/, /prototype/,
+  /fetch\s*\(/, /XMLHttpRequest/, /WebSocket/,
+];
 
-const ALLOWED_OPERATORS = new Set([
-  '+', '-', '*', '/', '(', ')', '=', '==', '===', '!=', '!==',
-  '<', '>', '<=', '>=', '&&', '||', '!', '?', ':', ';'
-]);
-
-const ALLOWED_KEYWORDS = new Set([
-  'const', 'let', 'if', 'else', 'return', 'true', 'false'
-]);
-
-/**
- * Sanitizes and validates code before execution
- */
 function sanitizeCode(code: string): { isValid: boolean; error?: string } {
-  // Remove comments
   const cleanCode = code.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
-  
-  // Check for dangerous patterns
-  const dangerousPatterns = [
-    /eval\s*\(/,
-    /Function\s*\(/,
-    /setTimeout\s*\(/,
-    /setInterval\s*\(/,
-    /document\./,
-    /window\./,
-    /global\./,
-    /process\./,
-    /require\s*\(/,
-    /import\s+/,
-    /export\s+/,
-    /__proto__/,
-    /constructor/,
-    /prototype/
-  ];
-
-  for (const pattern of dangerousPatterns) {
+  for (const pattern of DANGEROUS_PATTERNS) {
     if (pattern.test(cleanCode)) {
-      return { 
-        isValid: false, 
-        error: `Dangerous pattern detected: ${pattern.source}` 
-      };
+      return { isValid: false, error: `Dangerous pattern detected: ${pattern.source}` };
     }
   }
-
-  // Check for only allowed tokens
-  const tokens = cleanCode.match(/[a-zA-Z_$][a-zA-Z0-9_$]*|[+\-*\/()=<>!&|?:;]|\d+\.?\d*|"[^"]*"|'[^']*'/g) || [];
-  
-  for (const token of tokens) {
-    // Skip numbers, strings, and operators
-    if (/^\d+\.?\d*$/.test(token) || /^["'].*["']$/.test(token) || ALLOWED_OPERATORS.has(token)) {
-      continue;
-    }
-    
-    // Check if it's an allowed variable or keyword
-    if (!ALLOWED_VARIABLES.has(token) && !ALLOWED_KEYWORDS.has(token)) {
-      return { 
-        isValid: false, 
-        error: `Unauthorized identifier: ${token}` 
-      };
-    }
-  }
-
   return { isValid: true };
 }
 
-/**
- * Creates a safe execution environment
- */
-function createSafeEnvironment(context: EvaluationContext): Record<string, any> {
-  const { runtimeInputs, globalConstants } = context;
-  
-  return {
-    // Runtime inputs
-    boxDepth: runtimeInputs.boxDepth,
-    boxHeight: runtimeInputs.boxHeight,
-    leftAdjacency: runtimeInputs.leftAdjacency,
-    rightAdjacency: runtimeInputs.rightAdjacency,
-    skirting: runtimeInputs.skirting,
-    outerMaterialCode: runtimeInputs.outerMaterialCode,
-    innerMaterialCode: runtimeInputs.innerMaterialCode,
-    
-    // Global constants
-    MATERIAL_THICKNESS: globalConstants.MATERIAL_THICKNESS,
-    EDGE_BANDING: globalConstants.EDGE_BANDING,
-    
-    // Variables for assignment
-    Width: undefined,
-    Height: undefined,
-    Material: undefined
-  };
+function resolveValue(path: string, context: EvaluationContext): unknown {
+  const parts = path.split('.');
+  let current: unknown;
+
+  const firstPart = parts[0];
+  if (firstPart in context.runtimeInputs) {
+    current = context.runtimeInputs[firstPart];
+  } else if (firstPart in context.globalConstants) {
+    current = context.globalConstants[firstPart];
+  } else {
+    return undefined;
+  }
+
+  for (let i = 1; i < parts.length; i++) {
+    if (current == null || typeof current !== 'object') return undefined;
+    current = (current as Record<string, unknown>)[parts[i]];
+  }
+  return current;
 }
 
-/**
- * Safely evaluates expression code
- */
+function evaluateMathExpression(expr: string, context: EvaluationContext): number {
+  let resolved = expr.trim();
+
+  const varPattern = /[a-zA-Z_][a-zA-Z0-9_.]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*/g;
+  resolved = resolved.replace(varPattern, (match) => {
+    if (match === 'true' || match === 'false') return match;
+    const val = resolveValue(match, context);
+    if (val === undefined) throw new Error(`Unknown variable: ${match}`);
+    if (typeof val === 'number') return String(val);
+    if (typeof val === 'string' && !isNaN(Number(val))) return val;
+    throw new Error(`Variable '${match}' is not numeric (got ${typeof val})`);
+  });
+
+  if (!/^[\s\d+\-*/().]+$/.test(resolved)) {
+    throw new Error(`Unsafe math expression: ${resolved}`);
+  }
+
+  const tokens = tokenizeMath(resolved);
+  return parseMathTokens(tokens);
+}
+
+type MathToken =
+  | { type: 'number'; value: number }
+  | { type: 'op'; value: string }
+  | { type: 'lparen' }
+  | { type: 'rparen' };
+
+function tokenizeMath(expr: string): MathToken[] {
+  const tokens: MathToken[] = [];
+  let i = 0;
+  while (i < expr.length) {
+    if (/\s/.test(expr[i])) { i++; continue; }
+    if (/[\d.]/.test(expr[i])) {
+      let num = '';
+      while (i < expr.length && /[\d.]/.test(expr[i])) { num += expr[i]; i++; }
+      tokens.push({ type: 'number', value: parseFloat(num) });
+      continue;
+    }
+    if (expr[i] === '(') { tokens.push({ type: 'lparen' }); i++; continue; }
+    if (expr[i] === ')') { tokens.push({ type: 'rparen' }); i++; continue; }
+    if ('+-*/'.includes(expr[i])) {
+      if (expr[i] === '-' && (tokens.length === 0 || tokens[tokens.length - 1].type === 'lparen' || tokens[tokens.length - 1].type === 'op')) {
+        let num = '-';
+        i++;
+        while (i < expr.length && /[\d.]/.test(expr[i])) { num += expr[i]; i++; }
+        tokens.push({ type: 'number', value: parseFloat(num) });
+        continue;
+      }
+      tokens.push({ type: 'op', value: expr[i] }); i++; continue;
+    }
+    throw new Error(`Unexpected character: ${expr[i]}`);
+  }
+  return tokens;
+}
+
+function parseMathTokens(tokens: MathToken[]): number {
+  let pos = 0;
+
+  function parseExpr(): number {
+    let left = parseTerm();
+    while (pos < tokens.length && tokens[pos].type === 'op' && (tokens[pos] as { type: 'op'; value: string }).value === '+' || tokens[pos]?.type === 'op' && (tokens[pos] as { type: 'op'; value: string }).value === '-') {
+      const op = (tokens[pos] as { type: 'op'; value: string }).value;
+      pos++;
+      const right = parseTerm();
+      left = op === '+' ? left + right : left - right;
+    }
+    return left;
+  }
+
+  function parseTerm(): number {
+    let left = parseFactor();
+    while (pos < tokens.length && tokens[pos].type === 'op' && ((tokens[pos] as { type: 'op'; value: string }).value === '*' || (tokens[pos] as { type: 'op'; value: string }).value === '/')) {
+      const op = (tokens[pos] as { type: 'op'; value: string }).value;
+      pos++;
+      const right = parseFactor();
+      left = op === '*' ? left * right : left / right;
+    }
+    return left;
+  }
+
+  function parseFactor(): number {
+    if (pos >= tokens.length) throw new Error('Unexpected end of expression');
+    const token = tokens[pos];
+    if (token.type === 'number') { pos++; return token.value; }
+    if (token.type === 'lparen') {
+      pos++;
+      const val = parseExpr();
+      if (pos >= tokens.length || tokens[pos].type !== 'rparen') throw new Error('Mismatched parentheses');
+      pos++;
+      return val;
+    }
+    throw new Error(`Unexpected token at position ${pos}`);
+  }
+
+  const result = parseExpr();
+  if (pos !== tokens.length) throw new Error('Unexpected tokens after expression');
+  return result;
+}
+
+function evaluateStringExpression(expr: string, context: EvaluationContext): string {
+  const trimmed = expr.trim();
+  if ((trimmed.startsWith("'") && trimmed.endsWith("'")) || (trimmed.startsWith('"') && trimmed.endsWith('"'))) {
+    return trimmed.slice(1, -1);
+  }
+  const val = resolveValue(trimmed, context);
+  if (typeof val === 'string') return val;
+  if (val !== undefined) return String(val);
+  throw new Error(`Could not resolve string expression: ${trimmed}`);
+}
+
+function parseStatements(code: string): string[] {
+  return code.split('\n')
+    .map(l => l.replace(/\/\/.*$/, '').trim())
+    .filter(l => l.length > 0 && !l.startsWith('//'));
+}
+
 export function safeEvaluateExpression(
   code: string,
   context: EvaluationContext,
   expectedVariable: 'Width' | 'Height' | 'Material'
 ): EvaluationResult {
   try {
-    // Sanitize the code
     const sanitization = sanitizeCode(code);
     if (!sanitization.isValid) {
-      return {
-        success: false,
-        error: sanitization.error
-      };
+      return { success: false, error: sanitization.error };
     }
 
-    // Create safe environment
-    const env = createSafeEnvironment(context);
-    
-    // Prepare the code with proper variable declarations
-    const wrappedCode = `
-      // Extract runtime inputs
-      const {
-        boxDepth, boxHeight, leftAdjacency, rightAdjacency,
-        skirting, outerMaterialCode, innerMaterialCode
-      } = runtimeInputs;
+    const lines = parseStatements(code);
+    let result: unknown = undefined;
 
-      // Extract global constants
-      const {
-        MATERIAL_THICKNESS,
-        EDGE_BANDING
-      } = globalConstants;
+    const localVars: Record<string, unknown> = {};
 
-      // Variable declaration
-      let ${expectedVariable};
+    const fullContext: EvaluationContext = {
+      runtimeInputs: { ...context.runtimeInputs, ...localVars },
+      globalConstants: context.globalConstants,
+    };
 
-      // User's logic
-      ${code}
+    for (const line of lines) {
+      if (line.startsWith('let ') || line.startsWith('const ') || line.startsWith('var ')) continue;
+      if (line === '{' || line === '}') continue;
+      if (line.startsWith('if ') || line.startsWith('} else') || line === 'else {') continue;
+      if (line.startsWith('return ')) continue;
 
-      // Return the result
-      return ${expectedVariable};
-    `;
+      const assignMatch = line.match(/^(\w+)\s*=\s*(.+?)(?:;?)$/);
+      if (assignMatch) {
+        const [, varName, expr] = assignMatch;
+        fullContext.runtimeInputs = { ...context.runtimeInputs, ...localVars };
 
-    // Use Function constructor with restricted scope
-    const func = new Function('runtimeInputs', 'globalConstants', wrappedCode);
-    const result = func(context.runtimeInputs, context.globalConstants);
+        let val: unknown;
+        try {
+          val = evaluateMathExpression(expr, fullContext);
+        } catch {
+          val = evaluateStringExpression(expr, fullContext);
+        }
 
-    // Validate the result
+        localVars[varName] = val;
+        if (varName === expectedVariable) {
+          result = val;
+        }
+        continue;
+      }
+    }
+
+    if (result === undefined) {
+      return { success: false, error: `Variable '${expectedVariable}' was never assigned` };
+    }
+
     if (expectedVariable === 'Material') {
-      if (typeof result !== 'string') {
-        return {
-          success: false,
-          error: 'Material code must return a string value'
-        };
-      }
-      if (!result) {
-        return {
-          success: false,
-          error: 'Material code cannot be empty'
-        };
-      }
+      if (typeof result !== 'string') return { success: false, error: 'Material code must return a string value' };
+      if (!result) return { success: false, error: 'Material code cannot be empty' };
     } else {
-      if (typeof result !== 'number') {
-        return {
-          success: false,
-          error: `${expectedVariable} must be a numeric value`
-        };
-      }
-      if (result <= 0) {
-        return {
-          success: false,
-          error: `${expectedVariable} must be greater than 0`
-        };
-      }
+      if (typeof result !== 'number') return { success: false, error: `${expectedVariable} must be a numeric value` };
+      if (result <= 0) return { success: false, error: `${expectedVariable} must be greater than 0` };
     }
 
-    return {
-      success: true,
-      value: result
-    };
-
+    return { success: true, value: result };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown execution error'
-    };
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown execution error' };
   }
 }
 
-/**
- * Validates code without executing it
- */
 export function validateExpressionCode(
   code: string,
   expectedVariable: 'Width' | 'Height' | 'Material'
 ): { isValid: boolean; error?: string } {
-  // Check if code uses the expected variable
   if (!code.includes(`${expectedVariable} =`)) {
-    return {
-      isValid: false,
-      error: `Code must use '${expectedVariable} =' to assign the value`
-    };
+    return { isValid: false, error: `Code must use '${expectedVariable} =' to assign the value` };
   }
-
-  // Sanitize the code
   return sanitizeCode(code);
 }
 
-/**
- * Sample context for testing
- */
 export const SAMPLE_CONTEXT: EvaluationContext = {
   runtimeInputs: {
     boxDepth: 560,
@@ -234,17 +250,10 @@ export const SAMPLE_CONTEXT: EvaluationContext = {
     rightAdjacency: 'Wall',
     skirting: 100,
     outerMaterialCode: 'OUT001',
-    innerMaterialCode: 'IN001'
+    innerMaterialCode: 'IN001',
   },
   globalConstants: {
-    MATERIAL_THICKNESS: {
-      expose: 18,
-      inner: 18,
-      back: 6
-    },
-    EDGE_BANDING: {
-      INNER_EDGEBANDING: 1,
-      COLOR_EDGEBANDING: 2
-    }
-  }
+    MATERIAL_THICKNESS: { expose: 18, inner: 18, back: 6 },
+    EDGE_BANDING: { INNER_EDGEBANDING: 1, COLOR_EDGEBANDING: 2 },
+  },
 };

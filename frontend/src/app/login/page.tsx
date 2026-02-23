@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/dashboard/button";
-import { Input } from "@/components/dashboard/input";
-import { Label } from "@/components/dashboard/label";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { login as loginApi, register as registerApi } from "@/lib/api/auth";
 import { useUser } from "@/context/UserContext";
-import Navbar from "@/components/landing-page/Navbar";
-import { Footer } from "@/components/landing-page/Footer";
+import Navbar from "@/components/layout/Navbar";
+import { Footer } from "@/components/layout/Footer";
 
 interface RoleOption {
   value: string;

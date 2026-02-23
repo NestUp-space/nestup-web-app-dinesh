@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/dashboard/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ProjectList from '@/components/dashboard/projects/ProjectList';
 
 interface ProjectTabsProps {

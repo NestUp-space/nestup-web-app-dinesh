@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/card";
-import { Button } from "@/components/dashboard/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { RoleTab } from '@/components/dashboard/users/RoleManagement/RoleTab';
 import { CreateRoleDialog } from '@/components/dashboard/users/RoleManagement/CreateRoleDialog';
 import { useUser } from '@/context/UserContext';

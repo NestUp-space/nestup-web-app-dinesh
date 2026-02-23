@@ -1,8 +1,8 @@
 "use client";
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/card";
-import { Button } from "@/components/dashboard/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { RoleTab } from './RoleTab';
 import { CreateRoleDialog } from './CreateRoleDialog';
 import { useUser } from '@/context/UserContext'; // Import useUser

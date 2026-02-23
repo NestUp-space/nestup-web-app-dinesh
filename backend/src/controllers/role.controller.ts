@@ -1,11 +1,9 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { StatusCodes } from 'http-status-codes';
 import { clearUserPermissionCache } from '../middlewares/permission.middleware';
 import { EXTERNAL_ROLES } from '../constants/roles'; // Import the constant
 
-const prisma = new PrismaClient();
-
+import prisma from '../config/db';
 export class RoleController {
   static async createRole(req: Request, res: Response) {
     try {

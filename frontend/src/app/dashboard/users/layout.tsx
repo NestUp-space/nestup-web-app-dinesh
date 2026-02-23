@@ -1,9 +1,9 @@
 "use client";
 
 import React from 'react';
-import { Card } from "@/components/dashboard/card";
+import { Card } from "@/components/ui/card";
 import { Tabs } from "@/components/dashboard/users/Tabs";
-import Breadcrumbs from '@/components/dashboard/Breadcrumbs';
+import Breadcrumbs from '@/components/layout/Breadcrumbs';
 import { useUser } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';
 import { hasPermission } from '@/lib/authUtils';

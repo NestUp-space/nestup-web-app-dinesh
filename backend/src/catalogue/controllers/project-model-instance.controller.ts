@@ -1,8 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
-
+import prisma from '../../config/db';
 // Create a new project model instance
 export const createProjectModelInstance = async (req: Request, res: Response) => {
     const { id: projectIdStr } = req.params; // Changed to id

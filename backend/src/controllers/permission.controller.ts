@@ -2,10 +2,7 @@ import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { getAllPermissions } from '../constants/permissions';
 import { UserService } from '../services/user.service';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
-
+import prisma from '../config/db';
 export class PermissionController {
   static async getAllPermissions(_req: Request, res: Response) {
     try {

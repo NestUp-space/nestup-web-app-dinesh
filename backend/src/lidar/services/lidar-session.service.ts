@@ -3,7 +3,8 @@
  * Handles business logic for LiDAR session management
  */
 
-import { PrismaClient, LidarSessionStatus, Prisma } from '@prisma/client';
+import { LidarSessionStatus, Prisma } from '@prisma/client';
+import prisma from '../../config/db';
 import {
   LidarSessionCreate,
   LidarSessionUpdate,
@@ -13,8 +14,6 @@ import {
   ScanDataResponse,
   ProcessedDataResponse,
 } from '../types/lidar.types';
-
-const prisma = new PrismaClient();
 
 export class LidarSessionService {
   /**

@@ -9,7 +9,7 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator
-} from '@/components/dashboard/breadcrumb';
+} from '@/components/ui/breadcrumb';
 
 interface DashboardBreadcrumbProps {
   nameMap?: Record<string, string>;

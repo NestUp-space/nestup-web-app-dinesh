@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useFormContext, useFieldArray } from 'react-hook-form';
-import { Button } from '@/components/dashboard/button';
+import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
 import ModelInputParameterItem from './ModelInputParameterItem'; // Import the new component
 

@@ -3,18 +3,17 @@
  * Handles chunked file uploads for LiDAR scan data with resume capability
  */
 
-import { PrismaClient, UploadStatus, LidarSessionStatus, ScanFormat } from '@prisma/client';
+import { UploadStatus, LidarSessionStatus, ScanFormat } from '@prisma/client';
 import { S3Client, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
+import prisma from '../../config/db';
 import {
   ChunkUploadInit,
   ChunkUploadResponse,
   ChunkReceiveResponse,
   UploadStatusResponse,
 } from '../types/lidar.types';
-
-const prisma = new PrismaClient();
 
 // Initialize S3 client
 const s3Client = new S3Client({

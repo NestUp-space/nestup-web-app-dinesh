@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
-import Breadcrumbs from '@/components/dashboard/Breadcrumbs';
+import Breadcrumbs from '@/components/layout/Breadcrumbs';
 import { Project, User, UpdateProjectData, Status } from '@/types';
 import { useProject, useUpdateProject } from '@/hooks';
 import {

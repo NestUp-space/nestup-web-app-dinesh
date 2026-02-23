@@ -74,7 +74,7 @@ export const faqData: FAQ[] = [
       <>
         No, there are no hidden charges for our core services — site measurement, cutlists/material estimates, production, and installation.
         <br />
-        However, please note that material procurement, transportation, taxes, and packaging are not included in the ₹340/sqft pricing.
+        However, please note that material procurement, transportation, taxes, and packaging are not included in the ₹220/sqft pricing.
       </>
     ),
   },

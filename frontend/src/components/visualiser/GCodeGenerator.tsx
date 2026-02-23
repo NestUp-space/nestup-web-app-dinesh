@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { useGCodeStore, useAppStore } from "@/store/visualiserStore";
+import { useGCodeStore, useAppStore } from "@/stores/visualiserStore";
 import {
   generateGCodeForProject,
   generateGCodeZip,

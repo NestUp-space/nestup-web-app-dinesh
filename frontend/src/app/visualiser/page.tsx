@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useAppStore } from "@/store/visualiserStore";
+import { useAppStore } from "@/stores/visualiserStore";
 
 interface FeatureCard {
   title: string;

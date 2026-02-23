@@ -10,7 +10,7 @@ import {
   Environment
 } from "@react-three/drei";
 import * as THREE from "three";
-import { useInstallationGuideStore, useAppStore } from "@/store/visualiserStore";
+import { useInstallationGuideStore, useAppStore } from "@/stores/visualiserStore";
 import type { Wall, Box, Plank, EditMode } from "@/types/visualiser";
 
 // Demo data for testing

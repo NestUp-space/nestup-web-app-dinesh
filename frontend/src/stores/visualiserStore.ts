@@ -168,19 +168,21 @@ export const useGCodeStore = create<GCodeState>()(
 );
 
 // ---- Reports State ----
+type ReportRecord = Record<string, unknown>;
+
 interface ReportsState {
   materialEstimates: MaterialEstimate[];
-  sftResults: any[];
-  invoiceData: any | null;
-  qaInputData: any[];
-  qaOutputData: any[];
-  pressingList: any[];
+  sftResults: ReportRecord[];
+  invoiceData: ReportRecord | null;
+  qaInputData: ReportRecord[];
+  qaOutputData: ReportRecord[];
+  pressingList: ReportRecord[];
   setMaterialEstimates: (estimates: MaterialEstimate[]) => void;
-  setSftResults: (results: any[]) => void;
-  setInvoiceData: (data: any) => void;
-  setQaInputData: (data: any[]) => void;
-  setQaOutputData: (data: any[]) => void;
-  setPressingList: (list: any[]) => void;
+  setSftResults: (results: ReportRecord[]) => void;
+  setInvoiceData: (data: ReportRecord) => void;
+  setQaInputData: (data: ReportRecord[]) => void;
+  setQaOutputData: (data: ReportRecord[]) => void;
+  setPressingList: (list: ReportRecord[]) => void;
   reset: () => void;
 }
 

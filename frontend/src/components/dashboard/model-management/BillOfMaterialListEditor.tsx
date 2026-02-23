@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { useFormContext, useFieldArray } from 'react-hook-form'; // Removed Controller, Input, Label, Select as they are in BomItem
 import { PlusCircle } from 'lucide-react'; // Removed Trash2 as it's in BomItem
 // import PlankLogicEditor from './PlankLogicEditor'; // PlankLogicEditor is used by BomItem
-import { Button } from '@/components/dashboard/button';
+import { Button } from '@/components/ui/button';
 // import { cn } from '@/lib/utils'; // cn might not be needed here anymore
 import { BomItemType } from './modelSchemas'; // Import from modelSchemas.ts
 import BomItem from './BomItem'; // Import the new BomItem component

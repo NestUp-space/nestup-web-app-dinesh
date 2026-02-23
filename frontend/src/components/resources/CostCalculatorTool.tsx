@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/dashboard/input"
+import { Input } from "@/components/ui/input"
 import { Calculator } from "lucide-react"
 import Link from "next/link"
 

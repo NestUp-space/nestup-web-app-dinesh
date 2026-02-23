@@ -3,7 +3,8 @@
  * Handles Bill of Materials generation from placed modules
  */
 
-import { PrismaClient, LidarSessionStatus, Prisma } from '@prisma/client';
+import { LidarSessionStatus, Prisma } from '@prisma/client';
+import prisma from '../../config/db';
 import {
   SessionBomResponse,
   BomMaterial,
@@ -12,8 +13,6 @@ import {
   BomSummary,
   ModuleDimensions,
 } from '../types/lidar.types';
-
-const prisma = new PrismaClient();
 
 // Material constants
 const PLYWOOD_SHEET_SIZE = { width: 2440, height: 1220, thickness: 18 }; // Standard 8x4 sheet

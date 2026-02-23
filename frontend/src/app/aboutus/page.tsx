@@ -1,5 +1,11 @@
-import { Footer } from "@/components/landing-page/Footer";
-import Navbar from "@/components/landing-page/Navbar";
+import type { Metadata } from "next";
+import { Footer } from "@/components/layout/Footer";
+import Navbar from "@/components/layout/Navbar";
+
+export const metadata: Metadata = {
+  title: "About Us",
+  description: "Learn about Nestup — our journey, philosophy, and approach to modular furniture manufacturing.",
+};
 import AboutUsHeroSection from "@/components/about-us/AboutUsHeroSection";
 import AboutUsJourneySection from "@/components/about-us/AboutUsJourneySection";
 import AboutUsBirthSection from "@/components/about-us/AboutUsBirthSection";

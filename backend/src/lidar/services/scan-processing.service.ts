@@ -4,8 +4,9 @@
  * MVP implementation using TypeScript (no Python/Redis required)
  */
 
-import { PrismaClient, ProcessingStatus, LidarSessionStatus } from '@prisma/client';
+import { ProcessingStatus, LidarSessionStatus } from '@prisma/client';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import prisma from '../../config/db';
 import {
   ScanPoint2D,
   ParsedScanData,
@@ -13,8 +14,6 @@ import {
   FloorPlanData,
   RoomDimensions,
 } from '../types/lidar.types';
-
-const prisma = new PrismaClient();
 
 // Initialize S3 client
 const s3Client = new S3Client({

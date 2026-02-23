@@ -7,7 +7,20 @@
 
 import React, { useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import PointCloudViewer, { ScanPoint } from "@/components/lidar/PointCloudViewer";
+import dynamic from "next/dynamic";
+import type { ScanPoint } from "@/components/lidar/PointCloudViewer";
+
+const PointCloudViewer = dynamic(
+  () => import("@/components/lidar/PointCloudViewer"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-[500px] bg-muted rounded-lg">
+        <p className="text-muted-foreground">Loading 3D viewer...</p>
+      </div>
+    ),
+  }
+);
 import { Button } from "@/components/ui/button";
 import {
   Card,

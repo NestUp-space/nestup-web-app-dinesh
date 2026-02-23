@@ -2,9 +2,9 @@
 
 import Link from 'next/link';
 import Image from "next/legacy/image";
-import { NavItem } from './nav-item';
+import { NavItem } from '@/components/dashboard/nav-item';
 import { Home, Users, LineChart, Settings, LogOut, HelpCircle, User as UserIcon, BookCopy, FolderKanban, Workflow, ScanLine } from 'lucide-react'; // Added FolderKanban, Workflow, ScanLine
-import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useUser } from '@/context/UserContext';
 import { isAdmin, hasPermission } from '@/lib/authUtils';
 import { useRouter } from 'next/navigation';

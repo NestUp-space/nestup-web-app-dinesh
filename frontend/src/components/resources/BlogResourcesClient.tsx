@@ -3,8 +3,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/dashboard/input";
-import Navbar from "@/components/landing-page/Navbar";
+import { Input } from "@/components/ui/input";
+import Navbar from "@/components/layout/Navbar";
 import {
   Calendar,
   Clock,
@@ -21,7 +21,7 @@ import {
   Layers,
 } from "lucide-react";
 import Image from "next/image";
-import { Footer } from "@/components/landing-page/Footer";
+import { Footer } from "@/components/layout/Footer";
 import Link from "next/link";
 import { ResourcesHeroSection } from "./ResourcesHeroSection";
 

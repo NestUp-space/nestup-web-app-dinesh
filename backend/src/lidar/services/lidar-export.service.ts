@@ -3,7 +3,6 @@
  * Handles export of session data, BOM, and reports in various formats
  */
 
-import { PrismaClient } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import {
   SessionBomResponse,
@@ -15,8 +14,7 @@ import {
   WallData,
 } from '../types/lidar.types';
 
-const prisma = new PrismaClient();
-
+import prisma from '../../config/db';
 export interface ExportOptions {
   includeFloorPlan?: boolean;
   includeBom?: boolean;

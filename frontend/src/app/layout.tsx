@@ -21,10 +21,19 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Nestup.space",
-  description: "Desiner Modular Factory",
+  title: {
+    default: "Nestup.space",
+    template: "%s | Nestup.space",
+  },
+  description: "Designer Modular Factory — Modular interior design and furniture manufacturing platform",
   icons: {
     icon: '/img/NestupLogoOnly.svg',
+  },
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://nestup.space'),
+  openGraph: {
+    title: "Nestup.space",
+    description: "Designer Modular Factory — Modular interior design and furniture manufacturing platform",
+    type: "website",
   },
 };
 
@@ -36,6 +45,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#FF8A00" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Nestup" />
         {/* Google Analytics */}
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
@@ -78,6 +92,13 @@ export default function RootLayout({
         
         {/* Google Analytics using Next.js third-party integration */}
         <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />
+        <Script id="sw-register" strategy="afterInteractive">
+          {`
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.register('/sw.js').catch(function() {});
+            }
+          `}
+        </Script>
       </body>
     </html>
   );

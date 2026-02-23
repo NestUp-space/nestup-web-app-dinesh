@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button } from '@/components/dashboard/button';
+import { Button } from '@/components/ui/button';
 import { AlertCircle, Trash2, ArrowUp, ArrowDown, Save, Loader2 } from 'lucide-react';
 import MaterialCodeSelector from './MaterialCodeSelector'; // Import MaterialCodeSelector
 

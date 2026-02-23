@@ -1,7 +1,8 @@
-import { ProjectModelInstance, GeneratedPlankList, Prisma, PrismaClient } from '@prisma/client'; // Added PrismaClient
+import { ProjectModelInstance, GeneratedPlankList, Prisma } from '@prisma/client'; // Added PrismaClient
 import { ProjectModelInstanceRepository } from '../repositories/project-model-instance.repository'; // Updated repository name
 import { CreateProjectModelInstanceDto, UpdateProjectModelInstanceDto } from '../dtos/model.dto'; // Updated DTO import and names
 import { ModelRepository } from '../repositories/model.repository'; // Updated repository import
+import prisma from '../../config/db';
 // import { ProjectRepository } from '../../repositories/project.repository'; // To check if Project exists
 
 // Interface for the data expected from the frontend for each box configuration
@@ -77,7 +78,7 @@ export class ProjectModelInstanceService { // Updated class name
     projectId: number,
     boxConfigs: BoxConfigDto[],
   ): Promise<ProjectModelInstance[]> {
-    const prisma = new PrismaClient(); // TODO: Refactor to use injected or repository's prisma instance
+     // TODO: Refactor to use injected or repository's prisma instance
 
     return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. Fetch existing instances for the project

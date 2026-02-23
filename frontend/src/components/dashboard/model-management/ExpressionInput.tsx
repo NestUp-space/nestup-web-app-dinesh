@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import { CheckCircle, Wand2, AlertTriangle } from 'lucide-react'; // Added AlertTriangle
-import { Button } from '@/components/dashboard/button';
-import { Label } from '@/components/dashboard/label';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { safeEvaluateExpression, validateExpressionCode, SAMPLE_CONTEXT } from '@/utils/safeExpressionEvaluator';
 

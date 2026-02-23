@@ -8,6 +8,7 @@ import { StatusCodes } from 'http-status-codes';
 import { scanProcessingService } from '../services/scan-processing.service';
 import { lidarSessionService } from '../services/lidar-session.service';
 import { CustomRequest } from '../../middlewares/auth.middleware';
+import prisma from '../../config/db';
 
 /**
  * Trigger processing for a session
@@ -137,10 +138,6 @@ export const getLayout = async (
       });
       return;
     }
-
-    // Get walls from database
-    const { PrismaClient } = await import('@prisma/client');
-    const prisma = new PrismaClient();
 
     const walls = await prisma.lidarWall.findMany({
       where: { sessionId },

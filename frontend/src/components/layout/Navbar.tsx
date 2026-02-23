@@ -6,9 +6,9 @@ import { motion } from "framer-motion";
 
 import Logo from "@img/NestupLogoText.svg";
 
-import NavLink from "./Navlink";
+import NavLink from "@/components/landing-page/Navlink";
 import {links} from "@constants/navLinks"; 
-import { CTAButton } from "./CTAButton";
+import { CTAButton } from "@/components/landing-page/CTAButton";
 
 
 const Navbar = () => {

@@ -7,13 +7,36 @@
 
 import { useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   useLidarSession,
   useSessionLayout,
   useLidarSessionMutations,
 } from "@/hooks/lidar/useLidarSession";
-import Room3DViewer from "@/components/lidar/Room3DViewer";
-import FloorPlanViewer from "@/components/lidar/FloorPlanViewer";
+
+const Room3DViewer = dynamic(
+  () => import("@/components/lidar/Room3DViewer"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-[400px] bg-muted rounded-lg">
+        <p className="text-muted-foreground">Loading 3D viewer...</p>
+      </div>
+    ),
+  }
+);
+
+const FloorPlanViewer = dynamic(
+  () => import("@/components/lidar/FloorPlanViewer"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-[400px] bg-muted rounded-lg">
+        <p className="text-muted-foreground">Loading floor plan...</p>
+      </div>
+    ),
+  }
+);
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {

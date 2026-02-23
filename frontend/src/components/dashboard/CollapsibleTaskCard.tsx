@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/dashboard/button';
+import { Button } from '@/components/ui/button';
 import { 
   ChevronDown, ChevronUp, CheckCircle, Circle, 
   PlusCircle as PlusCircleIcon, Trash2 as TrashIcon,

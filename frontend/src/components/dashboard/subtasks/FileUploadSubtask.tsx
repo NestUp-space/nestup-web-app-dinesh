@@ -3,7 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, X, File, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-import { Button } from '@/components/dashboard/button';
+import { Button } from '@/components/ui/button';
 import { Subtask, Project, User } from '@/types';
 import { useGet } from '@/hooks/useApi'; // Import useGet hook
 import { useUser } from '@/context/UserContext';

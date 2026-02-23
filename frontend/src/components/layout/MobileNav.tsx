@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import Image from "next/legacy/image"; // Added Image import
-import { Button } from './button'; 
-import { Sheet, SheetContent, SheetTrigger } from './sheet'; 
+import { Button } from '@/components/ui/button'; 
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'; 
 import { Home, Users2, LineChart, PanelLeft, Settings, BookCopy, FolderKanban, Workflow, ScanLine } from 'lucide-react'; // Removed Package2, Added ScanLine
 import { useUser } from '@/context/UserContext';
 import LogoText from "@img/NestupLogoText.svg"; // Added LogoText import

@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Card, CardContent } from "@/components/dashboard/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/context/UserContext';
 import { Tabs } from "@/components/dashboard/users/Tabs";

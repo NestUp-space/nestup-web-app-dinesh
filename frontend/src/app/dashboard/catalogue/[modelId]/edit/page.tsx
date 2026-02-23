@@ -5,7 +5,7 @@ import ModelBuilderForm from '@/components/dashboard/model-management/ModelBuild
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
-import { DashboardBreadcrumb } from '@/components/dashboard/dashboardBreadcrumb'; // Import DashboardBreadcrumb
+import { DashboardBreadcrumb } from '@/components/layout/dashboardBreadcrumb'; // Import DashboardBreadcrumb
 
 export default function EditModelPage() {
   const params = useParams();

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from '@/components/dashboard/button';
+import { Button } from '@/components/ui/button';
 import Image from "next/legacy/image";
 import Logo from "@img/NestupLogoOnly.svg";
 import {
@@ -10,7 +10,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger
-} from '@/components/dashboard/dropdown-menu';
+} from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
 import { useUser } from "@/context/UserContext"; // Import the context
 
