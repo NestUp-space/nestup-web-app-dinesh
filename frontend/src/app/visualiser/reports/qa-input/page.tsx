@@ -1,13 +1,12 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import Link from 'next/link';
-import { useDesignerStore, useDesignSummary } from '@/store/designerStore';
+import { useDesignerStore } from '@/store/designerStore';
 import { formatDesignData } from '@/lib/visualiser';
+import { ReportLayout } from '@/components/visualiser/ReportLayout';
 
 export default function QAInputPage() {
-  const summary = useDesignSummary();
-  const { walls, projectName, plywoodLibrary } = useDesignerStore();
+  const { walls, projectName } = useDesignerStore();
 
   const qaItems = useMemo(() => {
     if (walls.length === 0) return [];
@@ -33,96 +32,72 @@ export default function QAInputPage() {
   }, [walls]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-      <header className="border-b border-gray-700 bg-gray-900/50 backdrop-blur-sm">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link href="/visualiser/generate" className="text-gray-400 hover:text-white">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </Link>
-              <div>
-                <h1 className="text-xl font-bold">Input QA Sheet</h1>
-                <p className="text-sm text-gray-400">{projectName}</p>
-              </div>
-            </div>
-            <button
-              onClick={() => window.print()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm"
-            >
-              Print / PDF
-            </button>
-          </div>
+    <ReportLayout
+      title="Input QA Sheet"
+      subtitle="Material quality check"
+      projectName={projectName}
+      downloadLabel="Download / Print"
+    >
+      <div className="bg-orange-50/50 rounded-lg border border-orange-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-orange-200">
+          <h2 className="font-semibold text-gray-900">Material Quality Check</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Verify all input materials before processing
+          </p>
         </div>
-      </header>
 
-      <main className="container mx-auto px-6 py-8 max-w-4xl">
-        <div className="bg-gray-800/50 rounded-lg border border-gray-700 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-700">
-            <h2 className="font-semibold">Material Quality Check</h2>
-            <p className="text-sm text-gray-400 mt-1">
-              Verify all input materials before processing
-            </p>
-          </div>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-700/50">
-                <tr>
-                  <th className="px-4 py-3 text-left w-12">#</th>
-                  <th className="px-4 py-3 text-left">Material Description</th>
-                  <th className="px-4 py-3 text-center">Thickness</th>
-                  <th className="px-4 py-3 text-center">Qty</th>
-                  <th className="px-4 py-3 text-center">Verified</th>
-                  <th className="px-4 py-3 text-left">Comments</th>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-orange-100/70">
+              <tr>
+                <th className="px-4 py-3 text-left w-12 text-gray-900">#</th>
+                <th className="px-4 py-3 text-left text-gray-900">Material Description</th>
+                <th className="px-4 py-3 text-center text-gray-900">Thickness</th>
+                <th className="px-4 py-3 text-center text-gray-900">Qty</th>
+                <th className="px-4 py-3 text-center text-gray-900">Verified</th>
+                <th className="px-4 py-3 text-left text-gray-900">Comments</th>
+              </tr>
+            </thead>
+            <tbody>
+              {qaItems.map((item) => (
+                <tr key={item.id} className="border-t border-orange-100 hover:bg-orange-50/30">
+                  <td className="px-4 py-3 text-gray-500">{item.id}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">{item.material}</td>
+                  <td className="px-4 py-3 text-center text-gray-700">{item.thickness}mm</td>
+                  <td className="px-4 py-3 text-center text-orange-600 font-medium">{item.count}</td>
+                  <td className="px-4 py-3 text-center">
+                    <input type="checkbox" className="w-5 h-5 rounded print:hidden" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <input
+                      type="text"
+                      placeholder="Add notes..."
+                      className="w-full bg-white border border-gray-200 rounded px-2 py-1 text-sm print:border-0"
+                    />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {qaItems.map((item) => (
-                  <tr key={item.id} className="border-t border-gray-700/50">
-                    <td className="px-4 py-3 text-gray-500">{item.id}</td>
-                    <td className="px-4 py-3 font-medium">{item.material}</td>
-                    <td className="px-4 py-3 text-center">{item.thickness}mm</td>
-                    <td className="px-4 py-3 text-center">{item.count}</td>
-                    <td className="px-4 py-3 text-center">
-                      <input type="checkbox" className="w-5 h-5 rounded" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="text"
-                        placeholder="Add notes..."
-                        className="w-full bg-gray-700/50 border border-gray-600 rounded px-2 py-1 text-sm"
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-          <div className="p-6 border-t border-gray-700">
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Verified By</label>
-                <input
-                  type="text"
-                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
-                  placeholder="Name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Date</label>
-                <input
-                  type="date"
-                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
-                />
-              </div>
+        <div className="p-6 border-t border-orange-200 bg-white print:border-t print:border-gray-200">
+          <div className="grid md:grid-cols-2 gap-6 print:hidden">
+            <div>
+              <label className="block text-sm text-gray-500 mb-2">Verified By</label>
+              <input
+                type="text"
+                className="w-full border border-gray-200 rounded px-3 py-2 text-gray-900"
+                placeholder="Name"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-500 mb-2">Date</label>
+              <input type="date" className="w-full border border-gray-200 rounded px-3 py-2 text-gray-900" />
             </div>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </ReportLayout>
   );
 }

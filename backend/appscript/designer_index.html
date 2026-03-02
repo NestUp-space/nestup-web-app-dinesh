@@ -2136,7 +2136,7 @@
         <!-- Axis Legend -->
         <div class="axis-legend">
           <div class="axis-legend-item"><div class="axis-color x"></div><span>X - Right</span></div>
-          <div class="axis-legend-item"><div class="axis-color y"></div><span>Y - Depth</span></div>
+          <div class="axis-legend-item"><div class="axis-color y"></div><span>Y - Front</span></div>
           <div class="axis-legend-item"><div class="axis-color z"></div><span>Z - Up</span></div>
         </div>
       </div>
@@ -2162,7 +2162,7 @@
     <span class="option-unit">mm</span>
   </div>
   <div class="option-row">
-    <span class="option-label" style="color: var(--axis-y);">Y (Depth)</span>
+    <span class="option-label" style="color: var(--axis-y);">Y (Front)</span>
     <input type="number" class="option-input" id="posY" value="0">
     <span class="option-unit">mm</span>
   </div>
@@ -2204,7 +2204,7 @@
             
             <!-- Y Axis Controls (Front/Back) -->
             <div style="margin: 10px 0;">
-              <div style="font-size: 10px; color: var(--axis-y); font-weight: 600; margin-bottom: 6px;">Y Axis (Depth/Back)</div>
+              <div style="font-size: 10px; color: var(--axis-y); font-weight: 600; margin-bottom: 6px;">Y Axis (Front/Back)</div>
               <div style="display: flex; gap: 8px;">
                 <button class="move-btn" id="moveBackBtn" title="Move Back (-Y)">
                   ↑ Back
@@ -2568,18 +2568,12 @@ const Vec3 = {
  * - position: {x, y, z} = MIN corner (bottom-left-back in our coordinate system)
  * - dimensions: {w, d, h} = width(X), depth(Y), height(Z)
  * 
- * Coordinate System (SketchUp-style):
+ * Coordinate System (matching existing code):
  * - X = Right (width)
- * - Y = Depth (INTO the scene, away from viewer - like SketchUp green axis)
+ * - Y = Front/Depth (towards viewer) 
  * - Z = Up (height)
  * 
- * In this system (Y+ into scene):
- * - Wall is at Y=0 (at the origin)
- * - Cabinets are in FRONT of wall (negative Y, toward viewer)
- * - Cabinet position.y = -boxDepth (front facing viewer)
- * - Cabinet back at position.y + depth = 0 (touching wall)
- * - "Front face" = minimum Y (closest to viewer)
- * - "Back face" = maximum Y (toward wall)
+ * "Back face" = the face at minimum Y (Y=0 when against wall)
  */
 const AABB = {
   // Contact epsilon - boxes can touch but not overlap
@@ -2622,11 +2616,11 @@ const AABB = {
     
     // Convert Three.js position to our coordinate system
     // Three.js: X=right, Y=up, Z=towards camera
-    // Our system (SketchUp): X=right, Y=into scene, Z=up
+    // Our system: X=right, Y=front, Z=up
     const pos = {
       x: boxGroup.position.x - w / 2,  // Convert from center to min corner
-      y: -boxGroup.position.z - d / 2, // Our Y = -Three.js Z (into scene)
-      z: boxGroup.position.y - h / 2   // Three.js Y = our Z (up)
+      y: -boxGroup.position.z - d / 2, // Three.js Z (negated) = our Y
+      z: boxGroup.position.y - h / 2   // Three.js Y = our Z
     };
     
     return AABB.create(pos, { w, d, h });
@@ -3992,12 +3986,12 @@ const ProximityIndicators = {
     const marker = new THREE.Mesh(geometry, material);
     
     // Convert from our coordinate system to Three.js
-    // Our (SketchUp): X=right, Y=into scene, Z=up
-    // Three.js: X=right, Y=up, Z=toward camera
+    // Our: X=right, Y=front, Z=up
+    // Three.js: X=right, Y=up, Z=-front
     marker.position.set(
       position.x,
       position.z,  // Our Z (up) = Three.js Y
-      -position.y  // Our Y (into scene) = -Three.js Z
+      -position.y  // Our Y (front) = -Three.js Z
     );
     
     return marker;
@@ -4032,7 +4026,7 @@ const ProximityIndicators = {
     sprite.position.set(
       position.x,
       position.z + this.config.labelOffset,
-      -position.y  // Our Y = -Three.js Z
+      -position.y
     );
     sprite.scale.set(100, 25, 1);
     
@@ -4115,11 +4109,11 @@ const ProximityIndicators = {
         const corner = proxBox.corners[i];
         const isBottom = i < 4;
         
-        // Convert to screen coordinates (our coords to Three.js)
+        // Convert to screen coordinates
         const threePos = {
           x: corner.x,
           y: corner.z,  // Our Z = Three.js Y
-          z: -corner.y  // Our Y = -Three.js Z (into scene)
+          z: -corner.y  // Our Y = -Three.js Z
         };
         
         const screenPos = worldToScreen(new THREE.Vector3(threePos.x, threePos.y, threePos.z));
@@ -4306,7 +4300,7 @@ const BoxDefaultsManager = {
     // Get position from Three.js and convert to our system
     const pos = {
       x: boxGroup.position.x - (data.boxWidth || 600) / 2,
-      y: boxGroup.position.z - (data.boxDepth || 550) / 2,  // Our Y = Three.js Z
+      y: -boxGroup.position.z - (data.boxDepth || 550) / 2,
       z: boxGroup.position.y - (data.boxHeight || 720) / 2
     };
     
@@ -4357,8 +4351,8 @@ const BoxDefaultsManager = {
           carcassThickness: firstBox.carcusThickness ?? firstBox.carcassThickness ?? 18,
           doorThickness: firstBox.doorThickness ?? 18,
           backplankThickness: firstBox.backplankThickness ?? 6,
-          // Position Y from first box (in front of wall)
-          positionY: firstBox.position?.y ?? -(firstBox.boxDepth ?? 550),
+          // Position Y from first box (depth alignment), Z is always 0 for new boxes
+          positionY: firstBox.position?.y ?? firstBox.boxDepth ?? 550,
           // Materials
           carcusPly: firstBox.carcusPly ?? '',
           doorPly: firstBox.doorPly ?? '',
@@ -4400,8 +4394,8 @@ const BoxDefaultsManager = {
       carcassThickness: defaults.carcassThickness ?? 18,
       doorThickness: defaults.doorThickness ?? 18,
       backplankThickness: defaults.backplankThickness ?? 6,
-      // Position Y from first box (in front of wall, negative Y)
-      positionY: defaults.position?.y ?? defaults.positionY ?? -(defaults.boxDepth ?? 550),
+      // Position Y from first box (depth alignment)
+      positionY: defaults.position?.y ?? defaults.positionY ?? defaults.boxDepth ?? 550,
       // Materials
       carcusPly: defaults.carcusPly ?? '',
       doorPly: defaults.doorPly ?? '',
@@ -4424,9 +4418,9 @@ const BoxDefaultsManager = {
     if (wallDefaults) {
       // Wall has existing defaults from FIRST box - inherit dimensions EXCEPT boxWidth
       const boxDepth = wallDefaults.boxDepth ?? 550;
-      const positionY = wallDefaults.positionY ?? -boxDepth;  // In front of wall (negative Y)
+      const positionY = wallDefaults.positionY ?? boxDepth;
       return {
-        // X will be calculated later, Y in front of wall, Z always 0 for new boxes
+        // X will be calculated later, Y from first box, Z always 0 for new boxes
         position: { x: 0, y: positionY, z: 0 },
         // boxWidth comes from CATALOG (user's selection), not inherited
         boxWidth: catalogBox.boxWidth ?? 600,
@@ -4447,10 +4441,8 @@ const BoxDefaultsManager = {
     // No wall defaults yet - this is the first box, use catalog values
     const boxDepth = catalogBox.boxDepth ?? 550;
     return {
-      // First box: X=0, Y=-boxDepth (in front of wall), Z=0 (on floor)
-      // Wall is at Y=0, box is in front (negative Y = toward viewer)
-      // Box front at Y=-boxDepth (facing user), box back at Y=0 (touching wall)
-      position: { x: 0, y: -boxDepth, z: 0 },
+      // First box: X=0, Y=boxDepth (back against wall), Z=0 (on floor)
+      position: { x: 0, y: boxDepth, z: 0 },
       boxWidth: catalogBox.boxWidth ?? 600,
       boxDepth: boxDepth,
       boxHeight: catalogBox.boxHeight ?? 720,
@@ -4472,17 +4464,18 @@ const BoxDefaultsManager = {
  getDefaults(catalogBox, wallData) {
     if (!this.lastPlacedBox) {
       // No previous box - use catalog values with fallbacks to defaults
-      // COORDINATE SYSTEM (SketchUp): Y+ goes INTO scene
-      // - Wall is at Y=0
-      // - Box is IN FRONT of wall (negative Y, toward viewer)
-      // - Box front at Y=-boxDepth (facing user), box back at Y=0 (touching wall)
+      // COORDINATE MISMATCH FIX:
+      // - CATALOG assumes box origin = Front-Left-Bottom
+      // - VISUALIZER assumes box origin = Back-Left-Bottom
+      // For first box against wall (wall plane at Y=0 in visualizer),
+      // we STORE position.y = boxDepth so that the BACK of the box aligns to wall.
       const boxDepth = catalogBox.boxDepth ?? this.catalogDefaults.boxDepth ?? 550;
       
       console.log('[BoxDefaultsManager] First box on wall, catalogBox:', catalogBox);
-      console.log('[BoxDefaultsManager] First box in front of wall, front at Y=-' + boxDepth + ', back at Y=0');
+      console.log('[BoxDefaultsManager] First box on wall, boxDepth (for Y offset)=', boxDepth);
       
       return {
-        position: { x: 0, y: -boxDepth, z: 0 },
+        position: { x: 0, y: boxDepth, z: 0 },
         boxWidth: catalogBox.boxWidth ?? this.catalogDefaults.boxWidth,
         boxDepth: boxDepth,
         boxHeight: catalogBox.boxHeight ?? this.catalogDefaults.boxHeight,
@@ -4975,10 +4968,10 @@ const MoveToolTests = {
     BoxDefaultsManager.clear();
 
     // Test without previous box (should use catalog defaults)
-    // First box in front of wall (Y=-boxDepth, so back touches wall at Y=0)
+    // COORDINATE MISMATCH FIX: First box y = boxDepth to align back of box to wall
     const defaults1 = BoxDefaultsManager.getDefaults({ boxWidth: 450, boxDepth: 550 });
     this.assertEqual(defaults1.position.x, 0, 'First box at origin x');
-    this.assertEqual(defaults1.position.y, -550, 'First box y=-boxDepth (in front of wall, back at Y=0)');
+    this.assertEqual(defaults1.position.y, 550, 'First box y = boxDepth (back aligns to wall)');
     this.assertEqual(defaults1.boxWidth, 450, 'First box uses catalog width');
     this.assertEqual(defaults1.boxDepth, 550, 'First box uses catalog depth');
 
@@ -5061,25 +5054,22 @@ console.log('Run MoveToolTests.run() to execute all tests');
 
   <script>
     /**
-     * COORDINATE SYSTEM (SketchUp-style):
+     * COORDINATE SYSTEM:
      * Our data uses:
-     *   X = Right (Red) - width direction
-     *   Y = Depth/Back (Green) - INTO the scene (away from viewer, like SketchUp green axis)
-     *   Z = Up/Height (Blue) - vertical direction
+     *   X = Right (Red)
+     *   Y = Front/Depth (Green) - towards viewer
+     *   Z = Up/Height (Blue)
      * 
      * Three.js default uses:
      *   X = Right
-     *   Y = Up  
+     *   Y = Up
      *   Z = Towards camera
      * 
-     * Coordinate mapping: data.X -> three.X, data.Y -> -three.Z, data.Z -> three.Y
-     * (Y is negated so positive Y goes INTO scene, away from camera)
+     * So we need to map: data.X -> three.X, data.Y -> three.Z (negated for back), data.Z -> three.Y
      * 
-     * WALL & CABINET ORIENTATION:
-     * - Wall is at the back of the scene
-     * - Cabinets placed at Y=0 are at the front (closest to viewer)
-     * - Cabinet backs face +Y direction (toward wall)
-     * - Cabinet fronts/doors face -Y direction (toward viewer)
+     * WALL ORIENTATION:
+     * - Wall extends backward (negative Y in our system)
+     * - Boxes are placed in front of wall (positive Y)
      */
     
     // ========================================
@@ -5311,25 +5301,14 @@ let originalMaterials = new Map();  // Map<plankMesh, originalMaterial>
     
     /**
      * Convert from our data coordinates to Three.js coordinates
-     * 
-     * Coordinate System (SketchUp-style):
-     * - X = Right (width, red axis)
-     * - Y = Depth/Back (into scene, green axis) - like SketchUp's Y axis
-     * - Z = Up (height, blue axis)
-     * 
+     * Data: X=right, Y=front, Z=up
      * Three.js: X=right, Y=up, Z=towards camera
-     * 
-     * Cabinet convention:
-     * - Y=0 is at the front (closest to viewer)
-     * - Positive Y goes INTO the scene (toward the back wall)
-     * - Wall is at positive Y (back of scene)
-     * - Cabinet fronts face negative Y (toward viewer)
      */
     function dataToThree(x, y, z) {
       return {
         x: x,      // X stays the same (right)
         y: z,      // Our Z (up) becomes Three.js Y (up)
-        z: -y      // Our Y (into scene) becomes -Three.js Z (away from camera)
+        z: -y      // Our Y (front) becomes negative Three.js Z (towards camera)
       };
     }
     
@@ -5339,7 +5318,7 @@ let originalMaterials = new Map();  // Map<plankMesh, originalMaterial>
     function threeToData(x, y, z) {
       return {
         x: x,      // X stays the same
-        y: -z,     // -Three.js Z becomes our Y (into scene)
+        y: -z,     // Three.js Z (negated) becomes our Y (front)
         z: y       // Three.js Y becomes our Z (up)
       };
     }
@@ -5701,7 +5680,7 @@ function insertSelectedBoxEnhanced() {
   const fullDefaults = {
     position: { 
       x: nextX, 
-      y: resolvedDefaults.position?.y ?? -(resolvedDefaults.boxDepth ?? 550),  // In front of wall
+      y: resolvedDefaults.position?.y ?? resolvedDefaults.boxDepth ?? 550,
       z: 0  // Z always 0 for new boxes (user can move with arrow keys later)
     },
     boxWidth: resolvedDefaults.boxWidth ?? 600,
@@ -7752,9 +7731,9 @@ function autoSaveBoxTransform(boxGroup) {
         drawInferenceLine(lineStart, lineEnd, 0x3B82F6); // Blue
         activeInference = 'z';
       }
-      // Check Y-axis alignment (our Y axis = -Three.js Z, into scene)
+      // Check Z-axis alignment (our Y axis = Three.js -Z)
       else if (Math.abs(movement.x) < tolerance && Math.abs(movement.y) < tolerance && Math.abs(movement.z) > tolerance) {
-        // Draw green line along Y axis (Three.js -Z direction)
+        // Draw green line along Y axis (Three.js -Z)
         const lineStart = new THREE.Vector3(objectCenter.x, objectCenter.y, objectCenter.z - 2000);
         const lineEnd = new THREE.Vector3(objectCenter.x, objectCenter.y, objectCenter.z + 2000);
         drawInferenceLine(lineStart, lineEnd, 0x22C55E); // Green
@@ -7992,11 +7971,11 @@ function autoSaveBoxTransform(boxGroup) {
       ]);
       axisGroup.add(new THREE.Line(xGeom, new THREE.LineBasicMaterial({ color: 0xEF4444, linewidth: 2 })));
       
-      // Y axis (our system) = -Z axis in Three.js - Green - pointing INTO scene (SketchUp style)
-      // In Three.js, negative Z points away from camera (into scene)
+      // Y axis (our system) = Z axis in Three.js (negated) - Green - pointing front
+      // In Three.js, negative Z points towards camera (front)
       const yGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(0, 0, 0), 
-        new THREE.Vector3(0, 0, -axisLength)  // Negative Z = away from viewer = our Y+ (SketchUp)
+        new THREE.Vector3(0, 0, -axisLength)
       ]);
       axisGroup.add(new THREE.Line(yGeom, new THREE.LineBasicMaterial({ color: 0x22C55E, linewidth: 2 })));
       
@@ -8009,7 +7988,7 @@ function autoSaveBoxTransform(boxGroup) {
       
       // Add axis labels
       addAxisLabel('X', axisLength + 50, 0, 0, 0xEF4444);
-      addAxisLabel('Y', 0, 0, -(axisLength + 50), 0x22C55E);  // Y label into scene
+      addAxisLabel('Y', 0, 0, -(axisLength + 50), 0x22C55E);
       addAxisLabel('Z', 0, axisLength + 50, 0, 0x3B82F6);
       
       scene.add(axisGroup);
@@ -10676,7 +10655,7 @@ case 'escape':
         if (currentTool === 'move' && parsed.values.length >= 1) {
           // Convert movement to Three.js coordinates
           if (lockedAxis === 'x') target.position.x += parsed.values[0];
-          else if (lockedAxis === 'y') target.position.z -= parsed.values[0]; // Our Y+ = -Three.js Z (into scene)
+          else if (lockedAxis === 'y') target.position.z -= parsed.values[0]; // Our Y = -Three.js Z
           else if (lockedAxis === 'z') target.position.y += parsed.values[0]; // Our Z = Three.js Y
           else if (parsed.values.length === 3) {
             const converted = dataToThree(parsed.values[0], parsed.values[1], parsed.values[2]);
@@ -12117,14 +12096,14 @@ function applyOptions() {
       });
       const mesh = new THREE.Mesh(geometry, material);
       
-      // Position wall at ORIGIN (Y=0)
-      // Wall front surface at Y=0
-      // Wall extends INTO the scene (positive Y direction)
-      // Boxes are placed IN FRONT of the wall (negative Y, toward viewer)
+      // Position wall at origin
+      // Wall center X = wallWidth/2 (centered on X axis)
+      // Wall extends forward (positive Y) - flipped orientation
+      // Wall center Z = wallHeight/2
       const converted = dataToThree(
-        wallPosX + wallWidth / 2,    // Center X
-        wallPosY + wallDepth / 2,    // Wall center at Y=wallDepth/2, front at Y=0
-        wallPosZ + wallHeight / 2    // Center Z (height)
+        wallPosX + wallWidth / 2,
+        wallPosY + wallDepth / 2,  // Changed from -wallDepth/2 to +wallDepth/2
+        wallPosZ + wallHeight / 2
       );
       mesh.position.set(converted.x, converted.y, converted.z);
       
@@ -12223,9 +12202,9 @@ function applyOptions() {
       const floor = new THREE.Mesh(geometry, material);
       
       // Position floor - rotate to be horizontal (XY plane in our coords)
-      // Floor extends IN FRONT of wall (negative Y direction, toward viewer)
-      // Wall is at Y=0, floor extends to Y=-floorExtension (where cabinets are)
-      const floorCenterY = wallPosY - floorExtension / 2;  // Center in front of wall
+      // Floor center X = wallPosX + wallWidth/2
+      // Floor center Y = wallPosY + floorExtension/2 - wallDepth/2
+      const floorCenterY = wallPosY + (floorExtension - wallDepth) / 2;
       const converted = dataToThree(
         wallPosX + wallWidth / 2,
         floorCenterY,
@@ -12435,7 +12414,7 @@ function applyOptions() {
     /**
      * Create a single plank mesh
      * Plank dimensions: lenX (width), lenY (depth), lenZ (height)
-     * Plank position: x (right), y (depth/forward), z (up)
+     * Plank position: x (right), y (front), z (up)
      */
     function createPlank(plank, parentBox) {
       const lenX = plank.dimensions.lenX || 10;  // Width
@@ -12668,7 +12647,7 @@ function moveSelectedByStep(axis, direction) {
       obj.position.x += moveAmount;
       break;
     case 'y':
-      obj.position.z -= moveAmount;  // Our Y+ = -Three.js Z (into scene, SketchUp style)
+      obj.position.z -= moveAmount;
       break;
     case 'z':
       obj.position.y += moveAmount;
@@ -12700,7 +12679,7 @@ function moveSelectedByStep(axis, direction) {
   redoStack.length = 0;
   
   // Show axis and amount in notification
-  const axisNames = { x: 'X (Right)', y: 'Y (Depth)', z: 'Z (Up)' };
+  const axisNames = { x: 'X (Right)', y: 'Y (Front)', z: 'Z (Up)' };
   const dirNames = direction > 0 ? '+' : '';
   showNotification(`Moved ${axisNames[axis]}: ${dirNames}${moveAmount} mm`, 'info');
   
@@ -15945,7 +15924,7 @@ function moveSelectedByStepEnhanced(axis, direction) {
   redoStack.length = 0;
   
   // Show axis and amount
-  const axisNames = { x: 'X (Right)', y: 'Y (Depth)', z: 'Z (Up)' };
+  const axisNames = { x: 'X (Right)', y: 'Y (Front)', z: 'Z (Up)' };
   const dirNames = direction > 0 ? '+' : '';
   showNotification(`Moved ${axisNames[axis]}: ${dirNames}${moveAmount} mm`, 'info');
   

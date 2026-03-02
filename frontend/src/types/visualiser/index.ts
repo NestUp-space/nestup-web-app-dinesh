@@ -322,6 +322,10 @@ export interface NestResult {
   ebValue: number;
   // Operations for CNC
   holes: NestHole[];
+  /** L-cuts in sheet coordinates (plank local + plank x,y, rotation applied) */
+  l_cuts?: Array<{ start: { x: number; y: number }; center: { x: number; y: number }; end: { x: number; y: number } }>;
+  /** Gola profiles in sheet coordinates */
+  gola_profiles?: Array<{ start: { x: number; y: number }; center: { x: number; y: number }; end: { x: number; y: number } }>;
 }
 
 export interface NestHole {

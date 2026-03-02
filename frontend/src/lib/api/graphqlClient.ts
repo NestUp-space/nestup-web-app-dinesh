@@ -2,8 +2,12 @@ import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/clien
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 
+// Fallback to same-origin so the app doesn't break when env is missing (e.g. local dev)
+const strapiUrl =
+  process.env.NEXT_PUBLIC_STRAPI_URL ||
+  (typeof window !== 'undefined' ? window.location.origin : '');
 const httpLink = createHttpLink({
-  uri: `${process.env.NEXT_PUBLIC_STRAPI_URL}/graphql`,
+  uri: strapiUrl ? `${strapiUrl.replace(/\/$/, '')}/graphql` : '/graphql',
 });
 
 const authLink = setContext((_, { headers }) => {

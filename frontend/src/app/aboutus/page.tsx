@@ -10,10 +10,10 @@ import AboutUsWhyNestupSection from "@/components/about-us/AboutUsWhyNestupSecti
 export default function AboutUsPage() {
   return (
     <section>
-      <div className="h-24 top-0 fixed bg-white z-50">
-         <Navbar />
+      <div className="fixed top-0 left-0 right-0 w-full h-24 bg-white z-50">
+        <Navbar />
       </div>
-      <div className="min-h-screen bg-neutral-light text-gray-900 mt-24 w-screen">
+      <div className="min-h-screen bg-neutral-light text-gray-900 mt-24 w-full">
         <main className="w-full">
           <AboutUsHeroSection />
           <AboutUsJourneySection />

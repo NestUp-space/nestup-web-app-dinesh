@@ -113,24 +113,15 @@ function generateInvoices() {
   let mwProductionAmount = totalSFT * 220;
 
 
-  // 3. GENERATE FILES --------------------------------------------------------
+  // 3. GENERATE FILES - Save to Project Folder ONLY ------------------------
   
-  const mainFolder = DriveApp.getFolderById(INVOICE_CONFIG.MAIN_FOLDER_ID);
-  
-  let fftlFolder, mwFolder;
-  const folders = mainFolder.getFolders();
-  while (folders.hasNext()) {
-    let f = folders.next();
-    if (f.getName() === "FFTL") fftlFolder = f;
-    if (f.getName() === "MW") mwFolder = f;
-  }
-  if (!fftlFolder) fftlFolder = mainFolder.createFolder("FFTL");
-  if (!mwFolder) mwFolder = mainFolder.createFolder("MW");
+  // Get project invoices folder
+  const invoicesFolder = getProjectSubfolder('INVOICES');
   
   const dateStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy");
 
   // --- GENERATE FFTL INVOICE ---
-  const fftlFile = DriveApp.getFileById(INVOICE_CONFIG.FFTL_TEMPLATE_ID).makeCopy(sheetName + "_FFTL", fftlFolder);
+  const fftlFile = DriveApp.getFileById(INVOICE_CONFIG.FFTL_TEMPLATE_ID).makeCopy(sheetName + "_FFTL", invoicesFolder);
   const fftlDoc = DocumentApp.openById(fftlFile.getId());
   const fftlBody = fftlDoc.getBody();
   
@@ -150,7 +141,6 @@ function generateInvoices() {
     const itemTable = tables[1]; 
     let totalMatCost = 0;
     materialCosts.forEach(m => {
-      // FIXED: appendTableRow()
       let row = itemTable.appendTableRow();
       row.appendTableCell(m.item + " (Qty: " + m.qty + ")");
       row.appendTableCell(m.price.toFixed(2));
@@ -158,7 +148,6 @@ function generateInvoices() {
     });
 
     let grandTotal = transportCost + packingCost + loadingCost + unloadingCost + hamaliCost + totalMatCost;
-    // FIXED: appendTableRow()
     let totalRow = itemTable.appendTableRow();
     totalRow.appendTableCell("TOTAL AMOUNT").setBold(true);
     totalRow.appendTableCell(grandTotal.toFixed(2)).setBold(true);
@@ -167,7 +156,7 @@ function generateInvoices() {
   fftlDoc.saveAndClose();
   
   // --- GENERATE MW INVOICE ---
-  const mwFile = DriveApp.getFileById(INVOICE_CONFIG.MW_TEMPLATE_ID).makeCopy(sheetName + "_MW", mwFolder);
+  const mwFile = DriveApp.getFileById(INVOICE_CONFIG.MW_TEMPLATE_ID).makeCopy(sheetName + "_MW", invoicesFolder);
   const mwDoc = DocumentApp.openById(mwFile.getId());
   const mwBody = mwDoc.getBody();
   
@@ -180,16 +169,7 @@ function generateInvoices() {
   
   mwDoc.saveAndClose();
   
-  // 4. DUAL STORAGE - Copy to Project Folder --------------------------------
-  try {
-    const invoicesFolder = getProjectSubfolder('INVOICES');
-    fftlFile.makeCopy(sheetName + "_FFTL", invoicesFolder);
-    mwFile.makeCopy(sheetName + "_MW", invoicesFolder);
-  } catch(e) {
-    Logger.log('Error copying invoices to project folder: ' + e.message);
-  }
-  
-  // 5. DISPLAY RESULT --------------------------------------------------------
+  // 4. DISPLAY RESULT --------------------------------------------------------
   const fftlUrl = fftlFile.getUrl();
   const mwUrl = mwFile.getUrl();
   const projectFolderUrl = getProjectFolderUrl();

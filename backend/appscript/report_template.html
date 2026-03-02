@@ -84,14 +84,6 @@
             alert('Error generating report: ' + error.message);
         }
 
-function getDesignData() {
-  try {
-    return getDesignDataForSheet();
-  } catch(e) {
-    Logger.log('getDesignData ERROR: ' + e);
-    return { walls: [], boxes: [], planks: [] };
-  }
-}
         // Simple HTML preview generator
         function generateHTMLPreview(data) {
             const { summary, sheets, materialThicknessStats } = data;

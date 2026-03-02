@@ -34,10 +34,10 @@ export default function DesignSelectionPage() {
 
   return (
     <div className="">
-      <div className="h-20 md:h-24 top-0 fixed bg-white z-50">
+      <div className="fixed top-0 left-0 right-0 w-full h-20 md:h-24 bg-white z-50">
         <Navbar />
       </div>
-      <div className="mt-20 md:mt-24 w-screen">
+      <div className="mt-20 md:mt-24 w-full">
         <div className="min-h-screen bg-neutral-light">
           {/* Progress Bar */}
           <QuoteProgress currentStep={3} />

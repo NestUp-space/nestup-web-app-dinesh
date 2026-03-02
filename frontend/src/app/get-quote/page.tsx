@@ -14,10 +14,10 @@ export default function LandingPage() {
   const containerRef = useRef()
   return (
     <div className="">
-      <div className="h-24 top-0 fixed bg-white z-50">
+      <div className="fixed top-0 left-0 right-0 w-full h-24 bg-white z-50">
          <Navbar />
       </div>
-      <div className="mt-24 w-screen" >
+      <div className="mt-24 w-full">
         {/* Progress indicator */}
         <QuoteProgress currentStep={1} />
         

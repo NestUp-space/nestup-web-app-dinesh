@@ -3,19 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
-import { Toolbar } from '@/components/visualiser/designer/Toolbar';
-import { PropertiesPanel } from '@/components/visualiser/designer/panels/PropertiesPanel';
-import { CatalogPanel } from '@/components/visualiser/designer/panels/CatalogPanel';
-import { LaminatePanel } from '@/components/visualiser/designer/panels/LaminatePanel';
-import { WallTabs } from '@/components/visualiser/designer/WallTabs';
 import { useDesignerStore } from '@/store/designerStore';
-import { 
-  loadCatalogFromSampleData, 
-  refreshCatalogFromGoogleSheets,
-  isGoogleSheetsConfigured 
-} from '@/lib/visualiser/catalogParser';
-import { REFRESH_INTERVAL_MS } from '@/lib/visualiser/googleSheetsService';
-import { useDesignerShortcuts } from '@/hooks/useDesignerShortcuts';
 import {
   readAndClearArUcoPayload,
   getPayloadFromUrl,
@@ -23,11 +11,42 @@ import {
   ARUCO_DESIGN_DATA_PARAM,
 } from '@/lib/arucoDesignBridge';
 
-// Dynamically import Canvas3D to avoid SSR issues with Three.js
-const Canvas3D = dynamic(
-  () => import('@/components/visualiser/designer/Canvas3D').then((mod) => mod.Canvas3D),
+// Lazy-load heavy UI so the shell appears immediately and loads faster
+const Toolbar = dynamic(
+  () => import('@/components/visualiser/designer/Toolbar').then((m) => ({ default: m.Toolbar })),
+  { ssr: false, loading: () => <div className="h-12 bg-gray-100 animate-pulse" /> }
+);
+const WallTabs = dynamic(
+  () => import('@/components/visualiser/designer/WallTabs').then((m) => ({ default: m.WallTabs })),
+  { ssr: false, loading: () => <div className="h-10 bg-gray-50 border-b border-gray-200 animate-pulse" /> }
+);
+const CatalogPanel = dynamic(
+  () => import('@/components/visualiser/designer/panels/CatalogPanel').then((m) => ({ default: m.CatalogPanel })),
+  { ssr: false, loading: () => <div className="w-80 border-r border-gray-200 bg-gray-50 flex items-center justify-center p-4 text-gray-500 text-sm">Loading catalog…</div> }
+);
+const PropertiesPanel = dynamic(
+  () => import('@/components/visualiser/designer/panels/PropertiesPanel').then((m) => ({ default: m.PropertiesPanel })),
+  { ssr: false, loading: () => <div className="w-80 border-l border-gray-200 bg-gray-50 flex items-center justify-center p-4 text-gray-500 text-sm">Loading…</div> }
+);
+const LaminatePanel = dynamic(
+  () => import('@/components/visualiser/designer/panels/LaminatePanel').then((m) => ({ default: m.LaminatePanel })),
   { ssr: false }
 );
+
+// Dynamically import Canvas3D to avoid SSR and defer Three.js until needed
+const Canvas3D = dynamic(
+  () => import('@/components/visualiser/designer/Canvas3D').then((mod) => mod.Canvas3D),
+  { ssr: false, loading: () => <div className="absolute inset-0 flex items-center justify-center bg-gray-100"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500" /></div> }
+);
+
+// Defer catalog/Google Sheets so first paint is not blocked
+const getCatalogLoader = () => import('@/lib/visualiser/catalogParser').then((m) => ({
+  loadCatalogFromSampleData: m.loadCatalogFromSampleData,
+  refreshCatalogFromGoogleSheets: m.refreshCatalogFromGoogleSheets,
+  isGoogleSheetsConfigured: m.isGoogleSheetsConfigured,
+}));
+const getGoogleSheetsConfig = () => import('@/lib/visualiser/googleSheetsService').then((m) => m.REFRESH_INTERVAL_MS);
+import { useDesignerShortcuts } from '@/hooks/useDesignerShortcuts';
 
 export default function DesignerPage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -66,16 +85,15 @@ export default function DesignerPage() {
     plywoodLibrary,
   } = useDesignerStore();
 
-  // Load catalog data function
+  // Load catalog data (uses dynamic import so first paint is not blocked)
   const loadCatalog = useCallback(async (isRefresh = false) => {
     try {
       if (isRefresh) {
         setIsRefreshingCatalog(true);
       }
-      
-      // Load from Google Sheets (if configured) or CSV files
+      const { loadCatalogFromSampleData } = await getCatalogLoader();
       const catalogData = await loadCatalogFromSampleData();
-      
+
       if (catalogData.models.length > 0 || catalogData.laminateOptions.length > 0) {
         setCatalogModels(catalogData.models);
         setCatalogBoxesWithPlanks(catalogData.catalogBoxesWithPlanks);
@@ -90,7 +108,6 @@ export default function DesignerPage() {
       } else {
         console.warn('[Designer] No catalog data loaded');
       }
-      
       setCatalogLoaded(true);
     } catch (error) {
       console.error('[Designer] Error loading catalog:', error);
@@ -155,21 +172,25 @@ export default function DesignerPage() {
     cleanArUcoParams();
   }, [searchParams, clearDesign, addWall, setActiveWall]);
 
-  // Auto-refresh from Google Sheets every 5 minutes
+  // Auto-refresh from Google Sheets (uses dynamic import)
+  const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
-    // Only set up refresh if Google Sheets is configured
-    if (!isGoogleSheetsConfigured()) {
-      console.log('[Designer] Google Sheets not configured, skipping auto-refresh');
-      return;
-    }
-    
-    console.log(`[Designer] Setting up auto-refresh every ${REFRESH_INTERVAL_MS / 1000 / 60} minutes`);
-    
-    const refreshTimer = setInterval(async () => {
-      console.log('[Designer] Auto-refreshing catalog from Google Sheets...');
-      const newData = await refreshCatalogFromGoogleSheets();
-      
-      if (newData) {
+    let cancelled = false;
+    (async () => {
+      const [{ isGoogleSheetsConfigured, refreshCatalogFromGoogleSheets }, REFRESH_INTERVAL_MS] = await Promise.all([
+        getCatalogLoader(),
+        getGoogleSheetsConfig(),
+      ]);
+      if (!isGoogleSheetsConfigured() || cancelled) {
+        if (!cancelled) console.log('[Designer] Google Sheets not configured, skipping auto-refresh');
+        return;
+      }
+      console.log(`[Designer] Setting up auto-refresh every ${REFRESH_INTERVAL_MS / 1000 / 60} minutes`);
+      refreshIntervalRef.current = setInterval(async () => {
+        if (cancelled) return;
+        console.log('[Designer] Auto-refreshing catalog from Google Sheets...');
+        const newData = await refreshCatalogFromGoogleSheets();
+        if (cancelled || !newData) return;
         setCatalogModels(newData.models);
         setCatalogBoxesWithPlanks(newData.catalogBoxesWithPlanks);
         setPlywoodLibrary(newData.plywoodOptions);
@@ -177,10 +198,15 @@ export default function DesignerPage() {
         setLastCatalogRefresh(new Date().toISOString());
         setCatalogSource('google-sheets');
         console.log(`[Designer] Auto-refresh complete: ${newData.models.length} models`);
+      }, REFRESH_INTERVAL_MS);
+    })();
+    return () => {
+      cancelled = true;
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
       }
-    }, REFRESH_INTERVAL_MS);
-    
-    return () => clearInterval(refreshTimer);
+    };
   }, [setCatalogModels, setCatalogBoxesWithPlanks, setPlywoodLibrary, setLaminateLibrary, setLastCatalogRefresh]);
 
   // Wall management handlers
@@ -233,20 +259,9 @@ export default function DesignerPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty]);
 
-  if (isLoading) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-900 text-lg">Loading Designer...</p>
-          <p className="text-gray-500 text-sm mt-2">Preparing catalog and tools</p>
-        </div>
-      </div>
-    );
-  }
-
+  // Shell always visible; loading state only in content area so page feels faster
   return (
-    <div className="h-screen w-screen flex flex-col bg-gray-50 overflow-hidden">
+    <div className="h-screen w-full flex flex-col bg-gray-50 overflow-hidden">
       {/* Toolbar */}
       <Toolbar
         leftPanelOpen={leftPanelOpen}
@@ -274,16 +289,27 @@ export default function DesignerPage() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel - Catalog */}
+        {/* Left Panel - Catalog (show loading until catalog ready) */}
         {leftPanelOpen && (
           <div className="w-80 border-r border-gray-200 bg-white overflow-hidden flex flex-col">
-            <CatalogPanel />
+            {catalogLoaded ? <CatalogPanel /> : (
+              <div className="flex-1 flex items-center justify-center p-4 text-gray-500 text-sm">
+                <span className="animate-pulse">Loading catalog…</span>
+              </div>
+            )}
           </div>
         )}
 
-        {/* 3D Canvas */}
+        {/* 3D Canvas (only mount when catalog loaded to avoid empty scene) */}
         <div className="flex-1 relative">
-          <Canvas3D />
+          {catalogLoaded ? <Canvas3D /> : (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500 mx-auto mb-3" />
+                <p className="text-gray-600 text-sm">Preparing catalog and 3D view…</p>
+              </div>
+            </div>
+          )}
           
           {/* Project Name & Status Overlay */}
           <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg px-4 py-2 border border-gray-200 shadow-sm">

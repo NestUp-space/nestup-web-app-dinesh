@@ -1,0 +1,3777 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Cutlist Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 300;
+            white-space: nowrap;
+        }
+
+        .header-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .toolbar-row {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .header button {
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: 500;
+            background-color: #fff;
+            color: #667eea;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .header button:hover {
+            background-color: #f0f2ff;
+            border-color: #c4c9f7;
+        }
+
+        .header button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .header button.danger {
+            background-color: #ff6b6b;
+            color: #fff;
+            border-color: #ff5252;
+        }
+
+        .header button.danger:hover {
+            background-color: #ff5252;
+        }
+
+        .header button.success {
+            background-color: #4caf50;
+            color: #fff;
+            border-color: #45a049;
+        }
+
+        .header button.success:hover {
+            background-color: #45a049;
+        }
+
+        #unsavedBadge {
+            display: none;
+            background: #ff6b6b;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+
+        #unsavedBadge.active {
+            display: inline-block;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .stats {
+            display: flex;
+            gap: 25px;
+            font-size: 13px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            display: block;
+        }
+
+        .main-container {
+            display: flex;
+            height: calc(100vh - 70px);
+        }
+
+        .sidebar {
+            width: 280px;
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #555;
+            font-size: 13px;
+        }
+
+        .control-group select,
+        .control-group input {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .control-group input[type="range"] {
+            padding: 0;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .edit-controls {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 20px;
+        }
+
+        .edit-controls h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .edit-btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .edit-btn {
+            padding: 6px 10px;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            background: white;
+            transition: all 0.2s;
+        }
+
+        .edit-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .edit-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .edit-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .selected-info {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            display: none;
+        }
+
+        .selected-info.active {
+            display: block;
+        }
+
+        .selected-info h4 {
+            margin-bottom: 6px;
+            color: #1976d2;
+        }
+
+        .materials-legend h3,
+        .sheets-utilization h3 {
+            margin-bottom: 12px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .material-item,
+        .sheet-item {
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .material-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .material-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+        }
+
+        .material-info {
+            flex: 1;
+        }
+
+        .material-name {
+            font-weight: 500;
+            font-size: 12px;
+        }
+
+        .material-count {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .sheet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .sheet-number {
+            font-weight: 500;
+            font-size: 12px;
+        }
+
+        .sheet-utilization {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .utilization-bar {
+            height: 5px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .utilization-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+        }
+
+        .visualization-area {
+            flex: 1;
+            min-height: 0;
+            padding: 15px;
+            overflow: auto;
+            background: #fafafa;
+            overflow-x: auto;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .visualization-area.panning {
+            cursor: grabbing !important;
+            user-select: none;
+        }
+
+        .visualization-area.pan-enabled {
+            cursor: grab;
+        }
+
+        .visualization-content {
+            display: inline-block;
+            min-width: 100%;
+        }
+
+        .sheet-container {
+            margin-bottom: 30px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow: visible;
+            display: inline-block;
+            min-width: fit-content;
+        }
+
+        .sheet-header-viz {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .sheet-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .sheet-info {
+            font-size: 13px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .sheet-canvas {
+            position: relative;
+            margin: 15px;
+            border: 2px solid #333;
+            background: #fff;
+            border-radius: 4px;
+            transform-origin: top left;
+        }
+
+        .plank {
+            position: absolute;
+            border: 2px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: #333;
+            cursor: grab;
+            transition: box-shadow 0.2s ease, border-color 0.2s;
+            flex-direction: column;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        .plank:hover {
+            z-index: 10;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .plank.selected {
+            border-color: #ff6b6b;
+            border-width: 3px;
+            z-index: 20;
+            box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.3);
+        }
+
+        .plank.dragging {
+            cursor: grabbing;
+            opacity: 0.8;
+            z-index: 100;
+        }
+
+        .plank.collision {
+            border-color: #f44336 !important;
+            background-color: rgba(244, 67, 54, 0.3) !important;
+        }
+
+        .plank.out-of-bounds {
+            border-color: #ff9800 !important;
+            border-style: dashed !important;
+            box-shadow: 0 0 8px rgba(255, 152, 0, 0.5);
+        }
+
+        .plank-id {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-size: 9px;
+            z-index: 20;
+            position: relative;
+        }
+
+        .plank-dimensions {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-size: 8px;
+            z-index: 20;
+            position: relative;
+            margin-top: 2px;
+        }
+
+        .hole {
+            position: absolute;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .hole-circular {
+            border-radius: 50%;
+        }
+
+        .hole-rectangular {
+            border-radius: 2px;
+        }
+
+        .hole-standard {
+            background-color: rgba(0, 0, 0, 0.7);
+            border: 1px solid #000;
+        }
+
+        .hole-vb {
+            background-color: transparent;
+            border: 2px dashed #FF0000;
+        }
+
+        .hole-groove {
+            background-color: rgba(255, 165, 0, 0.5);
+            border: 2px solid #FF8C00;
+        }
+
+        .hole-profile {
+            background-color: rgba(0, 150, 255, 0.5);
+            border: 2px solid #0066CC;
+        }
+
+        .hole-slot {
+            background-color: rgba(0, 200, 100, 0.5);
+            border: 2px solid #00AA55;
+        }
+
+        .hole-dowel {
+            background-color: rgba(0, 100, 255, 0.7);
+            border: 1px solid #0064FF;
+        }
+
+        .hole-screw {
+            background-color: rgba(128, 0, 128, 0.7);
+            border: 1px solid #800080;
+        }
+
+        .l-cut-shape {
+            position: absolute;
+            pointer-events: none;
+            z-index: 6;
+        }
+
+        .l-cut-line {
+            position: absolute;
+            background-color: #E91E63;
+            height: 2px;
+            transform-origin: left center;
+            z-index: 6;
+        }
+
+        /* ══════════════════════════════════════════════════════════════════════════
+           COLOR-CODED PATH VISUALIZATION (For CNC Verification)
+           ══════════════════════════════════════════════════════════════════════════
+           Start Point  = GREEN  (#4CAF50) - Tool entry
+           Center Point = YELLOW (#FFC107) - Corner/turn
+           End Point    = RED    (#F44336) - Tool exit
+           
+           Operators can visually verify correct path direction at a glance.
+           ══════════════════════════════════════════════════════════════════════════ */
+        .l-cut-point,
+        .gola-point {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            z-index: 8;
+            border: 1px solid white;
+            box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .l-cut-point.start,
+        .gola-point.start {
+            background-color: #4CAF50;
+            /* GREEN - Entry */
+        }
+
+        .l-cut-point.center,
+        .gola-point.center {
+            background-color: #FFC107;
+            /* YELLOW - Corner */
+        }
+
+        .l-cut-point.end,
+        .gola-point.end {
+            background-color: #F44336;
+            /* RED - Exit */
+        }
+
+        /* Path direction indicator legend */
+        .path-legend {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 8px;
+            color: white;
+            z-index: 10;
+        }
+
+        .path-legend-item {
+            display: inline-flex;
+            align-items: center;
+            margin-right: 6px;
+        }
+
+        .path-legend-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 2px;
+        }
+
+        .path-legend-dot.start {
+            background: #4CAF50;
+        }
+
+        .path-legend-dot.center {
+            background: #FFC107;
+        }
+
+        .path-legend-dot.end {
+            background: #F44336;
+        }
+
+        .l-cut-point {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: #E91E63;
+            border: 1px solid #AD1457;
+            z-index: 7;
+        }
+
+        .l-cut-point.start {
+            background-color: #4CAF50;
+            border-color: #2E7D32;
+        }
+
+        .l-cut-point.center {
+            background-color: #FF9800;
+            border-color: #E65100;
+        }
+
+        .l-cut-point.end {
+            background-color: #F44336;
+            border-color: #C62828;
+        }
+
+        /* Gola Profile styles - similar to L-cuts but purple color */
+        .gola-profile-shape {
+            position: absolute;
+            left: 0;
+            top: 0;
+            pointer-events: none;
+            z-index: 6;
+        }
+
+        .gola-point {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: #9C27B0;
+            border: 1px solid #6A1B9A;
+            z-index: 7;
+        }
+
+        .gola-point.start {
+            background-color: #4CAF50;
+            border-color: #2E7D32;
+        }
+
+        .gola-point.center {
+            background-color: #FF9800;
+            border-color: #E65100;
+        }
+
+        .gola-point.end {
+            background-color: #F44336;
+            border-color: #C62828;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            pointer-events: auto;
+            z-index: 1000;
+            max-width: 320px;
+            max-height: 350px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            border: 1px solid #555;
+        }
+
+        .tooltip h4 {
+            margin: 0 0 8px 0;
+            color: #4ECDC4;
+            font-size: 14px;
+        }
+
+        .tooltip .plank-info {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #555;
+        }
+
+        .tooltip .hole-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 0;
+            border-bottom: 1px solid #333;
+            font-size: 11px;
+        }
+
+        .tooltip .hole-item:last-child {
+            border-bottom: none;
+        }
+
+        .hole-type-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        /* Drop target highlighting */
+        .sheet-canvas.drop-target {
+            border: 3px dashed #4CAF50 !important;
+            background: rgba(76, 175, 80, 0.1) !important;
+        }
+
+        .sheet-canvas.drop-invalid {
+            border: 3px dashed #f44336 !important;
+            background: rgba(244, 67, 54, 0.1) !important;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 10px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 18px;
+        }
+
+        .modal p {
+            margin-bottom: 12px;
+            color: #555;
+            line-height: 1.5;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .modal-btn.primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .modal-btn.danger {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .modal-btn.secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .modal-btn:hover {
+            filter: brightness(1.1);
+        }
+
+        .hole-legend {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 10px;
+        }
+
+        .hole-legend h4 {
+            margin-bottom: 6px;
+            color: #333;
+            font-size: 12px;
+        }
+
+        .hole-legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 3px;
+        }
+
+        .hole-legend-color {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+            border: 1px solid #ddd;
+        }
+
+        .hole-type-vb {
+            background-color: #FF0000;
+        }
+
+        .hole-type-screw {
+            background-color: #800080;
+        }
+
+        .hole-type-groove {
+            background-color: #FF8C00;
+        }
+
+        .hole-type-profile {
+            background-color: #0066CC;
+        }
+
+        .hole-type-slot {
+            background-color: #00AA55;
+        }
+
+        .hole-type-dowel {
+            background-color: #0064FF;
+        }
+
+        /* VB Point Marker - Small fixed-size dot at exact center position */
+        .hole-vb-point {
+            border-radius: 50%;
+            background-color: #FF0000;
+            border: 2px solid white;
+            box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+        }
+
+        .hole-type-standard {
+            background-color: #000000;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 50px 20px;
+            color: #666;
+        }
+
+        .no-data h3 {
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+                max-height: 180px;
+            }
+
+            .visualization-area {
+                height: calc(100vh - 250px);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>Cutlist Editor</h1>
+
+        <div class="header-buttons">
+            <div class="toolbar-row">
+                <span id="unsavedBadge">Unsaved Changes</span>
+                <button id="undoBtn" title="Undo (Ctrl+Z)">Undo</button>
+                <button id="redoBtn" title="Redo (Ctrl+Y)">Redo</button>
+                <button id="saveBtn" class="success" title="Save changes to Nest Result" disabled>Save</button>
+            </div>
+            <div class="toolbar-row">
+                <button id="downloadPdfBtn" title="Download current sheet PDF">PDF</button>
+                <button id="downloadAllPdfBtn" title="Download all sheets PDF">All PDF</button>
+                <button id="pressingMapBtn" title="Generate Pressing Map PDF">Press Map</button>
+                <button id="printLabelsBtn" title="Print labels">Print Labels</button>
+                <button id="viewLabelsBtn" title="View labels">View Labels</button>
+                <button id="downloadCsvBtn" title="Download CSV">CSV</button>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-value" id="totalPlanks">0</span>
+                <span>Planks</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="totalSheets">0</span>
+                <span>Sheets</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="overallUtilization">0%</span>
+                <span>Utilization</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="selected-info" id="selectedInfo">
+                <h4>Selected: <span id="selectedId">-</span></h4>
+                <div>Material: <span id="selectedMaterial">-</span></div>
+                <div>Size: <span id="selectedSize">-</span></div>
+                <div>Position: <span id="selectedPos">-</span></div>
+            </div>
+
+            <div class="edit-controls">
+                <h3>Edit Tools</h3>
+                <div class="edit-btn-group">
+                    <button class="edit-btn" id="rotateBtn" disabled title="Rotate 90 degrees clockwise">Rotate
+                        90</button>
+                    <button class="edit-btn" id="flipHBtn" disabled title="Flip horizontally">Flip H</button>
+                    <button class="edit-btn" id="flipVBtn" disabled title="Flip vertically">Flip V</button>
+                </div>
+                <div class="control-group">
+                    <label for="moveToSheet">Move to Sheet:</label>
+                    <select id="moveToSheet" disabled>
+                        <option value="">Select sheet...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label for="sheetSelect">View Sheet:</label>
+                    <select id="sheetSelect">
+                        <option value="all">All Sheets</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Zoom: <span id="zoomValue">50%</span></label>
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <button class="edit-btn" id="zoomOutBtn" title="Zoom Out">−</button>
+                        <input type="range" id="zoomSlider" min="10" max="200" value="50" style="flex: 1;">
+                        <button class="edit-btn" id="zoomInBtn" title="Zoom In">+</button>
+                    </div>
+                    <div style="display: flex; gap: 5px; margin-top: 5px;">
+                        <button class="edit-btn" id="zoomFitBtn" style="flex: 1; font-size: 10px;">Fit</button>
+                        <button class="edit-btn" id="zoom100Btn" style="flex: 1; font-size: 10px;">100%</button>
+                    </div>
+                    <div style="font-size: 10px; color: #888; margin-top: 6px; line-height: 1.4;">
+                        <strong>Tips:</strong><br>
+                        • Ctrl+Scroll = Zoom<br>
+                        • Shift+Drag = Pan<br>
+                        • Middle-click+Drag = Pan
+                    </div>
+                </div>
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="showIds" checked>
+                        <label for="showIds">Show IDs</label>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="showDimensions">
+                        <label for="showDimensions">Show Dimensions</label>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="showHoles" checked>
+                        <label for="showHoles">Show Holes</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hole-legend">
+                <h4>Feature Types:</h4>
+                <div class="hole-legend-item">
+                    <div class="hole-legend-color hole-type-screw"></div><span>Screw (4mm)</span>
+                </div>
+                <div class="hole-legend-item">
+                    <div class="hole-legend-color hole-type-vb"
+                        style="border: 2px solid white; box-shadow: 0 0 2px rgba(0,0,0,0.5);"></div><span>VB Main/Double
+                        (point at center)</span>
+                </div>
+                <div class="hole-legend-item">
+                    <div class="hole-legend-color hole-type-dowel"></div><span>Dowel (5mm)</span>
+                </div>
+                <div class="hole-legend-item">
+                    <div class="hole-legend-color hole-type-groove"></div><span>Grooves</span>
+                </div>
+            </div>
+
+            <div class="materials-legend">
+                <h3>Materials</h3>
+                <div id="materialsList"></div>
+            </div>
+
+            <div class="sheets-utilization">
+                <h3>Sheet Utilization</h3>
+                <div id="sheetsList"></div>
+            </div>
+        </div>
+
+        <div class="visualization-area" id="visualizationArea">
+            <div class="no-data">
+                <h3>Loading...</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip" style="display: none;"></div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <h3 id="modalTitle">Title</h3>
+            <div id="modalContent"></div>
+            <div class="modal-buttons" id="modalButtons"></div>
+        </div>
+    </div>
+
+    <script type="application/json" id="cutlist-init-data"><?!= data ?></script>
+    <script>
+        // ==================== GLOBAL STATE ====================
+        let allSheetLayouts = {};
+        let sheetConstants = { SHEET_WIDTH: 1220, SHEET_HEIGHT: 2440, SPACING: 10 };
+        let sheetWidth = 1220;
+        let sheetHeight = 2440;
+        let currentZoom = 0.5;
+        let selectedSheet = 'all';
+        let showIds = true;
+        let showDimensions = false;
+        let showHoles = true;
+        let spreadsheetName = '';
+        let customerName = '';
+        let firmName = '';
+
+        // Editor State
+        let selectedPlank = null;
+        let selectedPlankSheetNum = null;
+        let hasUnsavedChanges = false;
+        let modifications = [];
+        let historyStack = [];
+        let historyIndex = -1;
+
+        // Drag State
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let dragPlankStartX = 0;
+        let dragPlankStartY = 0;
+        let currentDragElement = null;
+        let dragSourceSheet = null;
+        let dropTargetSheet = null;
+
+        const ARROW_STEP = 5; // 5mm per arrow key press
+
+        // --- NEW: Zoom and navigation feature flags ---
+        const ENABLE_ZOOM_TO_CURSOR = true;
+        const ENABLE_KEYBOARD_ZOOM = true;
+        const ENABLE_DOUBLE_CLICK_FOCUS = true;
+        const ENABLE_ZOOM_TO_SELECTION = true;
+        // --- END ---
+
+        // ==================== UTILITY FUNCTIONS ====================
+
+        /**
+         * ════════════════════════════════════════════════════════════════════════════
+         * AUTHORITATIVE TRIPLET TRANSFORM (L-cuts, Gola profiles)
+         * ════════════════════════════════════════════════════════════════════════════
+         * 
+         * L-cuts and Gola cuts are ORDERED CNC TOOLPATHS: start → center → end
+         * This defines: tool entry point → corner → exit point
+         * 
+         * ROTATION: ALLOWED
+         *   All three points rotate together, preserving path geometry.
+         *   Formula (90° clockwise): (x, y) → (y, originalWidth - x)
+         * 
+         * MIRRORING: FORBIDDEN
+         *   The flipPlank() function blocks mirroring for planks with L-cuts/Gola.
+         *   flipH/flipV are included for legacy but should NEVER be used for paths.
+         * 
+         * @param {Object} triplet - { start: {x,y}, center: {x,y}, end: {x,y} }
+         * @param {string} transformType - 'rotate90cw' (allowed), 'flipH'/'flipV' (blocked)
+         * @param {number} plankWidth - Current plank width (BEFORE transform)
+         * @param {number} plankHeight - Current plank height (BEFORE transform)
+         * @returns {Object} - Transformed triplet with same structure
+         * ════════════════════════════════════════════════════════════════════════════
+         */
+        function transformTriplet(triplet, transformType, plankWidth, plankHeight) {
+            // Validate triplet structure
+            if (!triplet || !triplet.start || !triplet.center || !triplet.end) {
+                console.error('CNC ERROR: Invalid triplet structure', triplet);
+                return triplet;
+            }
+
+            // Helper to transform a single point
+            const transformPoint = (point) => {
+                switch (transformType) {
+                    case 'rotate90cw':
+                        // ════════════════════════════════════════════════════════
+                        // 90° CLOCKWISE ROTATION (CORRECT FORMULA)
+                        // Xnew = Yold
+                        // Ynew = originalWidth - Xold
+                        // ════════════════════════════════════════════════════════
+                        return { x: point.y, y: plankWidth - point.x };
+                    case 'flipH':
+                        // Horizontal mirror - WARNING: Should be blocked for paths
+                        console.warn('CNC WARNING: Horizontal flip attempted on path-based operation');
+                        return { x: plankWidth - point.x, y: point.y };
+                    case 'flipV':
+                        // Vertical mirror - WARNING: Should be blocked for paths
+                        console.warn('CNC WARNING: Vertical flip attempted on path-based operation');
+                        return { x: point.x, y: plankHeight - point.y };
+                    default:
+                        return { ...point };
+                }
+            };
+
+            // Apply the SAME transform to all three points (preserves path order)
+            return {
+                start: transformPoint(triplet.start),
+                center: transformPoint(triplet.center),
+                end: transformPoint(triplet.end)
+            };
+        }
+
+        function sanitizeFilename(name) {
+            // Remove or replace invalid filename characters: / \ : * ? " < > |
+            return String(name || 'Cutlist')
+                .replace(/[\/\\:*?"<>|]/g, '_')
+                .replace(/\s+/g, '_')
+                .substring(0, 100); // Limit length
+        }
+
+        // Use blob + direct open/download; data URIs and iframe blob URLs fail for large PDFs in GAS sandbox
+        function downloadPdfInSandbox(doc, fileName) {
+            try {
+                const blob = doc.output('blob');
+                const blobUrl = URL.createObjectURL(blob);
+
+                const newWindow = window.open(blobUrl, '_blank');
+
+                if (!newWindow) {
+                    // Popup blocked — fall back to direct download
+                    const link = document.createElement('a');
+                    link.href = blobUrl;
+                    link.download = fileName;
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    setTimeout(() => {
+                        if (link.parentNode) document.body.removeChild(link);
+                        URL.revokeObjectURL(blobUrl);
+                    }, 5000);
+                } else {
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
+                }
+
+                console.log('PDF opened/downloaded:', fileName);
+            } catch (error) {
+                console.error('downloadPdfInSandbox:', error);
+                try {
+                    doc.save(fileName);
+                } catch (e2) {
+                    console.error('Fallback save failed:', e2);
+                    alert('Could not download PDF. Try right-click and "Save As" if a tab opened.');
+                }
+            }
+        }
+
+        function getCleanMaterial(rawMaterial) {
+            return String(rawMaterial || '')
+                .replace(/\s*\([^)]+\)/g, '')
+                .replace(/-\s*\d+mm/gi, '')
+                .trim();
+        }
+
+        // Focus on a specific sheet - scroll it into view
+        function focusOnSheet(sheetNum) {
+            const sheetContainer = document.getElementById(`sheet-container-${sheetNum}`);
+            if (sheetContainer) {
+                sheetContainer.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start',
+                    inline: 'start'
+                });
+
+                // Optional: briefly highlight the sheet
+                sheetContainer.style.outline = '3px solid #667eea';
+                sheetContainer.style.outlineOffset = '5px';
+                setTimeout(() => {
+                    sheetContainer.style.outline = 'none';
+                    sheetContainer.style.outlineOffset = '0';
+                }, 1500);
+            }
+        }
+
+        function getRelativeSheetMap() {
+            const map = {};
+            const materialCounters = {};
+            const sortedIds = Object.keys(allSheetLayouts).sort((a, b) => parseInt(a) - parseInt(b));
+
+            sortedIds.forEach(realId => {
+                const planks = allSheetLayouts[realId];
+                if (!planks || planks.length === 0) return;
+
+                let matName = getCleanMaterial(planks[0].material);
+                const thickness = planks[0].thickness;
+                const groupKey = `${matName}_${thickness}`;
+
+                if (!materialCounters[groupKey]) materialCounters[groupKey] = 0;
+                materialCounters[groupKey]++;
+                map[realId] = { displayNum: materialCounters[groupKey], material: matName, thickness };
+            });
+            return map;
+        }
+
+        function findPlankById(plankId) {
+            for (const sheetNum in allSheetLayouts) {
+                const idx = allSheetLayouts[sheetNum].findIndex(p => p.id === plankId);
+                if (idx !== -1) return { plank: allSheetLayouts[sheetNum][idx], sheetNum: parseInt(sheetNum), index: idx };
+            }
+            return null;
+        }
+
+        function getHoleClass(hole) {
+            const desc = (hole.description || hole.type || '').toLowerCase();
+            if (desc.includes('vb')) return 'hole-vb';
+            if (desc.includes('screw')) return 'hole-screw';
+            if (desc.includes('dowel')) return 'hole-dowel';
+            if (desc.includes('groove')) return 'hole-groove';
+            if (desc.includes('profile')) return 'hole-profile';
+            if (desc.includes('slot')) return 'hole-slot';
+            return 'hole-standard';
+        }
+
+        // ==================== MODAL FUNCTIONS ====================
+
+        function showModal(title, content, buttons) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalContent').innerHTML = content;
+
+            const btnContainer = document.getElementById('modalButtons');
+            btnContainer.innerHTML = '';
+            buttons.forEach(btn => {
+                const button = document.createElement('button');
+                button.className = `modal-btn ${btn.class || 'secondary'}`;
+                button.textContent = btn.text;
+                button.onclick = btn.action;
+                btnContainer.appendChild(button);
+            });
+
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        function hideModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+        }
+
+        // ==================== HISTORY / UNDO-REDO ====================
+
+        function saveToHistory() {
+            const state = JSON.parse(JSON.stringify(allSheetLayouts));
+            historyStack = historyStack.slice(0, historyIndex + 1);
+            historyStack.push(state);
+            historyIndex = historyStack.length - 1;
+
+            if (historyStack.length > 50) {
+                historyStack.shift();
+                historyIndex--;
+            }
+
+            updateUndoRedoButtons();
+        }
+
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                allSheetLayouts = JSON.parse(JSON.stringify(historyStack[historyIndex]));
+                renderVisualization();
+                markUnsaved();
+            }
+            updateUndoRedoButtons();
+        }
+
+        function redo() {
+            if (historyIndex < historyStack.length - 1) {
+                historyIndex++;
+                allSheetLayouts = JSON.parse(JSON.stringify(historyStack[historyIndex]));
+                renderVisualization();
+                markUnsaved();
+            }
+            updateUndoRedoButtons();
+        }
+
+        function updateUndoRedoButtons() {
+            document.getElementById('undoBtn').disabled = historyIndex <= 0;
+            document.getElementById('redoBtn').disabled = historyIndex >= historyStack.length - 1;
+        }
+
+        // ==================== CHANGE TRACKING ====================
+
+        function markUnsaved() {
+            hasUnsavedChanges = true;
+            document.getElementById('unsavedBadge').classList.add('active');
+            document.getElementById('saveBtn').disabled = false;
+        }
+
+        function markSaved() {
+            hasUnsavedChanges = false;
+            modifications = [];
+            document.getElementById('unsavedBadge').classList.remove('active');
+            document.getElementById('saveBtn').disabled = true;
+        }
+
+        // ==================== VALIDATION ====================
+
+        function validateCrossSheetMove(plank, targetSheetNum) {
+            const targetPlanks = allSheetLayouts[targetSheetNum];
+            if (!targetPlanks || targetPlanks.length === 0) {
+                return { valid: true };
+            }
+
+            const sourceThickness = plank.thickness;
+            const targetThickness = targetPlanks[0].thickness;
+
+            if (sourceThickness !== targetThickness) {
+                return {
+                    valid: false,
+                    blocked: true,
+                    message: `<p>Cannot mix different thicknesses on one sheet.</p>
+                              <p><strong>Source:</strong> ${sourceThickness}mm</p>
+                              <p><strong>Target:</strong> ${targetThickness}mm</p>
+                              <p style="margin-top:10px;color:#666;">CNC machine requires uniform thickness per sheet.</p>`
+                };
+            }
+
+            const sourceMat = getCleanMaterial(plank.material);
+            const targetMat = getCleanMaterial(targetPlanks[0].material);
+
+            if (sourceMat !== targetMat) {
+                return {
+                    valid: true,
+                    warning: true,
+                    message: `<p>You are mixing different laminates:</p>
+                              <ul style="margin:10px 0;padding-left:20px;">
+                                <li>${sourceMat}</li>
+                                <li>${targetMat}</li>
+                              </ul>
+                              <p>This requires <strong>partial pressing</strong>. Continue?</p>`
+                };
+            }
+
+            return { valid: true };
+        }
+
+        function checkCollisionWithSpacing(p1, p2, spacing) {
+            return !(
+                p1.x + p1.width + spacing <= p2.x ||
+                p2.x + p2.width + spacing <= p1.x ||
+                p1.y + p1.height + spacing <= p2.y ||
+                p2.y + p2.height + spacing <= p1.y
+            );
+        }
+
+        function validateBeforeSave() {
+            const errors = [];
+            const spacing = sheetConstants.SPACING || 10;
+            const margin = 10;
+
+            Object.keys(allSheetLayouts).forEach(sheetNum => {
+                const planks = allSheetLayouts[sheetNum];
+
+                planks.forEach(p => {
+                    if (p.x < margin) {
+                        errors.push({ sheet: sheetNum, plank: p.id, type: 'bounds', msg: `too close to LEFT edge (${p.x.toFixed(1)}mm)` });
+                    }
+                    if (p.y < margin) {
+                        errors.push({ sheet: sheetNum, plank: p.id, type: 'bounds', msg: `too close to BOTTOM edge (${p.y.toFixed(1)}mm)` });
+                    }
+                    if (p.x + p.width > sheetWidth - margin) {
+                        errors.push({ sheet: sheetNum, plank: p.id, type: 'bounds', msg: `exceeds RIGHT edge` });
+                    }
+                    if (p.y + p.height > sheetHeight - margin) {
+                        errors.push({ sheet: sheetNum, plank: p.id, type: 'bounds', msg: `exceeds TOP edge` });
+                    }
+                });
+
+                for (let i = 0; i < planks.length; i++) {
+                    for (let j = i + 1; j < planks.length; j++) {
+                        if (checkCollisionWithSpacing(planks[i], planks[j], spacing)) {
+                            errors.push({
+                                sheet: sheetNum,
+                                plank: `${planks[i].id} & ${planks[j].id}`,
+                                type: 'collision',
+                                msg: `overlap or insufficient spacing`
+                            });
+                        }
+                    }
+                }
+            });
+
+            if (errors.length > 0) {
+                let html = '<div style="max-height:250px;overflow-y:auto;">';
+                errors.forEach(e => {
+                    html += `<div style="padding:5px;border-bottom:1px solid #eee;">
+                        <strong>Sheet ${e.sheet}, ${e.plank}:</strong> ${e.msg}
+                    </div>`;
+                });
+                html += '</div>';
+
+                showModal('Cannot Save - Validation Errors',
+                    `<p>Fix these issues before saving:</p>${html}`,
+                    [{ text: 'OK', class: 'primary', action: hideModal }]);
+                return false;
+            }
+
+            return true;
+        }
+
+        function updateCollisionHighlights() {
+            document.querySelectorAll('.plank').forEach(el => {
+                el.classList.remove('collision', 'out-of-bounds');
+            });
+
+            const margin = 10;
+            const spacing = sheetConstants.SPACING || 10;
+
+            Object.keys(allSheetLayouts).forEach(sheetNum => {
+                const planks = allSheetLayouts[sheetNum];
+
+                planks.forEach(p => {
+                    const isOutOfBounds = p.x < margin || p.y < margin ||
+                        p.x + p.width > sheetWidth - margin ||
+                        p.y + p.height > sheetHeight - margin;
+                    if (isOutOfBounds) {
+                        document.querySelector(`.plank[data-plank-id="${p.id}"]`)?.classList.add('out-of-bounds');
+                    }
+                });
+
+                for (let i = 0; i < planks.length; i++) {
+                    for (let j = i + 1; j < planks.length; j++) {
+                        if (checkCollisionWithSpacing(planks[i], planks[j], spacing)) {
+                            document.querySelector(`.plank[data-plank-id="${planks[i].id}"]`)?.classList.add('collision');
+                            document.querySelector(`.plank[data-plank-id="${planks[j].id}"]`)?.classList.add('collision');
+                        }
+                    }
+                }
+            });
+        }
+
+        // ==================== PLANK SELECTION ====================
+
+        function selectPlank(plankId) {
+            const result = findPlankById(plankId);
+            if (!result) return;
+
+            selectedPlank = result.plank;
+            selectedPlankSheetNum = result.sheetNum;
+
+            document.querySelectorAll('.plank.selected').forEach(el => el.classList.remove('selected'));
+            document.querySelector(`.plank[data-plank-id="${plankId}"]`)?.classList.add('selected');
+
+            document.getElementById('selectedInfo').classList.add('active');
+            document.getElementById('selectedId').textContent = selectedPlank.id;
+            document.getElementById('selectedMaterial').textContent = selectedPlank.material;
+            document.getElementById('selectedSize').textContent = `${selectedPlank.width} x ${selectedPlank.height}mm`;
+            document.getElementById('selectedPos').textContent = `X:${selectedPlank.x.toFixed(1)} Y:${selectedPlank.y.toFixed(1)}`;
+
+            document.getElementById('rotateBtn').disabled = false;
+            document.getElementById('flipHBtn').disabled = false;
+            document.getElementById('flipVBtn').disabled = false;
+            document.getElementById('moveToSheet').disabled = false;
+
+            populateMoveToSheetDropdown();
+        }
+
+        function deselectPlank() {
+            selectedPlank = null;
+            selectedPlankSheetNum = null;
+
+            document.querySelectorAll('.plank.selected').forEach(el => el.classList.remove('selected'));
+            document.getElementById('selectedInfo').classList.remove('active');
+
+            document.getElementById('rotateBtn').disabled = true;
+            document.getElementById('flipHBtn').disabled = true;
+            document.getElementById('flipVBtn').disabled = true;
+            document.getElementById('moveToSheet').disabled = true;
+        }
+
+        function populateMoveToSheetDropdown() {
+            const dropdown = document.getElementById('moveToSheet');
+            dropdown.innerHTML = '<option value="">Select sheet...</option>';
+
+            const sheetMap = getRelativeSheetMap();
+            Object.keys(allSheetLayouts).sort((a, b) => a - b).forEach(sheetNum => {
+                if (parseInt(sheetNum) !== selectedPlankSheetNum) {
+                    const info = sheetMap[sheetNum];
+                    const option = document.createElement('option');
+                    option.value = sheetNum;
+                    option.textContent = `${info.material} ${info.thickness}mm - Sheet ${info.displayNum}`;
+                    dropdown.appendChild(option);
+                }
+            });
+
+            // Add "New Sheet" option
+            const newOption = document.createElement('option');
+            newOption.value = 'new';
+            newOption.textContent = '+ Create New Sheet';
+            dropdown.appendChild(newOption);
+        }
+
+        // ==================== PLANK OPERATIONS ====================
+
+        function rotatePlank() {
+            if (!selectedPlank) return;
+
+            const isGrainLocked = selectedPlank.grain === 'Y' || selectedPlank.grain === 'YES';
+
+            if (isGrainLocked) {
+                showModal('Grain Direction Warning',
+                    `<p>This plank (<strong>${selectedPlank.id}</strong>) is marked as <strong>grain-sensitive</strong>.</p>
+                     <p>Rotating may affect the visual appearance.</p>`,
+                    [
+                        { text: 'Rotate Anyway', class: 'danger', action: () => { executeRotation(); hideModal(); } },
+                        { text: 'Cancel', class: 'secondary', action: hideModal }
+                    ]
+                );
+                return;
+            }
+
+            executeRotation();
+        }
+
+        function executeRotation() {
+            if (!selectedPlank) return;
+
+            saveToHistory();
+
+            const oldWidth = selectedPlank.width;
+            const oldHeight = selectedPlank.height;
+
+            // Transform all holes (90 degree clockwise rotation)
+            // New X = old Y
+            // New Y = old plank width - old X - feature width
+            if (selectedPlank.holes && selectedPlank.holes.length > 0) {
+                selectedPlank.holes = selectedPlank.holes.map(hole => {
+                    const featureW = hole.isRectangular ? (hole.length || 10) : (hole.diameter || 5);
+                    const featureH = hole.isRectangular ? (hole.width || 5) : (hole.diameter || 5);
+
+                    const newX = hole.y;
+                    const newY = oldWidth - hole.x - featureW;
+
+                    const rotatedHole = { ...hole, x: newX, y: newY };
+
+                    // Swap length/width for rectangular holes
+                    if (hole.isRectangular) {
+                        rotatedHole.length = hole.width;
+                        rotatedHole.width = hole.length;
+                    }
+
+                    return rotatedHole;
+                });
+            }
+
+            // Transform L-cuts as WHOLE UNITS (90 degree clockwise rotation)
+            // All three points receive the same transform to preserve geometry
+            if (selectedPlank.l_cuts && selectedPlank.l_cuts.length > 0) {
+                selectedPlank.l_cuts = selectedPlank.l_cuts.map(lcut =>
+                    transformTriplet(lcut, 'rotate90cw', oldWidth, oldHeight)
+                );
+            }
+
+            // Transform Gola profiles as WHOLE UNITS (identical to L-cuts)
+            if (selectedPlank.gola_profiles && selectedPlank.gola_profiles.length > 0) {
+                selectedPlank.gola_profiles = selectedPlank.gola_profiles.map(gola =>
+                    transformTriplet(gola, 'rotate90cw', oldWidth, oldHeight)
+                );
+            }
+
+            // Swap plank dimensions
+            selectedPlank.width = oldHeight;
+            selectedPlank.height = oldWidth;
+            selectedPlank.rotated = !selectedPlank.rotated;
+
+            // Swap original dimensions too
+            if (selectedPlank.originalWidth !== undefined) {
+                const tempOrig = selectedPlank.originalWidth;
+                selectedPlank.originalWidth = selectedPlank.originalHeight;
+                selectedPlank.originalHeight = tempOrig;
+            }
+
+            modifications.push({
+                type: 'rotate',
+                plankId: selectedPlank.id,
+                angle: 90
+            });
+
+            markUnsaved();
+            renderVisualization();
+            selectPlank(selectedPlank.id);
+        }
+
+        function flipPlank(direction) {
+            if (!selectedPlank) return;
+
+            // ════════════════════════════════════════════════════════════════════════════
+            // CNC-AWARE MIRRORING WITH SEQUENCE REVERSAL
+            // ════════════════════════════════════════════════════════════════════════════
+            // L-cuts and Gola profiles are ORDERED CNC TOOLPATHS (start → center → end).
+            // 
+            // PROBLEM: Naive mirroring inverts toolpath direction, converting
+            //          Climb Milling → Conventional Milling (dangerous!)
+            // 
+            // SOLUTION: Mirror coordinates AND reverse sequence
+            //   1. Apply geometric mirror: x' = width - x (or y' = height - y)
+            //   2. Reverse sequence: [Start, Center, End] → [End, Center, Start]
+            //   This preserves CLIMB MILLING on the mirrored part.
+            // ════════════════════════════════════════════════════════════════════════════
+
+            const hasLCuts = selectedPlank.l_cuts && selectedPlank.l_cuts.length > 0;
+            const hasGolaProfiles = selectedPlank.gola_profiles && selectedPlank.gola_profiles.length > 0;
+
+            // Show informational modal for path-based operations
+            if (hasLCuts || hasGolaProfiles) {
+                const featureType = hasLCuts ? 'L-cuts' : 'Gola profiles';
+                showModal('⚙️ Path-Based Operation Detected',
+                    `<div style="color: #1976d2; font-weight: bold; margin-bottom: 10px;">
+                        MIRROR + SEQUENCE REVERSAL WILL BE APPLIED
+                     </div>
+                     <p>This plank (<strong>${selectedPlank.id}</strong>) contains ${featureType}.</p>
+                     <p>To preserve <strong>CLIMB MILLING</strong> (proper CNC cutting direction), the system will:</p>
+                     <ol style="text-align: left; margin: 10px 0;">
+                        <li>Mirror all coordinates geometrically</li>
+                        <li>Reverse the path sequence (Start↔End swap)</li>
+                     </ol>
+                     <p>This ensures the tool approaches the material correctly on the mirrored part.</p>`,
+                    [
+                        { text: 'Proceed with Flip', class: 'primary', action: () => { executeFlip(direction); hideModal(); } },
+                        { text: 'Cancel', class: 'secondary', action: hideModal }
+                    ]
+                );
+                return;
+            }
+
+            const isGrainLocked = selectedPlank.grain === 'Y' || selectedPlank.grain === 'YES';
+
+            if (isGrainLocked) {
+                showModal('Grain Direction Warning',
+                    `<p>This plank (<strong>${selectedPlank.id}</strong>) is grain-sensitive.</p>
+                     <p>Flipping may affect appearance.</p>`,
+                    [
+                        { text: 'Flip Anyway', class: 'danger', action: () => { executeFlip(direction); hideModal(); } },
+                        { text: 'Cancel', class: 'secondary', action: hideModal }
+                    ]
+                );
+                return;
+            }
+
+            executeFlip(direction);
+        }
+
+        function executeFlip(direction) {
+            if (!selectedPlank) return;
+
+            saveToHistory();
+
+            const plankW = selectedPlank.width;
+            const plankH = selectedPlank.height;
+
+            // ════════════════════════════════════════════════════════════════════════════
+            // POINT-BASED OPERATIONS: SIMPLE COORDINATE MIRROR
+            // ════════════════════════════════════════════════════════════════════════════
+            // Holes, screws, hinges are parametric shapes without directional semantics
+            // They CAN be safely mirrored at the point level
+            if (selectedPlank.holes && selectedPlank.holes.length > 0) {
+                selectedPlank.holes = selectedPlank.holes.map(hole => {
+                    const featureW = hole.isRectangular ? (hole.length || 10) : (hole.diameter || 5);
+                    const featureH = hole.isRectangular ? (hole.width || 5) : (hole.diameter || 5);
+
+                    const flippedHole = { ...hole };
+
+                    if (direction === 'horizontal') {
+                        // Horizontal mirror: newX = plankWidth - oldX - featureWidth
+                        flippedHole.x = plankW - hole.x - featureW;
+                    } else if (direction === 'vertical') {
+                        // Vertical mirror: newY = plankHeight - oldY - featureHeight
+                        flippedHole.y = plankH - hole.y - featureH;
+                    }
+
+                    return flippedHole;
+                });
+            }
+
+            // ════════════════════════════════════════════════════════════════════════════
+            // PATH-BASED OPERATIONS: MIRROR + SEQUENCE REVERSAL
+            // ════════════════════════════════════════════════════════════════════════════
+            // L-cuts and Gola profiles are ORDERED TOOLPATHS.
+            // To preserve CLIMB MILLING on the mirrored part:
+            //   1. Apply geometric mirror to all points
+            //   2. REVERSE the sequence (Start↔End swap)
+            // ════════════════════════════════════════════════════════════════════════════
+
+            // L-cuts: Mirror + Reverse
+            if (selectedPlank.l_cuts && selectedPlank.l_cuts.length > 0) {
+                selectedPlank.l_cuts = selectedPlank.l_cuts.map(lcut => {
+                    return mirrorPathWithReversal(lcut, plankW, plankH, direction);
+                });
+                console.log(`CNC: Applied Mirror + Reverse to ${selectedPlank.l_cuts.length} L-cut(s) on plank ${selectedPlank.id}`);
+            }
+
+            // Gola profiles: Mirror + Reverse
+            if (selectedPlank.gola_profiles && selectedPlank.gola_profiles.length > 0) {
+                selectedPlank.gola_profiles = selectedPlank.gola_profiles.map(gola => {
+                    return mirrorPathWithReversal(gola, plankW, plankH, direction);
+                });
+                console.log(`CNC: Applied Mirror + Reverse to ${selectedPlank.gola_profiles.length} Gola profile(s) on plank ${selectedPlank.id}`);
+            }
+
+            modifications.push({
+                type: 'flip',
+                plankId: selectedPlank.id,
+                direction: direction
+            });
+
+            markUnsaved();
+            renderVisualization();
+            selectPlank(selectedPlank.id);
+        }
+
+        /**
+         * MIRROR PATH WITH REVERSAL: Preserves climb milling on mirrored parts
+         * 
+         * Algorithm:
+         *   1. Mirror all coordinates geometrically
+         *   2. Reverse sequence: [Start, Center, End] → [End, Center, Start]
+         * 
+         * This ensures the tool approaches the material in the same relative
+         * direction (climb milling) on both original and mirrored parts.
+         */
+        function mirrorPathWithReversal(triplet, plankWidth, plankHeight, direction) {
+            if (!triplet || !triplet.start || !triplet.center || !triplet.end) {
+                console.error('CNC ERROR: Invalid triplet for mirror operation');
+                return triplet;
+            }
+
+            let mirroredStart, mirroredCenter, mirroredEnd;
+
+            if (direction === 'horizontal') {
+                // Horizontal mirror: x' = width - x
+                mirroredStart = { x: plankWidth - triplet.start.x, y: triplet.start.y };
+                mirroredCenter = { x: plankWidth - triplet.center.x, y: triplet.center.y };
+                mirroredEnd = { x: plankWidth - triplet.end.x, y: triplet.end.y };
+            } else if (direction === 'vertical') {
+                // Vertical mirror: y' = height - y
+                mirroredStart = { x: triplet.start.x, y: plankHeight - triplet.start.y };
+                mirroredCenter = { x: triplet.center.x, y: plankHeight - triplet.center.y };
+                mirroredEnd = { x: triplet.end.x, y: plankHeight - triplet.end.y };
+            } else {
+                return triplet;
+            }
+
+            // CRITICAL: Reverse sequence to preserve climb milling
+            // Original: Start → Center → End
+            // Mirrored: End → Center → Start (relabeled)
+            return {
+                start: mirroredEnd,     // Old End becomes new Start
+                center: mirroredCenter, // Center stays
+                end: mirroredStart      // Old Start becomes new End
+            };
+        }
+
+        function movePlankToSheet(targetSheetNum) {
+            if (!selectedPlank || !selectedPlankSheetNum) return;
+
+            if (targetSheetNum === 'new') {
+                // Create new sheet
+                const maxSheet = Math.max(...Object.keys(allSheetLayouts).map(n => parseInt(n)));
+                targetSheetNum = maxSheet + 1;
+                allSheetLayouts[targetSheetNum] = [];
+            } else {
+                targetSheetNum = parseInt(targetSheetNum);
+            }
+
+            if (targetSheetNum === selectedPlankSheetNum) return;
+
+            const validation = validateCrossSheetMove(selectedPlank, targetSheetNum);
+
+            if (validation.blocked) {
+                showModal('Move Blocked', validation.message, [{ text: 'OK', class: 'primary', action: hideModal }]);
+                return;
+            }
+
+            if (validation.warning) {
+                showModal('Material Mixing Warning', validation.message, [
+                    { text: 'Move Anyway', class: 'danger', action: () => { executeMove(targetSheetNum); hideModal(); } },
+                    { text: 'Cancel', class: 'secondary', action: hideModal }
+                ]);
+                return;
+            }
+
+            executeMove(targetSheetNum);
+        }
+
+        function executeMove(targetSheetNum) {
+            saveToHistory();
+
+            // Remove from old sheet
+            const oldIdx = allSheetLayouts[selectedPlankSheetNum].findIndex(p => p.id === selectedPlank.id);
+            if (oldIdx !== -1) {
+                allSheetLayouts[selectedPlankSheetNum].splice(oldIdx, 1);
+            }
+
+            // Clean up empty sheets
+            if (allSheetLayouts[selectedPlankSheetNum].length === 0) {
+                delete allSheetLayouts[selectedPlankSheetNum];
+            }
+
+            // Find a good position on the new sheet (avoid overlaps)
+            let newX = 10;
+            let newY = 10;
+
+            const targetPlanks = allSheetLayouts[targetSheetNum] || [];
+            if (targetPlanks.length > 0) {
+                // Try to find an empty spot
+                const spacing = sheetConstants.SPACING || 10;
+                let foundSpot = false;
+
+                for (let tryY = 10; tryY < sheetHeight - selectedPlank.height - 10 && !foundSpot; tryY += 50) {
+                    for (let tryX = 10; tryX < sheetWidth - selectedPlank.width - 10 && !foundSpot; tryX += 50) {
+                        const testPlank = { x: tryX, y: tryY, width: selectedPlank.width, height: selectedPlank.height };
+                        let hasCollision = false;
+
+                        for (const existing of targetPlanks) {
+                            if (checkCollisionWithSpacing(testPlank, existing, spacing)) {
+                                hasCollision = true;
+                                break;
+                            }
+                        }
+
+                        if (!hasCollision) {
+                            newX = tryX;
+                            newY = tryY;
+                            foundSpot = true;
+                        }
+                    }
+                }
+            }
+
+            selectedPlank.x = newX;
+            selectedPlank.y = newY;
+            selectedPlank.sheetNum = targetSheetNum;
+
+            // Add to new sheet
+            if (!allSheetLayouts[targetSheetNum]) {
+                allSheetLayouts[targetSheetNum] = [];
+            }
+            allSheetLayouts[targetSheetNum].push(selectedPlank);
+
+            modifications.push({
+                type: 'move',
+                plankId: selectedPlank.id,
+                fromSheet: selectedPlankSheetNum,
+                toSheet: targetSheetNum,
+                newX: newX,
+                newY: newY
+            });
+
+            selectedPlankSheetNum = targetSheetNum;
+
+            markUnsaved();
+            renderVisualization();
+            selectPlank(selectedPlank.id);
+
+            // Reset dropdown
+            document.getElementById('moveToSheet').value = '';
+        }
+
+        // ==================== DRAG & DROP ====================
+
+        function onMouseDown(e, plankId, sheetNum) {
+            e.preventDefault();
+
+            selectPlank(plankId);
+
+            const result = findPlankById(plankId);
+            if (!result) return;
+
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            dragPlankStartX = result.plank.x;
+            dragPlankStartY = result.plank.y;
+            currentDragElement = e.target.closest('.plank');
+            dragSourceSheet = sheetNum; // Track source sheet for drag-to-sheet
+            dropTargetSheet = null;
+
+            if (currentDragElement) {
+                currentDragElement.classList.add('dragging');
+            }
+
+            saveToHistory();
+        }
+
+        function getSheetUnderMouse(clientX, clientY) {
+            const sheets = document.querySelectorAll('.sheet-canvas');
+            for (const sheet of sheets) {
+                const rect = sheet.getBoundingClientRect();
+                if (clientX >= rect.left && clientX <= rect.right &&
+                    clientY >= rect.top && clientY <= rect.bottom) {
+                    return {
+                        sheetNum: parseInt(sheet.getAttribute('data-sheet-num')),
+                        element: sheet,
+                        rect: rect
+                    };
+                }
+            }
+            return null;
+        }
+
+        function onDrag(e) {
+            if (!isDragging || !currentDragElement || !selectedPlank) return;
+
+            const deltaX = (e.clientX - dragStartX) / currentZoom;
+            const deltaY = -(e.clientY - dragStartY) / currentZoom; // Invert Y for CNC coords
+
+            // Allow FREE movement (no constraints)
+            let newX = dragPlankStartX + deltaX;
+            let newY = dragPlankStartY + deltaY;
+
+            selectedPlank.x = newX;
+            selectedPlank.y = newY;
+
+            // Update visual position
+            const visualY = (sheetHeight - newY - selectedPlank.height) * currentZoom;
+            currentDragElement.style.left = (newX * currentZoom) + 'px';
+            currentDragElement.style.top = visualY + 'px';
+
+            // Update position display
+            document.getElementById('selectedPos').textContent = `X:${newX.toFixed(1)} Y:${newY.toFixed(1)}`;
+
+            // Detect target sheet for drag-to-sheet
+            document.querySelectorAll('.sheet-canvas').forEach(s => {
+                s.classList.remove('drop-target', 'drop-invalid');
+            });
+
+            const targetInfo = getSheetUnderMouse(e.clientX, e.clientY);
+            if (targetInfo && targetInfo.sheetNum !== dragSourceSheet) {
+                dropTargetSheet = targetInfo.sheetNum;
+
+                // Check if valid drop target (same thickness)
+                const validation = validateCrossSheetMove(selectedPlank, targetInfo.sheetNum);
+                if (validation.blocked) {
+                    targetInfo.element.classList.add('drop-invalid');
+                } else {
+                    targetInfo.element.classList.add('drop-target');
+                }
+            } else {
+                dropTargetSheet = null;
+            }
+
+            // Update collision highlights in real-time
+            updateCollisionHighlights();
+        }
+
+        function onMouseUp(e) {
+            if (!isDragging) return;
+
+            isDragging = false;
+
+            // Remove drop target highlighting
+            document.querySelectorAll('.sheet-canvas').forEach(s => {
+                s.classList.remove('drop-target', 'drop-invalid');
+            });
+
+            if (currentDragElement) {
+                currentDragElement.classList.remove('dragging');
+            }
+
+            if (selectedPlank) {
+                // Check if dropped on a different sheet
+                const targetInfo = getSheetUnderMouse(e.clientX, e.clientY);
+
+                if (targetInfo && targetInfo.sheetNum !== dragSourceSheet) {
+                    // Dropped on a different sheet - handle cross-sheet move
+                    const validation = validateCrossSheetMove(selectedPlank, targetInfo.sheetNum);
+
+                    if (validation.blocked) {
+                        // Can't move - restore original position
+                        selectedPlank.x = dragPlankStartX;
+                        selectedPlank.y = dragPlankStartY;
+                        showModal('Move Blocked', validation.message, [{ text: 'OK', class: 'primary', action: hideModal }]);
+                    } else if (validation.warning) {
+                        // Show warning but allow
+                        const targetSheet = targetInfo.sheetNum;
+                        const rect = targetInfo.rect;
+
+                        // Calculate position on target sheet
+                        const relativeX = (e.clientX - rect.left) / currentZoom;
+                        const relativeY = (rect.bottom - e.clientY) / currentZoom; // Invert Y
+                        const newX = Math.max(10, relativeX - selectedPlank.width / 2);
+                        const newY = Math.max(10, relativeY - selectedPlank.height / 2);
+
+                        showModal('Material Mixing Warning', validation.message, [
+                            {
+                                text: 'Move Anyway', class: 'danger', action: () => {
+                                    executeDragToSheet(targetSheet, newX, newY);
+                                    hideModal();
+                                }
+                            },
+                            {
+                                text: 'Cancel', class: 'secondary', action: () => {
+                                    selectedPlank.x = dragPlankStartX;
+                                    selectedPlank.y = dragPlankStartY;
+                                    renderVisualization();
+                                    selectPlank(selectedPlank.id);
+                                    hideModal();
+                                }
+                            }
+                        ]);
+                    } else {
+                        // Valid move - execute it
+                        const rect = targetInfo.rect;
+                        const relativeX = (e.clientX - rect.left) / currentZoom;
+                        const relativeY = (rect.bottom - e.clientY) / currentZoom;
+                        const newX = Math.max(10, relativeX - selectedPlank.width / 2);
+                        const newY = Math.max(10, relativeY - selectedPlank.height / 2);
+
+                        executeDragToSheet(targetInfo.sheetNum, newX, newY);
+                    }
+                } else {
+                    // Same sheet move - record the modification
+                    modifications.push({
+                        type: 'move',
+                        plankId: selectedPlank.id,
+                        fromSheet: selectedPlankSheetNum,
+                        toSheet: selectedPlankSheetNum,
+                        newX: selectedPlank.x,
+                        newY: selectedPlank.y
+                    });
+
+                    markUnsaved();
+                    renderVisualization();
+                    selectPlank(selectedPlank.id);
+                }
+            }
+
+            currentDragElement = null;
+            dragSourceSheet = null;
+            dropTargetSheet = null;
+        }
+
+        function executeDragToSheet(targetSheetNum, newX, newY) {
+            // Remove from old sheet
+            const oldIdx = allSheetLayouts[selectedPlankSheetNum].findIndex(p => p.id === selectedPlank.id);
+            if (oldIdx !== -1) {
+                allSheetLayouts[selectedPlankSheetNum].splice(oldIdx, 1);
+            }
+
+            // Clean up empty sheets
+            if (allSheetLayouts[selectedPlankSheetNum].length === 0) {
+                delete allSheetLayouts[selectedPlankSheetNum];
+            }
+
+            // Update plank position
+            selectedPlank.x = newX;
+            selectedPlank.y = newY;
+            selectedPlank.sheetNum = targetSheetNum;
+
+            // Add to new sheet
+            if (!allSheetLayouts[targetSheetNum]) {
+                allSheetLayouts[targetSheetNum] = [];
+            }
+            allSheetLayouts[targetSheetNum].push(selectedPlank);
+
+            // Record modification
+            modifications.push({
+                type: 'move',
+                plankId: selectedPlank.id,
+                fromSheet: selectedPlankSheetNum,
+                toSheet: targetSheetNum,
+                newX: newX,
+                newY: newY
+            });
+
+            selectedPlankSheetNum = targetSheetNum;
+
+            markUnsaved();
+            renderVisualization();
+            selectPlank(selectedPlank.id);
+        }
+
+        // ==================== SAVE ====================
+
+        function saveChanges() {
+            if (!validateBeforeSave()) return;
+
+            const payload = {
+                layouts: allSheetLayouts,
+                modifications: modifications
+            };
+
+            document.getElementById('saveBtn').disabled = true;
+            document.getElementById('saveBtn').textContent = 'Saving...';
+
+            google.script.run
+                .withSuccessHandler(onSaveSuccess)
+                .withFailureHandler(onSaveError)
+                .saveEditedCutlist(JSON.stringify(payload));
+        }
+
+        function onSaveSuccess(result) {
+            document.getElementById('saveBtn').textContent = 'Save';
+
+            if (result.success) {
+                markSaved();
+                showModal('Saved Successfully',
+                    `<p>${result.message}</p>
+                     <p style="margin-top:10px;">Do you want to generate the Pressing Map PDF?</p>`,
+                    [
+                        { text: 'Generate Pressing Map', class: 'primary', action: () => { generatePressingMapPdf(); hideModal(); } },
+                        { text: 'Close', class: 'secondary', action: hideModal }
+                    ]
+                );
+            } else {
+                showModal('Save Failed', `<p>${result.message}</p>`, [{ text: 'OK', class: 'primary', action: hideModal }]);
+                document.getElementById('saveBtn').disabled = false;
+            }
+        }
+
+        function onSaveError(error) {
+            document.getElementById('saveBtn').textContent = 'Save';
+            document.getElementById('saveBtn').disabled = false;
+            showModal('Save Error', `<p>An error occurred: ${error.message}</p>`, [{ text: 'OK', class: 'primary', action: hideModal }]);
+        }
+
+        // ==================== PDF GENERATION ====================
+
+        function getLaminateCutSize(actualDimension) {
+            const withBuffer = actualDimension + 40;
+            return Math.ceil(withBuffer / 50) * 50;
+        }
+
+        async function generatePressingMapPdf() {
+            const btn = document.getElementById('pressingMapBtn');
+            const origText = btn ? btn.textContent : '';
+            if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+            try {
+                console.log('Generating Pressing Map PDF...');
+                if (!window.jspdf) {
+                    alert('PDF library not loaded. Please refresh and try again.');
+                    return;
+                }
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+                const pageW = 210;
+                const pageH = 297;
+                const margin = 10;
+
+                const sheetNumbers = Object.keys(allSheetLayouts).sort((a, b) => a - b);
+
+                // Material color mapping
+                const materialColors = {
+                    'pink': [255, 182, 193],
+                    'black': [50, 50, 50],
+                    'white': [250, 250, 250],
+                    'grey': [180, 180, 180],
+                    'gray': [180, 180, 180],
+                    'brown': [139, 90, 43],
+                    'blue': [100, 149, 237],
+                    'green': [144, 238, 144],
+                    'inner': [210, 180, 140],
+                    'red': [255, 100, 100],
+                    'yellow': [255, 255, 150],
+                    'orange': [255, 200, 100],
+                    'default': [200, 200, 200]
+                };
+
+                function getMaterialColor(matName) {
+                    const matLower = (matName || '').toLowerCase();
+                    for (const key in materialColors) {
+                        if (matLower.includes(key)) {
+                            return materialColors[key];
+                        }
+                    }
+                    return materialColors['default'];
+                }
+
+                for (let i = 0; i < sheetNumbers.length; i++) {
+                    if (i > 0) doc.addPage();
+
+                    const sheetNum = sheetNumbers[i];
+                    const sheetPlanks = allSheetLayouts[sheetNum];
+                    const firstPlank = sheetPlanks[0] || {};
+                    const thickness = firstPlank.thickness || 18;
+
+                    // Group planks by material
+                    const materialGroups = {};
+                    sheetPlanks.forEach(p => {
+                        const cleanMat = getCleanMaterial(p.material);
+                        if (!materialGroups[cleanMat]) {
+                            materialGroups[cleanMat] = [];
+                        }
+                        materialGroups[cleanMat].push(p);
+                    });
+
+                    const uniqueMaterials = Object.keys(materialGroups);
+                    const isFullPressing = uniqueMaterials.length === 1;
+                    const pressingType = isFullPressing ? 'FULL PRESSING' : 'PARTIAL PRESSING';
+
+                    // ==================== HEADER ====================
+                    doc.setFontSize(16);
+                    doc.setFont("helvetica", "bold");
+                    doc.setTextColor(0);
+                    doc.text(`PRESSING MAP - Sheet ${sheetNum}`, margin, margin + 8);
+
+                    doc.setFontSize(11);
+                    doc.setFont("helvetica", "normal");
+                    doc.text(`Thickness: ${thickness}mm | Type: ${pressingType}`, margin, margin + 16);
+                    doc.text(new Date().toLocaleDateString(), pageW - margin, margin + 8, { align: 'right' });
+
+                    doc.setLineWidth(0.5);
+                    doc.line(margin, margin + 22, pageW - margin, margin + 22);
+
+                    // ==================== VISUAL AREA ====================
+                    const vizAreaH = isFullPressing ? 100 : 90;
+                    const vizAreaW = pageW - margin * 2;
+                    const scaleX = vizAreaW / sheetWidth;
+                    const scaleY = vizAreaH / sheetHeight;
+                    const scale = Math.min(scaleX, scaleY);
+
+                    const drawW = sheetWidth * scale;
+                    const drawH = sheetHeight * scale;
+                    const startX = margin + (vizAreaW - drawW) / 2;
+                    const startY = margin + 28;
+
+                    // Draw sheet border
+                    doc.setDrawColor(0);
+                    doc.setLineWidth(1);
+                    doc.rect(startX, startY, drawW, drawH);
+
+                    if (isFullPressing) {
+                        // ==================== FULL PRESSING ====================
+                        // Draw one big filled rectangle with laminate name
+                        const matName = uniqueMaterials[0];
+                        const color = getMaterialColor(matName);
+
+                        doc.setFillColor(color[0], color[1], color[2]);
+                        doc.rect(startX + 2, startY + 2, drawW - 4, drawH - 4, 'F');
+
+                        // Laminate name in center
+                        doc.setFontSize(18);
+                        doc.setFont("helvetica", "bold");
+                        doc.setTextColor(color[0] < 100 || (color[0] === 50 && color[1] === 50) ? 255 : 0);
+                        doc.text(matName.toUpperCase(), startX + drawW / 2, startY + drawH / 2 - 5, { align: 'center' });
+
+                        // Size below
+                        doc.setFontSize(14);
+                        doc.text(`${sheetWidth} x ${sheetHeight} mm`, startX + drawW / 2, startY + drawH / 2 + 8, { align: 'center' });
+
+                        // ==================== FULL PRESSING INFO ====================
+                        const infoY = startY + drawH + 15;
+                        doc.setFontSize(12);
+                        doc.setFont("helvetica", "bold");
+                        doc.setTextColor(0);
+                        doc.text("LAMINATE REQUIREMENT", margin, infoY);
+
+                        doc.setFontSize(10);
+                        doc.setFont("helvetica", "normal");
+                        doc.text(`Laminate: ${matName}`, margin, infoY + 8);
+                        doc.text(`Size: ${sheetWidth} x ${sheetHeight} mm (Full Sheet)`, margin, infoY + 14);
+                        doc.text(`Quantity: 1 piece`, margin, infoY + 20);
+
+                    } else {
+                        // ==================== PARTIAL PRESSING ====================
+                        // Calculate bounding box for each material group to create zones
+                        const zones = {};
+
+                        uniqueMaterials.forEach(matName => {
+                            const planks = materialGroups[matName];
+                            let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0;
+
+                            planks.forEach(p => {
+                                minX = Math.min(minX, p.x);
+                                minY = Math.min(minY, p.y);
+                                maxX = Math.max(maxX, p.x + p.width);
+                                maxY = Math.max(maxY, p.y + p.height);
+                            });
+
+                            zones[matName] = { minX, minY, maxX, maxY, planks };
+                        });
+
+                        // Draw simplified zones with material colors
+                        uniqueMaterials.forEach(matName => {
+                            const zone = zones[matName];
+                            const color = getMaterialColor(matName);
+
+                            const zx = startX + (zone.minX * scale);
+                            const zy = startY + ((sheetHeight - zone.maxY) * scale);
+                            const zw = (zone.maxX - zone.minX) * scale;
+                            const zh = (zone.maxY - zone.minY) * scale;
+
+                            doc.setFillColor(color[0], color[1], color[2]);
+                            doc.setDrawColor(50);
+                            doc.setLineWidth(0.5);
+                            doc.rect(zx, zy, zw, zh, 'FD');
+
+                            // Material name in zone
+                            if (zw > 20 && zh > 10) {
+                                doc.setFontSize(Math.min(10, zw * 0.15));
+                                doc.setFont("helvetica", "bold");
+                                doc.setTextColor(color[0] < 100 ? 255 : 0);
+                                doc.text(matName.substring(0, 12), zx + zw / 2, zy + zh / 2, { align: 'center', baseline: 'middle' });
+                            }
+                        });
+
+                        // ==================== LAMINATE CUTTING LIST ====================
+                        const guideY = startY + drawH + 12;
+
+                        doc.setFontSize(12);
+                        doc.setFont("helvetica", "bold");
+                        doc.setTextColor(0);
+                        doc.text("LAMINATE CUTTING LIST", margin, guideY);
+
+                        let tableY = guideY + 10;
+
+                        // For each material, list each plank's cut size
+                        uniqueMaterials.forEach(matName => {
+                            const planks = materialGroups[matName];
+                            const color = getMaterialColor(matName);
+
+                            // Material header with color indicator
+                            doc.setFillColor(color[0], color[1], color[2]);
+                            doc.rect(margin, tableY - 3, 6, 6, 'F');
+                            doc.setDrawColor(0);
+                            doc.rect(margin, tableY - 3, 6, 6);
+
+                            doc.setFontSize(10);
+                            doc.setFont("helvetica", "bold");
+                            doc.setTextColor(0);
+                            doc.text(`${matName.toUpperCase()} (${planks.length} pieces)`, margin + 10, tableY);
+                            tableY += 6;
+
+                            // Table header
+                            doc.setFontSize(8);
+                            doc.setFont("helvetica", "bold");
+                            doc.text("Plank ID", margin + 5, tableY);
+                            doc.text("Actual Size (mm)", margin + 40, tableY);
+                            doc.text("Cut Size (mm)", margin + 90, tableY);
+                            doc.text("Formula", margin + 135, tableY);
+
+                            doc.line(margin + 5, tableY + 1.5, pageW - margin, tableY + 1.5);
+                            tableY += 5;
+
+                            doc.setFont("helvetica", "normal");
+
+                            planks.forEach(p => {
+                                if (tableY > pageH - 20) return; // Prevent overflow
+
+                                const actualW = Math.round(p.width);
+                                const actualH = Math.round(p.height);
+                                const cutW = getLaminateCutSize(p.width);
+                                const cutH = getLaminateCutSize(p.height);
+
+                                doc.text(String(p.id), margin + 5, tableY);
+                                doc.text(`${actualW} x ${actualH}`, margin + 40, tableY);
+                                doc.setFont("helvetica", "bold");
+                                doc.text(`${cutW} x ${cutH}`, margin + 90, tableY);
+                                doc.setFont("helvetica", "normal");
+                                doc.setFontSize(7);
+                                doc.text(`(+40, round to 50)`, margin + 135, tableY);
+                                doc.setFontSize(8);
+
+                                tableY += 4;
+                            });
+
+                            tableY += 4; // Space between material groups
+                        });
+
+                        // Summary
+                        if (tableY < pageH - 30) {
+                            tableY += 5;
+                            doc.setLineWidth(0.5);
+                            doc.line(margin, tableY, pageW - margin, tableY);
+                            tableY += 6;
+
+                            doc.setFontSize(9);
+                            doc.setFont("helvetica", "bold");
+                            doc.text("SUMMARY:", margin, tableY);
+
+                            doc.setFont("helvetica", "normal");
+                            let summaryX = margin + 25;
+                            uniqueMaterials.forEach(matName => {
+                                const count = materialGroups[matName].length;
+                                doc.text(`${matName}: ${count} pcs`, summaryX, tableY);
+                                summaryX += 45;
+                            });
+                        }
+                    }
+
+                    // ==================== FOOTER ====================
+                    doc.setFontSize(8);
+                    doc.setFont("helvetica", "normal");
+                    doc.setTextColor(100);
+                    doc.text(`Page ${i + 1} of ${sheetNumbers.length}`, pageW / 2, pageH - 5, { align: 'center' });
+                    doc.text(`Generated: ${new Date().toLocaleString()}`, margin, pageH - 5);
+                }
+
+                const pressingFileName = sanitizeFilename(spreadsheetName) + '_Pressing_Map.pdf';
+                downloadPdfInSandbox(doc, pressingFileName);
+
+                // --- DUAL STORAGE: Auto-save to Drive ---
+                const pdfDataUri = doc.output('datauristring'); // Get base64
+                google.script.run
+                    .withSuccessHandler(res => console.log('Background Save:', res))
+                    .uploadFileToProject('DOCUMENTS', pressingFileName, pdfDataUri, 'application/pdf');
+
+                console.log('Pressing Map PDF generated successfully:', pressingFileName);
+            } catch (error) {
+                console.error('Error generating Pressing Map PDF:', error);
+                alert('Error generating Pressing Map PDF: ' + error.message);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = origText || 'Press Map'; }
+            }
+        }
+
+        async function generateCutlistPdf(printAll) {
+            const pdfBtn = document.getElementById('downloadPdfBtn');
+            const allBtn = document.getElementById('downloadAllPdfBtn');
+            const origPdfText = pdfBtn ? pdfBtn.textContent : '';
+            const origAllText = allBtn ? allBtn.textContent : '';
+            if (pdfBtn) { pdfBtn.disabled = true; pdfBtn.textContent = 'Generating...'; }
+            if (allBtn) { allBtn.disabled = true; allBtn.textContent = 'Generating...'; }
+            try {
+                console.log('Generating Cutlist PDF, printAll:', printAll);
+                if (!window.jspdf) {
+                    alert('PDF library not loaded. Please refresh and try again.');
+                    return;
+                }
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+                const pageW = 210;
+                const pageH = 297;
+                const margin = 10;
+                const headerH = 30;
+                const tableH = 80;
+                const vizAreaH = pageH - margin * 2 - headerH - tableH;
+                const vizAreaW = pageW - margin * 2;
+
+                let sheetsToPrint = [];
+                if (printAll) {
+                    sheetsToPrint = Object.keys(allSheetLayouts).sort((a, b) => a - b);
+                } else {
+                    sheetsToPrint = selectedSheet === 'all' ? [Object.keys(allSheetLayouts)[0]] : [selectedSheet];
+                }
+
+                if (sheetsToPrint.length === 0) {
+                    alert("No sheets to print.");
+                    return;
+                }
+
+                const sheetMap = getRelativeSheetMap();
+
+                for (let i = 0; i < sheetsToPrint.length; i++) {
+                    if (i > 0) doc.addPage();
+
+                    await new Promise(r => setTimeout(r, 0));
+
+                    const sheetNum = sheetsToPrint[i];
+                    const sheetPlanks = allSheetLayouts[sheetNum];
+                    const info = sheetMap[sheetNum];
+                    const sheetTitle = `${info.material} ${info.thickness}mm Sheet ${info.displayNum}`;
+
+                    doc.setFontSize(14);
+                    doc.setFont("helvetica", "bold");
+                    doc.text(sheetTitle, margin, margin + 8);
+
+                    doc.setFontSize(10);
+                    doc.setFont("helvetica", "normal");
+                    doc.text(`Material: ${info.material} - ${info.thickness}mm`, margin, margin + 14);
+                    doc.text(new Date().toLocaleDateString(), pageW - margin, margin + 8, { align: 'right' });
+
+                    doc.line(margin, margin + 22, pageW - margin, margin + 22);
+
+                    const scaleX = vizAreaW / sheetWidth;
+                    const scaleY = vizAreaH / sheetHeight;
+                    const finalScale = Math.min(scaleX, scaleY);
+
+                    const drawW = sheetWidth * finalScale;
+                    const drawH = sheetHeight * finalScale;
+                    const startX = margin + (vizAreaW - drawW) / 2;
+                    const startY = margin + headerH;
+
+                    doc.rect(startX, startY, drawW, drawH);
+
+                    sheetPlanks.forEach(p => {
+                        const px = startX + (p.x * finalScale);
+                        const py = startY + ((sheetHeight - p.y - p.height) * finalScale);
+                        const pw = p.width * finalScale;
+                        const ph = p.height * finalScale;
+
+                        doc.setFillColor(240, 240, 240);
+                        doc.setDrawColor(50);
+                        doc.rect(px, py, pw, ph, 'FD');
+
+                        if (pw > 5 && ph > 4) {
+                            doc.setFontSize(Math.min(8, ph));
+                            doc.setTextColor(0);
+                            doc.text(String(p.id), px + pw / 2, py + ph / 2, { align: 'center', baseline: 'middle' });
+                        }
+
+                        // --- Level-3: Holes (including grooves) on plank ---
+                        const minStroke = 0.2;
+                        const minRadius = 0.5;
+                        if (p.holes && p.holes.length > 0) {
+                            doc.setDrawColor(80, 80, 80);
+                            doc.setLineWidth(minStroke);
+                            doc.setFillColor(255, 255, 255);
+                            p.holes.forEach(hole => {
+                                const desc = (hole.description || hole.type || '').toLowerCase();
+                                const isVB = desc.includes('vb');
+                                if (hole.isRectangular) {
+                                    const rawW = hole.length || 10;
+                                    const rawH = hole.width || 5;
+                                    const hx = px + hole.x * finalScale;
+                                    const hy = py + (p.height - hole.y - rawH) * finalScale;
+                                    const hw = rawW * finalScale;
+                                    const hh = rawH * finalScale;
+                                    doc.rect(hx, hy, hw, hh, 'S');
+                                } else {
+                                    const d = hole.diameter || (isVB ? 20 : 5);
+                                    const r = Math.max(minRadius, (d / 2) * finalScale);
+                                    const cx = px + (hole.x + d / 2) * finalScale;
+                                    const cy = py + (p.height - hole.y - d / 2) * finalScale;
+                                    if (typeof doc.circle === 'function') {
+                                        doc.circle(cx, cy, r, 'S');
+                                    } else {
+                                        doc.ellipse(cx, cy, r, r, 'S');
+                                    }
+                                }
+                            });
+                        }
+
+                        // --- Level-3: L-cuts on plank ---
+                        if (p.l_cuts && p.l_cuts.length > 0) {
+                            doc.setDrawColor(233, 30, 99);
+                            doc.setLineWidth(minStroke);
+                            p.l_cuts.forEach(lcut => {
+                                const sx = px + lcut.start.x * finalScale;
+                                const sy = py + (p.height - lcut.start.y) * finalScale;
+                                const cx = px + lcut.center.x * finalScale;
+                                const cy = py + (p.height - lcut.center.y) * finalScale;
+                                const ex = px + lcut.end.x * finalScale;
+                                const ey = py + (p.height - lcut.end.y) * finalScale;
+                                doc.line(sx, sy, cx, cy);
+                                doc.line(cx, cy, ex, ey);
+                            });
+                        }
+
+                        // --- Level-3: Gola profiles on plank ---
+                        if (p.gola_profiles && p.gola_profiles.length > 0) {
+                            doc.setDrawColor(156, 39, 176);
+                            doc.setLineWidth(minStroke);
+                            p.gola_profiles.forEach(gp => {
+                                const sx = px + gp.start.x * finalScale;
+                                const sy = py + (p.height - gp.start.y) * finalScale;
+                                const cx = px + gp.center.x * finalScale;
+                                const cy = py + (p.height - gp.center.y) * finalScale;
+                                const ex = px + gp.end.x * finalScale;
+                                const ey = py + (p.height - gp.end.y) * finalScale;
+                                doc.line(sx, sy, cx, cy);
+                                doc.line(cx, cy, ex, ey);
+                            });
+                        }
+                    });
+
+                    doc.setDrawColor(0);
+                    doc.setLineWidth(0.1);
+
+                    const tableTop = pageH - margin - tableH;
+                    doc.setFontSize(10);
+                    doc.setFont("helvetica", "bold");
+                    doc.text("Part List", margin, tableTop);
+
+                    let rowY = tableTop + 5;
+                    doc.setFontSize(8);
+                    doc.text("ID", margin, rowY);
+                    doc.text("Name", margin + 15, rowY);
+                    doc.text("Size (mm)", margin + 70, rowY);
+                    doc.text("Features", margin + 115, rowY);
+
+                    doc.line(margin, rowY + 1, pageW - margin, rowY + 1);
+                    rowY += 5;
+                    doc.setFont("helvetica", "normal");
+
+                    sheetPlanks.slice(0, 15).forEach(p => {
+                        const nH = p.holes ? p.holes.length : 0;
+                        const nL = p.l_cuts ? p.l_cuts.length : 0;
+                        const nG = p.gola_profiles ? p.gola_profiles.length : 0;
+                        const feat = [nH ? nH + 'H' : '', nL ? nL + 'L' : '', nG ? nG + 'G' : ''].filter(Boolean).join(' ') || '—';
+                        doc.text(String(p.id), margin, rowY);
+                        let name = (p.name || "").substring(0, 28);
+                        doc.text(name, margin + 15, rowY);
+                        doc.text(`${Math.round(p.width)} x ${Math.round(p.height)}`, margin + 70, rowY);
+                        doc.text(feat, margin + 115, rowY);
+                        rowY += 4;
+                    });
+
+                    doc.setFontSize(6);
+                    doc.setTextColor(100, 100, 100);
+                    doc.text('Holes/Grooves: ○  L-cuts: — (pink)  Gola: — (purple)', margin, rowY + 4);
+                    doc.setTextColor(0, 0, 0);
+
+                    doc.setFontSize(8);
+                    doc.text(`Page ${i + 1} of ${sheetsToPrint.length}`, pageW / 2, pageH - 5, { align: 'center' });
+                }
+
+                const safeName = sanitizeFilename(spreadsheetName);
+                const fileName = printAll ? `${safeName}_AllSheets.pdf` : `${safeName}_Sheet_${selectedSheet}.pdf`;
+
+                setTimeout(() => {
+                    try {
+                        downloadPdfInSandbox(doc, fileName);
+
+                        const pdfDataUri = doc.output('datauristring');
+                        google.script.run
+                            .withSuccessHandler(res => console.log('Background Save:', res))
+                            .uploadFileToProject('DOCUMENTS', fileName, pdfDataUri, 'application/pdf');
+
+                        console.log('Cutlist PDF generated:', fileName);
+                    } catch (e) {
+                        console.error('Error in deferred Cutlist PDF save:', e);
+                    }
+                }, 0);
+            } catch (error) {
+                console.error('Error generating Cutlist PDF:', error);
+                alert('Error generating Cutlist PDF: ' + error.message);
+            } finally {
+                if (pdfBtn) { pdfBtn.disabled = false; pdfBtn.textContent = origPdfText || 'PDF'; }
+                if (allBtn) { allBtn.disabled = false; allBtn.textContent = origAllText || 'All PDF'; }
+            }
+        }
+
+        // ==================== LABEL GENERATION ====================
+
+        function generateLabelPage(autoPrint = false) {
+            try {
+                console.log('Generating labels, autoPrint:', autoPrint);
+                if (Object.keys(allSheetLayouts).length === 0) {
+                    alert('No layout data found.');
+                    return;
+                }
+
+                let allLabelsHtml = '';
+                const sortedSheetNumbers = Object.keys(allSheetLayouts).sort((a, b) => a - b);
+                const sheetMap = getRelativeSheetMap();
+
+                for (const sheetNum of sortedSheetNumbers) {
+                    const planksOnThisSheet = allSheetLayouts[sheetNum];
+                    const info = sheetMap[sheetNum];
+                    if (!info) continue;
+
+                    for (const plank of planksOnThisSheet) {
+                        allLabelsHtml += createLabelForPlank(plank, planksOnThisSheet, info);
+                    }
+                }
+
+                if (!allLabelsHtml || allLabelsHtml.trim() === '') {
+                    alert('No labels to display. Ensure cutlist data has planks.');
+                    return;
+                }
+
+                const printBtn = document.getElementById('printLabelsBtn');
+                const viewBtn = document.getElementById('viewLabelsBtn');
+                const origPrintText = printBtn.textContent;
+                const origViewText = viewBtn.textContent;
+                printBtn.disabled = true;
+                viewBtn.disabled = true;
+                printBtn.textContent = 'Generating...';
+                viewBtn.textContent = 'Generating...';
+
+                if (autoPrint) {
+                    openPrintableWindow(allLabelsHtml, true);
+                } else {
+                    downloadLabelsAsHtml(allLabelsHtml);
+                }
+
+                printBtn.disabled = false;
+                viewBtn.disabled = false;
+                printBtn.textContent = origPrintText;
+                viewBtn.textContent = origViewText;
+
+                // --- DUAL STORAGE: Auto-save Labels PDF to Drive (deferred to avoid blocking UI) ---
+                setTimeout(() => saveLabelsAsPdfToDrive(allLabelsHtml), 800);
+
+                console.log('Labels generated successfully');
+            } catch (error) {
+                console.error('Error generating labels:', error);
+                alert('Error generating labels: ' + error.message);
+                const printBtn = document.getElementById('printLabelsBtn');
+                const viewBtn = document.getElementById('viewLabelsBtn');
+                if (printBtn) { printBtn.disabled = false; printBtn.textContent = 'Print Labels'; }
+                if (viewBtn) { viewBtn.disabled = false; viewBtn.textContent = 'View Labels'; }
+            }
+        }
+
+        async function saveLabelsAsPdfToDrive(htmlContent) {
+            try {
+                if (!window.jspdf || !window.html2canvas) {
+                    console.error('PDF libraries not loaded');
+                    return;
+                }
+
+                console.log('Starting background Label PDF generation...');
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('p', 'pt', 'a4');
+
+                const labelStyle = `
+                    .label-container {
+                        width: 260pt; height: 170pt; border: 1px dashed #999; margin: 10pt; padding: 10pt;
+                        display: inline-flex; box-sizing: border-box; background: white;
+                        page-break-inside: avoid; vertical-align: top;
+                    }
+                    .label-left { flex: 2; display: flex; flex-direction: column; font-size: 10pt; line-height: 1.4; font-family: sans-serif; }
+                    .label-right { flex: 1.2; display: flex; flex-direction: column; align-items: center; text-align: center; font-family: sans-serif; }
+                    .header-text { font-size: 8pt; font-weight: bold; }
+                    .plank-name { font-size: 11pt; font-weight: bold; margin-top: 5pt; }
+                    .plank-material { font-size: 10pt; }
+                    .plank-size { font-size: 9pt; }
+                    .sheet-info { font-size: 10pt; margin-top: auto; font-weight: bold; }
+                    .room-name { font-size: 9pt; font-weight: bold; }
+                    .firm-name, .customer-name { font-size: 14pt; font-weight: 900; margin-top: 3pt; }
+                    .plank-id { font-size: 24pt; font-weight: bold; }
+                    .minimap { height: 100px; width: auto; border: 1px solid #000; margin-top: 5px; }
+                    .sheet-bg { fill: #fff; }
+                    .plank-other { fill: #fff; stroke: #aaa; stroke-width: 2px; }
+                    .plank-highlight { fill: #000; stroke: #000; stroke-width: 2px; }
+                    .eb-info { font-size: 7pt; margin-top: 3pt; }
+                `;
+
+                const temp = document.createElement('div');
+                temp.innerHTML = htmlContent;
+                const labelDivs = temp.querySelectorAll('.label-container');
+                const labelBlocks = Array.from(labelDivs).map(el => el.outerHTML);
+                const CHUNK_SIZE = 25;
+
+                for (let i = 0; i < labelBlocks.length; i += CHUNK_SIZE) {
+                    const chunkHtml = labelBlocks.slice(i, i + CHUNK_SIZE).join('');
+                    const container = document.createElement('div');
+                    container.style.cssText = 'width:595pt;visibility:hidden;position:absolute;left:-10000px;top:0';
+                    const styleEl = document.createElement('style');
+                    styleEl.innerHTML = labelStyle;
+                    container.appendChild(styleEl);
+                    const contentDiv = document.createElement('div');
+                    contentDiv.innerHTML = chunkHtml;
+                    container.appendChild(contentDiv);
+                    document.body.appendChild(container);
+
+                    await new Promise((resolve) => {
+                        doc.html(container, {
+                            callback: function () {
+                                if (container.parentNode) document.body.removeChild(container);
+                                resolve();
+                            },
+                            x: 10,
+                            y: 10,
+                            autoPaging: 'text',
+                            width: 575,
+                            windowWidth: 800
+                        });
+                    });
+
+                    await new Promise(r => setTimeout(r, 0));
+                }
+
+                const pdfDataUri = doc.output('datauristring');
+                const labelFileName = `Labels_${sanitizeFilename(spreadsheetName)}_${new Date().getTime()}.pdf`;
+
+                google.script.run
+                    .withSuccessHandler(res => console.log('Labels PDF Saved to Drive:', res))
+                    .uploadFileToProject('LABELS', labelFileName, pdfDataUri, 'application/pdf');
+
+            } catch (e) {
+                console.error('Error in saveLabelsAsPdfToDrive:', e);
+            }
+        }
+
+        function createLabelForPlank(plank, allPlanksOnSheet, sheetInfo) {
+            const roomMatch = plank.material.match(/\(([^)]+)\)/);
+            const roomName = roomMatch ? roomMatch[1] : 'N/A';
+            let cleanMaterial = getCleanMaterial(plank.material);
+
+            const miniMapSvg = generateMiniMapSvg(plank, allPlanksOnSheet);
+
+            const displayW = plank.originalWidth || plank.width;
+            const displayH = plank.originalHeight || plank.height;
+            const displayEB = plank.ebValue || 0;
+
+            const sheetDisplayText = `${sheetInfo.material} ${sheetInfo.thickness}mm Sheet ${sheetInfo.displayNum}`;
+
+            return `
+                <div class="label-container">
+                    <div class="label-left">
+                        <div class="header-text">Nestup</div>
+                        <div class="plank-name">${plank.name || ''}</div>
+                        <div class="plank-material">${cleanMaterial} - ${plank.thickness}mm</div>
+                        <div class="sheet-info">Sheet: ${sheetDisplayText}</div>
+                        <div class="plank-size">${parseFloat(displayW).toFixed(1)} x ${parseFloat(displayH).toFixed(1)}</div>
+                        <div class="room-name">${roomName}</div>
+                        ${firmName ? `<div class="firm-name">${firmName}</div>` : ''}
+                        ${customerName ? `<div class="customer-name">${customerName}</div>` : ''}
+                    </div>
+                    <div class="label-right">
+                        <div class="plank-id">${plank.id}</div>
+                        ${miniMapSvg}
+                        <div class="eb-info">EB - ${displayEB} mm</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function generateMiniMapSvg(currentPlank, allPlanksOnSheet) {
+            const SHEET_W = sheetWidth;
+            const SHEET_H = sheetHeight;
+
+            let otherPlanksSvg = '';
+            for (const p of allPlanksOnSheet) {
+                const svgY = SHEET_H - p.y - p.height;
+                if (p.id !== currentPlank.id) {
+                    otherPlanksSvg += `<rect x="${p.x}" y="${svgY}" width="${p.width}" height="${p.height}" class="plank-other"/>`;
+                }
+            }
+
+            const currentSvgY = SHEET_H - currentPlank.y - currentPlank.height;
+
+            return `
+                <svg class="minimap" viewBox="0 0 ${SHEET_W} ${SHEET_H}">
+                    <rect x="0" y="0" width="${SHEET_W}" height="${SHEET_H}" class="sheet-bg"/>
+                    ${otherPlanksSvg}
+                    <rect x="${currentPlank.x}" y="${currentSvgY}" width="${currentPlank.width}" height="${currentPlank.height}" class="plank-highlight"/>
+                </svg>
+            `;
+        }
+
+        function buildLabelsHtmlDocument(content) {
+            return `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <title>Print Labels</title>
+                    <style>
+                        body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 5mm; background: #f0f0f0; }
+                        .label-container {
+                            width: 75mm; height: 50mm;
+                            border: 1px dashed #999;
+                            margin: 2mm; padding: 3mm;
+                            display: flex; box-sizing: border-box;
+                            background: white; page-break-inside: avoid;
+                        }
+                        .label-left { flex: 2; display: flex; flex-direction: column; font-size: 10pt; line-height: 1.4; }
+                        .label-right { flex: 1.2; display: flex; flex-direction: column; align-items: center; text-align: center; }
+                        .header-text { font-size: 8pt; font-weight: bold; }
+                        .plank-name { font-size: 11pt; font-weight: bold; margin-top: 2mm; }
+                        .plank-material { font-size: 10pt; }
+                        .plank-size { font-size: 9pt; }
+                        .sheet-info { font-size: 10pt; margin-top: auto; font-weight: bold; }
+                        .room-name { font-size: 9pt; font-weight: bold; }
+                        .firm-name, .customer-name { font-size: 14pt; font-weight: 900; margin-top: 1mm; }
+                        .plank-id { font-size: 24pt; font-weight: bold; }
+                        .minimap { height: calc(100% - 32px); width: auto; border: 1px solid #000; aspect-ratio: ${sheetWidth} / ${sheetHeight}; }
+                        .sheet-bg { fill: #fff; }
+                        .plank-other { fill: #fff; stroke: #aaa; stroke-width: 25px; }
+                        .plank-highlight { fill: #000; stroke: #000; stroke-width: 25px; }
+                        .eb-info { font-size: 7pt; margin-top: 1mm; }
+                        @media print {
+                            body { background: #fff; padding: 0; }
+                            .label-container { border: 1px solid #000; margin: 0; }
+                        }
+                    </style>
+                </head>
+                <body>${content}</body>
+                </html>
+            `;
+        }
+
+        function downloadLabelsAsHtml(content) {
+            const htmlString = buildLabelsHtmlDocument(content);
+            const blob = new Blob([htmlString], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = (typeof sanitizeFilename === 'function' ? sanitizeFilename(spreadsheetName) : (spreadsheetName || 'Cutlist').replace(/[^\w\s-]/g, '_')) + '_Labels.html';
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function openPrintableWindow(content, autoPrint = false) {
+            const htmlString = buildLabelsHtmlDocument(content);
+            const blob = new Blob([htmlString], { type: 'text/html' });
+            const blobUrl = URL.createObjectURL(blob);
+            const newWindow = window.open(blobUrl, '_blank');
+            if (newWindow) {
+                newWindow.focus();
+                if (autoPrint) {
+                    setTimeout(() => { try { newWindow.print(); } catch (e) {} }, 800);
+                }
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+            } else {
+                URL.revokeObjectURL(blobUrl);
+                alert('Popup was blocked. Please allow popups for this site and try again.');
+            }
+        }
+
+        // ==================== CSV DOWNLOAD ====================
+
+        function handleDownload() {
+            let csvContent = "ID,Material,Width,Height,Thickness,Sheet,X,Y,Rotated\n";
+
+            Object.keys(allSheetLayouts).forEach(sheetNum => {
+                allSheetLayouts[sheetNum].forEach(p => {
+                    csvContent += `"${p.id}","${p.material}",${p.width},${p.height},${p.thickness},${sheetNum},${p.x},${p.y},${p.rotated}\n`;
+                });
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${spreadsheetName}_Cutlist.csv`;
+            link.click();
+        }
+
+        // ==================== RENDERING ====================
+
+        function renderVisualization() {
+            const area = document.getElementById('visualizationArea');
+
+            let sheetsToRender = {};
+            if (selectedSheet === 'all') {
+                sheetsToRender = allSheetLayouts;
+            } else if (allSheetLayouts[selectedSheet]) {
+                sheetsToRender[selectedSheet] = allSheetLayouts[selectedSheet];
+            }
+
+            if (Object.keys(sheetsToRender).length === 0) {
+                area.innerHTML = '<div class="no-data"><h3>No planks found</h3></div>';
+                return;
+            }
+
+            let html = '<div class="visualization-content">';
+            const sheetMap = getRelativeSheetMap();
+
+            Object.keys(sheetsToRender).sort((a, b) => a - b).forEach(sheetNum => {
+                const sheetPlanks = sheetsToRender[sheetNum];
+                const info = sheetMap[sheetNum];
+                html += renderSheet(parseInt(sheetNum), sheetPlanks, info);
+            });
+
+            html += '</div>';
+            area.innerHTML = html;
+            setupPlankInteractions();
+            updateCollisionHighlights();
+        }
+
+        function renderSheet(sheetNum, sheetPlanks, info) {
+            const scaledWidth = sheetWidth * currentZoom;
+            const scaledHeight = sheetHeight * currentZoom;
+
+            const displayTitle = `${info.material} ${info.thickness}mm Sheet ${info.displayNum}`;
+
+            const plankElements = sheetPlanks.map(plank => {
+                const x = plank.x * currentZoom;
+                const y = (sheetHeight - plank.y - plank.height) * currentZoom;
+                const width = plank.width * currentZoom;
+                const height = plank.height * currentZoom;
+                const materialColor = plank.color || '#9E9E9E';
+
+                let holeElements = '';
+                if (showHoles && plank.holes && plank.holes.length > 0) {
+                    holeElements = plank.holes.map(hole => {
+                        const holeClass = getHoleClass(hole);
+                        const holeDesc = (hole.description || hole.type || '').toLowerCase();
+                        const isVBHole = holeDesc.includes('vb');
+
+                        let holeStyle = '';
+                        let shapeClass = 'hole-circular';
+
+                        // For VB Main / VB Double: Show as small point marker at EXACT center position
+                        if (isVBHole) {
+                            // Calculate center position
+                            const centerX = (hole.x + (hole.diameter || 20) / 2) * currentZoom;
+                            const centerY = (plank.height - hole.y - (hole.diameter || 20) / 2) * currentZoom;
+
+                            // Fixed 6px marker (not scaled) positioned at exact center
+                            const markerSize = 6;
+                            holeStyle = `left:${centerX - markerSize / 2}px; top:${centerY - markerSize / 2}px; width:${markerSize}px; height:${markerSize}px;`;
+                            shapeClass = 'hole-vb-point';
+
+                            return `<div class="hole ${holeClass} ${shapeClass}" style="${holeStyle}" title="VB: X=${hole.x}, Y=${hole.y}"></div>`;
+                        }
+
+                        let hX = hole.x * currentZoom;
+                        let hY;
+
+                        if (hole.isRectangular) {
+                            let rawW = (hole.length || 10);
+                            let rawH = (hole.width || 5);
+                            let hW = rawW * currentZoom;
+                            let hH = rawH * currentZoom;
+                            hY = (plank.height - hole.y - rawH) * currentZoom;
+                            holeStyle = `left:${hX}px; top:${hY}px; width:${hW}px; height:${hH}px;`;
+                            shapeClass = 'hole-rectangular';
+                        } else {
+                            const diameter = (hole.diameter || 5) * currentZoom;
+                            hY = (plank.height - hole.y - (hole.diameter || 5)) * currentZoom;
+                            holeStyle = `left:${hX}px; top:${hY}px; width:${diameter}px; height:${diameter}px;`;
+                        }
+
+                        return `<div class="hole ${holeClass} ${shapeClass}" style="${holeStyle}"></div>`;
+                    }).join('');
+                }
+
+                let lCutElements = '';
+                if (showHoles && plank.l_cuts && plank.l_cuts.length > 0) {
+                    lCutElements = plank.l_cuts.map((lcut, index) => {
+                        const startX = lcut.start.x * currentZoom;
+                        const startY = (plank.height - lcut.start.y) * currentZoom;
+                        const centerX = lcut.center.x * currentZoom;
+                        const centerY = (plank.height - lcut.center.y) * currentZoom;
+                        const endX = lcut.end.x * currentZoom;
+                        const endY = (plank.height - lcut.end.y) * currentZoom;
+
+                        // COLOR-CODED VISUALIZATION: Green(Start) → Yellow(Center) → Red(End)
+                        // Allows operators to verify correct toolpath direction at a glance
+                        return `
+                            <div class="l-cut-shape" style="width:${width}px; height:${height}px;">
+                                <svg style="position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none;">
+                                    <!-- Arrow marker for direction indication -->
+                                    <defs>
+                                        <marker id="arrowhead-lcut-${index}" markerWidth="6" markerHeight="4" refX="3" refY="2" orient="auto">
+                                            <polygon points="0 0, 6 2, 0 4" fill="#E91E63"/>
+                                        </marker>
+                                    </defs>
+                                    <!-- Segment 1: Start → Center (Green to Yellow) -->
+                                    <line x1="${startX}" y1="${startY}" x2="${centerX}" y2="${centerY}" 
+                                          stroke="#E91E63" stroke-width="2" marker-end="url(#arrowhead-lcut-${index})"/>
+                                    <!-- Segment 2: Center → End (Yellow to Red) -->
+                                    <line x1="${centerX}" y1="${centerY}" x2="${endX}" y2="${endY}" 
+                                          stroke="#E91E63" stroke-width="2" marker-end="url(#arrowhead-lcut-${index})"/>
+                                </svg>
+                                <!-- Color-coded points: Green=Start, Yellow=Center, Red=End -->
+                                <div class="l-cut-point start" style="left:${startX - 4}px; top:${startY - 4}px;" title="START (Entry)"></div>
+                                <div class="l-cut-point center" style="left:${centerX - 4}px; top:${centerY - 4}px;" title="CENTER (Corner)"></div>
+                                <div class="l-cut-point end" style="left:${endX - 4}px; top:${endY - 4}px;" title="END (Exit)"></div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                // Render Gola Profile triplets - COLOR-CODED for direction verification
+                let golaProfileElements = '';
+                if (showHoles && plank.gola_profiles && plank.gola_profiles.length > 0) {
+                    golaProfileElements = plank.gola_profiles.map((gola, index) => {
+                        const startX = gola.start.x * currentZoom;
+                        const startY = (plank.height - gola.start.y) * currentZoom;
+                        const centerX = gola.center.x * currentZoom;
+                        const centerY = (plank.height - gola.center.y) * currentZoom;
+                        const endX = gola.end.x * currentZoom;
+                        const endY = (plank.height - gola.end.y) * currentZoom;
+
+                        // COLOR-CODED VISUALIZATION: Green(Start) → Yellow(Center) → Red(End)
+                        // Allows operators to verify correct toolpath direction at a glance
+                        return `
+                            <div class="gola-profile-shape" style="width:${width}px; height:${height}px;">
+                                <svg style="position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none;">
+                                    <!-- Arrow marker for direction indication -->
+                                    <defs>
+                                        <marker id="arrowhead-gola-${index}" markerWidth="6" markerHeight="4" refX="3" refY="2" orient="auto">
+                                            <polygon points="0 0, 6 2, 0 4" fill="#9C27B0"/>
+                                        </marker>
+                                    </defs>
+                                    <!-- Segment 1: Start → Center (Green to Yellow) -->
+                                    <line x1="${startX}" y1="${startY}" x2="${centerX}" y2="${centerY}" 
+                                          stroke="#9C27B0" stroke-width="2" marker-end="url(#arrowhead-gola-${index})"/>
+                                    <!-- Segment 2: Center → End (Yellow to Red) -->
+                                    <line x1="${centerX}" y1="${centerY}" x2="${endX}" y2="${endY}" 
+                                          stroke="#9C27B0" stroke-width="2" marker-end="url(#arrowhead-gola-${index})"/>
+                                </svg>
+                                <!-- Color-coded points: Green=Start, Yellow=Center, Red=End -->
+                                <div class="gola-point start" style="left:${startX - 4}px; top:${startY - 4}px;" title="START (Entry)"></div>
+                                <div class="gola-point center" style="left:${centerX - 4}px; top:${centerY - 4}px;" title="CENTER (Corner)"></div>
+                                <div class="gola-point end" style="left:${endX - 4}px; top:${endY - 4}px;" title="END (Exit)"></div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                const isSelected = selectedPlank && selectedPlank.id === plank.id;
+
+                return `
+                    <div class="plank ${isSelected ? 'selected' : ''}" 
+                         style="left:${x}px; top:${y}px; width:${width}px; height:${height}px; background-color:${materialColor};"
+                         data-plank-id="${plank.id}"
+                         data-sheet-num="${sheetNum}">
+                        ${showIds ? `<div class="plank-id">${plank.id}</div>` : ''}
+                        ${showDimensions ? `<div class="plank-dimensions">${Math.round(plank.width)}x${Math.round(plank.height)}</div>` : ''}
+                        ${holeElements}
+                        ${lCutElements}
+                        ${golaProfileElements}
+                    </div>`;
+            }).join('');
+
+            const usedArea = sheetPlanks.reduce((sum, p) => sum + (p.width * p.height), 0);
+            const totalArea = (sheetWidth - 20) * (sheetHeight - 20);
+            const utilization = totalArea > 0 ? ((usedArea / totalArea) * 100).toFixed(1) : 0;
+
+            return `
+                <div class="sheet-container" id="sheet-container-${sheetNum}">
+                    <div class="sheet-header-viz" style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div class="sheet-title">${displayTitle}</div>
+                            <div class="sheet-info">${sheetPlanks.length} planks - ${utilization}% utilization</div>
+                        </div>
+                        <button class="edit-btn focus-sheet-btn" 
+                                onclick="focusOnSheet(${sheetNum})" 
+                                style="padding: 4px 10px; font-size: 11px;"
+                                title="Center this sheet in view">
+                            Focus
+                        </button>
+                    </div>
+                    <div class="sheet-canvas" style="width:${scaledWidth}px; height:${scaledHeight}px;" data-sheet-num="${sheetNum}">
+                        ${plankElements}
+                    </div>
+                </div>`;
+        }
+
+        function setupPlankInteractions() {
+            const tooltip = document.getElementById('tooltip');
+
+            document.querySelectorAll('.plank').forEach(plankEl => {
+                const plankId = plankEl.getAttribute('data-plank-id');
+                const sheetNum = parseInt(plankEl.getAttribute('data-sheet-num'));
+
+                plankEl.addEventListener('mousedown', (e) => onMouseDown(e, plankId, sheetNum));
+
+                plankEl.addEventListener('mouseenter', (e) => {
+                    const result = findPlankById(plankId);
+                    if (result) {
+                        tooltip.innerHTML = createTooltip(result.plank);
+                        tooltip.style.display = 'block';
+                    }
+                });
+
+                plankEl.addEventListener('mousemove', (e) => {
+                    tooltip.style.left = (e.pageX + 15) + 'px';
+                    tooltip.style.top = (e.pageY + 15) + 'px';
+                });
+
+                plankEl.addEventListener('mouseleave', () => {
+                    tooltip.style.display = 'none';
+                });
+            });
+
+            document.addEventListener('mousemove', onDrag);
+            document.addEventListener('mouseup', onMouseUp);
+        }
+
+        function getHoleTypeClass(holeType) {
+            if (!holeType) return 'hole-type-standard';
+            const type = holeType.toLowerCase();
+            if (type.includes('vb')) return 'hole-type-vb';
+            if (type.includes('screw')) return 'hole-type-screw';
+            if (type.includes('dowel')) return 'hole-type-dowel';
+            if (type.includes('groove')) return 'hole-type-groove';
+            if (type.includes('profile')) return 'hole-type-profile';
+            if (type.includes('slot')) return 'hole-type-slot';
+            return 'hole-type-standard';
+        }
+
+        function createTooltip(plankData) {
+            const holeCount = plankData.holes ? plankData.holes.length : 0;
+
+            // Group holes by type for summary
+            const holeSummary = {};
+            if (plankData.holes) {
+                plankData.holes.forEach(hole => {
+                    const type = hole.description || hole.type || 'unknown';
+                    holeSummary[type] = (holeSummary[type] || 0) + 1;
+                });
+            }
+
+            let holeDetailsHTML = '';
+            if (plankData.holes && plankData.holes.length > 0) {
+                holeDetailsHTML = `
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #555;">
+                        <strong>Features (${holeCount}):</strong>
+                        <div class="hole-list" style="margin-top: 4px;">
+                            ${plankData.holes.map(hole => {
+                    const typeClass = getHoleTypeClass(hole.description || hole.type);
+                    const dimensions = hole.isRectangular ?
+                        `L:${hole.length} W:${hole.width}mm` :
+                        `D:${hole.diameter}mm`;
+                    return `
+                                    <div class="hole-item">
+                                        <span><span class="hole-type-indicator ${typeClass}"></span>${hole.description || hole.type || 'Hole'}</span>
+                                        <span style="color:#aaa;">X:${hole.x} Y:${hole.y} ${dimensions}</span>
+                                    </div>
+                                `;
+                }).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                holeDetailsHTML = '<div style="margin-top: 8px; color: #999; font-style: italic;">No holes or features</div>';
+            }
+
+            // L-Cut info with validation for degenerate data
+            let lCutHTML = '';
+            if (plankData.l_cuts && plankData.l_cuts.length > 0) {
+                const lCutDetails = plankData.l_cuts.map((lc, i) => {
+                    // Validate: check if points are distinct
+                    const EPSILON = 0.1;
+                    const startEqualsCenter = Math.abs(lc.start.x - lc.center.x) < EPSILON &&
+                        Math.abs(lc.start.y - lc.center.y) < EPSILON;
+                    const centerEqualsEnd = Math.abs(lc.center.x - lc.end.x) < EPSILON &&
+                        Math.abs(lc.center.y - lc.end.y) < EPSILON;
+                    const isDegenerate = startEqualsCenter || centerEqualsEnd;
+
+                    const warningHTML = isDegenerate
+                        ? `<div style="color: #FF5722; font-weight: bold; font-size: 10px;">⚠️ INVALID: Points not distinct - check SketchUp export</div>`
+                        : '';
+
+                    return `
+                    <div style="font-size: 11px; margin-top: 4px; ${isDegenerate ? 'background: rgba(255,87,34,0.1); padding: 4px; border-radius: 3px;' : ''}">
+                        ${warningHTML}
+                        <span style="color: #4CAF50;">Start:</span> (${lc.start.x.toFixed(1)}, ${lc.start.y.toFixed(1)})
+                        <span style="color: #FF9800;">Center:</span> (${lc.center.x.toFixed(1)}, ${lc.center.y.toFixed(1)})
+                        <span style="color: #F44336;">End:</span> (${lc.end.x.toFixed(1)}, ${lc.end.y.toFixed(1)})
+                    </div>
+                `;
+                }).join('');
+
+                lCutHTML = `
+                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #555;">
+                    <strong style="color: #E91E63;">L-Cuts (Notches):</strong> ${plankData.l_cuts.length}
+                    ${lCutDetails}
+                </div>
+            `;
+            }
+
+            // Gola Profile info - similar to L-cuts
+            let golaProfileHTML = '';
+            if (plankData.gola_profiles && plankData.gola_profiles.length > 0) {
+                const golaDetails = plankData.gola_profiles.map((gp, i) => {
+                    return `
+                    <div style="font-size: 11px; margin-top: 4px;">
+                        <span style="color: #4CAF50;">Start:</span> (${gp.start.x.toFixed(1)}, ${gp.start.y.toFixed(1)})
+                        <span style="color: #FF9800;">Center:</span> (${gp.center.x.toFixed(1)}, ${gp.center.y.toFixed(1)})
+                        <span style="color: #F44336;">End:</span> (${gp.end.x.toFixed(1)}, ${gp.end.y.toFixed(1)})
+                    </div>
+                `;
+                }).join('');
+
+                golaProfileHTML = `
+                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #555;">
+                    <strong style="color: #9C27B0;">Gola Profiles:</strong> ${plankData.gola_profiles.length}
+                    ${golaDetails}
+                </div>
+            `;
+            }
+
+            return `
+                <h4>${plankData.id} - ${plankData.name || 'Unnamed'}</h4>
+                <div class="plank-info">
+                    <div><strong>Material:</strong> ${plankData.material}</div>
+                    <div><strong>Size:</strong> ${plankData.width} × ${plankData.height}mm</div>
+                    <div><strong>Thickness:</strong> ${plankData.thickness}mm</div>
+                    <div><strong>Position:</strong> X:${plankData.x.toFixed(1)} Y:${plankData.y.toFixed(1)}</div>
+                    ${plankData.rotated ? '<div><strong>Rotated:</strong> Yes</div>' : ''}
+                    <div><strong>Total Features:</strong> ${holeCount}</div>
+                </div>
+                ${holeDetailsHTML}
+                ${lCutHTML}
+                ${golaProfileHTML}
+            `;
+        }
+
+        // ==================== INITIALIZATION ====================
+
+        function updateStats() {
+            let totalPlanks = 0;
+            Object.values(allSheetLayouts).forEach(planks => totalPlanks += planks.length);
+
+            document.getElementById('totalPlanks').textContent = totalPlanks;
+            document.getElementById('totalSheets').textContent = Object.keys(allSheetLayouts).length;
+
+            let totalUsed = 0;
+            let totalArea = 0;
+            Object.values(allSheetLayouts).forEach(planks => {
+                planks.forEach(p => totalUsed += p.width * p.height);
+                totalArea += (sheetWidth - 20) * (sheetHeight - 20);
+            });
+
+            const utilization = totalArea > 0 ? ((totalUsed / totalArea) * 100).toFixed(1) : 0;
+            document.getElementById('overallUtilization').textContent = utilization + '%';
+
+            // Materials list
+            const materialsList = document.getElementById('materialsList');
+            const materials = {};
+            Object.values(allSheetLayouts).flat().forEach(p => {
+                const key = `${getCleanMaterial(p.material)} ${p.thickness}mm`;
+                if (!materials[key]) materials[key] = { count: 0, color: p.color };
+                materials[key].count++;
+            });
+
+            materialsList.innerHTML = '';
+            Object.entries(materials).forEach(([name, info]) => {
+                materialsList.innerHTML += `
+                    <div class="material-item">
+                        <div class="material-color" style="background-color:${info.color || '#9E9E9E'}"></div>
+                        <div class="material-info">
+                            <div class="material-name">${name}</div>
+                            <div class="material-count">${info.count} planks</div>
+                        </div>
+                    </div>`;
+            });
+
+            // Sheets list
+            const sheetsList = document.getElementById('sheetsList');
+            const sheetMap = getRelativeSheetMap();
+            sheetsList.innerHTML = '';
+
+            Object.keys(allSheetLayouts).sort((a, b) => a - b).forEach(sheetNum => {
+                const planks = allSheetLayouts[sheetNum];
+                const info = sheetMap[sheetNum];
+                const usedArea = planks.reduce((sum, p) => sum + p.width * p.height, 0);
+                const totalArea = (sheetWidth - 20) * (sheetHeight - 20);
+                const util = ((usedArea / totalArea) * 100).toFixed(1);
+
+                sheetsList.innerHTML += `
+                    <div class="sheet-item">
+                        <div class="sheet-header">
+                            <span class="sheet-number">${info.material} Sheet ${info.displayNum}</span>
+                            <span class="sheet-utilization">${util}%</span>
+                        </div>
+                        <div class="utilization-bar">
+                            <div class="utilization-fill" style="width:${util}%"></div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function setupControls() {
+            // Sheet select dropdown
+            const sheetSelect = document.getElementById('sheetSelect');
+            sheetSelect.innerHTML = '<option value="all">All Sheets</option>';
+
+            const sheetMap = getRelativeSheetMap();
+            Object.keys(allSheetLayouts).sort((a, b) => a - b).forEach(sheetNum => {
+                const info = sheetMap[sheetNum];
+                const option = document.createElement('option');
+                option.value = sheetNum;
+                option.textContent = `${info.material} ${info.thickness}mm Sheet ${info.displayNum}`;
+                sheetSelect.appendChild(option);
+            });
+
+            sheetSelect.addEventListener('change', (e) => {
+                selectedSheet = e.target.value;
+                renderVisualization();
+            });
+
+            // Zoom controls
+            const zoomSlider = document.getElementById('zoomSlider');
+            const zoomValue = document.getElementById('zoomValue');
+
+            function setZoom(newZoom) {
+                newZoom = Math.max(10, Math.min(200, newZoom));
+                currentZoom = newZoom / 100;
+                zoomSlider.value = newZoom;
+                zoomValue.textContent = newZoom + '%';
+                renderVisualization();
+            }
+
+            zoomSlider.addEventListener('input', (e) => setZoom(parseInt(e.target.value)));
+
+            document.getElementById('zoomInBtn').addEventListener('click', () => {
+                setZoom(parseInt(zoomSlider.value) + 10);
+            });
+
+            document.getElementById('zoomOutBtn').addEventListener('click', () => {
+                setZoom(parseInt(zoomSlider.value) - 10);
+            });
+
+            const vizArea = document.getElementById('visualizationArea');
+
+            document.getElementById('zoomFitBtn').addEventListener('click', () => {
+                // Calculate zoom to fit sheet in view
+                const availableWidth = vizArea.clientWidth - 60;
+                const availableHeight = vizArea.clientHeight - 100;
+                const fitZoomW = (availableWidth / sheetWidth) * 100;
+                const fitZoomH = (availableHeight / sheetHeight) * 100;
+                setZoom(Math.min(fitZoomW, fitZoomH, 100));
+            });
+
+            document.getElementById('zoom100Btn').addEventListener('click', () => setZoom(100));
+
+            // --- NEW: Zoom to Cursor Enhancement ---
+            function handleZoomToCursor(e) {
+                const rect = vizArea.getBoundingClientRect();
+                const vpX = e.clientX - rect.left;
+                const vpY = e.clientY - rect.top;
+                const contentX = vizArea.scrollLeft + vpX;
+                const contentY = vizArea.scrollTop + vpY;
+                const canvases = vizArea.querySelectorAll('.sheet-canvas');
+                let sheetNum = null;
+                let localPx = 0, localPy = 0;
+                for (let i = 0; i < canvases.length; i++) {
+                    const canvas = canvases[i];
+                    const cr = canvas.getBoundingClientRect();
+                    const left = cr.left - rect.left + vizArea.scrollLeft;
+                    const top = cr.top - rect.top + vizArea.scrollTop;
+                    if (contentX >= left && contentX < left + cr.width && contentY >= top && contentY < top + cr.height) {
+                        sheetNum = canvas.getAttribute('data-sheet-num');
+                        localPx = contentX - left;
+                        localPy = contentY - top;
+                        break;
+                    }
+                }
+                const sx = localPx / currentZoom;
+                const sy = sheetHeight - localPy / currentZoom;
+                const delta = e.deltaY > 0 ? -10 : 10;
+                const newZoom = Math.max(10, Math.min(200, parseInt(zoomSlider.value) + delta));
+                setZoom(newZoom);
+                if (sheetNum != null) {
+                    const container = document.getElementById(`sheet-container-${sheetNum}`);
+                    const canvas = container && container.querySelector('.sheet-canvas');
+                    if (canvas) {
+                        const cr = canvas.getBoundingClientRect();
+                        const canvasLeft = cr.left - rect.left + vizArea.scrollLeft;
+                        const canvasTop = cr.top - rect.top + vizArea.scrollTop;
+                        const newScale = newZoom / 100;
+                        const contentXNew = canvasLeft + sx * newScale;
+                        const contentYNew = canvasTop + (sheetHeight - sy) * newScale;
+                        vizArea.scrollLeft = contentXNew - vpX;
+                        vizArea.scrollTop = contentYNew - vpY;
+                    }
+                }
+            }
+            // --- END ---
+
+            // Mouse wheel zoom
+            vizArea.addEventListener('wheel', (e) => {
+                if (e.ctrlKey) {
+                    e.preventDefault();
+                    if (ENABLE_ZOOM_TO_CURSOR) {
+                        handleZoomToCursor(e);
+                    } else {
+                        const delta = e.deltaY > 0 ? -10 : 10;
+                        setZoom(parseInt(zoomSlider.value) + delta);
+                    }
+                }
+            }, { passive: false });
+
+            // Pan (drag to scroll) functionality - hold middle mouse or Shift+drag
+            let isPanning = false;
+            let panStartX = 0;
+            let panStartY = 0;
+            let scrollStartX = 0;
+            let scrollStartY = 0;
+
+            vizArea.addEventListener('mousedown', (e) => {
+                // Middle mouse button (button 1) or Shift+Left click for panning
+                if (e.button === 1 || (e.shiftKey && e.button === 0)) {
+                    e.preventDefault();
+                    isPanning = true;
+                    panStartX = e.clientX;
+                    panStartY = e.clientY;
+                    scrollStartX = vizArea.scrollLeft;
+                    scrollStartY = vizArea.scrollTop;
+                    vizArea.classList.add('panning');
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isPanning) {
+                    const deltaX = e.clientX - panStartX;
+                    const deltaY = e.clientY - panStartY;
+                    vizArea.scrollLeft = scrollStartX - deltaX;
+                    vizArea.scrollTop = scrollStartY - deltaY;
+                }
+            });
+
+            document.addEventListener('mouseup', (e) => {
+                if (isPanning) {
+                    isPanning = false;
+                    vizArea.classList.remove('panning');
+                }
+            });
+
+            // --- NEW: Double-Click Sheet to Focus and Fit ---
+            vizArea.addEventListener('dblclick', (e) => {
+                if (!ENABLE_DOUBLE_CLICK_FOCUS) return;
+                const container = e.target.closest('.sheet-container');
+                if (!container) return;
+                const sheetNum = container.id.replace('sheet-container-', '');
+                if (!sheetNum) return;
+                selectedSheet = sheetNum;
+                const availableWidth = vizArea.clientWidth - 60;
+                const availableHeight = vizArea.clientHeight - 100;
+                const fitZoomW = (availableWidth / sheetWidth) * 100;
+                const fitZoomH = (availableHeight / sheetHeight) * 100;
+                setZoom(Math.min(fitZoomW, fitZoomH, 100));
+                requestAnimationFrame(() => {
+                    const sheetContainer = document.getElementById(`sheet-container-${sheetNum}`);
+                    const sheetCanvas = sheetContainer && sheetContainer.querySelector('.sheet-canvas');
+                    if (!sheetContainer || !sheetCanvas) return;
+                    const vr = vizArea.getBoundingClientRect();
+                    const cr = sheetCanvas.getBoundingClientRect();
+                    const canvasLeft = cr.left - vr.left + vizArea.scrollLeft;
+                    const canvasTop = cr.top - vr.top + vizArea.scrollTop;
+                    const sheetCenterX = canvasLeft + (sheetWidth * currentZoom) / 2;
+                    const sheetCenterY = canvasTop + (sheetHeight * currentZoom) / 2;
+                    vizArea.scrollTo({
+                        left: sheetCenterX - vizArea.clientWidth / 2,
+                        top: sheetCenterY - vizArea.clientHeight / 2,
+                        behavior: 'smooth'
+                    });
+                    const sheetSelectEl = document.getElementById('sheetSelect');
+                    if (sheetSelectEl) sheetSelectEl.value = selectedSheet;
+                });
+            });
+            // --- END ---
+
+            // Update cursor based on zoom level
+            function updatePanCursor() {
+                if (currentZoom > 0.6) {
+                    vizArea.classList.add('pan-enabled');
+                } else {
+                    vizArea.classList.remove('pan-enabled');
+                }
+            }
+
+            // Call after zoom changes
+            const originalSetZoom = setZoom;
+            setZoom = function (newZoom) {
+                originalSetZoom(newZoom);
+                updatePanCursor();
+            };
+
+            // --- NEW: Zoom to Selection Enhancement ---
+            function zoomToBounds(bounds, sheetNum) {
+                if (!vizArea || !bounds) return;
+                const vizW = vizArea.clientWidth - 60;
+                const vizH = vizArea.clientHeight - 100;
+                if (vizW <= 0 || vizH <= 0 || bounds.width <= 0 || bounds.height <= 0) return;
+                const zoomW = (0.5 * vizW / bounds.width) * 100;
+                const zoomH = (0.5 * vizH / bounds.height) * 100;
+                const percent = Math.max(10, Math.min(200, Math.min(zoomW, zoomH)));
+                setZoom(Math.round(percent));
+                requestAnimationFrame(() => {
+                    const container = document.getElementById(`sheet-container-${sheetNum}`);
+                    const canvas = container && container.querySelector('.sheet-canvas');
+                    if (!canvas) return;
+                    const vr = vizArea.getBoundingClientRect();
+                    const cr = canvas.getBoundingClientRect();
+                    const canvasLeft = cr.left - vr.left + vizArea.scrollLeft;
+                    const canvasTop = cr.top - vr.top + vizArea.scrollTop;
+                    const cx = (bounds.x + bounds.width / 2) * currentZoom;
+                    const cy = (sheetHeight - (bounds.y + bounds.height / 2)) * currentZoom;
+                    const targetScrollLeft = canvasLeft + cx - vizArea.clientWidth / 2;
+                    const targetScrollTop = canvasTop + cy - vizArea.clientHeight / 2;
+                    const startLeft = vizArea.scrollLeft;
+                    const startTop = vizArea.scrollTop;
+                    const duration = 180;
+                    const start = performance.now();
+                    function tick(now) {
+                        const t = Math.min((now - start) / duration, 1);
+                        vizArea.scrollLeft = startLeft + (targetScrollLeft - startLeft) * t;
+                        vizArea.scrollTop = startTop + (targetScrollTop - startTop) * t;
+                        if (t < 1) requestAnimationFrame(tick);
+                    }
+                    requestAnimationFrame(tick);
+                });
+            }
+            // --- END ---
+
+            // Checkboxes
+            document.getElementById('showIds').addEventListener('change', (e) => {
+                showIds = e.target.checked;
+                renderVisualization();
+            });
+            document.getElementById('showDimensions').addEventListener('change', (e) => {
+                showDimensions = e.target.checked;
+                renderVisualization();
+            });
+            document.getElementById('showHoles').addEventListener('change', (e) => {
+                showHoles = e.target.checked;
+                renderVisualization();
+            });
+
+            // Edit buttons
+            document.getElementById('rotateBtn').addEventListener('click', rotatePlank);
+            document.getElementById('flipHBtn').addEventListener('click', () => flipPlank('horizontal'));
+            document.getElementById('flipVBtn').addEventListener('click', () => flipPlank('vertical'));
+
+            // Move to sheet
+            document.getElementById('moveToSheet').addEventListener('change', (e) => {
+                if (e.target.value) {
+                    movePlankToSheet(e.target.value);
+                }
+            });
+
+            // Toolbar buttons
+            document.getElementById('undoBtn').addEventListener('click', undo);
+            document.getElementById('redoBtn').addEventListener('click', redo);
+            document.getElementById('saveBtn').addEventListener('click', saveChanges);
+
+            document.getElementById('downloadPdfBtn').addEventListener('click', () => generateCutlistPdf(false));
+            document.getElementById('downloadAllPdfBtn').addEventListener('click', () => generateCutlistPdf(true));
+            document.getElementById('pressingMapBtn').addEventListener('click', generatePressingMapPdf);
+            document.getElementById('printLabelsBtn').addEventListener('click', () => generateLabelPage(true));
+            document.getElementById('viewLabelsBtn').addEventListener('click', () => generateLabelPage(false));
+            document.getElementById('downloadCsvBtn').addEventListener('click', handleDownload);
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                // --- NEW: Keyboard Zoom Enhancement ---
+                const isInput = document.activeElement && (['INPUT', 'TEXTAREA', 'SELECT'].indexOf(document.activeElement.tagName) !== -1 || document.activeElement.contentEditable === 'true');
+                if (ENABLE_KEYBOARD_ZOOM && !isInput) {
+                    const zSlider = document.getElementById('zoomSlider');
+                    if (e.key === '=' || e.key === '+') {
+                        e.preventDefault();
+                        setZoom(parseInt(zSlider.value) + 10);
+                        return;
+                    }
+                    if (e.key === '-') {
+                        e.preventDefault();
+                        setZoom(parseInt(zSlider.value) - 10);
+                        return;
+                    }
+                    if (e.key === '0' && !e.ctrlKey) {
+                        e.preventDefault();
+                        const availableWidth = vizArea.clientWidth - 60;
+                        const availableHeight = vizArea.clientHeight - 100;
+                        const fitZoomW = (availableWidth / sheetWidth) * 100;
+                        const fitZoomH = (availableHeight / sheetHeight) * 100;
+                        setZoom(Math.min(fitZoomW, fitZoomH, 100));
+                        return;
+                    }
+                    if (e.key === '1') {
+                        e.preventDefault();
+                        setZoom(100);
+                        return;
+                    }
+                    if (e.key === '2') {
+                        e.preventDefault();
+                        setZoom(50);
+                        return;
+                    }
+                    if (e.ctrlKey && e.key === '0') {
+                        e.preventDefault();
+                        const availableWidth = vizArea.clientWidth - 60;
+                        const availableHeight = vizArea.clientHeight - 100;
+                        const sheetCount = selectedSheet === 'all' ? Object.keys(allSheetLayouts).length : 1;
+                        const perSheetExtra = 90;
+                        const fitZoomH = sheetCount * sheetHeight > 0 ? ((availableHeight - sheetCount * perSheetExtra) / (sheetCount * sheetHeight)) * 100 : 100;
+                        const fitZoomW = (availableWidth / sheetWidth) * 100;
+                        setZoom(Math.max(10, Math.min(200, Math.min(fitZoomW, fitZoomH, 100))));
+                        return;
+                    }
+                }
+                if (ENABLE_ZOOM_TO_SELECTION && !isInput && e.key === 'f' && selectedPlank) {
+                    e.preventDefault();
+                    zoomToBounds({ x: selectedPlank.x, y: selectedPlank.y, width: selectedPlank.width, height: selectedPlank.height }, selectedPlankSheetNum);
+                    return;
+                }
+                // --- END ---
+
+                if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
+                if (e.ctrlKey && e.key === 'y') { e.preventDefault(); redo(); }
+                if (e.ctrlKey && e.key === 's') { e.preventDefault(); saveChanges(); }
+                if (e.key === 'Escape') deselectPlank();
+                if (e.key === 'r' && selectedPlank && !e.ctrlKey) { e.preventDefault(); rotatePlank(); }
+
+                // Arrow keys for 5mm movement
+                if (selectedPlank && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                    e.preventDefault();
+                    saveToHistory();
+
+                    if (e.key === 'ArrowUp') selectedPlank.y += ARROW_STEP;
+                    if (e.key === 'ArrowDown') selectedPlank.y -= ARROW_STEP;
+                    if (e.key === 'ArrowLeft') selectedPlank.x -= ARROW_STEP;
+                    if (e.key === 'ArrowRight') selectedPlank.x += ARROW_STEP;
+
+                    modifications.push({
+                        type: 'move',
+                        plankId: selectedPlank.id,
+                        fromSheet: selectedPlankSheetNum,
+                        toSheet: selectedPlankSheetNum,
+                        newX: selectedPlank.x,
+                        newY: selectedPlank.y
+                    });
+
+                    markUnsaved();
+                    renderVisualization();
+                    selectPlank(selectedPlank.id);
+                }
+            });
+
+            // Click outside to deselect
+            document.getElementById('visualizationArea').addEventListener('click', (e) => {
+                if (e.target.classList.contains('sheet-canvas') || e.target.classList.contains('visualization-area')) {
+                    deselectPlank();
+                }
+            });
+        }
+
+        function init() {
+            try {
+                const el = document.getElementById('cutlist-init-data');
+                const data = el && el.textContent ? JSON.parse(el.textContent) : {};
+                allSheetLayouts = data.planks || {};
+                sheetConstants = data.constants || { SHEET_WIDTH: 1220, SHEET_HEIGHT: 2440, SPACING: 10 };
+                sheetWidth = sheetConstants.SHEET_WIDTH;
+                sheetHeight = sheetConstants.SHEET_HEIGHT;
+                spreadsheetName = data.spreadsheetName || 'Cutlist';
+
+                const details = data.clientDetails || {};
+                customerName = details.customerName || '';
+                firmName = details.firmName || '';
+
+                if (Object.keys(allSheetLayouts).length === 0) {
+                    document.getElementById('visualizationArea').innerHTML = '<div class="no-data"><h3>No Data</h3><p>Run createCutlist first.</p></div>';
+                    return;
+                }
+
+                // Save initial state
+                saveToHistory();
+
+                setupControls();
+                updateStats();
+                renderVisualization();
+                updateUndoRedoButtons();
+
+            } catch (error) {
+                console.error('Init error:', error);
+                document.getElementById('visualizationArea').innerHTML = `<div class="no-data"><h3>Error</h3><p>${error.message}</p></div>`;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+
+</html>

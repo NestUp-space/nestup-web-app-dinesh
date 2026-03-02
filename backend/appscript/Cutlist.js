@@ -161,9 +161,27 @@ function evaluateLayout(planksOrder, materialThicknessGroupKey, dynamicOpHeader)
   for (const plank of planksOrder) {
     let globalBestFit = { score: Infinity, sheetIndex: -1, rectIndex: -1, orientation: null };
     
-    // 1️⃣ ROTATION ALLOWANCE LOGIC
-    const options = [{ w: plank.width, h: plank.height, rotated: false }];
-    if (plank.grain !== 'Y' && plank.grain !== 'YES') {
+    // ════════════════════════════════════════════════════════════════════════════
+    // 1️⃣ ROTATION ALLOWANCE LOGIC (GRAIN ENFORCEMENT)
+    // ════════════════════════════════════════════════════════════════════════════
+    // GRAIN RULES:
+    // - grainLocked = true: Rotation NOT allowed
+    // - grainLocked = false: Rotation allowed for nesting optimization
+    // ════════════════════════════════════════════════════════════════════════════
+    
+    // Normalize grain value
+    var grainValue = String(plank.grain || '').trim().toUpperCase();
+    var grainLocked = false;
+    
+    if (grainValue === 'Y' || grainValue === 'YES' || grainValue === 'TRUE' || grainValue === '1') {
+      grainLocked = true;
+    } else if (grainValue === 'N' || grainValue === 'NO' || grainValue === 'FALSE' || grainValue === '0') {
+      grainLocked = false;
+    }
+    // else: grainLocked remains false (rotation allowed)
+    
+    var options = [{ w: plank.width, h: plank.height, rotated: false }];
+    if (!grainLocked) {
       options.push({ w: plank.height, h: plank.width, rotated: true });
     }
 
@@ -243,8 +261,20 @@ function evaluateLayout(planksOrder, materialThicknessGroupKey, dynamicOpHeader)
       height: _cleanNum(orientation.h) 
     };
 
-    // Process operations (unchanged)
+    // ════════════════════════════════════════════════════════════════════════════
+    // PROCESS OPERATIONS USING SHARED TRANSFORM MODULE
+    // ════════════════════════════════════════════════════════════════════════════
+    // All coordinate transforms use CNCTransform.transformLocalToSheet()
+    // Formula for 90° clockwise rotation:
+    //   Xsheet = plankX + Ylocal
+    //   Ysheet = plankY + (originalWidth - Xlocal)
+    // ════════════════════════════════════════════════════════════════════════════
+    
     const operationValues = Array(dynamicOpHeader.length).fill('');
+    
+    // Get original dimensions (pre-rotation) for transform calculations
+    const originalDims = { width: plank.width, height: plank.height };
+    
     if (plank.operations) {
       for (const opType in plank.operations) {
         const isGrooveOp = (opType.includes('slot') || opType.includes('groove') || opType.includes('profile'));
@@ -255,12 +285,23 @@ function evaluateLayout(planksOrder, materialThicknessGroupKey, dynamicOpHeader)
           
           let absoluteX, absoluteY;
 
+          // Apply rotation transform
           if (!orientation.rotated) {
+            // Not rotated: simple translation
             absoluteX = placedRect.x + localX;
             absoluteY = placedRect.y + localY;
           } else {
+            // Rotated 90° clockwise: proper rotation formula
             absoluteX = placedRect.x + localY;
-            absoluteY = placedRect.y + (placedRect.height - localX);
+            if (isGrooveOp && operation.width) {
+              // Features with dimensions: subtract width to maintain reference corner
+              // The original bottom-left corner becomes top-left after rotation
+              // Subtract feature width to get the new bottom-left corner
+              absoluteY = placedRect.y + (originalDims.width - localX - operation.width);
+            } else {
+              // Point operations (holes): Y_new = originalWidth - X_old
+              absoluteY = placedRect.y + (originalDims.width - localX);
+            }
           }
 
           const xHeader = `${opType}_${opNum}_X`;
@@ -277,6 +318,7 @@ function evaluateLayout(planksOrder, materialThicknessGroupKey, dynamicOpHeader)
             const lenHeader = `${opType}_${opNum}_length`;
             const widthHeader = `${opType}_${opNum}_width`;
             if (opHeaderIndexMap.has(lenHeader)) {
+              // For rotated planks, slot length/width swap is handled by visualizer
               operationValues[opHeaderIndexMap.get(lenHeader)] = operation.length.toFixed(1);
               operationValues[opHeaderIndexMap.get(widthHeader)] = operation.width.toFixed(1);
             }
@@ -285,29 +327,35 @@ function evaluateLayout(planksOrder, materialThicknessGroupKey, dynamicOpHeader)
       }
     }
 
-    // Process L-cut triplets
-    const lCutValues = [];
+    // ════════════════════════════════════════════════════════════════════════════
+    // PROCESS L-CUT TRIPLETS - PLANK-LOCAL COORDINATES
+    // ════════════════════════════════════════════════════════════════════════════
+    // Nest Result stores PLANK-LOCAL coords (matches physical cut piece).
+    // G-code adds plank position to convert to sheet space when cutting.
+    // - ROTATION: For rotated planks, local coords are in rotated plank space
+    // - MIRRORING: Already handled in FormattedData.js stage
+    // ════════════════════════════════════════════════════════════════════════════
     if (plank.l_cuts && plank.l_cuts.length > 0) {
       plank.l_cuts.forEach((lcut, index) => {
         const lCutNum = index + 1;
         
-        let absStartX, absStartY, absCenterX, absCenterY, absEndX, absEndY;
+        let localStartX, localStartY, localCenterX, localCenterY, localEndX, localEndY;
         
         if (!orientation.rotated) {
-          absStartX = placedRect.x + lcut.start.x;
-          absStartY = placedRect.y + lcut.start.y;
-          absCenterX = placedRect.x + lcut.center.x;
-          absCenterY = placedRect.y + lcut.center.y;
-          absEndX = placedRect.x + lcut.end.x;
-          absEndY = placedRect.y + lcut.end.y;
+          localStartX = lcut.start.x;
+          localStartY = lcut.start.y;
+          localCenterX = lcut.center.x;
+          localCenterY = lcut.center.y;
+          localEndX = lcut.end.x;
+          localEndY = lcut.end.y;
         } else {
-          // When rotated, swap X/Y and adjust
-          absStartX = placedRect.x + lcut.start.y;
-          absStartY = placedRect.y + (placedRect.height - lcut.start.x);
-          absCenterX = placedRect.x + lcut.center.y;
-          absCenterY = placedRect.y + (placedRect.height - lcut.center.x);
-          absEndX = placedRect.x + lcut.end.y;
-          absEndY = placedRect.y + (placedRect.height - lcut.end.x);
+          // Rotated 90° clockwise: X_new = Y_old, Y_new = originalWidth - X_old
+          localStartX = lcut.start.y;
+          localStartY = originalDims.width - lcut.start.x;
+          localCenterX = lcut.center.y;
+          localCenterY = originalDims.width - lcut.center.x;
+          localEndX = lcut.end.y;
+          localEndY = originalDims.width - lcut.end.x;
         }
         
         const startXHeader = `L_cut_${lCutNum}_start_X`;
@@ -318,38 +366,42 @@ function evaluateLayout(planksOrder, materialThicknessGroupKey, dynamicOpHeader)
         const endYHeader = `L_cut_${lCutNum}_end_Y`;
         
         if (opHeaderIndexMap.has(startXHeader)) {
-          operationValues[opHeaderIndexMap.get(startXHeader)] = absStartX.toFixed(1);
-          operationValues[opHeaderIndexMap.get(startYHeader)] = absStartY.toFixed(1);
-          operationValues[opHeaderIndexMap.get(centerXHeader)] = absCenterX.toFixed(1);
-          operationValues[opHeaderIndexMap.get(centerYHeader)] = absCenterY.toFixed(1);
-          operationValues[opHeaderIndexMap.get(endXHeader)] = absEndX.toFixed(1);
-          operationValues[opHeaderIndexMap.get(endYHeader)] = absEndY.toFixed(1);
+          operationValues[opHeaderIndexMap.get(startXHeader)] = localStartX.toFixed(1);
+          operationValues[opHeaderIndexMap.get(startYHeader)] = localStartY.toFixed(1);
+          operationValues[opHeaderIndexMap.get(centerXHeader)] = localCenterX.toFixed(1);
+          operationValues[opHeaderIndexMap.get(centerYHeader)] = localCenterY.toFixed(1);
+          operationValues[opHeaderIndexMap.get(endXHeader)] = localEndX.toFixed(1);
+          operationValues[opHeaderIndexMap.get(endYHeader)] = localEndY.toFixed(1);
         }
       });
     }
     
-    // Process Gola profile triplets (same logic as L-cuts)
+    // ════════════════════════════════════════════════════════════════════════════
+    // PROCESS GOLA PROFILE TRIPLETS - PLANK-LOCAL COORDINATES
+    // ════════════════════════════════════════════════════════════════════════════
+    // Nest Result stores PLANK-LOCAL coords (matches physical cut piece).
+    // G-code adds plank position to convert to sheet space when cutting.
+    // ════════════════════════════════════════════════════════════════════════════
     if (plank.gola_profiles && plank.gola_profiles.length > 0) {
       plank.gola_profiles.forEach((gola, index) => {
         const golaNum = index + 1;
         
-        let absStartX, absStartY, absCenterX, absCenterY, absEndX, absEndY;
+        let localStartX, localStartY, localCenterX, localCenterY, localEndX, localEndY;
         
         if (!orientation.rotated) {
-          absStartX = placedRect.x + gola.start.x;
-          absStartY = placedRect.y + gola.start.y;
-          absCenterX = placedRect.x + gola.center.x;
-          absCenterY = placedRect.y + gola.center.y;
-          absEndX = placedRect.x + gola.end.x;
-          absEndY = placedRect.y + gola.end.y;
+          localStartX = gola.start.x;
+          localStartY = gola.start.y;
+          localCenterX = gola.center.x;
+          localCenterY = gola.center.y;
+          localEndX = gola.end.x;
+          localEndY = gola.end.y;
         } else {
-          // When rotated, swap X/Y and adjust
-          absStartX = placedRect.x + gola.start.y;
-          absStartY = placedRect.y + (placedRect.height - gola.start.x);
-          absCenterX = placedRect.x + gola.center.y;
-          absCenterY = placedRect.y + (placedRect.height - gola.center.x);
-          absEndX = placedRect.x + gola.end.y;
-          absEndY = placedRect.y + (placedRect.height - gola.end.x);
+          localStartX = gola.start.y;
+          localStartY = originalDims.width - gola.start.x;
+          localCenterX = gola.center.y;
+          localCenterY = originalDims.width - gola.center.x;
+          localEndX = gola.end.y;
+          localEndY = originalDims.width - gola.end.x;
         }
         
         const startXHeader = `Gola_profile_${golaNum}_start_X`;
@@ -360,12 +412,12 @@ function evaluateLayout(planksOrder, materialThicknessGroupKey, dynamicOpHeader)
         const endYHeader = `Gola_profile_${golaNum}_end_Y`;
         
         if (opHeaderIndexMap.has(startXHeader)) {
-          operationValues[opHeaderIndexMap.get(startXHeader)] = absStartX.toFixed(1);
-          operationValues[opHeaderIndexMap.get(startYHeader)] = absStartY.toFixed(1);
-          operationValues[opHeaderIndexMap.get(centerXHeader)] = absCenterX.toFixed(1);
-          operationValues[opHeaderIndexMap.get(centerYHeader)] = absCenterY.toFixed(1);
-          operationValues[opHeaderIndexMap.get(endXHeader)] = absEndX.toFixed(1);
-          operationValues[opHeaderIndexMap.get(endYHeader)] = absEndY.toFixed(1);
+          operationValues[opHeaderIndexMap.get(startXHeader)] = localStartX.toFixed(1);
+          operationValues[opHeaderIndexMap.get(startYHeader)] = localStartY.toFixed(1);
+          operationValues[opHeaderIndexMap.get(centerXHeader)] = localCenterX.toFixed(1);
+          operationValues[opHeaderIndexMap.get(centerYHeader)] = localCenterY.toFixed(1);
+          operationValues[opHeaderIndexMap.get(endXHeader)] = localEndX.toFixed(1);
+          operationValues[opHeaderIndexMap.get(endYHeader)] = localEndY.toFixed(1);
         }
       });
     }
@@ -1179,16 +1231,13 @@ function drawCutlist() {
           continue;
         }
         
-        // Convert to relative coordinates for visualizer (absolute - plank position)
-        // Clamp to plank boundaries to ensure L-cuts don't render outside
-        const plankW = Number(row[hIdx.w]);
-        const plankH = Number(row[hIdx.h]);
-        const relStartX = Math.max(0, Math.min(Number(startX) - plankAbsX, plankW));
-        const relStartY = Math.max(0, Math.min(Number(startY) - plankAbsY, plankH));
-        const relCenterX = Math.max(0, Math.min(Number(centerX) - plankAbsX, plankW));
-        const relCenterY = Math.max(0, Math.min(Number(centerY) - plankAbsY, plankH));
-        const relEndX = Math.max(0, Math.min(Number(endX) - plankAbsX, plankW));
-        const relEndY = Math.max(0, Math.min(Number(endY) - plankAbsY, plankH));
+        // Nest Result stores plank-local; use directly for visualizer (no conversion)
+        const relStartX = Number(startX);
+        const relStartY = Number(startY);
+        const relCenterX = Number(centerX);
+        const relCenterY = Number(centerY);
+        const relEndX = Number(endX);
+        const relEndY = Number(endY);
         
         l_cuts.push({
           start: { x: relStartX, y: relStartY },
@@ -1227,16 +1276,13 @@ function drawCutlist() {
           continue;
         }
         
-        // Convert to relative coordinates for visualizer (absolute - plank position)
-        // Clamp to plank boundaries to ensure Gola profiles don't render outside
-        const plankW = Number(row[hIdx.w]);
-        const plankH = Number(row[hIdx.h]);
-        const relStartX = Math.max(0, Math.min(Number(startX) - plankAbsX, plankW));
-        const relStartY = Math.max(0, Math.min(Number(startY) - plankAbsY, plankH));
-        const relCenterX = Math.max(0, Math.min(Number(centerX) - plankAbsX, plankW));
-        const relCenterY = Math.max(0, Math.min(Number(centerY) - plankAbsY, plankH));
-        const relEndX = Math.max(0, Math.min(Number(endX) - plankAbsX, plankW));
-        const relEndY = Math.max(0, Math.min(Number(endY) - plankAbsY, plankH));
+        // Nest Result stores plank-local; use directly for visualizer (no conversion)
+        const relStartX = Number(startX);
+        const relStartY = Number(startY);
+        const relCenterX = Number(centerX);
+        const relCenterY = Number(centerY);
+        const relEndX = Number(endX);
+        const relEndY = Number(endY);
         
         gola_profiles.push({
           start: { x: relStartX, y: relStartY },
@@ -1286,7 +1332,7 @@ function drawCutlist() {
     const SHEET_HEIGHT = 2440;
     const SPACING = 10;
 
-    const template = HtmlService.createTemplateFromFile("cutlist_visual");
+    const template = HtmlService.createTemplateFromFile("cutlist_editor");
     template.data = JSON.stringify({
       clientDetails: clientName, 
       spreadsheetName: ss.getName(),
@@ -1296,7 +1342,7 @@ function drawCutlist() {
     });
 
     const html = template.evaluate().setWidth(1400).setHeight(850);
-    ui.showModalDialog(html, "📐 Cutlist Visualization Dashboard");
+    ui.showModalDialog(html, "Cutlist Editor");
 
   } catch (error) {
     ui.alert(`❌ Visualization Error: ${error.message}`);
@@ -1332,4 +1378,307 @@ function _getClientName(ss) {
   }
   
   return details;
+}
+
+// =================================================================
+// ====================     EDITABLE CUTLIST FUNCTIONS     ==========
+// =================================================================
+
+/**
+ * Saves the edited cutlist from the visual editor back to the Nest Result sheet.
+ * Called from the HTML editor via google.script.run
+ * @param {string} jsonString - JSON string containing layouts and modifications
+ * @returns {Object} - Success/failure status with message
+ */
+function saveEditedCutlist(jsonString) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const nestSheet = ss.getSheetByName("Nest Result");
+    if (!nestSheet) {
+      throw new Error("Nest Result sheet not found");
+    }
+    
+    const payload = JSON.parse(jsonString);
+    const layouts = payload.layouts;           // Updated allSheetLayouts
+    const modifications = payload.modifications;  // Array of changes
+    
+    if (!modifications || modifications.length === 0) {
+      return { success: true, message: "No changes to save" };
+    }
+    
+    // Get existing data
+    const data = nestSheet.getDataRange().getValues();
+    const headers = data[0].map(h => String(h).trim());
+    
+    // Column indices for standard columns
+    const cols = {
+      id: headers.indexOf("Plank ID"),
+      name: headers.indexOf("Plank Name"),
+      material: headers.indexOf("Material"),
+      thickness: headers.indexOf("Thickness"),
+      sheet: headers.indexOf("Sheet"),
+      x: headers.indexOf("X"),
+      y: headers.indexOf("Y"),
+      width: headers.indexOf("Placed Width"),
+      height: headers.indexOf("Placed Height"),
+      rotated: headers.indexOf("Rotated"),
+      origWidth: headers.indexOf("Original Width"),
+      origHeight: headers.indexOf("Original Height"),
+      ebValue: headers.indexOf("EB Value")
+    };
+    
+    // Validate required columns exist
+    if (cols.id === -1 || cols.x === -1 || cols.y === -1 || cols.sheet === -1) {
+      throw new Error("Missing required columns in Nest Result sheet");
+    }
+    
+    // Process each modification
+    let modifiedCount = 0;
+    
+    for (const mod of modifications) {
+      // Find row by Plank ID
+      let rowIndex = -1;
+      for (let r = 1; r < data.length; r++) {
+        if (String(data[r][cols.id]).trim() === String(mod.plankId).trim()) {
+          rowIndex = r;
+          break;
+        }
+      }
+      
+      if (rowIndex === -1) {
+        Logger.log(`Warning: Plank ID ${mod.plankId} not found in Nest Result`);
+        continue;
+      }
+      
+      // Get old position for coordinate recalculation
+      const oldX = parseFloat(data[rowIndex][cols.x]) || 0;
+      const oldY = parseFloat(data[rowIndex][cols.y]) || 0;
+      const oldWidth = parseFloat(data[rowIndex][cols.width]) || 0;
+      const oldHeight = parseFloat(data[rowIndex][cols.height]) || 0;
+      
+      if (mod.type === 'move') {
+        // Update sheet number
+        data[rowIndex][cols.sheet] = mod.toSheet;
+        
+        // Update X, Y coordinates
+        data[rowIndex][cols.x] = mod.newX.toFixed(1);
+        data[rowIndex][cols.y] = mod.newY.toFixed(1);
+        
+        // Recalculate operation coordinates (shift by delta)
+        _recalculateOperationCoords(data, rowIndex, headers, oldX, oldY, mod.newX, mod.newY);
+        
+        modifiedCount++;
+      }
+      
+      if (mod.type === 'rotate') {
+        // Update rotated flag
+        const wasRotated = String(data[rowIndex][cols.rotated]).toLowerCase() === 'yes';
+        data[rowIndex][cols.rotated] = wasRotated ? "No" : "Yes";
+        
+        // Swap width and height
+        data[rowIndex][cols.width] = oldHeight.toFixed(1);
+        data[rowIndex][cols.height] = oldWidth.toFixed(1);
+        
+        // Also swap original dimensions if present
+        if (cols.origWidth !== -1 && cols.origHeight !== -1) {
+          const origW = parseFloat(data[rowIndex][cols.origWidth]) || 0;
+          const origH = parseFloat(data[rowIndex][cols.origHeight]) || 0;
+          data[rowIndex][cols.origWidth] = origH.toFixed(1);
+          data[rowIndex][cols.origHeight] = origW.toFixed(1);
+        }
+        
+        // Recalculate operation coordinates with rotation transform
+        _recalculateOperationCoordsRotated(data, rowIndex, headers, mod.angle || 90, oldWidth, oldHeight);
+        
+        modifiedCount++;
+      }
+      
+      if (mod.type === 'flip') {
+        // Flip operation coordinates
+        _recalculateOperationCoordsFlipped(data, rowIndex, headers, mod.direction, oldWidth, oldHeight);
+        
+        modifiedCount++;
+      }
+    }
+    
+    // Write back to sheet
+    nestSheet.getRange(1, 1, data.length, data[0].length).setValues(data);
+    
+    return { 
+      success: true, 
+      message: `Successfully saved ${modifiedCount} modification(s) to Nest Result sheet` 
+    };
+    
+  } catch (error) {
+    Logger.log(`saveEditedCutlist Error: ${error.message}\nStack: ${error.stack}`);
+    return { 
+      success: false, 
+      message: `Failed to save: ${error.message}` 
+    };
+  }
+}
+
+/**
+ * Recalculates operation coordinates when a plank is moved (translation only)
+ * All operation coordinates are shifted by the same delta as the plank
+ */
+function _recalculateOperationCoords(data, rowIndex, headers, oldX, oldY, newX, newY) {
+  const deltaX = newX - oldX;
+  const deltaY = newY - oldY;
+  
+  // Find all operation columns (pattern: opType_N_X, opType_N_Y, or L_cut/Gola_profile triplets)
+  headers.forEach((header, colIndex) => {
+    // Match X coordinate columns (standard ops + L_cut + Gola_profile)
+    if (header.match(/_X$/) && (header.match(/_\d+_/) || header.match(/_start_X$/) || header.match(/_center_X$/) || header.match(/_end_X$/))) {
+      const val = parseFloat(data[rowIndex][colIndex]);
+      if (!isNaN(val) && val !== 0 && data[rowIndex][colIndex] !== '') {
+        data[rowIndex][colIndex] = (val + deltaX).toFixed(1);
+      }
+    }
+    // Match Y coordinate columns
+    if (header.match(/_Y$/) && (header.match(/_\d+_/) || header.match(/_start_Y$/) || header.match(/_center_Y$/) || header.match(/_end_Y$/))) {
+      const val = parseFloat(data[rowIndex][colIndex]);
+      if (!isNaN(val) && val !== 0 && data[rowIndex][colIndex] !== '') {
+        data[rowIndex][colIndex] = (val + deltaY).toFixed(1);
+      }
+    }
+  });
+}
+
+/**
+ * Recalculates operation coordinates when a plank is rotated
+ * For 90 degree rotation: newRelX = oldRelY, newRelY = oldPlankWidth - oldRelX
+ */
+function _recalculateOperationCoordsRotated(data, rowIndex, headers, angle, plankWidth, plankHeight) {
+  const plankX = parseFloat(data[rowIndex][headers.indexOf("X")]) || 0;
+  const plankY = parseFloat(data[rowIndex][headers.indexOf("Y")]) || 0;
+  
+  // Process each X column and find its corresponding Y column
+  headers.forEach((header, colIndex) => {
+    // Match standard operation X columns or triplet X columns
+    const xMatch = header.match(/^(.+_\d+)_X$/) || header.match(/^(.+)_(start|center|end)_X$/);
+    if (xMatch) {
+      const baseKey = xMatch[1];
+      const yHeader = header.replace(/_X$/, '_Y');
+      const yColIndex = headers.indexOf(yHeader);
+      
+      if (yColIndex !== -1) {
+        const absX = parseFloat(data[rowIndex][colIndex]);
+        const absY = parseFloat(data[rowIndex][yColIndex]);
+        
+        // Skip empty values
+        if (isNaN(absX) || isNaN(absY) || data[rowIndex][colIndex] === '' || data[rowIndex][yColIndex] === '') {
+          return;
+        }
+        
+        // Convert absolute to relative (relative to plank origin)
+        const relX = absX - plankX;
+        const relY = absY - plankY;
+        
+        // Skip if both are 0
+        if (relX === 0 && relY === 0) return;
+        
+        // Apply rotation transform
+        let newRelX, newRelY;
+        
+        if (angle === 90 || angle === -270) {
+          newRelX = relY;
+          newRelY = plankWidth - relX;
+        } else if (angle === 180 || angle === -180) {
+          newRelX = plankWidth - relX;
+          newRelY = plankHeight - relY;
+        } else if (angle === 270 || angle === -90) {
+          newRelX = plankHeight - relY;
+          newRelY = relX;
+        } else {
+          // Default to 90 degree rotation
+          newRelX = relY;
+          newRelY = plankWidth - relX;
+        }
+        
+        // Convert back to absolute
+        const newAbsX = plankX + newRelX;
+        const newAbsY = plankY + newRelY;
+        
+        data[rowIndex][colIndex] = newAbsX.toFixed(1);
+        data[rowIndex][yColIndex] = newAbsY.toFixed(1);
+      }
+      
+      // Handle groove/slot length and width swapping for rotation (standard ops only)
+      if (header.match(/^(.+_\d+)_X$/)) {
+        const lenColIndex = headers.indexOf(baseKey + "_length");
+        const widthColIndex = headers.indexOf(baseKey + "_width");
+        
+        if (lenColIndex !== -1 && widthColIndex !== -1) {
+          const oldLen = parseFloat(data[rowIndex][lenColIndex]) || 0;
+          const oldWidth = parseFloat(data[rowIndex][widthColIndex]) || 0;
+          
+          if (oldLen !== 0 || oldWidth !== 0) {
+            // Swap length and width for 90/270 degree rotations
+            if (angle === 90 || angle === 270 || angle === -90 || angle === -270) {
+              data[rowIndex][lenColIndex] = oldWidth.toFixed(1);
+              data[rowIndex][widthColIndex] = oldLen.toFixed(1);
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+/**
+ * Recalculates operation coordinates when a plank is flipped
+ * Horizontal flip: newRelX = plankWidth - oldRelX
+ * Vertical flip: newRelY = plankHeight - oldRelY
+ * 
+ * ════════════════════════════════════════════════════════════════════════════════
+ * L-cuts and Gola cuts are just reference points (3 dots for G-code).
+ * They follow the SAME flip/mirror rules as other operations.
+ * All operation types (holes, grooves, L-cuts, Golas) are mirrored consistently.
+ * ════════════════════════════════════════════════════════════════════════════════
+ */
+function _recalculateOperationCoordsFlipped(data, rowIndex, headers, direction, plankWidth, plankHeight) {
+  const plankX = parseFloat(data[rowIndex][headers.indexOf("X")]) || 0;
+  const plankY = parseFloat(data[rowIndex][headers.indexOf("Y")]) || 0;
+  
+  headers.forEach((header, colIndex) => {
+    // Match standard operation X columns (including L_cut and Gola triplets)
+    const xMatch = header.match(/^(.+)_X$/);
+    if (xMatch && header.match(/_\d+_/) || header.match(/_start_X$/) || header.match(/_center_X$/) || header.match(/_end_X$/)) {
+      const yHeader = header.replace('_X', '_Y');
+      const yColIndex = headers.indexOf(yHeader);
+      
+      if (yColIndex !== -1) {
+        const absX = parseFloat(data[rowIndex][colIndex]);
+        const absY = parseFloat(data[rowIndex][yColIndex]);
+        
+        // Skip empty values
+        if (isNaN(absX) || isNaN(absY) || data[rowIndex][colIndex] === '' || data[rowIndex][yColIndex] === '') {
+          return;
+        }
+        
+        // Convert absolute to relative
+        const relX = absX - plankX;
+        const relY = absY - plankY;
+        
+        let newRelX = relX;
+        let newRelY = relY;
+        
+        if (direction === 'horizontal') {
+          // Mirror across vertical axis (center of plank)
+          newRelX = plankWidth - relX;
+        } else if (direction === 'vertical') {
+          // Mirror across horizontal axis (center of plank)
+          newRelY = plankHeight - relY;
+        }
+        
+        // Convert back to absolute
+        const newAbsX = plankX + newRelX;
+        const newAbsY = plankY + newRelY;
+        
+        data[rowIndex][colIndex] = newAbsX.toFixed(1);
+        data[rowIndex][yColIndex] = newAbsY.toFixed(1);
+      }
+    }
+  });
 }

@@ -12,6 +12,7 @@ import {
   NestResult,
   MaterialSummary,
   Wall,
+  Plank,
 } from '@/types/visualiser';
 import { EdgeBindingDialog, EBSettings } from '@/components/visualiser/designer/dialogs/EdgeBindingDialog';
 import { ClientDetailsDialog } from '@/components/visualiser/designer/dialogs/ClientDetailsDialog';
@@ -23,6 +24,7 @@ import { generatePlankList as createPlankList } from '@/lib/visualiser/plankList
 import { runNesting, AlgorithmType, GAParams, SAParams, PSOParams, generateMaterialSummary as createMaterialSummary } from '@/lib/visualiser/nestingEngine';
 import { calculateSFT } from '@/lib/visualiser/sftCalculation';
 import { generateRawData, backfillPlankIds, RawDataRow } from '@/lib/visualiser/rawDataGenerator';
+import { downloadGCodeZip } from '@/lib/visualiser/gcodeGenerator';
 
 // Import table views
 import {
@@ -97,6 +99,7 @@ export default function GeneratePage() {
   
   // Data view modal state - which data table to show
   const [viewingData, setViewingData] = useState<string | null>(null);
+  const [gcodeDownloading, setGcodeDownloading] = useState(false);
 
   // Collect unique materials from all planks for EB dialog
   const uniqueMaterials = useMemo(() => {
@@ -319,33 +322,72 @@ export default function GeneratePage() {
               }
             );
             
-            // Store nesting results in expected format
-            const generatedNestResults: NestResult[] = nestingResult.allPlacedPlanks.map((p) => ({
-              id: p.id,
-              name: p.name,
-              material: p.material,
-              thickness: p.thickness,
-              sheetNum: p.sheetNum,
-              x: p.x,
-              y: p.y,
-              width: p.placedWidth,
-              height: p.placedHeight,
-              rotated: p.rotated,
-              color: p.color || '#4ECDC4',
-              originalWidth: p.originalWidth,
-              originalHeight: p.originalHeight,
-              ebValue: p.ebValue,
-              holes: p.operations.map((op) => ({
-                x: op.x,
-                y: op.y,
-                type: op.type,
-                isRectangular: op.isRectangular,
-                description: op.description,
-                diameter: op.diameter,
-                width: op.width,
-                length: op.length,
-              })),
-            }));
+            // Helper: find source plank from walls by id (for L-cuts/Gola in sheet space)
+            const findPlankById = (plankId: string): Plank | null => {
+              for (const wall of walls) {
+                for (const box of wall.boxes) {
+                  const plank = box.planks.find((pl) => pl.id === plankId);
+                  if (plank) return plank;
+                }
+              }
+              return null;
+            };
+            const toSheetSpace = (
+              localX: number,
+              localY: number,
+              sheetX: number,
+              sheetY: number,
+              placedHeight: number,
+              rotated: boolean
+            ): { x: number; y: number } => {
+              if (!rotated) return { x: sheetX + localX, y: sheetY + localY };
+              return { x: sheetX + localY, y: sheetY + (placedHeight - localX) };
+            };
+
+            // Store nesting results in expected format (with l_cuts/gola_profiles in sheet space)
+            const generatedNestResults: NestResult[] = nestingResult.allPlacedPlanks.map((p) => {
+              const sourcePlank = findPlankById(p.id);
+              let l_cuts: NestResult['l_cuts'];
+              let gola_profiles: NestResult['gola_profiles'];
+              if (sourcePlank?.operations?.l_cuts?.length) {
+                l_cuts = sourcePlank.operations.l_cuts.map((lc) => ({
+                  start: toSheetSpace(lc.start.x, lc.start.y, p.x, p.y, p.placedHeight, p.rotated),
+                  center: toSheetSpace(lc.center.x, lc.center.y, p.x, p.y, p.placedHeight, p.rotated),
+                  end: toSheetSpace(lc.end.x, lc.end.y, p.x, p.y, p.placedHeight, p.rotated),
+                }));
+              }
+              // Gola: if we had triplet profiles we could map here; for now leave undefined
+              gola_profiles = undefined;
+
+              return {
+                id: p.id,
+                name: p.name,
+                material: p.material,
+                thickness: p.thickness,
+                sheetNum: p.sheetNum,
+                x: p.x,
+                y: p.y,
+                width: p.placedWidth,
+                height: p.placedHeight,
+                rotated: p.rotated,
+                color: p.color || '#4ECDC4',
+                originalWidth: p.originalWidth,
+                originalHeight: p.originalHeight,
+                ebValue: p.ebValue,
+                holes: p.operations.map((op) => ({
+                  x: op.x,
+                  y: op.y,
+                  type: op.type,
+                  isRectangular: op.isRectangular,
+                  description: op.description,
+                  diameter: op.diameter,
+                  width: op.width,
+                  length: op.length,
+                })),
+                l_cuts,
+                gola_profiles,
+              };
+            });
             setNestResults(generatedNestResults);
             console.log(`[Generate] Nesting complete: ${nestingResult.totalSheets} sheets, ${nestingResult.totalUtilization.toFixed(1)}% utilization`);
             break;
@@ -468,33 +510,59 @@ export default function GeneratePage() {
         }
       );
 
-      // Update results
-      const nestResults: NestResult[] = nestingResult.allPlacedPlanks.map((p) => ({
-        id: p.id,
-        name: p.name,
-        material: p.material,
-        thickness: p.thickness,
-        sheetNum: p.sheetNum,
-        x: p.x,
-        y: p.y,
-        width: p.placedWidth,
-        height: p.placedHeight,
-        rotated: p.rotated,
-        color: p.color || '#4ECDC4',
-        originalWidth: p.originalWidth,
-        originalHeight: p.originalHeight,
-        ebValue: p.ebValue,
-        holes: p.operations.map((op) => ({
-          x: op.x,
-          y: op.y,
-          type: op.type,
-          isRectangular: op.isRectangular,
-          description: op.description,
-          diameter: op.diameter,
-          width: op.width,
-          length: op.length,
-        })),
-      }));
+      // Enrich with l_cuts/gola_profiles in sheet space (same as initial cutlist step)
+      const wallsForOptimizer = useDesignerStore.getState().walls;
+      const findPlankByIdOpt = (plankId: string) => {
+        for (const wall of wallsForOptimizer) {
+          for (const box of wall.boxes) {
+            const plank = box.planks.find((pl) => pl.id === plankId);
+            if (plank) return plank;
+          }
+        }
+        return null;
+      };
+      const toSheetSpaceOpt = (localX: number, localY: number, sheetX: number, sheetY: number, placedHeight: number, rotated: boolean) =>
+        !rotated ? { x: sheetX + localX, y: sheetY + localY } : { x: sheetX + localY, y: sheetY + (placedHeight - localX) };
+
+      const nestResults: NestResult[] = nestingResult.allPlacedPlanks.map((p) => {
+        const sourcePlank = findPlankByIdOpt(p.id);
+        let l_cuts: NestResult['l_cuts'];
+        if (sourcePlank?.operations?.l_cuts?.length) {
+          l_cuts = sourcePlank.operations.l_cuts.map((lc) => ({
+            start: toSheetSpaceOpt(lc.start.x, lc.start.y, p.x, p.y, p.placedHeight, p.rotated),
+            center: toSheetSpaceOpt(lc.center.x, lc.center.y, p.x, p.y, p.placedHeight, p.rotated),
+            end: toSheetSpaceOpt(lc.end.x, lc.end.y, p.x, p.y, p.placedHeight, p.rotated),
+          }));
+        }
+        return {
+          id: p.id,
+          name: p.name,
+          material: p.material,
+          thickness: p.thickness,
+          sheetNum: p.sheetNum,
+          x: p.x,
+          y: p.y,
+          width: p.placedWidth,
+          height: p.placedHeight,
+          rotated: p.rotated,
+          color: p.color || '#4ECDC4',
+          originalWidth: p.originalWidth,
+          originalHeight: p.originalHeight,
+          ebValue: p.ebValue,
+          holes: p.operations.map((op) => ({
+            x: op.x,
+            y: op.y,
+            type: op.type,
+            isRectangular: op.isRectangular,
+            description: op.description,
+            diameter: op.diameter,
+            width: op.width,
+            length: op.length,
+          })),
+          l_cuts,
+          gola_profiles: undefined,
+        };
+      });
       setNestResults(nestResults);
 
       console.log(`[Generate] ${algorithm.toUpperCase()} optimization complete: ${nestingResult.totalSheets} sheets, ${nestingResult.totalUtilization.toFixed(1)}% utilization`);
@@ -539,8 +607,20 @@ export default function GeneratePage() {
   };
 
   const downloadAll = () => {
-    // In production, this would create a ZIP file with all generated files
-    alert('Download functionality will be implemented with actual file generation.');
+    const base = window.location.origin;
+    const reportPaths = [
+      '/visualiser/reports/material-estimate',
+      '/visualiser/reports/invoice',
+      '/visualiser/reports/cutlist',
+      '/visualiser/reports/hardware',
+      '/visualiser/reports/qa-input',
+      '/visualiser/reports/qa-output',
+      '/visualiser/reports/pressing-list',
+    ];
+    reportPaths.forEach((path, i) => {
+      setTimeout(() => window.open(`${base}${path}`, '_blank', 'noopener,noreferrer'), i * 300);
+    });
+    // G-code is downloaded from Cutlist page; user can print each report tab to PDF
   };
 
   // Handle viewing data - opens modal for data table steps, navigates for others
@@ -611,7 +691,7 @@ export default function GeneratePage() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-white">
+    <div className="min-h-screen h-screen flex flex-col bg-white overflow-hidden">
       {/* Data View Modals */}
       {renderDataModal()}
 
@@ -667,9 +747,9 @@ export default function GeneratePage() {
         </div>
       </header>
 
-      {/* Main Content - Scrollable */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="container mx-auto px-6 py-8 max-w-4xl">
+      {/* Main Content - Scrollable (min-h-0 allows flex child to shrink and scroll) */}
+      <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+        <div className="container mx-auto px-6 py-8 max-w-4xl min-h-full">
         
         {/* Level 3 Diagnostics Panel - Show only when there's a problem */}
         {!level3Diagnostics.hasLevel3Data && summary.totalPlanks > 0 && (
@@ -1011,57 +1091,88 @@ export default function GeneratePage() {
           </div>
         </div>
 
-        {/* Quick Links - Brand Colors */}
+        {/* Download Files - NestUp theme: all report links with logo + theme on each page */}
         {generationProgress?.isComplete && (
-          <div className="mt-6 grid md:grid-cols-3 gap-4">
-            <Link
-              href="/visualiser/reports/cutlist"
-              className="p-4 bg-white rounded-lg border border-gray-200 hover:border-orange-400 hover:shadow-md transition-all group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center group-hover:bg-orange-200 transition-colors">
-                  <svg className="w-5 h-5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-medium text-blue-900">View Cutlist</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">Visual nesting layout</p>
-                </div>
-              </div>
-            </Link>
-            <Link
-              href="/visualiser/reports/material-estimate"
-              className="p-4 bg-white rounded-lg border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                  <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-medium text-blue-900">Material Estimate</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">Complete material breakdown</p>
-                </div>
-              </div>
-            </Link>
-            <Link
-              href="/visualiser/designer"
-              className="p-4 bg-white rounded-lg border border-gray-200 hover:border-gray-400 hover:shadow-md transition-all group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-gray-200 transition-colors">
-                  <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-medium text-blue-900">Back to Designer</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">Continue editing</p>
-                </div>
-              </div>
-            </Link>
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Download Files</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Each report opens in a new page with NestUp logo and theme. Use &quot;Download / Print&quot; on the report to save as PDF. G-Code downloads a ZIP of .nc files for CNC 8×4 sheets.
+            </p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {DOWNLOAD_FILES.map((file) =>
+                file.id === 'gcode' ? (
+                  <button
+                    key={file.id}
+                    type="button"
+                    disabled={gcodeDownloading || !nestResults?.length}
+                    onClick={async () => {
+                      if (!nestResults?.length) return;
+                      setGcodeDownloading(true);
+                      try {
+                        await downloadGCodeZip(nestResults, projectName || 'CNC_Project');
+                      } catch (e) {
+                        console.error(e);
+                        alert('Error generating G-code: ' + (e instanceof Error ? e.message : 'Unknown error'));
+                      } finally {
+                        setGcodeDownloading(false);
+                      }
+                    }}
+                    className="p-4 bg-white rounded-xl border-2 border-orange-200 hover:border-orange-400 hover:shadow-lg hover:shadow-orange-100 transition-all group text-left disabled:opacity-50 disabled:cursor-not-allowed w-full"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0 group-hover:bg-orange-200 transition-colors">
+                        <svg className="w-5 h-5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">{file.name}</h4>
+                        <p className="text-xs text-gray-500 mt-0.5">{file.description}</p>
+                      </div>
+                    </div>
+                  </button>
+                ) : (
+                  <Link
+                    key={file.id}
+                    href={file.href}
+                    className="p-4 bg-white rounded-xl border-2 border-orange-200 hover:border-orange-400 hover:shadow-lg hover:shadow-orange-100 transition-all group"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0 group-hover:bg-orange-200 transition-colors">
+                        <svg className="w-5 h-5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">{file.name}</h4>
+                        <p className="text-xs text-gray-500 mt-0.5">{file.description}</p>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              )}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={downloadAll}
+                className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition-all flex items-center gap-2 shadow-md shadow-orange-500/25"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Open all reports (new tabs)
+              </button>
+              <Link
+                href="/visualiser/designer"
+                className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-all flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Designer
+              </Link>
+            </div>
           </div>
         )}
         </div>
@@ -1089,6 +1200,20 @@ function getReportLink(stepId: string): string {
     'output-qa': '/visualiser/reports/qa-output',
     'pressing-list': '/visualiser/reports/pressing-list',
     'gcode': '/visualiser/reports/cutlist',
+    'invoice': '/visualiser/reports/invoice',
+    'hardware': '/visualiser/reports/hardware',
   };
   return links[stepId] || '/visualiser';
 }
+
+// Download file links for the Downloads section (NestUp theme)
+const DOWNLOAD_FILES = [
+  { id: 'material-estimate', name: 'Material Estimate', href: '/visualiser/reports/material-estimate', description: 'Plywood, laminate, EB, hardware' },
+  { id: 'invoice', name: 'Invoice', href: '/visualiser/reports/invoice', description: 'Customer invoice with SFT & logistics' },
+  { id: 'cutlist', name: 'Cutlist', href: '/visualiser/reports/cutlist', description: 'Nesting layout + CSV download' },
+  { id: 'hardware', name: 'Hardware', href: '/visualiser/reports/hardware', description: 'Hardware list (Description, Quantity)' },
+  { id: 'qa-input', name: 'Input QA Sheet', href: '/visualiser/reports/qa-input', description: 'Material quality check' },
+  { id: 'qa-output', name: 'Output QA Sheet', href: '/visualiser/reports/qa-output', description: 'Cut pieces QA' },
+  { id: 'pressing-list', name: 'Pressing List', href: '/visualiser/reports/pressing-list', description: 'Laminate pressing schedule' },
+  { id: 'gcode', name: 'G-Code', href: '/visualiser/reports/cutlist', description: 'Download .nc ZIP for CNC 8×4 sheets' },
+] as const;

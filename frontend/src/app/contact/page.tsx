@@ -6,7 +6,7 @@ const Contact = () => {
 
   return ( 
     <div className="h-full">
-      <div className="h-24 top-0 fixed bg-white z-50">
+      <div className="fixed top-0 left-0 right-0 w-full h-24 bg-white z-50">
          <Navbar />
       </div>
       <section className="index-section mt-24" id="contact">

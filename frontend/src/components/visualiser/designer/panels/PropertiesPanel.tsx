@@ -276,6 +276,52 @@ const WallProperties: React.FC<WallPropertiesProps> = ({ wall, onUpdate, onDelet
 };
 
 // ============================================
+// LEVEL 3 SUMMARY - show holes, grooves, L-cuts for selected box
+// ============================================
+
+function Level3Summary({ planks }: { planks: Box['planks'] }) {
+  const counts = React.useMemo(() => {
+    let screws = 0, hinges = 0, vbMain = 0, vbDouble = 0, slots = 0, grooves = 0, profiles = 0, lCuts = 0;
+    planks.forEach((plank) => {
+      const ops = plank.operations;
+      if (!ops) return;
+      screws += ops.screws?.length ?? 0;
+      hinges += ops.hinges?.length ?? 0;
+      vbMain += ops.vb_main?.length ?? 0;
+      vbDouble += ops.vb_double?.length ?? 0;
+      slots += ops.slots?.length ?? 0;
+      grooves += ops.grooves?.length ?? 0;
+      profiles += ops.profiles?.length ?? 0;
+      lCuts += ops.l_cuts?.length ?? 0;
+    });
+    return { screws, hinges, vbMain, vbDouble, slots, grooves, profiles, lCuts };
+  }, [planks]);
+
+  const total = counts.screws + counts.hinges + counts.vbMain + counts.vbDouble +
+    counts.slots + counts.grooves + counts.profiles + counts.lCuts;
+  if (total === 0) {
+    return <div className="text-xs text-gray-400">No Level 3 data</div>;
+  }
+
+  const items: string[] = [];
+  if (counts.screws) items.push(`Screws: ${counts.screws}`);
+  if (counts.hinges) items.push(`Hinges: ${counts.hinges}`);
+  if (counts.vbMain) items.push(`VB: ${counts.vbMain}`);
+  if (counts.vbDouble) items.push(`VB Double: ${counts.vbDouble}`);
+  if (counts.slots) items.push(`Slots: ${counts.slots}`);
+  if (counts.grooves) items.push(`Grooves: ${counts.grooves}`);
+  if (counts.profiles) items.push(`Profiles: ${counts.profiles}`);
+  if (counts.lCuts) items.push(`L-cuts: ${counts.lCuts}`);
+
+  return (
+    <div className="text-xs text-gray-700 space-y-1">
+      <div className="font-medium text-gray-900">Total: {total} operations</div>
+      <div>{items.join(' · ')}</div>
+    </div>
+  );
+}
+
+// ============================================
 // BOX PROPERTIES - EXACT PORT FROM APPS SCRIPT
 // ============================================
 
@@ -567,6 +613,14 @@ const BoxProperties: React.FC<BoxPropertiesProps> = ({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Level 3 (Operations) - holes, grooves, L-cuts */}
+      <div className="border-t border-gray-200 pt-4">
+        <div className="text-xs text-gray-500 uppercase tracking-wide mb-2">
+          Level 3 (Operations)
+        </div>
+        <Level3Summary planks={box.planks} />
       </div>
 
       {/* Apply Button */}

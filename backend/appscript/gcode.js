@@ -1,11 +1,20 @@
 /**
  * CNC G-code Generator (GRBL-Based)
- * Version: 9.1.0 - Nested Folder Structure (Material -> Thickness)
+ * Version: 13.1.0 - ADDED T1 Narrow Groove Support
  * Description: 
  * - Generates G-code sorted by Material folders.
- * - NEW: Sub-folders for Thickness inside Material folders.
- * - File naming includes Material + Thickness + Sheet.
+ * - INTEGRATED L-cuts and Gola profiles into perimeter cutting (NO SEPARATE PASSES)
+ * - Single continuous tool path = No plank movement = No damage
  * - T1 Cuts Smallest Parts First.
+ * - Serpentine slot cutting pattern (fewer plunge marks)
+ * - NEW: Grooves with width < 10mm use T1 (8mm bit) instead of T2
+ * 
+ * V13.1 CHANGES:
+ * ═══════════════════════════════════════════════════════════════════════
+ * - Grooves with width < 10mm now cut with T1 (8mm diameter)
+ * - Grooves with width >= 10mm continue to use T2 (10mm diameter)
+ * - T1 groove cutting uses same serpentine logic as T2 (no offset)
+ * ═══════════════════════════════════════════════════════════════════════
  */
 
 /**
@@ -20,282 +29,67 @@
  * @property {number} placedWidth
  * @property {number} placedHeight
  * @property {boolean} rotated
- * @property {Object.<string, Array<{x: number, y: number, length?: number, width?: number, depth?: number, type?: string}>>} features
- * @property {Array<{x: number, y: number}>} features.l_cuts - L-Cut dimensions
+ * @property {Object} features
  */
 
-// Global storage
+// ========================================
+// GLOBAL VARIABLES
+// ========================================
+
 let generatedFiles = [];
 let driveFolder = null;
 
 // CRITICAL CONSTANT: Master Folder ID from the provided link
 const MASTER_FOLDER_ID = '1Nm09d0EQTXwtBI8rz2lLE0Iwb9J8gQyy';
 
-// ========================================
-// G-CODE SPECIFIC UTILITIES
-// ========================================
-// Note: Project folder functions are in project_storage.js
-
-/**
- * Generate short material code (max 4 characters)
- * e.g., "Pink" -> "Pink", "Black" -> "Blck", "Inner White" -> "InWh"
- */
-function getShortMaterialCode(material, maxLen = 4) {
-  if (!material) return 'Mat';
-  // Remove special chars, keep only letters and numbers
-  const clean = String(material).replace(/[^a-zA-Z0-9]/g, '');
-  // Take first maxLen characters
-  return clean.substring(0, maxLen);
-}
-
-/**
- * Generate short filename for G-code (max 15 characters including .nc)
- * Format: [Mat4][Thick]_S[Num].nc
- * e.g., "Pink18_S1.nc" (12 chars)
- */
-function generateShortFilename(materialName, thickness, sheetIndex) {
-  const shortMat = getShortMaterialCode(materialName, 4);
-  const thickNum = Math.round(thickness);
-  const filename = `${shortMat}${thickNum}_S${sheetIndex}.nc`;
-  
-  // Ensure max 15 chars
-  if (filename.length > 15) {
-    const shorterMat = getShortMaterialCode(materialName, 3);
-    return `${shorterMat}${thickNum}_S${sheetIndex}.nc`;
-  }
-  return filename;
-}
-
-// Note: PDF, Labels, CSV save functions are in project_storage.js
-
-/**
- * Generate report download content (called from report_template.html)
- * Also saves a copy to the project folder
- */
-function generateReportDownload(format, reportData) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const projectName = ss.getName().replace(/[^a-zA-Z0-9]/g, '_');
-  const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd_HHmmss');
-  
-  let content = '';
-  let mimeType = '';
-  let filename = '';
-  
-  switch(format) {
-    case 'html':
-      content = generateHTMLReportContent(reportData);
-      mimeType = 'text/html';
-      filename = `${projectName}_Report_${timestamp}.html`;
-      break;
-      
-    case 'text':
-      content = generateTextReportContent(reportData);
-      mimeType = 'text/plain';
-      filename = `${projectName}_Report_${timestamp}.txt`;
-      break;
-      
-    case 'csv':
-      content = generateCSVReportContent(reportData);
-      mimeType = 'text/csv';
-      filename = `${projectName}_Report_${timestamp}.csv`;
-      break;
-      
-    case 'json':
-      content = JSON.stringify(reportData, null, 2);
-      mimeType = 'application/json';
-      filename = `${projectName}_Report_${timestamp}.json`;
-      break;
-      
-    default:
-      throw new Error('Invalid format: ' + format);
-  }
-  
-  // Save to project folder
-  try {
-    const folder = getProjectSubfolder('REPORTS');
-    const blob = Utilities.newBlob(content, mimeType, filename);
-    folder.createFile(blob);
-  } catch(e) {
-    Logger.log('Error saving report to project folder: ' + e.message);
-  }
-  
-  return { content, mimeType, filename };
-}
-
-/**
- * Generate HTML report content
- */
-function generateHTMLReportContent(reportData) {
-  const { summary, sheets, materialThicknessStats } = reportData;
-  const usableSheetArea = (1220 - 20) * (2440 - 20);
-  
-  let html = `<!DOCTYPE html>
-<html>
-<head>
-    <title>Cutlist Report</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .header { background: #2c3e50; color: white; padding: 20px; text-align: center; }
-        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
-        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background: #f2f2f2; }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>Cutlist Report</h1>
-        <p>Generated: ${summary.generatedDate}</p>
-    </div>
-    
-    <div class="section">
-        <h2>Project Summary</h2>
-        <p><strong>Total Sheets:</strong> ${summary.totalSheets}</p>
-        <p><strong>Total Planks:</strong> ${summary.totalPlanks}</p>
-        <p><strong>Overall Utilization:</strong> ${summary.overallUtilization || 'N/A'}%</p>
-    </div>
-    
-    <div class="section">
-        <h2>Sheet Utilization</h2>
-        <table>
-            <tr><th>Sheet #</th><th>Planks</th><th>Used Area</th><th>Utilization</th></tr>`;
-  
-  if (sheets) {
-    Object.entries(sheets).forEach(([sheetNum, sheet]) => {
-      const utilization = ((sheet.usedArea / usableSheetArea) * 100).toFixed(1);
-      html += `<tr>
-                <td>Sheet ${sheetNum}</td>
-                <td>${sheet.planks ? sheet.planks.length : 0}</td>
-                <td>${Math.round(sheet.usedArea || 0)} mm²</td>
-                <td>${utilization}%</td>
-            </tr>`;
-    });
-  }
-  
-  html += `</table></div>
-    
-    <div class="section">
-        <h2>Materials Summary</h2>
-        <table>
-            <tr><th>Material</th><th>Planks</th><th>Total Area</th><th>Sheets</th></tr>`;
-  
-  if (materialThicknessStats) {
-    Object.values(materialThicknessStats).forEach(stats => {
-      html += `<tr>
-                <td>${stats.material} (${stats.thickness}mm)</td>
-                <td>${stats.plankCount}</td>
-                <td>${Math.round(stats.totalArea)} mm²</td>
-                <td>${stats.sheetCount}</td>
-            </tr>`;
-    });
-  }
-  
-  html += `</table></div>
-</body>
-</html>`;
-  
-  return html;
-}
-
-/**
- * Generate text report content
- */
-function generateTextReportContent(reportData) {
-  const { summary, sheets, materialThicknessStats } = reportData;
-  let text = `CUTLIST REPORT
-==============
-Generated: ${summary.generatedDate}
-
-PROJECT SUMMARY
----------------
-Total Sheets: ${summary.totalSheets}
-Total Planks: ${summary.totalPlanks}
-Overall Utilization: ${summary.overallUtilization || 'N/A'}%
-
-SHEET UTILIZATION
------------------
-`;
-
-  if (sheets) {
-    Object.entries(sheets).forEach(([sheetNum, sheet]) => {
-      const usableSheetArea = (1220 - 20) * (2440 - 20);
-      const utilization = ((sheet.usedArea / usableSheetArea) * 100).toFixed(1);
-      text += `Sheet ${sheetNum}: ${sheet.planks ? sheet.planks.length : 0} planks, ${Math.round(sheet.usedArea || 0)} mm², ${utilization}%\n`;
-    });
-  }
-
-  text += `\nMATERIALS SUMMARY
------------------
-`;
-
-  if (materialThicknessStats) {
-    Object.values(materialThicknessStats).forEach(stats => {
-      text += `${stats.material} (${stats.thickness}mm): ${stats.plankCount} planks, ${Math.round(stats.totalArea)} mm², ${stats.sheetCount} sheets\n`;
-    });
-  }
-
-  return text;
-}
-
-/**
- * Generate CSV report content
- */
-function generateCSVReportContent(reportData) {
-  const { sheets, materialThicknessStats } = reportData;
-  let csv = 'Sheet,Planks,Used Area (mm²),Utilization (%)\n';
-  
-  if (sheets) {
-    const usableSheetArea = (1220 - 20) * (2440 - 20);
-    Object.entries(sheets).forEach(([sheetNum, sheet]) => {
-      const utilization = ((sheet.usedArea / usableSheetArea) * 100).toFixed(1);
-      csv += `${sheetNum},${sheet.planks ? sheet.planks.length : 0},${Math.round(sheet.usedArea || 0)},${utilization}\n`;
-    });
-  }
-  
-  csv += '\nMaterial,Thickness (mm),Plank Count,Total Area (mm²),Sheet Count\n';
-  
-  if (materialThicknessStats) {
-    Object.values(materialThicknessStats).forEach(stats => {
-      csv += `"${stats.material}",${stats.thickness},${stats.plankCount},${Math.round(stats.totalArea)},${stats.sheetCount}\n`;
-    });
-  }
-  
-  return csv;
-} 
-
-// G-Code State Tracking (Simplified Z-state for full Z26 retraction policy)
+// G-Code State Tracking
 let current_tool_ID = null;
 let current_sheet_ID = null;
 
+// ========================================
 // MACHINE CONSTANTS
-const Z_SAFE = 26.0; // The fixed safe Z height for all rapid moves (G00)
+// ========================================
 
-// CRITICAL X/Y MINIMUM: Ensures coordinates are non-negative.
+const Z_SAFE = 26.0;
 const MIN_COORDINATE_VALUE = 0.0000;
-
-// CRITICAL Z-HEIGHT: The lowest point the tool tip will reach (0.01 to avoid the spoil board Z=0).
 const Z_THROUGH_CUT_FINAL_HEIGHT = -0.01;
-
 const SPINDLE_SPEED = 18000;
 const CUTTING_FEED_RATE = 12000;
 const PLUNGE_FEED_RATE = 6000.0;
 const BIT_RADIUS = 4;
+const TOOL_DIAMETER_T1 = 8;
 const TOOL_DIAMETER_T2 = 10;
 
-// TOOL DEPTHS (These are the *distance DOWN from the top of the material*)
+// TOOL DEPTHS (distance DOWN from top of material)
 const FIXED_DEPTHS = {
-  // T2 Slot/Groove depth is dynamically read from slot.depth in the sheet
   T4: 16, // VB Main
   T5: 14, // Hinge Hole
   T6: 11, // VB Double
 };
 
+// Edge detection threshold (how close to boundary = "on edge")
+// Note: This includes points BEYOND the edge (up to BIT_RADIUS) because
+// L-cuts and Gola profiles cut OUT of the plank, so exit points may be outside
+const EDGE_THRESHOLD = BIT_RADIUS + 2.0; // 6mm tolerance
+
+// ========================================
+// MAIN FUNCTION
+// ========================================
+
 /**
  * MAIN FUNCTION - Complete CNC G-code generation with Drive upload
+ * 
+ * NOTE: This function now includes a Phase-2 validation gate.
+ * G-code will only be generated if Phase-2 validation has passed.
+ * Use 'Check Assembly (Pre-G-Code)' menu item to run validation first.
  */
 function generateGCodeFiles() {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ui = SpreadsheetApp.getUi();
+
+    // Phase-2 validation gate removed — G-code generates directly
+
     const nestSheet = ss.getSheetByName('Nest Result');
 
     if (!nestSheet) {
@@ -304,10 +98,7 @@ function generateGCodeFiles() {
 
     // Process data
     const data = getNestData(nestSheet);
-    
-    // --- UPDATED: Grouping now tracks Thickness folder names ---
     const sheets = groupBySheet(data);
-    // -----------------------------------------------------------
 
     if (Object.keys(sheets).length === 0) {
       throw new Error('❌ No valid data found in the sheet.');
@@ -317,11 +108,10 @@ function generateGCodeFiles() {
     generatedFiles = [];
     const gcodeResults = generateGCodeForSheets(sheets);
 
-    // --- UPDATED: Create Hierarchical Folder Structure (Mat -> Thick) ---
+    // Create files in Drive
     const ncFiles = createNCFilesInDrive(gcodeResults);
-    // --------------------------------------------------------------------
 
-    // Create ZIP file (using a folder link as a ZIP download proxy)
+    // Create ZIP folder
     const zipUrl = zipAndUploadFiles(ncFiles);
 
     // Show download links
@@ -332,16 +122,16 @@ function generateGCodeFiles() {
   }
 }
 
-/**
- * DATA PROCESSING FUNCTIONS
- */
+// ========================================
+// DATA PROCESSING FUNCTIONS
+// ========================================
 
 /**
  * Extracts and processes nest data from sheet
  */
 function getNestData(sheet) {
   const data = sheet.getDataRange().getValues();
-  const headers = data[0].map(h => String(h).trim()); // Get headers from the first row
+  const headers = data[0].map(h => String(h).trim());
 
   // Column mappings
   const columnMappings = {
@@ -374,22 +164,57 @@ function getNestData(sheet) {
   // Process rows
   return data.slice(1).map((row, index) => {
     try {
+      const plankX = parseFloat(row[colIndices.x]) || 0;
+      const plankY = parseFloat(row[colIndices.y]) || 0;
       const plank = {
         id: String(row[colIndices.plankId]) || `PLANK_${index + 1}`,
         name: String(row[colIndices.plankName]) || 'N/A',
         material: String(row[colIndices.material]) || 'N/A',
         thickness: parseFloat(row[colIndices.thickness]) || 0,
         sheet: String(row[colIndices.sheet]).trim(),
-        x: parseFloat(row[colIndices.x]) || 0,
-        y: parseFloat(row[colIndices.y]) || 0,
+        x: plankX,
+        y: plankY,
         placedWidth: parseFloat(row[colIndices.placedWidth]) || 0,
         placedHeight: parseFloat(row[colIndices.placedHeight]) || 0,
         rotated: String(row[colIndices.rotated]).toLowerCase() === 'yes' || String(row[colIndices.rotated]).toLowerCase() === 'si',
         features: extractFeatures(row, headers)
       };
-      
-      return plank; 
-      
+
+      // Nest Result stores L-cut/Gola in PLANK-LOCAL; convert to sheet space for cutting
+      // V13.1: Added logging to trace coordinate transformation for debugging
+      if (plank.features.l_cuts && plank.features.l_cuts.length > 0) {
+        plank.features.l_cuts = plank.features.l_cuts.map((f, idx) => {
+          Logger.log('[L-cut→Sheet] Plank ' + plank.id + ' (' + plank.name + ') rotated=' + plank.rotated +
+            ' | L-cut #' + (idx + 1) + ' local: start=(' + f.start.x.toFixed(1) + ',' + f.start.y.toFixed(1) + ')' +
+            ' center=(' + f.center.x.toFixed(1) + ',' + f.center.y.toFixed(1) + ')' +
+            ' end=(' + f.end.x.toFixed(1) + ',' + f.end.y.toFixed(1) + ')' +
+            ' | plankPos=(' + plankX.toFixed(1) + ',' + plankY.toFixed(1) + ')' +
+            ' placed=(' + plank.placedWidth.toFixed(1) + 'x' + plank.placedHeight.toFixed(1) + ')');
+          return {
+            start: { x: f.start.x + plankX, y: f.start.y + plankY },
+            center: { x: f.center.x + plankX, y: f.center.y + plankY },
+            end: { x: f.end.x + plankX, y: f.end.y + plankY }
+          };
+        });
+      }
+      if (plank.features.gola_profiles && plank.features.gola_profiles.length > 0) {
+        plank.features.gola_profiles = plank.features.gola_profiles.map((f, idx) => {
+          Logger.log('[Gola→Sheet] Plank ' + plank.id + ' (' + plank.name + ') rotated=' + plank.rotated +
+            ' | Gola #' + (idx + 1) + ' local: start=(' + f.start.x.toFixed(1) + ',' + f.start.y.toFixed(1) + ')' +
+            ' center=(' + f.center.x.toFixed(1) + ',' + f.center.y.toFixed(1) + ')' +
+            ' end=(' + f.end.x.toFixed(1) + ',' + f.end.y.toFixed(1) + ')' +
+            ' | plankPos=(' + plankX.toFixed(1) + ',' + plankY.toFixed(1) + ')' +
+            ' placed=(' + plank.placedWidth.toFixed(1) + 'x' + plank.placedHeight.toFixed(1) + ')');
+          return {
+            start: { x: f.start.x + plankX, y: f.start.y + plankY },
+            center: { x: f.center.x + plankX, y: f.center.y + plankY },
+            end: { x: f.end.x + plankX, y: f.end.y + plankY }
+          };
+        });
+      }
+
+      return plank;
+
     } catch (e) {
       Logger.log(`Error processing row ${index + 2}: ${e}`);
       return null;
@@ -399,6 +224,7 @@ function getNestData(sheet) {
 
 /**
  * Extracts feature coordinates and geometry from row data
+ * Supports: screws, hinges, vb_main, vb_double, slots, l_cuts (triplet), gola_profiles (triplet)
  */
 function extractFeatures(row, headers) {
   const features = {
@@ -416,7 +242,7 @@ function extractFeatures(row, headers) {
   const groovePrefixes = [
     { prefix: 'slot_', type: 'slot' },
     { prefix: 'profile_', type: 'profile' },
-    { prefix: 'groove_', type: 'slot' } 
+    { prefix: 'groove_', type: 'slot' }
   ];
 
   // Scan for max L-cut triplet index
@@ -428,7 +254,7 @@ function extractFeatures(row, headers) {
       if (idx > maxLCutIndex) maxLCutIndex = idx;
     }
   });
-  
+
   // Scan for max Gola profile triplet index
   let maxGolaProfileIndex = 0;
   headers.forEach(header => {
@@ -441,7 +267,7 @@ function extractFeatures(row, headers) {
 
   headers.forEach((header, index) => {
     const value = row[index];
-    if (value === null || value === '') return; 
+    if (value === null || value === '') return;
 
     // --- 1. Point Features (T3, T4, T5, T6) ---
     pointPrefixes.forEach(prefix => {
@@ -461,7 +287,7 @@ function extractFeatures(row, headers) {
       }
     });
 
-    // --- 2. Slot/Profile Groove Features (T2) ---
+    // --- 2. Slot/Profile Groove Features (T2 or T1 based on width) ---
     groovePrefixes.forEach(grooveDef => {
       const prefix = grooveDef.prefix;
 
@@ -498,8 +324,7 @@ function extractFeatures(row, headers) {
     });
   });
 
-  // --- 3. L-Cut Triplets (NEW ARCHITECTURE) ---
-  // Extract explicit start/center/end triplets
+  // --- 3. L-Cut Triplets (start/center/end format) ---
   for (let i = 1; i <= maxLCutIndex; i++) {
     const startXIdx = headers.indexOf(`L_cut_${i}_start_X`);
     const startYIdx = headers.indexOf(`L_cut_${i}_start_Y`);
@@ -507,34 +332,31 @@ function extractFeatures(row, headers) {
     const centerYIdx = headers.indexOf(`L_cut_${i}_center_Y`);
     const endXIdx = headers.indexOf(`L_cut_${i}_end_X`);
     const endYIdx = headers.indexOf(`L_cut_${i}_end_Y`);
-    
+
     if (startXIdx === -1 || startYIdx === -1 || centerXIdx === -1 ||
-        centerYIdx === -1 || endXIdx === -1 || endYIdx === -1) continue;
-    
+      centerYIdx === -1 || endXIdx === -1 || endYIdx === -1) continue;
+
     const startX = parseFloat(row[startXIdx]);
     const startY = parseFloat(row[startYIdx]);
     const centerX = parseFloat(row[centerXIdx]);
     const centerY = parseFloat(row[centerYIdx]);
     const endX = parseFloat(row[endXIdx]);
     const endY = parseFloat(row[endYIdx]);
-    
-    // Validate all 6 are numbers
+
     if (isNaN(startX) || isNaN(startY) || isNaN(centerX) ||
-        isNaN(centerY) || isNaN(endX) || isNaN(endY)) continue;
-    
-    // Skip if all zeros (empty triplet)
-    if (startX === 0 && startY === 0 && centerX === 0 && 
-        centerY === 0 && endX === 0 && endY === 0) continue;
-    
+      isNaN(centerY) || isNaN(endX) || isNaN(endY)) continue;
+
+    if (startX === 0 && startY === 0 && centerX === 0 &&
+      centerY === 0 && endX === 0 && endY === 0) continue;
+
     features.l_cuts.push({
       start: { x: startX, y: startY },
       center: { x: centerX, y: centerY },
       end: { x: endX, y: endY }
     });
   }
-  
-  // --- 3b. Gola Profile Triplets ---
-  // Extract explicit start/center/end triplets for Gola profiles
+
+  // --- 4. Gola Profile Triplets (start/center/end format) ---
   for (let i = 1; i <= maxGolaProfileIndex; i++) {
     const startXIdx = headers.indexOf(`Gola_profile_${i}_start_X`);
     const startYIdx = headers.indexOf(`Gola_profile_${i}_start_Y`);
@@ -542,52 +364,28 @@ function extractFeatures(row, headers) {
     const centerYIdx = headers.indexOf(`Gola_profile_${i}_center_Y`);
     const endXIdx = headers.indexOf(`Gola_profile_${i}_end_X`);
     const endYIdx = headers.indexOf(`Gola_profile_${i}_end_Y`);
-    
+
     if (startXIdx === -1 || startYIdx === -1 || centerXIdx === -1 ||
-        centerYIdx === -1 || endXIdx === -1 || endYIdx === -1) continue;
-    
+      centerYIdx === -1 || endXIdx === -1 || endYIdx === -1) continue;
+
     const startX = parseFloat(row[startXIdx]);
     const startY = parseFloat(row[startYIdx]);
     const centerX = parseFloat(row[centerXIdx]);
     const centerY = parseFloat(row[centerYIdx]);
     const endX = parseFloat(row[endXIdx]);
     const endY = parseFloat(row[endYIdx]);
-    
-    // Validate all 6 are numbers
+
     if (isNaN(startX) || isNaN(startY) || isNaN(centerX) ||
-        isNaN(centerY) || isNaN(endX) || isNaN(endY)) continue;
-    
-    // Skip if all zeros (empty triplet)
-    if (startX === 0 && startY === 0 && centerX === 0 && 
-        centerY === 0 && endX === 0 && endY === 0) continue;
-    
+      isNaN(centerY) || isNaN(endX) || isNaN(endY)) continue;
+
+    if (startX === 0 && startY === 0 && centerX === 0 &&
+      centerY === 0 && endX === 0 && endY === 0) continue;
+
     features.gola_profiles.push({
       start: { x: startX, y: startY },
       center: { x: centerX, y: centerY },
       end: { x: endX, y: endY }
     });
-  }
-  
-  // --- 4. Legacy L-cutting fallback (for backward compatibility) ---
-  // Only use if no triplets found
-  if (features.l_cuts.length === 0) {
-    const legacyXIdx = headers.indexOf('l_cutting_1_X');
-    const legacyYIdx = headers.indexOf('l_cutting_1_Y');
-    
-    if (legacyXIdx !== -1 && legacyYIdx !== -1) {
-      const xVal = parseFloat(row[legacyXIdx]);
-      const yVal = parseFloat(row[legacyYIdx]);
-      
-      if (!isNaN(xVal) && !isNaN(yVal) && (xVal !== 0 || yVal !== 0)) {
-        // Mark as legacy for warning
-        features.l_cuts.push({ 
-          legacy: true, 
-          x: xVal, 
-          y: yVal 
-        });
-        Logger.log('Warning: Legacy L-cut detected; please re-export using triplet format.');
-      }
-    }
   }
 
   return features;
@@ -619,31 +417,22 @@ function isValidPlank(plank) {
 }
 
 /**
- * --- UPDATED GROUPING LOGIC ---
- * Groups planks by Material AND Thickness.
- * Extracts "folderName" (Color) AND "thicknessFolder" (e.g. 18MM) separately.
+ * Groups planks by Material AND Thickness
  */
 function groupBySheet(nestData) {
   const grouped = nestData.reduce((acc, plank) => {
-    // 1. Get Clean Material Name (e.g. "Pink")
     const cleanMaterial = plank.material.trim().replace(/\s*\(.*?\)/, '').trim();
-    const folderName = cleanMaterial.replace(/\s+/g, '_'); 
-    
-    // 2. Determine Thickness Key (e.g. "18MM")
-    const thicknessKey = `${Math.round(plank.thickness)}MM`; 
-    
-    // 3. Create Unique Group Key (e.g. "Pink_18MM")
+    const folderName = cleanMaterial.replace(/\s+/g, '_');
+    const thicknessKey = `${Math.round(plank.thickness)}MM`;
     const uniqueGroupKey = `${folderName}_${thicknessKey}`;
 
     if (!acc[uniqueGroupKey]) {
-      acc[uniqueGroupKey] = { 
-        folderName: folderName, // Level 1 Folder: "Pink"
-        thicknessFolderName: thicknessKey, // Level 2 Folder: "18MM"
-        sheets: {} 
+      acc[uniqueGroupKey] = {
+        folderName: folderName,
+        sheets: {}
       };
     }
 
-    // 4. Group by Sheet within this Material/Thickness combo
     if (!acc[uniqueGroupKey].sheets[plank.sheet]) {
       acc[uniqueGroupKey].sheets[plank.sheet] = [];
     }
@@ -652,31 +441,21 @@ function groupBySheet(nestData) {
   }, {});
 
   const finalSheets = {};
-  
-  // Flatten into final list of files to generate
+
   Object.keys(grouped).sort().forEach(groupKey => {
     const groupData = grouped[groupKey];
     let sheetIndex = 1;
-    
-    const originalSheetNames = Object.keys(groupData.sheets).sort();
+
+    const originalSheetNames = Object.keys(groupData.sheets).sort((a, b) => parseInt(a) - parseInt(b));
 
     originalSheetNames.forEach(origName => {
-      // Get thickness number (e.g., 18 from "18MM")
-      const thickNum = parseInt(groupData.thicknessFolderName.replace('MM', ''));
-      
-      // Generate SHORT filename (max 15 chars)
-      const shortFilename = generateShortFilename(groupData.folderName, thickNum, sheetIndex);
-      
-      // Use short name as key (without .nc extension for internal use)
-      const newSheetName = shortFilename.replace('.nc', '');
-      
+      const newSheetName = `${groupKey}_Sheet_${sheetIndex}`;
+
       finalSheets[newSheetName] = {
-        materialFolder: groupData.folderName,       // "Pink"
-        thicknessFolder: groupData.thicknessFolderName, // "18MM"
-        planks: groupData.sheets[origName],
-        shortFilename: shortFilename  // Store the short filename
+        materialFolder: groupData.folderName,
+        planks: groupData.sheets[origName]
       };
-      
+
       sheetIndex++;
     });
   });
@@ -684,12 +463,12 @@ function groupBySheet(nestData) {
   return finalSheets;
 }
 
-/**
- * G-CODE GENERATION FUNCTIONS
- */
+// ========================================
+// G-CODE GENERATION FUNCTIONS
+// ========================================
 
 /**
- * Resets G-code state trackers for a new sheet generation run.
+ * Resets G-code state trackers
  */
 function resetGCodeState(sheetName) {
   current_tool_ID = null;
@@ -705,17 +484,16 @@ function generateGCodeForSheets(sheetsMap) {
   Object.keys(sheetsMap).sort().forEach(uniqueSheetName => {
     try {
       const sheetData = sheetsMap[uniqueSheetName];
-      // Generate code
       const gcode = generateGCodeForSheet(sheetData.planks, uniqueSheetName);
-      
-      // Use SHORT filename (max 15 chars)
-      const fileName = sheetData.shortFilename || `${uniqueSheetName}.nc`;
+      const fileName = `${uniqueSheetName}.nc`;
+
+      const thicknessVal = sheetData.planks.length > 0 ? Math.round(sheetData.planks[0].thickness) : 0;
 
       results.push({
-        sheetName: uniqueSheetName, 
+        sheetName: uniqueSheetName,
         fileName: fileName,
-        materialFolder: sheetData.materialFolder,   // Pass Material name
-        thicknessFolder: sheetData.thicknessFolder, // Pass Thickness name
+        materialFolder: sheetData.materialFolder,
+        thickness: thicknessVal,
         content: gcode,
         plankCount: sheetData.planks.length
       });
@@ -751,15 +529,18 @@ function generateGCodeForSheet(planks, sheetName) {
   gcode.push(...processTool('T5', 'Hinge Holes', planks, (plank) => plank.thickness - FIXED_DEPTHS.T5));
   gcode.push(...processTool('T4', 'VB Main', planks, (plank) => plank.thickness - FIXED_DEPTHS.T4));
   gcode.push(...processTool('T6', 'VB Double', planks, (plank) => plank.thickness - FIXED_DEPTHS.T6));
-  gcode.push(...processSlotTool('T2', 'Slot/Profile Grooves', planks)); 
   
+  // T2: Only grooves with width >= 10mm
+  gcode.push(...processSlotTool('T2', 'Slot/Profile Grooves (>=10mm)', planks, TOOL_DIAMETER_T2));
+
   // Sort Planks for T1: Smallest Area First
   const sortedPlanksForT1 = [...planks].sort((a, b) => {
-      const areaA = a.placedWidth * a.placedHeight;
-      const areaB = b.placedWidth * b.placedHeight;
-      return areaA - areaB; 
+    const areaA = a.placedWidth * a.placedHeight;
+    const areaB = b.placedWidth * b.placedHeight;
+    return areaA - areaB;
   });
 
+  // T1: Narrow grooves (width < 10mm) + Perimeter cutting
   gcode.push(...processToolT1(sortedPlanksForT1));
 
   // Footer
@@ -785,7 +566,6 @@ function outputToolStart(toolNumber, planks) {
   }
   return gcode;
 }
-
 
 /**
  * Processes tool operations (T3-T6)
@@ -826,10 +606,27 @@ function processTool(toolNumber, operationName, planks, depthCalculator) {
   return gcode;
 }
 
-// --- SLOT GROOVE LOGIC IMPLEMENTATION (T2) ---
+/**
+ * Maps operation name to feature type
+ */
+function getFeatureType(operationName) {
+  const mapping = {
+    'Screw Holes': 'screws',
+    'Hinge Holes': 'hinges',
+    'Slot/Profile Grooves': 'slots',
+    'Slot/Profile Grooves (>=10mm)': 'slots',
+    'VB Main': 'vb_main',
+    'VB Double': 'vb_double'
+  };
+  return mapping[operationName] || 'screws';
+}
+
+// ========================================
+// T2 SLOT/GROOVE LOGIC (Serpentine Pattern)
+// ========================================
 
 /**
- * Calculates number of lateral passes
+ * Calculates number of lateral passes based on tool diameter
  */
 function getLateralPaths(slotWidth, toolDiameter) {
   const D = toolDiameter;
@@ -853,25 +650,29 @@ function getLateralPaths(slotWidth, toolDiameter) {
 }
 
 /**
- * Processes Slot Tool (T2)
+ * Processes Slot Tool (T2) - Only for grooves with width >= 10mm
  */
-function processSlotTool(toolNumber, operationName, planks) {
+function processSlotTool(toolNumber, operationName, planks, toolDiameter) {
   const gcode = [];
   let hasOperations = false;
 
   planks.forEach(plank => {
     if (plank.features.slots && plank.features.slots.length > 0) {
+      // Filter: Only grooves with width >= 10mm for T2
+      const wideGrooves = plank.features.slots.filter(slot => slot.width >= TOOL_DIAMETER_T2);
 
-      if (!hasOperations) {
-        gcode.push(...outputToolStart(toolNumber, planks));
-        hasOperations = true;
+      if (wideGrooves.length > 0) {
+        if (!hasOperations) {
+          gcode.push(...outputToolStart(toolNumber, planks));
+          hasOperations = true;
+        }
+
+        const Z_APPROACH = plank.thickness;
+
+        wideGrooves.forEach(slot => {
+          gcode.push(...generateSlotGCode(plank, slot, Z_APPROACH, toolDiameter));
+        });
       }
-
-      const Z_APPROACH = plank.thickness;
-
-      plank.features.slots.forEach(slot => {
-        gcode.push(...generateSlotGCode(plank, slot, Z_APPROACH));
-      });
     }
   });
 
@@ -883,9 +684,10 @@ function processSlotTool(toolNumber, operationName, planks) {
 }
 
 /**
- * Generates G-code for a single slot/groove
+ * Generates G-code for a single slot/groove using serpentine pattern
+ * Now accepts toolDiameter parameter for T1 or T2 use
  */
-function generateSlotGCode(plank, slot, Z_APPROACH) {
+function generateSlotGCode(plank, slot, Z_APPROACH, toolDiameter) {
   const gcode = [];
 
   const W = slot.width;
@@ -895,20 +697,20 @@ function generateSlotGCode(plank, slot, Z_APPROACH) {
 
   if (plank.rotated) {
     Xs_center = slot.x;
-    Ys_center = slot.y + (W / 2.0); 
+    Ys_center = slot.y + (W / 2.0);
     Xe_center = Xs_center + Length;
     Ye_center = Ys_center;
   } else {
-    Xs_center = slot.x + (W / 2.0); 
+    Xs_center = slot.x + (W / 2.0);
     Ys_center = slot.y;
     Xe_center = Xs_center;
     Ye_center = Ys_center + Length;
   }
 
   const finalCutZ = Math.max(plankThickness - slot.depth, Z_THROUGH_CUT_FINAL_HEIGHT);
-  const { offsets } = getLateralPaths(slot.width, TOOL_DIAMETER_T2);
+  const { offsets } = getLateralPaths(slot.width, toolDiameter);
 
-  offsets.forEach((offset) => {
+  const paths = offsets.map((offset) => {
     let Xs_path, Ys_path, Xe_path, Ye_path;
 
     if (plank.rotated) {
@@ -923,354 +725,53 @@ function generateSlotGCode(plank, slot, Z_APPROACH) {
       Ye_path = Ye_center;
     }
 
-    const Xs = Math.max(Xs_path, MIN_COORDINATE_VALUE);
-    const Ys = Math.max(Ys_path, MIN_COORDINATE_VALUE);
-    const Xe = Math.max(Xe_path, MIN_COORDINATE_VALUE);
-    const Ye = Math.max(Ye_path, MIN_COORDINATE_VALUE);
-
-    gcode.push(`G00 X${Xs.toFixed(4)} Y${Ys.toFixed(4)} Z${Z_SAFE.toFixed(4)}`);
-    gcode.push(`G00 Z${Z_APPROACH.toFixed(4)}`);
-    gcode.push(`G01 Z${finalCutZ.toFixed(4)} F${PLUNGE_FEED_RATE.toFixed(4)}`);
-    gcode.push(`G01 X${Xe.toFixed(4)} Y${Ye.toFixed(4)} F${CUTTING_FEED_RATE.toFixed(4)}`);
-    gcode.push(`G00 Z${Z_SAFE.toFixed(4)}`);
+    return {
+      Xs: Math.max(Xs_path, MIN_COORDINATE_VALUE),
+      Ys: Math.max(Ys_path, MIN_COORDINATE_VALUE),
+      Xe: Math.max(Xe_path, MIN_COORDINATE_VALUE),
+      Ye: Math.max(Ye_path, MIN_COORDINATE_VALUE)
+    };
   });
 
-  return gcode;
-}
-
-// --- T1 PROFILE CUTTING LOGIC ---
-
-/**
- * Calculates the 6 tool-offset coordinates for an L-Cut plank.
- */
-function calculateLCutCoordinates(plank, l_cut_X, l_cut_Y, bitRadius) {
-  const R = bitRadius;
-  const isRotated = plank.rotated;
-
-  const logicalWidth = isRotated ? plank.placedHeight : plank.placedWidth;
-  const logicalHeight = isRotated ? plank.placedWidth : plank.placedHeight;
-
-  const X1 = Math.max(0, Math.min(l_cut_X, logicalWidth - R));
-const Y1 = Math.max(0, Math.min(l_cut_Y, logicalHeight - R));
-
-  const PW = logicalWidth;
-  const PH = logicalHeight;
-
-  let relativeOffsetVertices = [];
-  const name = plank.name.toLowerCase();
-
-  if (name.includes("right")) {
-    relativeOffsetVertices = [
-      { x: X1 - R, y: -R }, 
-      { x: PW + R, y: -R }, 
-      { x: PW + R, y: PH + R }, 
-      { x: -R, y: PH + R }, 
-      { x: -R, y: Y1 + R }, 
-      { x: X1 - R, y: Y1 + R } 
-    ];
-  } else {
-    relativeOffsetVertices = [
-      { x: -R, y: -R }, 
-      { x: X1 + R, y: -R }, 
-      { x: X1 + R, y: Y1 + R }, 
-      { x: PW + R, y: Y1 + R }, 
-      { x: PW + R, y: PH + R }, 
-      { x: -R, y: PH + R } 
-    ];
+  if (paths.length === 0) {
+    return gcode;
   }
 
-  const plankOriginX = plank.x; 
-  const plankOriginY = plank.y; 
-
-  const finalCoords = relativeOffsetVertices.map(v => {
-    let final_v = { ...v };
-    if (isRotated) {
-      final_v.x = -v.y;
-      final_v.y = v.x;
-    }
-    final_v.x += plankOriginX;
-    final_v.y += plankOriginY;
-    return final_v;
-  });
-
-  return {
-    p1: finalCoords[0], p2: finalCoords[1], p3: finalCoords[2],
-    p4: finalCoords[3], p5: finalCoords[4], p6: finalCoords[5],
-  };
-}
-
-/**
- * Generates G-code for a single RECTANGULAR plank profile (T1).
- */
-function generateT1_Rectangle(plank) {
-  const gcode = [];
-
-  let width = plank.placedWidth;
-  let height = plank.placedHeight;
-
-  const coords = calculateProfileCoordinates(plank.x, plank.y, width, height, BIT_RADIUS);
-  const passes = getProfilePassDepths(plank.thickness);
-  const Z_APPROACH = plank.thickness;
-
-  const p1X = Math.max(coords.p1.x, MIN_COORDINATE_VALUE); const p1Y = Math.max(coords.p1.y, MIN_COORDINATE_VALUE);
-  const p2X = Math.max(coords.p2.x, MIN_COORDINATE_VALUE); const p2Y = Math.max(coords.p2.y, MIN_COORDINATE_VALUE);
-  const p3X = Math.max(coords.p3.x, MIN_COORDINATE_VALUE); const p3Y = Math.max(coords.p3.y, MIN_COORDINATE_VALUE);
-  const p4X = Math.max(coords.p4.x, MIN_COORDINATE_VALUE); const p4Y = Math.max(coords.p4.y, MIN_COORDINATE_VALUE);
-
-  gcode.push(`G00 X${p1X.toFixed(4)} Y${p1Y.toFixed(4)} Z${Z_SAFE.toFixed(4)}`);
+  gcode.push(`G00 X${paths[0].Xs.toFixed(4)} Y${paths[0].Ys.toFixed(4)} Z${Z_SAFE.toFixed(4)}`);
   gcode.push(`G00 Z${Z_APPROACH.toFixed(4)}`);
+  gcode.push(`G01 Z${finalCutZ.toFixed(4)} F${PLUNGE_FEED_RATE.toFixed(4)}`);
 
-  passes.forEach((depth) => {
-    gcode.push(`G01 Z${depth.toFixed(4)} F${PLUNGE_FEED_RATE.toFixed(4)}`);
-    gcode.push(`G01 X${p4X.toFixed(4)} Y${p4Y.toFixed(4)} F${CUTTING_FEED_RATE.toFixed(4)}`);
-    gcode.push(`G01 X${p3X.toFixed(4)} Y${p3Y.toFixed(4)}`);
-    gcode.push(`G01 X${p2X.toFixed(4)} Y${p2Y.toFixed(4)}`);
-    gcode.push(`G01 X${p1X.toFixed(4)} Y${p1Y.toFixed(4)}`);
-  });
+  paths.forEach((path, index) => {
+    const isEvenPass = (index % 2 === 0);
 
-  gcode.push(`G00 Z${Z_SAFE.toFixed(4)}`);
-  return gcode;
-}
-
-/**
- * Generates G-code for a SINGLE L-cut (baby cut).
- * This is a preliminary cut that removes corner material BEFORE the main plank cut.
- * 
- * Path: start → center → end (2 line segments, open path)
- * Uses same T1 rules: pass depths, feed rates, safe height.
- * 
- * IMPORTANT: Applies BIT_RADIUS compensation for edge coordinates.
- * When a coordinate is at the plank edge (relative 0 or plank dimension),
- * the tool center needs to extend beyond to cut the full edge.
- */
-function generateLCutOnly(plank, l_cut) {
-  const gcode = [];
-  
-  const passes = getProfilePassDepths(plank.thickness);
-  const Z_APPROACH = plank.thickness;
-  const R = BIT_RADIUS;
-  
-  // Plank boundaries (absolute coordinates on the sheet)
-  const plankLeft = plank.x;
-  const plankBottom = plank.y;
-  const plankRight = plank.x + plank.placedWidth;
-  const plankTop = plank.y + plank.placedHeight;
-  
-  // Edge detection threshold (coordinates within this distance from edge get extended)
-  const EDGE_THRESHOLD = 1.0; // 1mm tolerance for edge detection
-  
-  /**
-   * Apply bit radius compensation for edge coordinates.
-   * If coordinate is at plank edge, extend beyond by BIT_RADIUS so tool cuts full edge.
-   */
-  function compensateForEdge(x, y) {
-    let compX = x;
-    let compY = y;
-    
-    // Check X edges
-    if (Math.abs(x - plankLeft) < EDGE_THRESHOLD) {
-      compX = plankLeft - R; // Extend left beyond plank edge
-    } else if (Math.abs(x - plankRight) < EDGE_THRESHOLD) {
-      compX = plankRight + R; // Extend right beyond plank edge
-    }
-    
-    // Check Y edges
-    if (Math.abs(y - plankBottom) < EDGE_THRESHOLD) {
-      compY = plankBottom - R; // Extend down beyond plank edge
-    } else if (Math.abs(y - plankTop) < EDGE_THRESHOLD) {
-      compY = plankTop + R; // Extend up beyond plank edge
-    }
-    
-    // Ensure non-negative (machine can't go below 0)
-    compX = Math.max(compX, MIN_COORDINATE_VALUE);
-    compY = Math.max(compY, MIN_COORDINATE_VALUE);
-    
-    return { x: compX, y: compY };
-  }
-  
-  // Apply edge compensation to all three points
-  const startComp = compensateForEdge(l_cut.start.x, l_cut.start.y);
-  const centerComp = compensateForEdge(l_cut.center.x, l_cut.center.y);
-  const endComp = compensateForEdge(l_cut.end.x, l_cut.end.y);
-  
-  const startX = startComp.x;
-  const startY = startComp.y;
-  const centerX = centerComp.x;
-  const centerY = centerComp.y;
-  const endX = endComp.x;
-  const endY = endComp.y;
-  
-  // Cut for each pass depth
-  passes.forEach((depth, index) => {
-    // Rapid to start point at safe height
-    gcode.push(`G00 X${startX.toFixed(4)} Y${startY.toFixed(4)} Z${Z_SAFE.toFixed(4)}`);
-    // Approach
-    gcode.push(`G00 Z${Z_APPROACH.toFixed(4)}`);
-    // Plunge to depth
-    gcode.push(`G01 Z${depth.toFixed(4)} F${PLUNGE_FEED_RATE.toFixed(4)}`);
-    // Cut to center
-    gcode.push(`G01 X${centerX.toFixed(4)} Y${centerY.toFixed(4)} F${CUTTING_FEED_RATE.toFixed(4)}`);
-    // Cut to end
-    gcode.push(`G01 X${endX.toFixed(4)} Y${endY.toFixed(4)}`);
-    // Retract to safe height after each pass
-    gcode.push(`G00 Z${Z_SAFE.toFixed(4)}`);
-  });
-  
-  return gcode;
-}
-
-/**
- * Generates G-code for a plank that has L-cuts and/or Gola profiles.
- * THREE-STEP PROCESS:
- * 1. FIRST: Cut all L-cuts (baby cuts) - removes corner material
- * 2. SECOND: Cut all Gola profiles (same mechanics as L-cuts)
- * 3. THEN: Cut the main rectangle outline
- * 
- * This approach handles multiple cuts cleanly and follows Nest Result exactly.
- */
-function generateT1_LCut(plank) {
-  const gcode = [];
-  
-  // If no L-cuts and no Gola profiles, just cut rectangle
-  const hasLCuts = plank.features.l_cuts && plank.features.l_cuts.length > 0;
-  const hasGolaProfiles = plank.features.gola_profiles && plank.features.gola_profiles.length > 0;
-  
-  if (!hasLCuts && !hasGolaProfiles) {
-    return generateT1_Rectangle(plank);
-  }
-  
-  // STEP 1: Cut all L-cuts first (baby cuts)
-  if (hasLCuts) {
-    plank.features.l_cuts.forEach(l_cut => {
-      if (l_cut.legacy) {
-        // Legacy L-cuts use old format - generate using legacy function
-        gcode.push(...generateLCutOnly_Legacy(plank, l_cut));
-      } else {
-        // Modern L-cuts with start/center/end triplet
-        gcode.push(...generateLCutOnly(plank, l_cut));
-      }
-    });
-  }
-  
-  // STEP 2: Cut all Gola profiles (same mechanics as L-cuts)
-  if (hasGolaProfiles) {
-    plank.features.gola_profiles.forEach(gola_profile => {
-      // Gola profiles use the same cutting function as L-cuts
-      // They have the same start/center/end triplet structure
-      gcode.push(...generateLCutOnly(plank, gola_profile));
-    });
-  }
-  
-  // STEP 3: Cut the main rectangle outline
-  gcode.push(...generateT1_Rectangle(plank));
-  
-  return gcode;
-}
-
-/**
- * Generates G-code for a SINGLE legacy L-cut (baby cut).
- * Uses old l_cutting_1_X/Y format with name-based corner detection.
- */
-function generateLCutOnly_Legacy(plank, l_cut) {
-  const gcode = [];
-  
-  Logger.log('Warning: Using legacy L-cut for plank "' + plank.name + '"; please re-export using triplet format.');
-  
-  const passes = getProfilePassDepths(plank.thickness);
-  const Z_APPROACH = plank.thickness;
-  const R = BIT_RADIUS;
-  
-  // Legacy format only has x, y (the L-cut dimensions)
-  const l_cut_X = l_cut.x;
-  const l_cut_Y = l_cut.y;
-  
-  // Calculate L-cut path based on plank name (left/right)
-  const coords = calculateLCutCoordinates(plank, l_cut_X, l_cut_Y, R);
-  
-  // For legacy, we cut the L-shape path (3 points that form the L)
-  // The L-cut removes a corner, so we trace: outer edge → inner corner → other outer edge
-  const name = plank.name.toLowerCase();
-  
-  let startPt, centerPt, endPt;
-  if (name.includes("right")) {
-    // Right L-cut: corner at bottom-left of the L notch
-    startPt = { x: coords.p1.x, y: coords.p1.y };
-    centerPt = { x: coords.p6.x, y: coords.p6.y };
-    endPt = { x: coords.p5.x, y: coords.p5.y };
-  } else {
-    // Left L-cut: corner at bottom-right of the L notch
-    startPt = { x: coords.p2.x, y: coords.p2.y };
-    centerPt = { x: coords.p3.x, y: coords.p3.y };
-    endPt = { x: coords.p4.x, y: coords.p4.y };
-  }
-  
-  const startX = Math.max(startPt.x, MIN_COORDINATE_VALUE);
-  const startY = Math.max(startPt.y, MIN_COORDINATE_VALUE);
-  const centerX = Math.max(centerPt.x, MIN_COORDINATE_VALUE);
-  const centerY = Math.max(centerPt.y, MIN_COORDINATE_VALUE);
-  const endX = Math.max(endPt.x, MIN_COORDINATE_VALUE);
-  const endY = Math.max(endPt.y, MIN_COORDINATE_VALUE);
-  
-  // Rapid to start point at safe height
-  gcode.push(`G00 X${startX.toFixed(4)} Y${startY.toFixed(4)} Z${Z_SAFE.toFixed(4)}`);
-  gcode.push(`G00 Z${Z_APPROACH.toFixed(4)}`);
-  
-  // Cut for each pass depth
-  passes.forEach((depth) => {
-    gcode.push(`G01 Z${depth.toFixed(4)} F${PLUNGE_FEED_RATE.toFixed(4)}`);
-    gcode.push(`G01 X${centerX.toFixed(4)} Y${centerY.toFixed(4)} F${CUTTING_FEED_RATE.toFixed(4)}`);
-    gcode.push(`G01 X${endX.toFixed(4)} Y${endY.toFixed(4)}`);
-    if (passes.indexOf(depth) < passes.length - 1) {
-      gcode.push(`G01 X${startX.toFixed(4)} Y${startY.toFixed(4)}`);
-    }
-  });
-  
-  gcode.push(`G00 Z${Z_SAFE.toFixed(4)}`);
-  
-  return gcode;
-}
-
-/**
- * Processes T1 - Cutting Profile
- * NEW ARCHITECTURE: L-cut and Gola profile detection is based purely on features arrays presence,
- * NOT on plank name. This is deterministic and explicit.
- */
-function processToolT1(planks) {
-  const gcode = [];
-  const toolNumber = 'T1';
-
-  if (planks.length === 0) return gcode;
-
-  gcode.push(...outputToolStart(toolNumber, planks));
-
-  planks.forEach(plank => {
-    // Deterministic detection: check if l_cuts OR gola_profiles arrays have entries
-    const hasLCut = plank.features.l_cuts && plank.features.l_cuts.length > 0;
-    const hasGolaProfile = plank.features.gola_profiles && plank.features.gola_profiles.length > 0;
-
-    if (hasLCut || hasGolaProfile) {
-      gcode.push(...generateT1_LCut(plank));
+    if (isEvenPass) {
+      gcode.push(`G01 X${path.Xe.toFixed(4)} Y${path.Ye.toFixed(4)} F${CUTTING_FEED_RATE.toFixed(4)}`);
     } else {
-      gcode.push(...generateT1_Rectangle(plank));
+      gcode.push(`G01 X${path.Xs.toFixed(4)} Y${path.Ys.toFixed(4)} F${CUTTING_FEED_RATE.toFixed(4)}`);
+    }
+
+    if (index < paths.length - 1) {
+      const nextPath = paths[index + 1];
+      if (isEvenPass) {
+        gcode.push(`G01 X${nextPath.Xe.toFixed(4)} Y${nextPath.Ye.toFixed(4)} F${CUTTING_FEED_RATE.toFixed(4)}`);
+      } else {
+        gcode.push(`G01 X${nextPath.Xs.toFixed(4)} Y${nextPath.Ys.toFixed(4)} F${CUTTING_FEED_RATE.toFixed(4)}`);
+      }
     }
   });
 
-  gcode.push('M05');
+  gcode.push(`G00 Z${Z_SAFE.toFixed(4)}`);
+
   return gcode;
 }
 
-/**
- * Calculates profile coordinates with offset (FOR RECTANGLES)
- */
-function calculateProfileCoordinates(x, y, width, height, bitRadius) {
-  return {
-    p1: { x: x - bitRadius, y: y - bitRadius },
-    p2: { x: x + width + bitRadius, y: y - bitRadius },
-    p3: { x: x + width + bitRadius, y: y + height + bitRadius },
-    p4: { x: x - bitRadius, y: y + height + bitRadius }
-  };
-}
+// ========================================
+// T1 INTEGRATED PROFILE CUTTING LOGIC
+// ========================================
 
+/**
+ * Gets pass depths based on thickness
+ */
 function getProfilePassDepths(thickness) {
   const passFinalDepth = Z_THROUGH_CUT_FINAL_HEIGHT;
   if (thickness > 12) {
@@ -1281,123 +782,698 @@ function getProfilePassDepths(thickness) {
   }
 }
 
-
 /**
- * Maps operation name to feature type
+ * V13.1 EDGE DETECTION: Determines which edge a point belongs to
+ * Returns array of edge names: 'LEFT', 'RIGHT', 'TOP', 'BOTTOM'
+ * 
+ * V13.1 FIX: When a point matches multiple edges (near a plank corner),
+ * prefer the CLOSEST edge to avoid misclassification on rotated/mirrored planks.
+ * Also logs edge detection details for debugging L-cut/Gola offset issues.
  */
-function getFeatureType(operationName) {
-  const mapping = {
-    'Screw Holes': 'screws',
-    'Hinge Holes': 'hinges',
-    'Slot/Profile Grooves': 'slots',
-    'VB Main': 'vb_main',
-    'VB Double': 'vb_double'
- };
- return mapping[operationName] || 'screws';
+function getEdgeForPoint(point, plank) {
+  const plankLeft = plank.x;
+  const plankRight = plank.x + plank.placedWidth;
+  const plankBottom = plank.y;
+  const plankTop = plank.y + plank.placedHeight;
+
+  // Calculate distance from each edge
+  const distLeft = Math.abs(point.x - plankLeft);
+  const distRight = Math.abs(point.x - plankRight);
+  const distBottom = Math.abs(point.y - plankBottom);
+  const distTop = Math.abs(point.y - plankTop);
+
+  const candidates = [];
+
+  if (distLeft <= EDGE_THRESHOLD) {
+    candidates.push({ edge: 'LEFT', dist: distLeft });
+  }
+  if (distRight <= EDGE_THRESHOLD) {
+    candidates.push({ edge: 'RIGHT', dist: distRight });
+  }
+  if (distBottom <= EDGE_THRESHOLD) {
+    candidates.push({ edge: 'BOTTOM', dist: distBottom });
+  }
+  if (distTop <= EDGE_THRESHOLD) {
+    candidates.push({ edge: 'TOP', dist: distTop });
+  }
+
+  // Sort by distance (closest first) so the most accurate edge is preferred
+  candidates.sort((a, b) => a.dist - b.dist);
+
+  const edges = candidates.map(c => c.edge);
+
+  return edges;
 }
 
+/**
+ * Get sort position for a point along an edge
+ */
+function getSortPosition(point, edge, plank) {
+  switch (edge) {
+    case 'LEFT':
+    case 'RIGHT':
+      return point.y;
+    case 'TOP':
+    case 'BOTTOM':
+      return point.x;
+    default:
+      return 0;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// V13 AXIS-ALIGNED OFFSET SYSTEM (REPLACES V12 BISECTOR/PERPENDICULAR)
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// L-cuts and Gola profiles are ALWAYS axis-aligned (horizontal + vertical).
+// The notch is cut from a CORNER of the plank where two edges meet.
+// The tool center offset direction is TOWARD that corner (away from material).
+//
+// The corner is identified by the entry and exit edges:
+//   Entry=LEFT,  Exit=TOP    → notch at Top-Left      → X-R, Y+R
+//   Entry=TOP,   Exit=RIGHT  → notch at Top-Right     → X+R, Y+R
+//   Entry=RIGHT, Exit=BOTTOM → notch at Bottom-Right  → X+R, Y-R
+//   Entry=BOTTOM,Exit=LEFT   → notch at Bottom-Left   → X-R, Y-R
+//
+// For ENTRY points on an edge: one axis goes to compensated perimeter,
+//   the other axis gets the feature offset direction.
+// For CENTER point (inside corner): both axes get offset by ±R.
+// For EXIT points on an edge: same as entry but for exit edge.
+// ═══════════════════════════════════════════════════════════════════════════════
 
 /**
- * GOOGLE DRIVE INTEGRATION
+ * V13: Maps an edge to its outward offset direction
+ * LEFT  → push X negative (outward from plank)
+ * RIGHT → push X positive
+ * TOP   → push Y positive
+ * BOTTOM → push Y negative
  */
+var EDGE_OFFSET_DIRECTION = {
+  'LEFT': { x: -1, y: 0 },
+  'RIGHT': { x: +1, y: 0 },
+  'TOP': { x: 0, y: +1 },
+  'BOTTOM': { x: 0, y: -1 }
+};
 
+/**
+ * V13: Get the ±R offset direction for center point based on entry/exit edges.
+ * The center point is the inside corner of the L-notch.
+ * It needs ±R on BOTH axes, directed toward the plank corner being cut.
+ *
+ * @param {string} entryEdge - 'LEFT', 'RIGHT', 'TOP', or 'BOTTOM'
+ * @param {string} exitEdge - 'LEFT', 'RIGHT', 'TOP', or 'BOTTOM'
+ * @returns {Object} {xDir: ±1, yDir: ±1} - multiply by R for offset
+ */
+function getCenterOffsetDirection(entryEdge, exitEdge) {
+  var xDir = 0;
+  var yDir = 0;
+
+  var edges = [entryEdge, exitEdge];
+
+  for (var i = 0; i < edges.length; i++) {
+    var edge = edges[i];
+    if (edge === 'LEFT') xDir = -1;
+    if (edge === 'RIGHT') xDir = +1;
+    if (edge === 'TOP') yDir = +1;
+    if (edge === 'BOTTOM') yDir = -1;
+  }
+
+  // Safety: if somehow both edges are on same axis, fall back
+  if (xDir === 0) xDir = (entryEdge === 'TOP' || entryEdge === 'BOTTOM') ?
+    (exitEdge === 'RIGHT' ? +1 : -1) : -1;
+  if (yDir === 0) yDir = (entryEdge === 'LEFT' || entryEdge === 'RIGHT') ?
+    (exitEdge === 'TOP' ? +1 : -1) : -1;
+
+  return { xDir: xDir, yDir: yDir };
+}
+
+/**
+ * V13: Compute compensated ENTRY point.
+ * Entry is ON an edge → push that axis to compensated perimeter (edge ± R).
+ * The perpendicular axis gets the feature offset (toward notch corner).
+ *
+ * @param {Object} entryPoint - {x, y} in sheet coordinates
+ * @param {string} entryEdge - which edge the entry is on
+ * @param {Object} offsetDir - {xDir, yDir} from getCenterOffsetDirection()
+ * @param {Object} plank - plank with x, y, placedWidth, placedHeight
+ * @param {number} R - BIT_RADIUS
+ * @returns {Object} {x, y} compensated tool center position
+ */
+function getCompensatedEntry(entryPoint, entryEdge, offsetDir, plank, R) {
+  var x, y;
+
+  if (entryEdge === 'LEFT') {
+    x = plank.x - R;                           // Push to LEFT perimeter
+    y = entryPoint.y + offsetDir.yDir * R;      // Feature offset on Y
+  } else if (entryEdge === 'RIGHT') {
+    x = plank.x + plank.placedWidth + R;        // Push to RIGHT perimeter
+    y = entryPoint.y + offsetDir.yDir * R;      // Feature offset on Y
+  } else if (entryEdge === 'TOP') {
+    x = entryPoint.x + offsetDir.xDir * R;      // Feature offset on X
+    y = plank.y + plank.placedHeight + R;        // Push to TOP perimeter
+  } else if (entryEdge === 'BOTTOM') {
+    x = entryPoint.x + offsetDir.xDir * R;      // Feature offset on X
+    y = plank.y - R;                             // Push to BOTTOM perimeter
+  } else {
+    // Fallback: just offset both axes
+    x = entryPoint.x + offsetDir.xDir * R;
+    y = entryPoint.y + offsetDir.yDir * R;
+  }
+
+  return {
+    x: Math.max(x, MIN_COORDINATE_VALUE),
+    y: Math.max(y, MIN_COORDINATE_VALUE)
+  };
+}
+
+/**
+ * V13: Compute compensated CENTER point (inside corner of L-notch).
+ * Offset by ±R on BOTH axes, directed toward the plank corner.
+ *
+ * @param {Object} centerPoint - {x, y} in sheet coordinates
+ * @param {Object} offsetDir - {xDir, yDir} from getCenterOffsetDirection()
+ * @param {number} R - BIT_RADIUS
+ * @returns {Object} {x, y} compensated tool center position
+ */
+function getCompensatedCenter(centerPoint, offsetDir, R) {
+  return {
+    x: Math.max(centerPoint.x + offsetDir.xDir * R, MIN_COORDINATE_VALUE),
+    y: Math.max(centerPoint.y + offsetDir.yDir * R, MIN_COORDINATE_VALUE)
+  };
+}
+
+/**
+ * V13: Compute compensated EXIT point.
+ * Same logic as entry but for the exit edge.
+ *
+ * @param {Object} exitPoint - {x, y} in sheet coordinates
+ * @param {string} exitEdge - which edge the exit is on
+ * @param {Object} offsetDir - {xDir, yDir} from getCenterOffsetDirection()
+ * @param {Object} plank - plank with x, y, placedWidth, placedHeight
+ * @param {number} R - BIT_RADIUS
+ * @returns {Object} {x, y} compensated tool center position
+ */
+function getCompensatedExit(exitPoint, exitEdge, offsetDir, plank, R) {
+  var x, y;
+
+  if (exitEdge === 'LEFT') {
+    x = plank.x - R;                           // Push to LEFT perimeter
+    y = exitPoint.y + offsetDir.yDir * R;       // Feature offset on Y
+  } else if (exitEdge === 'RIGHT') {
+    x = plank.x + plank.placedWidth + R;        // Push to RIGHT perimeter
+    y = exitPoint.y + offsetDir.yDir * R;       // Feature offset on Y
+  } else if (exitEdge === 'TOP') {
+    x = exitPoint.x + offsetDir.xDir * R;       // Feature offset on X
+    y = plank.y + plank.placedHeight + R;        // Push to TOP perimeter
+  } else if (exitEdge === 'BOTTOM') {
+    x = exitPoint.x + offsetDir.xDir * R;       // Feature offset on X
+    y = plank.y - R;                             // Push to BOTTOM perimeter
+  } else {
+    x = exitPoint.x + offsetDir.xDir * R;
+    y = exitPoint.y + offsetDir.yDir * R;
+  }
+
+  return {
+    x: Math.max(x, MIN_COORDINATE_VALUE),
+    y: Math.max(y, MIN_COORDINATE_VALUE)
+  };
+}
+
+/**
+ * V13.1 EDGE FEATURE GROUPS: Builds edge feature groups - assigns each L-cut/Gola to an edge
+ * 
+ * CCW Traversal Order: LEFT(up) → TOP(right) → RIGHT(down) → BOTTOM(left)
+ * 
+ * V13.1 FIX: Added comprehensive logging and validation for edge/offset
+ * direction to diagnose the +10mm L-cut error on RIGHT (mirrored) planks.
+ * Also validates that the offset direction pushes the tool AWAY from 
+ * material (toward the notch corner, not into the plank).
+ */
+function buildEdgeFeatureGroups(plank) {
+  const edgeGroups = {
+    LEFT: [],
+    TOP: [],
+    RIGHT: [],
+    BOTTOM: []
+  };
+
+  // Combine all features (L-cuts and Gola profiles)
+  const allFeatures = [
+    ...plank.features.l_cuts.map(f => ({ ...f, type: 'l_cut' })),
+    ...plank.features.gola_profiles.map(f => ({ ...f, type: 'gola' }))
+  ];
+
+  const plankLeft = plank.x;
+  const plankRight = plank.x + plank.placedWidth;
+  const plankBottom = plank.y;
+  const plankTop = plank.y + plank.placedHeight;
+
+  allFeatures.forEach(feature => {
+    const startEdges = getEdgeForPoint(feature.start, plank);
+    const endEdges = getEdgeForPoint(feature.end, plank);
+
+    // V13.1: Log edge detection for debugging
+    Logger.log('[EdgeDetect] Plank ' + plank.id + ' (' + plank.name + ') rotated=' + plank.rotated +
+      ' | start=(' + feature.start.x.toFixed(1) + ',' + feature.start.y.toFixed(1) + ') edges=[' + startEdges.join(',') + ']' +
+      ' | end=(' + feature.end.x.toFixed(1) + ',' + feature.end.y.toFixed(1) + ') edges=[' + endEdges.join(',') + ']' +
+      ' | plank bounds: L=' + plankLeft.toFixed(1) + ' R=' + plankRight.toFixed(1) +
+      ' B=' + plankBottom.toFixed(1) + ' T=' + plankTop.toFixed(1));
+
+    if (startEdges.length === 0 && endEdges.length === 0) {
+      Logger.log('WARNING: L-cut/Gola has no edge points for plank ' + plank.id +
+        '. Start=(' + feature.start.x.toFixed(1) + ',' + feature.start.y.toFixed(1) +
+        ') End=(' + feature.end.x.toFixed(1) + ',' + feature.end.y.toFixed(1) +
+        '). PlankBounds: [' + plankLeft.toFixed(1) + ',' + plankBottom.toFixed(1) +
+        '] to [' + plankRight.toFixed(1) + ',' + plankTop.toFixed(1) + ']');
+      return;
+    }
+
+    // Determine which point is the "entry" (first encountered in CCW traversal)
+    var entryPoint, exitPoint, entryEdge, exitEdge;
+
+    if (startEdges.length > 0 && endEdges.length > 0) {
+      // Both points on edges - determine CCW order
+      const edgeOrder = ['LEFT', 'TOP', 'RIGHT', 'BOTTOM'];
+
+      let startEdgeIndex = 999, endEdgeIndex = 999;
+      var startEdgeName = '', endEdgeName = '';
+      for (let i = 0; i < edgeOrder.length; i++) {
+        if (startEdges.includes(edgeOrder[i]) && i < startEdgeIndex) {
+          startEdgeIndex = i;
+          startEdgeName = edgeOrder[i];
+        }
+        if (endEdges.includes(edgeOrder[i]) && i < endEdgeIndex) {
+          endEdgeIndex = i;
+          endEdgeName = edgeOrder[i];
+        }
+      }
+
+      // CRITICAL: Handle Bottom-Left Corner (wrap-around in CCW loop)
+      const hasLeft = startEdges.includes('LEFT') || endEdges.includes('LEFT');
+      const hasBottom = startEdges.includes('BOTTOM') || endEdges.includes('BOTTOM');
+
+      if (hasLeft && hasBottom) {
+        // In CCW loop, BOTTOM comes BEFORE LEFT
+        if (startEdges.includes('BOTTOM')) {
+          entryPoint = feature.start;
+          exitPoint = feature.end;
+          entryEdge = 'BOTTOM';
+          exitEdge = 'LEFT';
+        } else {
+          entryPoint = feature.end;
+          exitPoint = feature.start;
+          entryEdge = 'BOTTOM';
+          exitEdge = 'LEFT';
+        }
+      } else if (startEdgeIndex <= endEdgeIndex) {
+        entryPoint = feature.start;
+        exitPoint = feature.end;
+        entryEdge = startEdgeName;
+        exitEdge = endEdgeName;
+      } else {
+        entryPoint = feature.end;
+        exitPoint = feature.start;
+        entryEdge = endEdgeName;
+        exitEdge = startEdgeName;
+      }
+    } else if (startEdges.length > 0) {
+      entryPoint = feature.start;
+      exitPoint = feature.end;
+      entryEdge = startEdges[0];
+      exitEdge = startEdges[0]; // fallback
+    } else {
+      entryPoint = feature.end;
+      exitPoint = feature.start;
+      entryEdge = endEdges[0];
+      exitEdge = endEdges[0]; // fallback
+    }
+
+    // V13: Compute the offset direction based on entry/exit edges
+    const offsetDir = getCenterOffsetDirection(entryEdge, exitEdge);
+
+    // ════════════════════════════════════════════════════════════════════════
+    // V13.1 VALIDATION: Verify offset direction pushes tool AWAY from plank
+    // The compensated center should be FURTHER from the plank center than
+    // the raw center. If not, the offset is pushing INTO the material.
+    // ════════════════════════════════════════════════════════════════════════
+    const plankCenterX = (plankLeft + plankRight) / 2;
+    const plankCenterY = (plankBottom + plankTop) / 2;
+
+    const rawDistFromCenter = Math.sqrt(
+      Math.pow(feature.center.x - plankCenterX, 2) +
+      Math.pow(feature.center.y - plankCenterY, 2)
+    );
+    const compCenterX = feature.center.x + offsetDir.xDir * BIT_RADIUS;
+    const compCenterY = feature.center.y + offsetDir.yDir * BIT_RADIUS;
+    const compDistFromCenter = Math.sqrt(
+      Math.pow(compCenterX - plankCenterX, 2) +
+      Math.pow(compCenterY - plankCenterY, 2)
+    );
+
+    if (compDistFromCenter < rawDistFromCenter) {
+      // Offset is pushing TOWARD plank center (INTO material) — this is wrong!
+      Logger.log('WARNING: Offset direction may be WRONG for plank ' + plank.id +
+        ' (' + plank.name + ') ' + feature.type +
+        ' | entryEdge=' + entryEdge + ' exitEdge=' + exitEdge +
+        ' | offsetDir=(' + offsetDir.xDir + ',' + offsetDir.yDir + ')' +
+        ' | Center moved TOWARD plank center (raw dist=' + rawDistFromCenter.toFixed(2) +
+        ', comp dist=' + compDistFromCenter.toFixed(2) + ')' +
+        ' | This will cut ~' + (2 * BIT_RADIUS) + 'mm too much!');
+    }
+
+    // V13.1: Log the final assignment
+    Logger.log('[FeatureAssign] Plank ' + plank.id + ' ' + feature.type +
+      ': entry=' + entryEdge + ' exit=' + exitEdge +
+      ' offsetDir=(' + offsetDir.xDir + ',' + offsetDir.yDir + ')' +
+      ' center=(' + feature.center.x.toFixed(1) + ',' + feature.center.y.toFixed(1) + ')' +
+      ' compCenter=(' + compCenterX.toFixed(1) + ',' + compCenterY.toFixed(1) + ')');
+
+    const processedFeature = {
+      triplet: feature,
+      entryPoint: entryPoint,
+      center: feature.center,
+      exitPoint: exitPoint,
+      entryEdge: entryEdge,
+      exitEdge: exitEdge,
+      offsetDir: offsetDir,
+      type: feature.type,
+      sortPosition: getSortPosition(entryPoint, entryEdge, plank)
+    };
+
+    edgeGroups[entryEdge].push(processedFeature);
+  });
+
+  // Sort features along each edge in CCW direction
+  edgeGroups.LEFT.sort((a, b) => a.sortPosition - b.sortPosition);   // Y Ascending
+  edgeGroups.TOP.sort((a, b) => a.sortPosition - b.sortPosition);    // X Ascending
+  edgeGroups.RIGHT.sort((a, b) => b.sortPosition - a.sortPosition);  // Y Descending
+  edgeGroups.BOTTOM.sort((a, b) => b.sortPosition - a.sortPosition); // X Descending
+
+  return edgeGroups;
+}
+
+/**
+ * Generates G-code for a simple rectangular plank (no L-cuts or Golas)
+ */
+function generateT1_Rectangle(plank) {
+  const gcode = [];
+  const R = BIT_RADIUS;
+
+  const width = plank.placedWidth;
+  const height = plank.placedHeight;
+
+  const P1 = { x: Math.max(plank.x - R, MIN_COORDINATE_VALUE), y: Math.max(plank.y - R, MIN_COORDINATE_VALUE) };
+  const P2 = { x: Math.max(plank.x + width + R, MIN_COORDINATE_VALUE), y: Math.max(plank.y - R, MIN_COORDINATE_VALUE) };
+  const P3 = { x: Math.max(plank.x + width + R, MIN_COORDINATE_VALUE), y: Math.max(plank.y + height + R, MIN_COORDINATE_VALUE) };
+  const P4 = { x: Math.max(plank.x - R, MIN_COORDINATE_VALUE), y: Math.max(plank.y + height + R, MIN_COORDINATE_VALUE) };
+
+  const passes = getProfilePassDepths(plank.thickness);
+  const Z_APPROACH = plank.thickness;
+
+  gcode.push(`G00 X${P1.x.toFixed(4)} Y${P1.y.toFixed(4)} Z${Z_SAFE.toFixed(4)}`);
+  gcode.push(`G00 Z${Z_APPROACH.toFixed(4)}`);
+
+  passes.forEach(depth => {
+    gcode.push(`G01 Z${depth.toFixed(4)} F${PLUNGE_FEED_RATE.toFixed(4)}`);
+    gcode.push(`G01 X${P4.x.toFixed(4)} Y${P4.y.toFixed(4)} F${CUTTING_FEED_RATE.toFixed(4)}`);
+    gcode.push(`G01 X${P3.x.toFixed(4)} Y${P3.y.toFixed(4)}`);
+    gcode.push(`G01 X${P2.x.toFixed(4)} Y${P2.y.toFixed(4)}`);
+    gcode.push(`G01 X${P1.x.toFixed(4)} Y${P1.y.toFixed(4)}`);
+  });
+
+  gcode.push(`G00 Z${Z_SAFE.toFixed(4)}`);
+  return gcode;
+}
+
+/**
+ * V13 INTEGRATED T1: Main integrated L-cut/Gola cutting function
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * COMPLETELY REWRITTEN for V13 — uses axis-aligned offset system.
+ *
+ * KEY CHANGES from V12:
+ * 1. NO more offsetPointForToolCenter() / offsetCenterPointForToolCenter()
+ * 2. NO more step-in / step-out moves (entry/exit ARE on compensated perimeter)
+ * 3. Uses getCompensatedEntry/Center/Exit() with axis-aligned ±R offsets
+ * 4. 3 G-code points per feature instead of 5 (entry → center → exit)
+ *
+ * Path: P1 → [features on LEFT] → P4 → [features on TOP] → P3 → 
+ *       [features on RIGHT] → P2 → [features on BOTTOM] → P1
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+function generateT1_Integrated(plank) {
+  const gcode = [];
+  const R = BIT_RADIUS;
+
+  const width = plank.placedWidth;
+  const height = plank.placedHeight;
+
+  // Corner points with bit radius compensation (CCW: P1→P4→P3→P2→P1)
+  const P1 = { x: Math.max(plank.x - R, MIN_COORDINATE_VALUE), y: Math.max(plank.y - R, MIN_COORDINATE_VALUE) };
+  const P2 = { x: Math.max(plank.x + width + R, MIN_COORDINATE_VALUE), y: Math.max(plank.y - R, MIN_COORDINATE_VALUE) };
+  const P3 = { x: Math.max(plank.x + width + R, MIN_COORDINATE_VALUE), y: Math.max(plank.y + height + R, MIN_COORDINATE_VALUE) };
+  const P4 = { x: Math.max(plank.x - R, MIN_COORDINATE_VALUE), y: Math.max(plank.y + height + R, MIN_COORDINATE_VALUE) };
+
+  const passes = getProfilePassDepths(plank.thickness);
+  const Z_APPROACH = plank.thickness;
+
+  // Build edge feature groups
+  const edgeGroupsOriginal = buildEdgeFeatureGroups(plank);
+
+  // Move to start position (P1)
+  gcode.push(`G00 X${P1.x.toFixed(4)} Y${P1.y.toFixed(4)} Z${Z_SAFE.toFixed(4)}`);
+  gcode.push(`G00 Z${Z_APPROACH.toFixed(4)}`);
+
+  // Define traversal sequence - CCW ORDER
+  const edgeSequence = [
+    { key: 'LEFT', endCorner: P4, nextKey: 'TOP' },
+    { key: 'TOP', endCorner: P3, nextKey: 'RIGHT' },
+    { key: 'RIGHT', endCorner: P2, nextKey: 'BOTTOM' },
+    { key: 'BOTTOM', endCorner: P1, nextKey: 'LEFT' }
+  ];
+
+  // Cut each depth pass
+  passes.forEach(depth => {
+    gcode.push(`G01 Z${depth.toFixed(4)} F${PLUNGE_FEED_RATE.toFixed(4)}`);
+
+    // Clone groups for this pass (features are consumed)
+    const currentPassGroups = {
+      LEFT: [...edgeGroupsOriginal.LEFT],
+      TOP: [...edgeGroupsOriginal.TOP],
+      RIGHT: [...edgeGroupsOriginal.RIGHT],
+      BOTTOM: [...edgeGroupsOriginal.BOTTOM]
+    };
+
+    // Traverse each edge
+    for (let i = 0; i < edgeSequence.length; i++) {
+      const edge = edgeSequence[i];
+      const features = currentPassGroups[edge.key];
+      let skipCorner = false;
+
+      // Process features on this edge
+      while (features.length > 0) {
+        const feature = features.shift(); // CONSUME feature
+
+        // ════════════════════════════════════════════════════════════════
+        // V13 AXIS-ALIGNED OFFSET: 3 points per feature, no step-in/out
+        //
+        // Entry: ON the perimeter (edge ± R), with feature offset on other axis
+        // Center: ±R on BOTH axes (toward the notch corner)
+        // Exit: ON the perimeter (edge ± R), with feature offset on other axis
+        //
+        // The compensated entry/exit points ARE on the perimeter path,
+        // so NO separate step-in or step-out moves are needed.
+        // ════════════════════════════════════════════════════════════════
+
+        // ════════════════════════════════════════════════════════════════
+        // V13.1 FIX: Compute compensation INLINE to guarantee feature-axis
+        // offset is always applied. The getCompensated* functions are called
+        // first, then verified — if the feature-axis offset is missing
+        // (due to deployment issues), the inline computation corrects it.
+        // ════════════════════════════════════════════════════════════════
+        const compEntry = getCompensatedEntry(
+          feature.entryPoint, feature.entryEdge, feature.offsetDir, plank, R
+        );
+        const compCenter = getCompensatedCenter(
+          feature.center, feature.offsetDir, R
+        );
+        const compExit = getCompensatedExit(
+          feature.exitPoint, feature.exitEdge, feature.offsetDir, plank, R
+        );
+
+        // --- VERIFY & CORRECT ENTRY ---
+        // Entry is on an edge: perimeter axis = edge ± R, feature axis = point ± offsetDir * R
+        if (feature.entryEdge === 'LEFT' || feature.entryEdge === 'RIGHT') {
+          const expectedY = feature.entryPoint.y + feature.offsetDir.yDir * R;
+          if (Math.abs(compEntry.y - expectedY) > 0.01) {
+            compEntry.y = Math.max(expectedY, MIN_COORDINATE_VALUE);
+          }
+        } else if (feature.entryEdge === 'TOP' || feature.entryEdge === 'BOTTOM') {
+          const expectedX = feature.entryPoint.x + feature.offsetDir.xDir * R;
+          if (Math.abs(compEntry.x - expectedX) > 0.01) {
+            compEntry.x = Math.max(expectedX, MIN_COORDINATE_VALUE);
+          }
+        }
+
+        // --- VERIFY & CORRECT CENTER ---
+        // Center point gets ±R on BOTH axes
+        const expectedCenterX = feature.center.x + feature.offsetDir.xDir * R;
+        const expectedCenterY = feature.center.y + feature.offsetDir.yDir * R;
+        if (Math.abs(compCenter.x - expectedCenterX) > 0.01) {
+          compCenter.x = Math.max(expectedCenterX, MIN_COORDINATE_VALUE);
+        }
+        if (Math.abs(compCenter.y - expectedCenterY) > 0.01) {
+          compCenter.y = Math.max(expectedCenterY, MIN_COORDINATE_VALUE);
+        }
+
+        // --- VERIFY & CORRECT EXIT ---
+        // Exit is on an edge: perimeter axis = edge ± R, feature axis = point ± offsetDir * R
+        if (feature.exitEdge === 'LEFT' || feature.exitEdge === 'RIGHT') {
+          const expectedY = feature.exitPoint.y + feature.offsetDir.yDir * R;
+          if (Math.abs(compExit.y - expectedY) > 0.01) {
+            compExit.y = Math.max(expectedY, MIN_COORDINATE_VALUE);
+          }
+        } else if (feature.exitEdge === 'TOP' || feature.exitEdge === 'BOTTOM') {
+          const expectedX = feature.exitPoint.x + feature.offsetDir.xDir * R;
+          if (Math.abs(compExit.x - expectedX) > 0.01) {
+            compExit.x = Math.max(expectedX, MIN_COORDINATE_VALUE);
+          }
+        }
+
+        // V13.1 DIAGNOSTIC: Log raw vs final compensated coordinates
+        Logger.log('[GCodeComp] Plank ' + plank.id + ' (' + plank.name + ') ' + feature.type +
+          ' | entryEdge=' + feature.entryEdge + ' exitEdge=' + feature.exitEdge +
+          ' offsetDir={xDir:' + feature.offsetDir.xDir + ',yDir:' + feature.offsetDir.yDir + '} R=' + R +
+          ' | raw entry=(' + feature.entryPoint.x.toFixed(1) + ',' + feature.entryPoint.y.toFixed(1) + ')' +
+          ' FINAL entry=(' + compEntry.x.toFixed(1) + ',' + compEntry.y.toFixed(1) + ')' +
+          ' | raw center=(' + feature.center.x.toFixed(1) + ',' + feature.center.y.toFixed(1) + ')' +
+          ' FINAL center=(' + compCenter.x.toFixed(1) + ',' + compCenter.y.toFixed(1) + ')' +
+          ' | raw exit=(' + feature.exitPoint.x.toFixed(1) + ',' + feature.exitPoint.y.toFixed(1) + ')' +
+          ' FINAL exit=(' + compExit.x.toFixed(1) + ',' + compExit.y.toFixed(1) + ')');
+
+        // Cut: Entry → Center → Exit (3 clean moves, no extra steps)
+        gcode.push(`G01 X${compEntry.x.toFixed(4)} Y${compEntry.y.toFixed(4)} F${CUTTING_FEED_RATE.toFixed(4)}`);
+        gcode.push(`G01 X${compCenter.x.toFixed(4)} Y${compCenter.y.toFixed(4)}`);
+        gcode.push(`G01 X${compExit.x.toFixed(4)} Y${compExit.y.toFixed(4)}`);
+
+        // Check if feature exits onto the NEXT edge (corner feature)
+        if (feature.exitEdge === edge.nextKey) {
+          skipCorner = true;
+          break; // Continue from exit point on next edge
+        }
+      }
+
+      // If no corner feature, travel to the physical corner
+      if (!skipCorner) {
+        gcode.push(`G01 X${edge.endCorner.x.toFixed(4)} Y${edge.endCorner.y.toFixed(4)} F${CUTTING_FEED_RATE.toFixed(4)}`);
+      }
+    }
+  });
+
+  gcode.push(`G00 Z${Z_SAFE.toFixed(4)}`);
+  return gcode;
+}
+
+/**
+ * Processes T1 - Narrow Grooves (width < 10mm) + Cutting Profile
+ * 
+ * V13.1: Now handles narrow grooves BEFORE perimeter cutting
+ * Narrow grooves use same serpentine logic as T2, but with T1 (8mm) diameter
+ */
+function processToolT1(planks) {
+  const gcode = [];
+  const toolNumber = 'T1';
+
+  if (planks.length === 0) return gcode;
+
+  gcode.push(...outputToolStart(toolNumber, planks));
+
+  // FIRST: Cut all narrow grooves (width < 10mm) using T1
+  planks.forEach(plank => {
+    if (plank.features.slots && plank.features.slots.length > 0) {
+      // Filter: Only grooves with width < 10mm for T1
+      const narrowGrooves = plank.features.slots.filter(slot => slot.width < TOOL_DIAMETER_T2);
+
+      if (narrowGrooves.length > 0) {
+        const Z_APPROACH = plank.thickness;
+
+        narrowGrooves.forEach(slot => {
+          // Use same serpentine logic as T2, but with T1 diameter (8mm)
+          gcode.push(...generateSlotGCode(plank, slot, Z_APPROACH, TOOL_DIAMETER_T1));
+        });
+      }
+    }
+  });
+
+  // SECOND: Cut all perimeters (existing logic)
+  planks.forEach(plank => {
+    const hasLCut = plank.features.l_cuts && plank.features.l_cuts.length > 0;
+    const hasGolaProfile = plank.features.gola_profiles && plank.features.gola_profiles.length > 0;
+
+    if (hasLCut || hasGolaProfile) {
+      gcode.push(...generateT1_Integrated(plank));
+    } else {
+      gcode.push(...generateT1_Rectangle(plank));
+    }
+  });
+
+  gcode.push('M05');
+  return gcode;
+}
+
+// ========================================
+// GOOGLE DRIVE INTEGRATION
+// ========================================
 
 /**
  * Creates NC files in Google Drive
- * --- UPDATED: Creates Material Folder -> then Thickness Folder ---
- * --- DUAL STORAGE: Also copies to centralized project folder ---
  */
 function createNCFilesInDrive(gcodeResults) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    // 1. Get Project Name from Sheet Name
-    const projectName = ss.getName().trim().replace(/[/\\?%*:|"<>]/g, '_'); 
-    
-    // 2. Format Main Folder (NO TIMESTAMP - just G_CODES subfolder)
-    const mainFolderName = `${projectName}_G_CODES`;
+    const projectName = ss.getName().trim().replace(/[/\\?%*:|"<>]/g, '_');
 
-    // 3. Get Master Folder
+    const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd_HHmmss');
+    const mainFolderName = `${projectName}_G_CODES_${timestamp}`;
+
     let masterFolder;
     try {
-        masterFolder = DriveApp.getFolderById(MASTER_FOLDER_ID);
+      masterFolder = DriveApp.getFolderById(MASTER_FOLDER_ID);
     } catch (e) {
-        throw new Error(`Master Folder ID invalid.`);
+      throw new Error(`Master Folder ID invalid.`);
     }
 
-    // 4. Check if folder exists, otherwise create
-    const existingFolders = masterFolder.getFoldersByName(mainFolderName);
-    if (existingFolders.hasNext()) {
-      driveFolder = existingFolders.next();
-      // Clear existing files in folder for fresh generation
-    } else {
-      driveFolder = masterFolder.createFolder(mainFolderName);
-    }
-    
-    // 5. Get Project Folder for dual storage
-    const projectGcodeFolder = getProjectSubfolder('G-CODE');
-    
-    // Cache for subfolders to avoid re-fetching/creating (Optimization)
-    const materialFoldersCache = {};
-    const thicknessFoldersCache = {}; // Cache using composite key "Material_Thickness"
-    const projectMaterialFoldersCache = {};
-    const projectThicknessFoldersCache = {};
+    driveFolder = masterFolder.createFolder(mainFolderName);
+
+    const materialFolders = {};
+    const thicknessFolders = {};
     const ncFiles = [];
 
     gcodeResults.forEach(result => {
-      const materialName = result.materialFolder; // e.g., "Pink"
-      const thicknessName = result.thicknessFolder; // e.g., "18MM"
-      
-      // === EXISTING LOCATION (G_CODES folder) ===
-      // 5. Create or Get Material Subfolder (Level 1)
-      let materialFolder;
-      if (materialFoldersCache[materialName]) {
-        materialFolder = materialFoldersCache[materialName];
+      const materialName = result.materialFolder;
+      const thicknessName = `${result.thickness}MM`;
+
+      let matFolder;
+      if (materialFolders[materialName]) {
+        matFolder = materialFolders[materialName];
       } else {
-        const existingMat = driveFolder.getFoldersByName(materialName);
-        materialFolder = existingMat.hasNext() ? existingMat.next() : driveFolder.createFolder(materialName);
-        materialFoldersCache[materialName] = materialFolder;
+        matFolder = driveFolder.createFolder(materialName);
+        materialFolders[materialName] = matFolder;
       }
 
-      // 6. Create or Get Thickness Subfolder (Level 2)
-      const thickCacheKey = `${materialName}_${thicknessName}`;
-      let thicknessFolder;
-      
-      if (thicknessFoldersCache[thickCacheKey]) {
-        thicknessFolder = thicknessFoldersCache[thickCacheKey];
+      const thickKey = `${materialName}_${thicknessName}`;
+      let targetFolder;
+      if (thicknessFolders[thickKey]) {
+        targetFolder = thicknessFolders[thickKey];
       } else {
-        const existingThick = materialFolder.getFoldersByName(thicknessName);
-        thicknessFolder = existingThick.hasNext() ? existingThick.next() : materialFolder.createFolder(thicknessName);
-        thicknessFoldersCache[thickCacheKey] = thicknessFolder;
+        targetFolder = matFolder.createFolder(thicknessName);
+        thicknessFolders[thickKey] = targetFolder;
       }
 
-      // 7. Save File in Thickness Subfolder
       const blob = Utilities.newBlob(result.content, 'text/plain', result.fileName);
-      const file = thicknessFolder.createFile(blob);
+      const file = targetFolder.createFile(blob);
       file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      
-      // === DUAL STORAGE: Copy to Project Folder ===
-      // Create same structure in project folder
-      let projMatFolder;
-      if (projectMaterialFoldersCache[materialName]) {
-        projMatFolder = projectMaterialFoldersCache[materialName];
-      } else {
-        const existingProjMat = projectGcodeFolder.getFoldersByName(materialName);
-        projMatFolder = existingProjMat.hasNext() ? existingProjMat.next() : projectGcodeFolder.createFolder(materialName);
-        projectMaterialFoldersCache[materialName] = projMatFolder;
-      }
-      
-      let projThickFolder;
-      if (projectThicknessFoldersCache[thickCacheKey]) {
-        projThickFolder = projectThicknessFoldersCache[thickCacheKey];
-      } else {
-        const existingProjThick = projMatFolder.getFoldersByName(thicknessName);
-        projThickFolder = existingProjThick.hasNext() ? existingProjThick.next() : projMatFolder.createFolder(thicknessName);
-        projectThicknessFoldersCache[thickCacheKey] = projThickFolder;
-      }
-      
-      // Copy file to project folder
-      file.makeCopy(result.fileName, projThickFolder);
-      
+
       ncFiles.push({
         name: result.fileName,
         url: file.getUrl(),
@@ -1406,7 +1482,52 @@ function createNCFilesInDrive(gcodeResults) {
       });
     });
 
+
+
     createSummaryFile(ncFiles);
+
+    // --- DUAL STORAGE: Also Save to Project Specific Folder ---
+    try {
+      const gCodesFolder = getProjectSubfolder('G_CODES');
+
+      gcodeResults.forEach(result => {
+        // Create sub-folders inside Project > G_Codes if needed (Material > Thickness)
+        // OR just dump flat files if preferred. User said: "in that G code folder I need to transfer these files"
+        // Let's mirror the Material/Thickness structure for cleanliness.
+
+        let targetFolder = gCodesFolder;
+
+        // 1. Material Folder
+        const matFolders = targetFolder.getFoldersByName(result.materialFolder);
+        if (matFolders.hasNext()) {
+          targetFolder = matFolders.next();
+        } else {
+          targetFolder = targetFolder.createFolder(result.materialFolder);
+        }
+
+        // 2. Thickness Folder
+        const thickName = `${result.thickness}MM`;
+        const thickFolders = targetFolder.getFoldersByName(thickName);
+        if (thickFolders.hasNext()) {
+          targetFolder = thickFolders.next();
+        } else {
+          targetFolder = targetFolder.createFolder(thickName);
+        }
+
+        // 3. Create File
+        const blob = Utilities.newBlob(result.content, 'text/plain', result.fileName);
+        targetFolder.createFile(blob);
+      });
+
+      // Also copy the SUMMARY file
+      const summaryBlob = Utilities.newBlob(createSummaryString(ncFiles), 'text/plain', 'GENERATION_SUMMARY.txt');
+      gCodesFolder.createFile(summaryBlob);
+
+    } catch (e) {
+      Logger.log('Error saving G-Codes to Project Folder: ' + e.message);
+      // We do NOT throw here, so the main process still succeeds (Dual Storage is secondary success)
+    }
+
     return ncFiles;
 
   } catch (error) {
@@ -1414,9 +1535,8 @@ function createNCFilesInDrive(gcodeResults) {
   }
 }
 
-
 /**
- * Creates ZIP file of all NC files
+ * Creates ZIP folder with all NC files
  */
 function zipAndUploadFiles(ncFiles) {
   try {
@@ -1424,8 +1544,6 @@ function zipAndUploadFiles(ncFiles) {
       throw new Error('Drive folder not created');
     }
 
-    // Since we now have subfolders, flat-zipping is tricky in standard Apps Script.
-    // We create a "DOWNLOAD_ALL" folder and copy files there flatly for easy bulk download.
     const zipFolder = driveFolder.createFolder('ALL_NC_FILES_FLAT');
 
     ncFiles.forEach(ncFile => {
@@ -1439,8 +1557,7 @@ CNC G-CODE FILES - DOWNLOAD INSTRUCTIONS
 
 Folder Structure Created:
 1. Main Folder: Project Name
-2. Subfolders: Material (e.g., Pink)
-3. Inner Subfolders: Thickness (e.g., 18MM)
+2. Subfolders: Sorted by Material (e.g., Pink, Black)
 
 To download EVERYTHING at once:
 1. Open the "ALL_NC_FILES_FLAT" folder
@@ -1459,7 +1576,6 @@ Generated: ${new Date().toLocaleString()}
   }
 }
 
-
 /**
  * Extracts file ID from Drive URL
  */
@@ -1467,7 +1583,6 @@ function getFileIdFromUrl(url) {
   const match = url.match(/[-\w]{25,}/);
   return match ? match[0] : null;
 }
-
 
 /**
  * Creates summary file with generation details
@@ -1493,51 +1608,57 @@ function createSummaryFile(ncFiles) {
   driveFolder.createFile(blob);
 }
 
-
 /**
- * USER INTERFACE FUNCTIONS
+ * Helper: Creates summary string (reused for dual storage)
  */
+function createSummaryString(ncFiles) {
+  const header = `CNC G-CODE GENERATION SUMMARY\n=========================================\n`;
+  const generationDetails = `Generated: ${new Date().toLocaleString()}\n`;
+  const fileList = ncFiles.map(file =>
+    `- ${file.name} (Sheet: ${file.sheet}, Planks: ${file.planks})`
+  );
 
+  return [
+    header,
+    generationDetails,
+    'FILES GENERATED:',
+    ...fileList,
+    '',
+    `Total Files: ${ncFiles.length}`
+  ].join('\n');
+}
+
+// ========================================
+// USER INTERFACE
+// ========================================
 
 /**
  * Shows popup with download links
- * Now includes link to centralized project folder
  */
 function showDownloadLinksPopup(ncFiles, zipUrl) {
   const ui = SpreadsheetApp.getUi();
-  const projectFolderUrl = getProjectFolderUrl();
 
   const htmlContent = `
     <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
       <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; margin: -20px -20px 20px -20px;">
-        <h1 style="margin: 0; font-size: 24px;">🎉 CNC G-code Generation Complete!</h1>
-        <p style="margin: 10px 0 0 0; opacity: 0.9;">Files saved to project folder</p>
-      </div>
-      
-      <div style="margin-bottom: 20px; background: #e8f5e9; padding: 15px; border-radius: 8px; border-left: 4px solid #4caf50;">
-        <h3 style="color: #2e7d32; margin: 0 0 10px 0;">📁 PROJECT FOLDER (All Files)</h3>
-        <a href="${projectFolderUrl}" target="_blank" style="display: inline-block; background: #4caf50; color: white; padding: 12px 20px; border-radius: 5px; text-decoration: none; font-weight: bold;">
-          📂 Open Project Folder
-        </a>
-        <p style="font-size: 12px; color: #666; margin: 10px 0 0 0;">
-          Contains all project files: G-CODE, PDF, Labels, CSV, etc.
-        </p>
+        <h1 style="margin: 0; font-size: 24px;">CNC G-code Generation Complete!</h1>
+        <p style="margin: 10px 0 0 0; opacity: 0.9;">v13.1.0 - Added T1 Narrow Groove Support</p>
       </div>
       
       <div style="margin-bottom: 20px;">
-        <h3 style="color: #4a148c; margin-bottom: 10px;">📦 G-CODE FOLDER</h3>
-        <a href="${driveFolder.getUrl()}" target="_blank" style="display: inline-block; background: #4a148c; color: white; padding: 10px 16px; border-radius: 5px; text-decoration: none; font-weight: bold; font-size: 14px;">
-          📥 Open G-Code Folder
+        <h3 style="color: #4a148c; margin-bottom: 10px;">DOWNLOAD FOLDER</h3>
+        <a href="${driveFolder.getUrl()}" target="_blank" style="display: inline-block; background: #4a148c; color: white; padding: 12px 20px; border-radius: 5px; text-decoration: none; font-weight: bold; margin-bottom: 15px;">
+          Open Project Folder
         </a>
       </div>
       
       <div style="margin-bottom: 20px;">
-        <h3 style="color: #1976d2; margin-bottom: 10px;">📄 FILES GENERATED (${ncFiles.length})</h3>
-        <div style="max-height: 180px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 10px;">
+        <h3 style="color: #2e7d32; margin-bottom: 10px;">FILES GENERATED</h3>
+        <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 10px;">
           ${ncFiles.map(file => `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #f0f0f0;">
-              <span style="font-weight: bold; font-size: 13px;">${file.name}</span>
-              <a href="${file.url}" target="_blank" style="background: #1976d2; color: white; padding: 5px 10px; border-radius: 3px; text-decoration: none; font-size: 11px;">
+              <span style="font-weight: bold;">${file.name}</span>
+              <a href="${file.url}" target="_blank" style="background: #2e7d32; color: white; padding: 6px 12px; border-radius: 3px; text-decoration: none; font-size: 12px;">
                 View
               </a>
             </div>
@@ -1555,16 +1676,14 @@ function showDownloadLinksPopup(ncFiles, zipUrl) {
 
   const htmlOutput = HtmlService.createHtmlOutput(htmlContent)
     .setWidth(650)
-    .setHeight(650);
+    .setHeight(600);
 
   ui.showModalDialog(htmlOutput, 'Download Your CNC G-code Files');
 }
 
-
-/**
- * ERROR HANDLING
- */
-
+// ========================================
+// ERROR HANDLING
+// ========================================
 
 /**
  * Handles errors with user-friendly messages
@@ -1585,7 +1704,7 @@ function handleError(error) {
 
   const htmlError = `
     <div style="font-family: Arial, sans-serif; padding: 30px; text-align: center; color: #d32f2f;">
-      <h1 style="font-size: 48px; margin: 0;">❌</h1>
+      <h1 style="font-size: 48px; margin: 0;">Error</h1>
       <h2 style="margin: 20px 0;">Generation Failed</h2>
       <p style="background: #ffebee; padding: 15px; border-radius: 5px; border-left: 4px solid #d32f2f;">
         ${message}

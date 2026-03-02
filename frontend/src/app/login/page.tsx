@@ -182,10 +182,10 @@ const LoginRegister = () => {
 
   return (
     <section>
-      <div className="h-24 top-0 fixed bg-white z-50">
-         <Navbar />
+      <div className="fixed top-0 left-0 right-0 w-full h-24 bg-white z-50">
+        <Navbar />
       </div>
-      <div className="min-h-screen flex items-center justify-center bg-neutral-light py-24 mt-24 w-screen">
+      <div className="min-h-screen flex items-center justify-center bg-neutral-light py-24 mt-24 w-full">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-6xl mx-auto bg-white rounded-dls-lg shadow-lg border border-neutral-light overflow-hidden">
           {/* Left Column: Value Proposition, Trust Indicators, Visuals */}
           <div className="p-8 bg-lighter-bg text-dark-text flex flex-col justify-center items-center text-center font-body">

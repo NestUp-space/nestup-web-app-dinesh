@@ -1,12 +1,19 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useDesignerStore, useDesignSummary } from '@/store/designerStore';
 
 export default function VisualiserPage() {
   const { projectName, lastSaved, clearDesign } = useDesignerStore();
   const summary = useDesignSummary();
+  // #region agent log
+  useEffect(() => {
+    const d = document;
+    const win = typeof window !== 'undefined' ? window : null;
+    fetch('http://127.0.0.1:7244/ingest/41a4e7cb-1324-43e9-bd68-2acaeed2548f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'99825d'},body:JSON.stringify({sessionId:'99825d',location:'visualiser/page.tsx',message:'VisualiserPage mounted',data:{hypothesisId:'B_C_D_E',totalWalls:summary.totalWalls,totalBoxes:summary.totalBoxes,totalPlanks:summary.totalPlanks,bodyScrollHeight:d.body.scrollHeight,bodyClientHeight:d.body.clientHeight,docScrollHeight:d.documentElement.scrollHeight,docClientHeight:d.documentElement.clientHeight,innerHeight:win?.innerHeight ?? null},timestamp:Date.now()})}).catch(()=>{});
+  }, [summary.totalWalls, summary.totalBoxes, summary.totalPlanks]);
+  // #endregion
 
   const handleNewProject = () => {
     if (summary.totalWalls > 0) {

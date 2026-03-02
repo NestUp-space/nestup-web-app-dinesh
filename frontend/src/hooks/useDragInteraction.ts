@@ -446,13 +446,13 @@ export function useDragInteraction(
    * - "100,200,50" - Move 100mm in X, 200mm in Y, 50mm in Z (relative)
    * - "[100,200,50]" - Move to absolute position
    */
-  const applyNumericInput = useCallback((input: string): boolean => {
+  const applyNumericInput = useCallback((input: string | null | undefined): boolean => {
     if (!startPositionRef.current) return false;
     
     const box = getBox();
     if (!box) return false;
     
-    const trimmed = input.trim();
+    const trimmed = (input != null && typeof input === 'string' ? input : '').trim();
     if (!trimmed) return false;
     
     let newPosition: Position;

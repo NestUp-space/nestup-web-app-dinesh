@@ -3,7 +3,6 @@ import { Inter, Source_Sans_3, JetBrains_Mono } from "next/font/google"
 import "../styles/globals.css"
 import { UserProvider } from '@/context/UserContext'; 
 import { Analytics } from "@vercel/analytics/react"
-import { GoogleAnalytics } from '@next/third-parties/google'
 import { ApolloWrapper } from '@/components/providers/ApolloWrapper'
 import { AnalyticsProvider } from '@/components/analytics/AnalyticsProvider'
 import { GA_MEASUREMENT_ID } from '@/lib/analytics'
@@ -36,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Google Analytics */}
+        {/* Google Analytics - single integration (afterInteractive to avoid blocking parse) */}
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
           strategy="afterInteractive"
@@ -52,32 +51,31 @@ export default function RootLayout({
             });
           `}
         </Script>
-        
-        {/* PageSense Analytics */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function(w,s){var e=document.createElement("script");e.type="text/javascript";e.async=true;e.src="https://cdn-in.pagesense.io/js/60044136648/30c7cb1f94964f17acf0132c17f1f563.js";var x=document.getElementsByTagName("script")[0];x.parentNode.insertBefore(e,x);})(window,"script");
-            `,
-          }}
-        />
       </head>
-    <body className={`${inter.variable} ${sourceSans.variable} ${jetbrains.variable}`}>
+    <body className={`${inter.variable} ${sourceSans.variable} ${jetbrains.variable} overflow-x-hidden`}>
         {/* Vercel Analytics */}
         <Analytics/>
         
         <ApolloWrapper>
           <UserProvider>
             <AnalyticsProvider>
-              <div >
+              <div className="w-full min-w-0">
                 {children}
               </div>
             </AnalyticsProvider>
           </UserProvider>
         </ApolloWrapper>
         
-        {/* Google Analytics using Next.js third-party integration */}
-        <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />
+        {/* PageSense Analytics - load after page is idle to avoid blocking first paint */}
+        <Script
+          id="pagesense-analytics"
+          strategy="lazyOnload"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(w,s){var e=document.createElement("script");e.type="text/javascript";e.async=true;e.src="https://cdn-in.pagesense.io/js/60044136648/30c7cb1f94964f17acf0132c17f1f563.js";var x=document.getElementsByTagName("script")[0];x.parentNode.insertBefore(e,x);})(window,"script");
+            `,
+          }}
+        />
       </body>
     </html>
   );

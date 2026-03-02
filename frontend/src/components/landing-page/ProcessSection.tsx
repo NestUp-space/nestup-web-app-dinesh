@@ -36,8 +36,11 @@ const ProcessFlowComponent: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [jiggleStep, setJiggleStep] = useState<string | null>(null)
+  const [isInView, setIsInView] = useState(true)
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   
   const containerRef = useRef<HTMLDivElement>(null)
+  const sectionRef = useRef<HTMLDivElement>(null)
 
   const steps: ProcessStep[] = useMemo(() => [
     { id: "measure", label: "Site Measurements", icon: Ruler, description: "Professional measurement team visits your location using advanced laser tools to capture precise, millimeter-accurate dimensions." },
@@ -54,9 +57,9 @@ const ProcessFlowComponent: React.FC = () => {
     { id: "install", label: "Professional Installation", icon: Wrench, description: "Expert installation support with detailed guides, on-site engineering assistance, and professional carpentry teams available." },
   ], [])
 
-  // Calculate circular positions for bubbles
+  // Calculate circular positions for bubbles (tighter radius so less scattered)
   const bubblePositions = useMemo(() => {
-    const radius = isMobile ? 150 : 180
+    const radius = isMobile ? 120 : 140
     return steps.map((step, index) => {
       const angle = (index * 2 * Math.PI) / steps.length - Math.PI / 2 // Start from top
       const x = Math.cos(angle) * radius
@@ -65,13 +68,35 @@ const ProcessFlowComponent: React.FC = () => {
     })
   }, [steps, isMobile])
 
-  // Initialize bubble physics with center always at origin
+  // Initialize bubble physics: only when mounted, desktop, section in view, and user has not requested reduced motion
+  const physicsEnabled = mounted && !isMobile && isInView && !prefersReducedMotion
   const { positions, disturbBubble, disturbAllBubbles } = useBubblePhysics({
     bubbles: bubblePositions,
     containerWidth: 500,
     containerHeight: 500,
-    enabled: mounted && !isMobile
+    enabled: physicsEnabled
   })
+
+  // Pause physics when section is off-screen to reduce main-thread work
+  useEffect(() => {
+    const el = sectionRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsInView(entry.isIntersecting),
+      { rootMargin: '50px', threshold: 0 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  // Respect prefers-reduced-motion for accessibility and performance
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setPrefersReducedMotion(mq.matches)
+    const handler = () => setPrefersReducedMotion(mq.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   // Device detection
   useEffect(() => {
@@ -140,7 +165,7 @@ const ProcessFlowComponent: React.FC = () => {
   }
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} ref={sectionRef}>
       <div className={styles.maxWidth}>
         <div className={styles.grid}>
           

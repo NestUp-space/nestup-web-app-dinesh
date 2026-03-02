@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+      background: #f5f7fa;
+      color: #333;
+      padding: 0;
+      font-size: 13px;
+    }
+    
+    .container {
+      max-width: 100%;
+      padding: 16px;
+    }
+    
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+      color: white;
+      padding: 20px;
+      margin: -16px -16px 16px -16px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    
+    .header .subtitle {
+      font-size: 12px;
+      opacity: 0.9;
+    }
+    
+    /* Overall Status */
+    .overall-status {
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .status-pass {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    
+    .status-pass::before {
+      content: '✓';
+      margin-right: 8px;
+      font-size: 16px;
+    }
+    
+    .status-warn {
+      background: #fff8e1;
+      color: #f57c00;
+    }
+    
+    .status-warn::before {
+      content: '⚠';
+      margin-right: 8px;
+      font-size: 16px;
+    }
+    
+    .status-fail {
+      background: #ffebee;
+      color: #c62828;
+    }
+    
+    .status-fail::before {
+      content: '✕';
+      margin-right: 8px;
+      font-size: 16px;
+    }
+    
+    .stats {
+      display: flex;
+      gap: 20px;
+    }
+    
+    .stat-item {
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    
+    .stat-label {
+      font-size: 11px;
+      color: #666;
+      margin-top: 4px;
+    }
+    
+    .stat-pass .stat-value { color: #2e7d32; }
+    .stat-warn .stat-value { color: #f57c00; }
+    .stat-fail .stat-value { color: #c62828; }
+    
+    /* Box List */
+    .box-list {
+      margin-bottom: 16px;
+    }
+    
+    .box-card {
+      background: white;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    
+    .box-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .box-header:hover {
+      background: #f5f5f5;
+    }
+    
+    .box-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .box-status-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    
+    .box-status-icon.pass {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    
+    .box-status-icon.warn {
+      background: #fff8e1;
+      color: #f57c00;
+    }
+    
+    .box-status-icon.fail {
+      background: #ffebee;
+      color: #c62828;
+    }
+    
+    .box-name {
+      font-weight: 600;
+    }
+    
+    .box-meta {
+      font-size: 11px;
+      color: #666;
+    }
+    
+    .expand-icon {
+      color: #999;
+      transition: transform 0.2s;
+    }
+    
+    .box-card.expanded .expand-icon {
+      transform: rotate(180deg);
+    }
+    
+    .box-details {
+      display: none;
+      padding: 0 16px 16px 16px;
+      border-top: 1px solid #eee;
+    }
+    
+    .box-card.expanded .box-details {
+      display: block;
+    }
+    
+    /* Issue List */
+    .issue-section {
+      margin-top: 12px;
+    }
+    
+    .issue-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    
+    .issue-item {
+      background: #f9f9f9;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 6px;
+      border-left: 3px solid #ccc;
+    }
+    
+    .issue-item.error {
+      border-left-color: #c62828;
+      background: #fff5f5;
+    }
+    
+    .issue-item.warning {
+      border-left-color: #f57c00;
+      background: #fffbf0;
+    }
+    
+    .issue-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    
+    .issue-plank {
+      font-weight: 600;
+      font-size: 12px;
+    }
+    
+    .issue-feature {
+      background: #e0e0e0;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-family: monospace;
+    }
+    
+    .issue-reason {
+      font-size: 12px;
+      color: #333;
+      margin-bottom: 4px;
+    }
+    
+    .issue-suggestion {
+      font-size: 11px;
+      color: #666;
+      font-style: italic;
+    }
+    
+    .issue-suggestion::before {
+      content: '💡 ';
+    }
+    
+    /* No Issues */
+    .no-issues {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+    }
+    
+    .no-issues-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+    
+    /* Actions */
+    .actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      padding-top: 16px;
+      border-top: 1px solid #eee;
+      margin-top: 16px;
+    }
+    
+    .btn {
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: #1a237e;
+      color: white;
+    }
+    
+    .btn-primary:hover:not(:disabled) {
+      background: #283593;
+    }
+    
+    .btn-primary:disabled {
+      background: #9e9e9e;
+      cursor: not-allowed;
+    }
+    
+    .btn-secondary {
+      background: #f5f5f5;
+      color: #333;
+      border: 1px solid #ddd;
+    }
+    
+    .btn-secondary:hover {
+      background: #eee;
+    }
+    
+    .btn-warning {
+      background: #ff9800;
+      color: white;
+    }
+    
+    .btn-warning:hover {
+      background: #f57c00;
+    }
+    
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+    }
+    
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #1a237e;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px auto;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Scrollable box list */
+    .box-list-container {
+      max-height: 350px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    
+    /* Custom scrollbar */
+    .box-list-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .box-list-container::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 3px;
+    }
+    
+    .box-list-container::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 3px;
+    }
+    
+    .box-list-container::-webkit-scrollbar-thumb:hover {
+      background: #a1a1a1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Phase-2 Assembly Validation</h1>
+      <div class="subtitle">Pre-G-Code Quality Check</div>
+    </div>
+    
+    <div id="loading" class="loading">
+      <div class="spinner"></div>
+      <div>Loading validation results...</div>
+    </div>
+    
+    <div id="content" style="display: none;">
+      <!-- Overall Status -->
+      <div class="overall-status">
+        <div>
+          <div id="overallStatusBadge" class="status-badge status-pass">PASS</div>
+          <div id="timestamp" style="font-size: 11px; color: #666; margin-top: 8px;"></div>
+        </div>
+        <div class="stats">
+          <div class="stat-item stat-pass">
+            <div class="stat-value" id="statPassed">0</div>
+            <div class="stat-label">Passed</div>
+          </div>
+          <div class="stat-item stat-warn">
+            <div class="stat-value" id="statWarning">0</div>
+            <div class="stat-label">Warnings</div>
+          </div>
+          <div class="stat-item stat-fail">
+            <div class="stat-value" id="statFailed">0</div>
+            <div class="stat-label">Failed</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Box List -->
+      <div class="box-list-container">
+        <div class="box-list" id="boxList">
+          <!-- Box cards will be inserted here -->
+        </div>
+      </div>
+      
+      <!-- Actions -->
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="google.script.host.close()">Close</button>
+        <button class="btn btn-warning" id="btnMakeChanges" style="display: none;" onclick="applyAutoFixes()">
+          Make Changes
+        </button>
+        <button class="btn btn-primary" id="btnGenerateGCode" onclick="generateGCode()">
+          Generate G-Code
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    let validationResult = null;
+    
+    // Load validation result on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      google.script.run
+        .withSuccessHandler(function(result) {
+          validationResult = result;
+          renderResult(result);
+        })
+        .withFailureHandler(function(error) {
+          document.getElementById('loading').innerHTML = 
+            '<div style="color: #c62828;">Error loading results: ' + error.message + '</div>';
+        })
+        .getPhase2Result();
+    });
+    
+    function renderResult(result) {
+      if (!result) {
+        document.getElementById('loading').innerHTML = 
+          '<div style="color: #666;">No validation results found. Please run validation again.</div>';
+        return;
+      }
+      
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+      
+      // Overall status
+      const statusBadge = document.getElementById('overallStatusBadge');
+      statusBadge.className = 'status-badge';
+      
+      if (result.overallStatus === 'PASS') {
+        statusBadge.classList.add('status-pass');
+        statusBadge.textContent = '✓ PASS';
+      } else if (result.overallStatus === 'PASS_WITH_WARNINGS') {
+        statusBadge.classList.add('status-warn');
+        statusBadge.textContent = '⚠ PASS WITH WARNINGS';
+      } else {
+        statusBadge.classList.add('status-fail');
+        statusBadge.textContent = '✕ FAIL';
+      }
+      
+      // Timestamp
+      const timestamp = new Date(result.timestamp);
+      document.getElementById('timestamp').textContent = 
+        'Checked: ' + timestamp.toLocaleString();
+      
+      // Stats
+      document.getElementById('statPassed').textContent = result.boxesPassed || 0;
+      document.getElementById('statWarning').textContent = result.boxesWarning || 0;
+      document.getElementById('statFailed').textContent = result.boxesFailed || 0;
+      
+      // Box list
+      const boxList = document.getElementById('boxList');
+      boxList.innerHTML = '';
+      
+      if (result.boxes && result.boxes.length > 0) {
+        result.boxes.forEach(function(box, index) {
+          boxList.appendChild(createBoxCard(box, index));
+        });
+      } else {
+        boxList.innerHTML = '<div class="no-issues"><div class="no-issues-icon">📦</div>No boxes found</div>';
+      }
+      
+      // Buttons
+      const btnMakeChanges = document.getElementById('btnMakeChanges');
+      const btnGenerateGCode = document.getElementById('btnGenerateGCode');
+      
+      if (result.overallStatus === 'FAIL') {
+        btnGenerateGCode.disabled = true;
+        btnGenerateGCode.textContent = 'G-Code Blocked';
+        
+        if (result.autoFixable && result.autoFixable.length > 0) {
+          btnMakeChanges.style.display = 'inline-block';
+        }
+      } else {
+        btnGenerateGCode.disabled = false;
+        btnGenerateGCode.textContent = 'Generate G-Code';
+        btnMakeChanges.style.display = 'none';
+      }
+    }
+    
+    function createBoxCard(box, index) {
+      const card = document.createElement('div');
+      card.className = 'box-card';
+      card.id = 'box-' + index;
+      
+      // Determine status icon
+      let statusClass = 'pass';
+      let statusIcon = '✓';
+      if (box.status === 'FAIL') {
+        statusClass = 'fail';
+        statusIcon = '✕';
+      } else if (box.status === 'PASS_WITH_WARNINGS') {
+        statusClass = 'warn';
+        statusIcon = '⚠';
+      }
+      
+      const hasIssues = (box.errors && box.errors.length > 0) || (box.warnings && box.warnings.length > 0);
+      
+      card.innerHTML = `
+        <div class="box-header" onclick="toggleBox(${index})">
+          <div class="box-info">
+            <div class="box-status-icon ${statusClass}">${statusIcon}</div>
+            <div>
+              <div class="box-name">${escapeHtml(box.boxName)}</div>
+              <div class="box-meta">${box.planksChecked} planks • ${(box.errors || []).length} errors • ${(box.warnings || []).length} warnings</div>
+            </div>
+          </div>
+          ${hasIssues ? '<span class="expand-icon">▼</span>' : ''}
+        </div>
+        <div class="box-details">
+          ${renderBoxDetails(box)}
+        </div>
+      `;
+      
+      return card;
+    }
+    
+    function renderBoxDetails(box) {
+      let html = '';
+      
+      // Errors
+      if (box.errors && box.errors.length > 0) {
+        html += '<div class="issue-section">';
+        html += '<div class="issue-section-title">Errors (Blocking)</div>';
+        box.errors.forEach(function(error) {
+          html += renderIssue(error, 'error');
+        });
+        html += '</div>';
+      }
+      
+      // Warnings
+      if (box.warnings && box.warnings.length > 0) {
+        html += '<div class="issue-section">';
+        html += '<div class="issue-section-title">Warnings (Tolerated)</div>';
+        box.warnings.forEach(function(warning) {
+          html += renderIssue(warning, 'warning');
+        });
+        html += '</div>';
+      }
+      
+      // No issues
+      if ((!box.errors || box.errors.length === 0) && (!box.warnings || box.warnings.length === 0)) {
+        html += '<div class="no-issues"><div class="no-issues-icon">✓</div>All checks passed</div>';
+      }
+      
+      return html;
+    }
+    
+    function renderIssue(issue, type) {
+      return `
+        <div class="issue-item ${type}">
+          <div class="issue-header">
+            <span class="issue-plank">${escapeHtml(issue.plankName || 'Plank ' + issue.plankId)}</span>
+            <span class="issue-feature">${escapeHtml(issue.featureType)}</span>
+          </div>
+          <div class="issue-reason">${escapeHtml(issue.reason)}</div>
+          ${issue.suggestion ? '<div class="issue-suggestion">' + escapeHtml(issue.suggestion) + '</div>' : ''}
+        </div>
+      `;
+    }
+    
+    function toggleBox(index) {
+      const card = document.getElementById('box-' + index);
+      card.classList.toggle('expanded');
+    }
+    
+    function applyAutoFixes() {
+      document.getElementById('btnMakeChanges').disabled = true;
+      document.getElementById('btnMakeChanges').textContent = 'Applying...';
+      
+      google.script.run
+        .withSuccessHandler(function() {
+          // Dialog will be closed and re-opened with new results
+        })
+        .withFailureHandler(function(error) {
+          alert('Error applying fixes: ' + error.message);
+          document.getElementById('btnMakeChanges').disabled = false;
+          document.getElementById('btnMakeChanges').textContent = 'Make Changes';
+        })
+        .applyPhase2AutoCorrections();
+    }
+    
+    function generateGCode() {
+      if (validationResult && validationResult.overallStatus === 'FAIL') {
+        alert('Cannot generate G-Code: Validation failed.\n\nPlease fix the errors first.');
+        return;
+      }
+      
+      document.getElementById('btnGenerateGCode').disabled = true;
+      document.getElementById('btnGenerateGCode').textContent = 'Generating...';
+      
+      google.script.run
+        .withSuccessHandler(function() {
+          google.script.host.close();
+        })
+        .withFailureHandler(function(error) {
+          alert('Error generating G-Code: ' + error.message);
+          document.getElementById('btnGenerateGCode').disabled = false;
+          document.getElementById('btnGenerateGCode').textContent = 'Generate G-Code';
+        })
+        .generateGCodeFiles();
+    }
+    
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

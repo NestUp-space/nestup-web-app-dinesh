@@ -31,6 +31,11 @@ export interface SheetPdfData {
   utilization: number;
 }
 
+/** Plank with optional L-cuts for PDF (Level 3) */
+interface NestResultWithLCuts extends NestResult {
+  l_cuts?: Array<{ start: { x: number; y: number }; center: { x: number; y: number }; end: { x: number; y: number } }>;
+}
+
 export interface PdfGenerationOptions {
   clientName?: string;
   projectName?: string;
@@ -185,6 +190,25 @@ export async function generateCutlistPdf(options: PdfGenerationOptions): Promise
             doc.circle(hx + r, hy + r, r);
           }
         });
+      }
+
+      // Draw L-cuts (Level 3, same concept as Apps Script)
+      const lcuts = (p as NestResultWithLCuts).l_cuts;
+      if (lcuts?.length) {
+        doc.setDrawColor(180, 0, 0); // Dark red for L-cut path
+        doc.setLineWidth(0.4);
+        lcuts.forEach((lc) => {
+          const toPdf = (pt: { x: number; y: number }) => ({
+            x: px + pt.x * finalScale,
+            y: py + (p.height - pt.y) * finalScale,
+          });
+          const s = toPdf(lc.start);
+          const c = toPdf(lc.center);
+          const e = toPdf(lc.end);
+          doc.line(s.x, s.y, c.x, c.y);
+          doc.line(c.x, c.y, e.x, e.y);
+        });
+        doc.setLineWidth(0.5);
       }
     });
 

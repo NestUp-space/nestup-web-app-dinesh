@@ -13,12 +13,12 @@ const Process = () => {
 
   return ( 
     <div className="">
-      <div className="h-24 top-0 fixed bg-white z-50">
+      <div className="fixed top-0 left-0 right-0 w-full h-24 bg-white z-50">
          <Navbar />
       </div>
-      <div className="mt-24 w-screen" >
+      <div className="mt-24 w-full">
         {/* text*/}
-        <div className=" gap-0 flex flex-col md:gap-0 lg:gap-8 lg:pr-0 xl:gap-16 w-screen lg:w-2/3 xl:1/2">
+        <div className="gap-0 flex flex-col md:gap-0 lg:gap-8 lg:pr-0 xl:gap-16 w-full lg:w-2/3 xl:1/2">
           {/* Bio*/}
           <DetailedProcess/>
           <FAQ/>

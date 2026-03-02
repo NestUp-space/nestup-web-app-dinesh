@@ -64,7 +64,7 @@ const Navbar = () => {
   };
 
   return (
-    <div className="h-24 w-screen flex items-center justify-evenly px-4 sm:px-8 md:px-12 lg:px-20 xl:px-48">
+    <div className="h-24 w-full flex items-center justify-evenly px-4 sm:px-8 md:px-12 lg:px-20 xl:px-48">
   
        {/* LOGO */}
        <div className="flex justify-left w-24">
@@ -122,7 +122,7 @@ const Navbar = () => {
               initial="closed"
               animate="opened"
               exit="closed"  // Adds smooth transition when menu is closing
-              className="absolute top-0 left-0 w-screen h-screen bg-theme-dark text-white flex flex-col items-center justify-center gap-8 text-4xl "
+              className="absolute top-0 left-0 right-0 w-full min-h-screen bg-theme-dark text-white flex flex-col items-center justify-center gap-8 text-4xl "
             >
               {links.map((link) => (
                 <motion.div variants={listItemVariants} key={link.title}>

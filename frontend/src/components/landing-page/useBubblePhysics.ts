@@ -28,8 +28,11 @@ export const useBubblePhysics = ({
   const [center, setCenter] = useState({ x: 0, y: 0 })
   const animationRef = useRef<number>()
   const lastTimeRef = useRef<number>(0)
+  const frameCountRef = useRef(0)
+  const positionsRef = useRef<Record<string, BubblePosition>>({})
+  const THROTTLE_FRAMES = 2 // Sync to React state every 2 frames (~30fps) to reduce re-renders
 
-  // Initialize bubble positions
+  // Initialize bubble positions (state + ref for physics loop)
   useEffect(() => {
     const initialPositions: Record<string, BubblePosition> = {}
     
@@ -47,9 +50,10 @@ export const useBubblePhysics = ({
     })
     
     setPositions(initialPositions)
+    positionsRef.current = initialPositions
   }, [bubbles])
 
-  // Physics simulation
+  // Physics simulation: run in refs every frame, sync to state every THROTTLE_FRAMES
   const updatePhysics = useCallback((currentTime: number) => {
     if (!enabled) return
 
@@ -57,76 +61,77 @@ export const useBubblePhysics = ({
     if (deltaTime < 16) return // Limit to ~60fps
 
     lastTimeRef.current = currentTime
+    const newPositions = { ...positionsRef.current }
+    const bubbleArray = Object.values(newPositions)
 
-    setPositions(prevPositions => {
-      const newPositions = { ...prevPositions }
-      const bubbleArray = Object.values(newPositions)
+    // Apply forces between bubbles
+    bubbleArray.forEach((bubble, i) => {
+      let fx = 0
+      let fy = 0
 
-      // Apply forces between bubbles
-      bubbleArray.forEach((bubble, i) => {
-        let fx = 0
-        let fy = 0
+      // Repulsion from other bubbles
+      bubbleArray.forEach((other, j) => {
+        if (i === j) return
 
-        // Repulsion from other bubbles
-        bubbleArray.forEach((other, j) => {
-          if (i === j) return
+        const dx = bubble.x - other.x
+        const dy = bubble.y - other.y
+        const distance = Math.sqrt(dx * dx + dy * dy)
+        const minDistance = bubble.radius + other.radius
 
-          const dx = bubble.x - other.x
-          const dy = bubble.y - other.y
-          const distance = Math.sqrt(dx * dx + dy * dy)
-          const minDistance = bubble.radius + other.radius
-
-          if (distance < minDistance && distance > 0) {
-            const force = (minDistance - distance) * 0.01
-            const angle = Math.atan2(dy, dx)
-            fx += Math.cos(angle) * force
-            fy += Math.sin(angle) * force
-          }
-        })
-
-        // Spring force back to original position
-        const springForce = 0.002
-        const dampening = 0.95
-        
-        fx += (bubble.originalX - bubble.x) * springForce
-        fy += (bubble.originalY - bubble.y) * springForce
-
-        // Update velocity
-        bubble.vx = (bubble.vx + fx) * dampening
-        bubble.vy = (bubble.vy + fy) * dampening
-
-        // Limit velocity
-        const maxVelocity = 2
-        const velocity = Math.sqrt(bubble.vx * bubble.vx + bubble.vy * bubble.vy)
-        if (velocity > maxVelocity) {
-          bubble.vx = (bubble.vx / velocity) * maxVelocity
-          bubble.vy = (bubble.vy / velocity) * maxVelocity
+        if (distance < minDistance && distance > 0) {
+          const force = (minDistance - distance) * 0.01
+          const angle = Math.atan2(dy, dx)
+          fx += Math.cos(angle) * force
+          fy += Math.sin(angle) * force
         }
-
-        // Update position
-        bubble.x += bubble.vx
-        bubble.y += bubble.vy
-
-        // Keep bubbles within reasonable bounds
-        const maxDistance = 20 // Reduced max distance
-        const distanceFromOriginal = Math.sqrt(
-          Math.pow(bubble.x - bubble.originalX, 2) + 
-          Math.pow(bubble.y - bubble.originalY, 2)
-        )
-        
-        if (distanceFromOriginal > maxDistance) {
-          const angle = Math.atan2(
-            bubble.y - bubble.originalY, 
-            bubble.x - bubble.originalX
-          )
-          bubble.x = bubble.originalX + Math.cos(angle) * maxDistance
-          bubble.y = bubble.originalY + Math.sin(angle) * maxDistance
-        }
-
-        newPositions[bubble.id] = bubble
       })
 
-      // Calculate new center
+      // Spring force back to original position
+      const springForce = 0.002
+      const dampening = 0.95
+      
+      fx += (bubble.originalX - bubble.x) * springForce
+      fy += (bubble.originalY - bubble.y) * springForce
+
+      // Update velocity
+      bubble.vx = (bubble.vx + fx) * dampening
+      bubble.vy = (bubble.vy + fy) * dampening
+
+      // Limit velocity
+      const maxVelocity = 2
+      const velocity = Math.sqrt(bubble.vx * bubble.vx + bubble.vy * bubble.vy)
+      if (velocity > maxVelocity) {
+        bubble.vx = (bubble.vx / velocity) * maxVelocity
+        bubble.vy = (bubble.vy / velocity) * maxVelocity
+      }
+
+      // Update position
+      bubble.x += bubble.vx
+      bubble.y += bubble.vy
+
+      // Keep bubbles within reasonable bounds
+      const maxDistance = 20
+      const distanceFromOriginal = Math.sqrt(
+        Math.pow(bubble.x - bubble.originalX, 2) + 
+        Math.pow(bubble.y - bubble.originalY, 2)
+      )
+      
+      if (distanceFromOriginal > maxDistance) {
+        const angle = Math.atan2(
+          bubble.y - bubble.originalY, 
+          bubble.x - bubble.originalX
+        )
+        bubble.x = bubble.originalX + Math.cos(angle) * maxDistance
+        bubble.y = bubble.originalY + Math.sin(angle) * maxDistance
+      }
+
+      newPositions[bubble.id] = bubble
+    })
+
+    positionsRef.current = newPositions
+    frameCountRef.current += 1
+    if (frameCountRef.current % THROTTLE_FRAMES === 0) {
+      setPositions(newPositions)
       let totalX = 0
       let totalY = 0
       bubbleArray.forEach(b => {
@@ -137,9 +142,7 @@ export const useBubblePhysics = ({
         x: totalX / bubbleArray.length,
         y: totalY / bubbleArray.length
       })
-
-      return newPositions
-    })
+    }
   }, [enabled])
 
   // Animation loop
@@ -165,38 +168,36 @@ export const useBubblePhysics = ({
     }
   }, [enabled, updatePhysics])
 
-  // Function to add disturbance to a specific bubble
+  // Function to add disturbance to a specific bubble (update both state and ref)
   const disturbBubble = useCallback((bubbleId: string, force: number = 5) => {
-    setPositions(prev => {
-      const bubble = prev[bubbleId]
-      if (!bubble) return prev
-
-      const angle = Math.random() * Math.PI * 2
-      return {
-        ...prev,
-        [bubbleId]: {
-          ...bubble,
-          vx: bubble.vx + Math.cos(angle) * force,
-          vy: bubble.vy + Math.sin(angle) * force
-        }
+    const bubble = positionsRef.current[bubbleId]
+    if (!bubble) return
+    const angle = Math.random() * Math.PI * 2
+    const next = {
+      ...positionsRef.current,
+      [bubbleId]: {
+        ...bubble,
+        vx: bubble.vx + Math.cos(angle) * force,
+        vy: bubble.vy + Math.sin(angle) * force
       }
-    })
+    }
+    positionsRef.current = next
+    setPositions(next)
   }, [])
 
-  // Function to add global disturbance
+  // Function to add global disturbance (update both state and ref)
   const disturbAllBubbles = useCallback((force: number = 2) => {
-    setPositions(prev => {
-      const newPositions = { ...prev }
-      Object.keys(newPositions).forEach(id => {
-        const angle = Math.random() * Math.PI * 2
-        newPositions[id] = {
-          ...newPositions[id],
-          vx: newPositions[id].vx + Math.cos(angle) * force,
-          vy: newPositions[id].vy + Math.sin(angle) * force
-        }
-      })
-      return newPositions
+    const newPositions = { ...positionsRef.current }
+    Object.keys(newPositions).forEach(id => {
+      const angle = Math.random() * Math.PI * 2
+      newPositions[id] = {
+        ...newPositions[id],
+        vx: newPositions[id].vx + Math.cos(angle) * force,
+        vy: newPositions[id].vy + Math.sin(angle) * force
+      }
     })
+    positionsRef.current = newPositions
+    setPositions(newPositions)
   }, [])
 
   return {

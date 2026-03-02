@@ -41,12 +41,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Load user on initial mount (with timeout so a down backend doesn't hang the app)
+  // Load user after first paint so profile fetch never blocks initial render
   useEffect(() => {
     const PROFILE_FETCH_TIMEOUT_MS = 5000;
 
     const loadUser = async () => {
-      const token = localStorage.getItem('token');
       const authenticated = isAuthenticated();
 
       try {
@@ -69,7 +68,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    loadUser();
+    // Defer so first paint is not delayed by this effect running in the same tick
+    const id = setTimeout(loadUser, 0);
+    return () => clearTimeout(id);
   }, []);
 
   // Login function to set user and token

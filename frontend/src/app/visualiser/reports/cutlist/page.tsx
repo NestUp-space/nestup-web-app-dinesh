@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useDesignerStore, useDesignSummary } from '@/store/designerStore';
 import {
@@ -9,6 +10,7 @@ import {
   generatePlankList,
   runNesting,
   nestResultsToCSV,
+  downloadGCodeZip,
 } from '@/lib/visualiser';
 import { SheetLayout, NestResult, SHEET_CONSTANTS } from '@/types/visualiser';
 
@@ -228,6 +230,19 @@ export default function CutlistPage() {
     URL.revokeObjectURL(url);
   };
 
+  const [gcodeDownloading, setGcodeDownloading] = React.useState(false);
+  const handleDownloadGCode = async () => {
+    setGcodeDownloading(true);
+    try {
+      await downloadGCodeZip(nestResults, projectName || 'CNC_Project');
+    } catch (e) {
+      console.error(e);
+      alert('Error generating G-code: ' + (e instanceof Error ? e.message : 'Unknown error'));
+    } finally {
+      setGcodeDownloading(false);
+    }
+  };
+
   // Tooltip handler
   const handlePlankHover = useCallback((plank: PlankWithFeatures | null, e?: React.MouseEvent) => {
     if (plank && e) {
@@ -292,8 +307,15 @@ export default function CutlistPage() {
       <header className="sticky top-0 z-40 shadow-md" style={{ backgroundColor: COLORS.primary }}>
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
-            {/* Left - Title & Back */}
+            {/* Left - NestUp logo, Back, Title */}
             <div className="flex items-center gap-4">
+              <Image
+                src="/img/NestupLogoText.svg"
+                alt="NestUp"
+                width={120}
+                height={34}
+                className="h-8 w-auto object-contain opacity-95"
+              />
               <Link 
                 href="/visualiser/generate" 
                 className="p-2 rounded-lg transition-colors hover:bg-white/20"
@@ -302,7 +324,7 @@ export default function CutlistPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </Link>
-              <div>
+              <div className="border-l border-white/40 pl-4">
                 <h1 className="text-xl font-semibold text-white">Cutlist Visualization</h1>
                 {customerDetails?.customerName && (
                   <p className="text-sm text-white/80">{customerDetails.customerName}</p>
@@ -320,6 +342,13 @@ export default function CutlistPage() {
 
             {/* Right - Actions */}
             <div className="flex items-center gap-2">
+              <ActionButton
+                onClick={handleDownloadGCode}
+                icon="gcode"
+                disabled={gcodeDownloading}
+              >
+                {gcodeDownloading ? '…' : 'G-Code (.nc)'}
+              </ActionButton>
               <ActionButton onClick={handleDownloadCSV} icon="download">
                 CSV
               </ActionButton>
@@ -526,21 +555,24 @@ const StatCard: React.FC<{ label: string; value: string | number; highlight?: bo
 // ACTION BUTTON COMPONENT
 // ============================================
 
-const ActionButton: React.FC<{ onClick: () => void; icon: string; children: React.ReactNode }> = ({ onClick, icon, children }) => {
+const ActionButton: React.FC<{ onClick: () => void; icon: string; children: React.ReactNode; disabled?: boolean }> = ({ onClick, icon, children, disabled }) => {
   const icons: Record<string, React.ReactNode> = {
     download: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />,
     pdf: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />,
     label: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />,
+    gcode: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />,
   };
 
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-md"
+      disabled={disabled}
+      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
       style={{ backgroundColor: COLORS.white, color: COLORS.primary }}
     >
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        {icons[icon]}
+        {icons[icon] ?? icons.download}
       </svg>
       {children}
     </button>

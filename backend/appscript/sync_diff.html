@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <base target="_top">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            color: #333;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+
+        .actions {
+            margin-top: 20px;
+            text-align: right;
+        }
+
+        button {
+            padding: 10px 20px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+
+        .btn-primary {
+            background-color: #1a73e8;
+            color: white;
+        }
+
+        .btn-secondary {
+            background-color: #f1f3f4;
+            color: #3c4043;
+        }
+
+        .btn-danger {
+            background-color: #d93025;
+            color: white;
+        }
+
+        /* Diff Table Styles */
+        .diff-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            text-align: left;
+            padding: 10px;
+            position: sticky;
+            top: 0;
+            border-bottom: 2px solid #ddd;
+        }
+
+        td {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            vertical-align: top;
+        }
+
+        .cell-ref {
+            font-family: monospace;
+            font-weight: bold;
+            color: #5f6368;
+            width: 60px;
+        }
+
+        .diff-old {
+            background-color: #fce8e6;
+            text-decoration: line-through;
+            color: #c5221f;
+        }
+
+        .diff-new {
+            background-color: #e6f4ea;
+            color: #137333;
+            font-weight: bold;
+        }
+
+        .arrow {
+            color: #999;
+            margin: 0 5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .no-changes {
+            text-align: center;
+            padding: 40px;
+            color: #137333;
+            font-size: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2 id="title">Sync Preview</h2>
+    <div id="status-message">Comparing isolated sheet with master...</div>
+
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Analyzing differences...</p>
+    </div>
+
+    <div id="content" style="display:none;">
+        <div class="diff-container">
+            <table id="diff-table">
+                <thead>
+                    <tr>
+                        <th>Cell</th>
+                        <th>Current (Master)</th>
+                        <th>New (Isolated)</th>
+                    </tr>
+                </thead>
+                <tbody id="diff-body">
+                    <!-- Rows injected by JS -->
+                </tbody>
+            </table>
+        </div>
+
+        <div id="no-changes-msg" class="no-changes" style="display:none;">
+            ✅ No differences found. Master sheet is up to date.
+        </div>
+    </div>
+
+    <div class="actions">
+        <button id="btn-cancel" class="btn-secondary" onclick="google.script.host.close()">Cancel</button>
+        <button id="btn-confirm" class="btn-primary" onclick="confirmSync()" disabled>Approve & Sync</button>
+    </div>
+
+    <script>
+        // Load diff data on startup
+        window.onload = function () {
+            google.script.run
+                .withSuccessHandler(showDiffs)
+                .withFailureHandler(showError)
+                .getDiffDataForActiveSheet();
+        };
+
+        function showDiffs(result) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+            document.getElementById('title').textContent = 'Sync: ' + result.sheetName;
+
+            const tbody = document.getElementById('diff-body');
+            const btnConfirm = document.getElementById('btn-confirm');
+
+            if (result.error) {
+                showError(result.error);
+                return;
+            }
+
+            if (!result.hasChanges) {
+                document.getElementById('no-changes-msg').style.display = 'block';
+                document.getElementById('diff-table').style.display = 'none';
+                document.getElementById('status-message').textContent = 'Everything matches!';
+                btnConfirm.textContent = "Close";
+                btnConfirm.onclick = function () { google.script.host.close(); };
+                btnConfirm.disabled = false;
+            } else {
+                document.getElementById('diff-table').style.display = 'table';
+                document.getElementById('status-message').textContent = `Found ${result.changes.length} changes. Review before syncing.`;
+
+                result.changes.forEach(change => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+              <td class="cell-ref">${change.a1}</td>
+              <td class="diff-old">${escapeHtml(change.oldVal)}</td>
+              <td class="diff-new">${escapeHtml(change.newVal)}</td>
+            `;
+                    tbody.appendChild(tr);
+                });
+
+                btnConfirm.disabled = false;
+            }
+        }
+
+        function confirmSync() {
+            const btn = document.getElementById('btn-confirm');
+            btn.disabled = true;
+            btn.textContent = "Syncing...";
+
+            google.script.run
+                .withSuccessHandler(onSyncComplete)
+                .withFailureHandler(showError)
+                .performSyncForActiveSheet();
+        }
+
+        function onSyncComplete(response) {
+            if (response.success) {
+                document.body.innerHTML = `
+             <div style="text-align:center; padding:40px; color:#137333;">
+               <h2>✅ Sync Complete!</h2>
+               <p>Master sheet has been updated.</p>
+               <button class="btn-primary" onclick="google.script.host.close()">Close</button>
+             </div>
+           `;
+            } else {
+                showError(response.message);
+            }
+        }
+
+        function showError(msg) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('status-message').innerHTML = `<span style="color:red">Error: ${msg}</span>`;
+        }
+
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            return text.toString()
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+
+</html>

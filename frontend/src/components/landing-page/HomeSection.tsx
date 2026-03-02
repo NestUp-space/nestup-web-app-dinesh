@@ -13,14 +13,16 @@ export function HomeSection() {
   };
 
   return (
-    <section className="flex flex-col" id="home">
-      <div className="min-h-screen flex relative">
+    <section className="flex flex-col w-full min-w-0 overflow-x-hidden" id="home">
+      <div className="min-h-screen flex relative overflow-hidden">
         {/* Background Image with Overlay */}
         <div className="absolute inset-0 w-full h-full overflow-hidden">
           <Image
             src={bgImg}
             alt="Professional modular furniture background"
             className="object-cover w-full h-full opacity-20"
+            priority
+            sizes="100vw"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent"></div>
         </div>

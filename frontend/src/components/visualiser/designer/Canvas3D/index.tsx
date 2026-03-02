@@ -1093,8 +1093,9 @@ const MoveInputBox: React.FC<MoveInputBoxProps> = ({ visible, isDragging = false
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (applyNumericInput && inputValue.trim()) {
-      const success = applyNumericInput(inputValue);
+    const value = (inputValue ?? '').toString().trim();
+    if (applyNumericInput && value) {
+      const success = applyNumericInput(value);
       if (success) {
         setInputValue('');
         // Keep focused for multiple inputs
