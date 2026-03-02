@@ -35,6 +35,42 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Chunk load error recovery (workaround for Next.js ChunkLoadError timeout) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                var failedChunks = new Set();
+                function retryChunk(url, maxRetries) {
+                  maxRetries = maxRetries || 3;
+                  if (failedChunks.has(url)) return;
+                  var retries = 0;
+                  function load() {
+                    if (retries >= maxRetries) { failedChunks.add(url); return; }
+                    retries++;
+                    var s = document.createElement('script');
+                    s.src = url;
+                    s.async = true;
+                    s.onerror = function() { setTimeout(load, 1000 * retries); };
+                    document.head.appendChild(s);
+                  }
+                  load();
+                }
+                window.addEventListener('error', function(e) {
+                  if (e.target && e.target.tagName === 'SCRIPT' && e.target.src && e.target.src.indexOf('/_next/') !== -1) {
+                    retryChunk(e.target.src);
+                  }
+                }, true);
+                window.onerror = function(msg, url) {
+                  if (url && url.indexOf('/_next/') !== -1 && (msg.indexOf('chunk') !== -1 || msg.indexOf('Loading') !== -1)) {
+                    retryChunk(url);
+                  }
+                  return false;
+                };
+              })();
+            `,
+          }}
+        />
         {/* Google Analytics - single integration (afterInteractive to avoid blocking parse) */}
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
