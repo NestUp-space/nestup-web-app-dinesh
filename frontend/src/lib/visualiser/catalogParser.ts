@@ -540,10 +540,12 @@ export async function loadCatalogFromSampleData(): Promise<{
   source: 'google-sheets' | 'csv';
 }> {
   // Try Google Sheets first if configured
-  if (isGoogleSheetsConfigured()) {
+  if (!isGoogleSheetsConfigured()) {
+    console.log('[CatalogParser] Google Sheets not configured (set NEXT_PUBLIC_GOOGLE_SHEETS_API_KEY in .env.local and restart dev server). Using CSV.');
+  } else {
     const apiKey = getApiKey();
     if (apiKey) {
-      console.log('[CatalogParser] Attempting to load from Google Sheets...');
+      console.log('[CatalogParser] Attempting to load from Google Sheets (NEXT_PUBLIC_CATALOGUE_SHEET_ID used if set)...');
       const sheetsData = await fetchAllCatalogData(apiKey);
       
       if (sheetsData && sheetsData.models.length > 0) {
@@ -556,12 +558,12 @@ export async function loadCatalogFromSampleData(): Promise<{
           source: 'google-sheets',
         };
       }
-      console.log('[CatalogParser] Google Sheets returned no data, falling back to CSV...');
+      console.warn('[CatalogParser] Google Sheets returned no data or fetch failed. Check: sheet shared as "Anyone with the link can view", API key valid, sheet tab named Sheet1. Falling back to CSV.');
     }
   }
-  
+
   // Fallback to CSV files
-  console.log('[CatalogParser] Loading from local CSV files...');
+  console.log('[CatalogParser] Loading from local CSV files (81 boxes from sample data)...');
   return loadCatalogFromCsv();
 }
 

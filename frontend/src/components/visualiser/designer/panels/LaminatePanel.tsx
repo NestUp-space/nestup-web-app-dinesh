@@ -77,6 +77,7 @@ export const LaminatePanel: React.FC<LaminatePanelProps> = ({ isOpen, onClose })
   const [selectedSide, setSelectedSide] = useState<'outer' | 'inner' | 'both'>('outer');
   const [selectedLaminate, setSelectedLaminate] = useState<LaminateOption | null>(null);
   const [selectedPlankIds, setSelectedPlankIds] = useState<string[]>([]);
+  const [failedImageUrls, setFailedImageUrls] = useState<Set<string>>(new Set());
   
   // Reset selection when box changes
   useEffect(() => {
@@ -361,14 +362,13 @@ export const LaminatePanel: React.FC<LaminatePanelProps> = ({ isOpen, onClose })
               >
                 {/* Laminate Image */}
                 <div className="aspect-square bg-gray-100 relative">
-                  {laminate.photoUrl ? (
+                  {laminate.photoUrl && !failedImageUrls.has(laminate.photoUrl) ? (
                     <img
                       src={convertDriveUrl(laminate.photoUrl)}
                       alt={laminate.code}
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        // Fallback if image fails to load
-                        (e.target as HTMLImageElement).style.display = 'none';
+                      onError={() => {
+                        setFailedImageUrls(prev => new Set(prev).add(laminate.photoUrl!));
                       }}
                     />
                   ) : (

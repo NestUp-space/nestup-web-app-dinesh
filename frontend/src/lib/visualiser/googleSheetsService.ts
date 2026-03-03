@@ -16,11 +16,21 @@ import { CatalogBoxWithPlanks } from './catalogParser';
 
 const SHEETS_API_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
 
-// Sheet IDs from Apps Script DESIGNER_CONFIG
+// Sheet IDs (defaults; overridden by env when set)
 export const SHEET_IDS = {
   catalogue: '1A9W8gsjkalw8DHwmkRsh33UnOy5Y0seAUhyDrWNWeKA',
   materialCatalog: '1BJnNmIwG8J07LJGhnWQJ-gJbENSGJ2ArRCxypJAGMto',
 };
+
+/** Effective catalogue sheet ID: env override or default */
+export function getCatalogueSheetId(): string {
+  return process.env.NEXT_PUBLIC_CATALOGUE_SHEET_ID || SHEET_IDS.catalogue;
+}
+
+/** Effective material catalog sheet ID: env override or default */
+export function getMaterialCatalogSheetId(): string {
+  return process.env.NEXT_PUBLIC_MATERIAL_CATALOG_SHEET_ID || SHEET_IDS.materialCatalog;
+}
 
 // Sheet ranges
 export const SHEET_RANGES = {
@@ -75,8 +85,11 @@ export async function fetchSheetData(
     const response = await fetch(url);
     
     if (!response.ok) {
-      const error = await response.json();
-      console.error('[GoogleSheets] API Error:', error);
+      const error = await response.json().catch(() => ({}));
+      console.error('[GoogleSheets] API Error:', response.status, response.statusText, error);
+      if (response.status === 403) {
+        console.error('[GoogleSheets] Tip: Share the sheet as "Anyone with the link can view" and ensure Google Sheets API is enabled.');
+      }
       return null;
     }
     
@@ -134,17 +147,34 @@ export async function fetchMultipleRanges(
 // ============================================
 
 /**
- * Find column index by header name (case-insensitive)
+ * Normalize header for matching (case-insensitive, strip spaces, underscores, slashes)
  */
-function findColumnIndex(headers: string[], name: string): number {
-  const normalized = name.toLowerCase().replace(/[\s_]/g, '');
-  return headers.findIndex(h => 
-    (h || '').toLowerCase().replace(/[\s_]/g, '') === normalized
-  );
+function normalizeHeader(h: string): string {
+  return (h || '').toLowerCase().replace(/[\s_/]/g, '');
 }
 
 /**
- * Parse Central Catalogue data into models and boxes with planks
+ * Find column index by header name (case-insensitive, spaces/underscores/slashes ignored)
+ */
+function findColumnIndex(headers: string[], name: string): number {
+  const normalized = normalizeHeader(name);
+  return headers.findIndex(h => normalizeHeader(h) === normalized);
+}
+
+/**
+ * Find column index by trying multiple header names (first match wins)
+ */
+function findColumnIndexAny(headers: string[], names: string[]): number {
+  for (const name of names) {
+    const idx = findColumnIndex(headers, name);
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
+/**
+ * Parse Central Catalogue data into models and boxes with planks.
+ * If the first row doesn't look like headers (no "level" or "entity name"), treat row 2 as headers (Formula-based sheets often have a title row).
  */
 export function parseCatalogueData(rows: string[][]): {
   models: CatalogModel[];
@@ -154,11 +184,18 @@ export function parseCatalogueData(rows: string[][]): {
     return { models: [], boxesWithPlanks: [] };
   }
 
-  const headers = rows[0].map(h => String(h || '').trim());
-  
-  // Column indices based on DESIGNER_CONFIG
+  const firstRow = rows[0].map(h => String(h || '').trim()).join(' ').toLowerCase();
+  const hasHeaderInFirstRow = /level|entity\s*name|entityname/.test(firstRow);
+  const headerRowIndex = hasHeaderInFirstRow ? 0 : 1;
+  const dataStartIndex = headerRowIndex + 1;
+  if (rows.length <= dataStartIndex) {
+    return { models: [], boxesWithPlanks: [] };
+  }
+
+  const headers = rows[headerRowIndex].map(h => String(h || '').trim());
+
   const cols = {
-    entityName: findColumnIndex(headers, 'entity_name'),
+    entityName: findColumnIndexAny(headers, ['entity name', 'entity_name']),
     level: findColumnIndex(headers, 'level'),
     material: findColumnIndex(headers, 'material'),
     roomName: findColumnIndex(headers, 'room_name'),
@@ -175,17 +212,16 @@ export function parseCatalogueData(rows: string[][]): {
     boxDepth: findColumnIndex(headers, 'box_depth'),
     boxHeight: findColumnIndex(headers, 'box_height'),
     skirting: findColumnIndex(headers, 'skirting'),
-    carcusThickness: findColumnIndex(headers, 'carcus_thickness'),
+    carcusThickness: findColumnIndexAny(headers, ['carcass_thickness', 'carcus_thickness']),
     doorThickness: findColumnIndex(headers, 'door_thickness'),
     backplankThickness: findColumnIndex(headers, 'backplank_thickness'),
   };
 
   const models: CatalogModel[] = [];
   const boxesWithPlanks: CatalogBoxWithPlanks[] = [];
-  
   let currentBox: CatalogBoxWithPlanks | null = null;
-  
-  for (let i = 1; i < rows.length; i++) {
+
+  for (let i = dataStartIndex; i < rows.length; i++) {
     const row = rows[i];
     const entityName = (row[cols.entityName] || '').trim();
     const level = parseInt(row[cols.level] || '0', 10);
@@ -277,16 +313,17 @@ export function parseCatalogueData(rows: string[][]): {
  */
 export function parsePlywoodLibrary(rows: string[][]): PlywoodOption[] {
   if (!rows || rows.length < 2) return [];
-  
+
   const headers = rows[0].map(h => String(h || '').trim());
+  const pick = (idx: number, d: number) => (idx >= 0 ? idx : d);
   const cols = {
-    sno: findColumnIndex(headers, 'sno') ?? findColumnIndex(headers, 's.no') ?? 0,
-    brand: findColumnIndex(headers, 'brand') ?? 1,
-    gradeType: findColumnIndex(headers, 'gradetype') ?? findColumnIndex(headers, 'grade_type') ?? findColumnIndex(headers, 'type') ?? 2,
-    material: findColumnIndex(headers, 'material') ?? 3,
-    thickness: findColumnIndex(headers, 'thickness') ?? 4,
-    price: findColumnIndex(headers, 'price') ?? 5,
-    remarks: findColumnIndex(headers, 'remarks') ?? 6,
+    sno: pick(findColumnIndexAny(headers, ['sno', 's.no']), 0),
+    brand: pick(findColumnIndex(headers, 'brand'), 1),
+    gradeType: pick(findColumnIndexAny(headers, ['grade/type', 'gradetype', 'grade_type', 'type']), 2),
+    material: pick(findColumnIndex(headers, 'material'), 3),
+    thickness: pick(findColumnIndex(headers, 'thickness'), 4),
+    price: pick(findColumnIndexAny(headers, ['price (per sqm)', 'price (per sft)', 'price (per sq ft)', 'price']), 5),
+    remarks: pick(findColumnIndex(headers, 'remarks'), 6),
   };
   
   const options: PlywoodOption[] = [];
@@ -322,29 +359,39 @@ export function parsePlywoodLibrary(rows: string[][]): PlywoodOption[] {
  */
 export function parseLaminateLibrary(rows: string[][]): LaminateOption[] {
   if (!rows || rows.length < 2) return [];
-  
+
   const headers = rows[0].map(h => String(h || '').trim());
+  const pick = (idx: number, d: number) => (idx >= 0 ? idx : d);
   const cols = {
-    sno: findColumnIndex(headers, 'sno') ?? findColumnIndex(headers, 's.no') ?? 0,
-    brand: findColumnIndex(headers, 'brand') ?? 1,
-    code: findColumnIndex(headers, 'code') ?? findColumnIndex(headers, 'colour_code') ?? 2,
-    colour: findColumnIndex(headers, 'colour') ?? findColumnIndex(headers, 'colour_name') ?? findColumnIndex(headers, 'name') ?? 3,
-    thickness: findColumnIndex(headers, 'thickness') ?? 4,
-    photoUrl: findColumnIndex(headers, 'photourl') ?? findColumnIndex(headers, 'photo_url') ?? findColumnIndex(headers, 'photo') ?? 5,
-    price: findColumnIndex(headers, 'price') ?? 6,
-    comments: findColumnIndex(headers, 'comments') ?? findColumnIndex(headers, 'remarks') ?? 7,
+    sno: pick(findColumnIndexAny(headers, ['s no', 's no:', 'sno', 's.no']), 0),
+    brand: pick(findColumnIndex(headers, 'brand'), 1),
+    code: pick(findColumnIndexAny(headers, ['laminate code', 'code', 'colour_code']), 2),
+    colour: pick(findColumnIndexAny(headers, ['colour', 'colour_name', 'name']), 3),
+    thickness: pick(findColumnIndexAny(headers, ['laminate thickness', 'thickness']), 4),
+    photoUrl: pick(findColumnIndexAny(headers, ['laminate photo', 'photourl', 'photo_url', 'photo', 'image']), 5),
+    price: pick(findColumnIndexAny(headers, ['laminate price', 'price (per sqm)', 'price (per sft)', 'price']), 6),
+    comments: pick(findColumnIndexAny(headers, ['comments', 'remarks']), 7),
   };
-  
+
   const options: LaminateOption[] = [];
-  
+
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     const brand = (row[cols.brand] || '').trim();
     const code = (row[cols.code] || '').trim();
     if (!brand && !code) continue;
-    
+
     const colour = (row[cols.colour] || code).trim();
-    
+    let photoUrl = (row[cols.photoUrl] || '').trim();
+    let priceValue = (row[cols.price] || '').trim();
+
+    // Sheet often has Drive URL in Price column when Photo is empty (data entry pattern)
+    if (!photoUrl && priceValue.includes('drive.google.com')) {
+      photoUrl = priceValue;
+      priceValue = '0';
+    }
+    const price = parseFloat(priceValue) || 0;
+
     options.push({
       id: `lam_${i}`,
       sno: String(row[cols.sno] || i),
@@ -352,8 +399,8 @@ export function parseLaminateLibrary(rows: string[][]): LaminateOption[] {
       code,
       colour,
       thickness: parseFloat(row[cols.thickness] || '0.8') || 0.8,
-      photoUrl: (row[cols.photoUrl] || '').trim(),
-      price: parseFloat(row[cols.price] || '0') || 0,
+      photoUrl,
+      price,
       comments: (row[cols.comments] || '').trim(),
       displayName: `${brand} ${code} ${colour}`.trim(),
     });
@@ -364,28 +411,26 @@ export function parseLaminateLibrary(rows: string[][]): LaminateOption[] {
 }
 
 /**
- * Convert Google Drive sharing URL to direct image URL
+ * Convert Google Drive sharing URL to thumbnail URL for reliable display in <img>
  */
 export function convertDriveUrl(driveUrl: string): string {
   if (!driveUrl) return '';
-  
-  // Already a direct URL
-  if (driveUrl.includes('uc?export=view')) return driveUrl;
-  
-  // Extract file ID from various Drive URL formats
+  if (driveUrl.includes('/thumbnail?')) return driveUrl;
   const patterns = [
     /\/file\/d\/([a-zA-Z0-9_-]+)/,
-    /id=([a-zA-Z0-9_-]+)/,
+    /[?&]id=([a-zA-Z0-9_-]+)/,
     /\/d\/([a-zA-Z0-9_-]+)/,
   ];
-  
   for (const pattern of patterns) {
     const match = driveUrl.match(pattern);
     if (match && match[1]) {
-      return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+      return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w400`;
     }
   }
-  
+  const fileIdMatch = driveUrl.match(/[-\w]{25,}/);
+  if (fileIdMatch) {
+    return `https://drive.google.com/thumbnail?id=${fileIdMatch[0]}&sz=w400`;
+  }
   return driveUrl;
 }
 
@@ -403,16 +448,16 @@ export async function fetchAllCatalogData(apiKey: string): Promise<CatalogData |
   }
   
   try {
-    console.log('[GoogleSheets] Fetching catalog data...');
-    
+    const catalogueSheetId = getCatalogueSheetId();
+    const materialSheetId = getMaterialCatalogSheetId();
+    console.log('[GoogleSheets] Fetching catalog data...', { catalogueSheetId: catalogueSheetId.slice(0, 20) + '...', materialSheetId: materialSheetId.slice(0, 20) + '...' });
     // Fetch catalogue and ALL material catalogs in parallel
-    console.log('[GoogleSheets] Fetching all material catalogs...');
     const [catalogueData, plywoodData, laminateData, edgebandData, hardwareData] = await Promise.all([
-      fetchSheetData(SHEET_IDS.catalogue, SHEET_RANGES.catalogue, apiKey),
-      fetchSheetData(SHEET_IDS.materialCatalog, SHEET_RANGES.plywood, apiKey),
-      fetchSheetData(SHEET_IDS.materialCatalog, SHEET_RANGES.laminate, apiKey),
-      fetchSheetData(SHEET_IDS.materialCatalog, SHEET_RANGES.edgeband, apiKey).catch(() => null),
-      fetchSheetData(SHEET_IDS.materialCatalog, SHEET_RANGES.hardware, apiKey).catch(() => null),
+      fetchSheetData(catalogueSheetId, SHEET_RANGES.catalogue, apiKey),
+      fetchSheetData(materialSheetId, SHEET_RANGES.plywood, apiKey),
+      fetchSheetData(materialSheetId, SHEET_RANGES.laminate, apiKey),
+      fetchSheetData(materialSheetId, SHEET_RANGES.edgeband, apiKey).catch(() => null),
+      fetchSheetData(materialSheetId, SHEET_RANGES.hardware, apiKey).catch(() => null),
     ]);
     
     // Parse the data
