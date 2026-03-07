@@ -1,6 +1,7 @@
 import cors from "cors";
 import express, { type Express } from "express";
 import helmet from "helmet";
+import { createProxyMiddleware } from "http-proxy-middleware";
 import { pino } from "pino";
 
 import { openAPIRouter } from "@/api-docs/openAPIRouter";
@@ -82,6 +83,12 @@ app.use(rateLimiter);
 app.use(requestLogger);
 
 // Routes
+const frontendProxyEnabled = process.env.ENABLE_FRONTEND_PROXY === "1" || process.env.ENABLE_FRONTEND_PROXY === "true";
+if (!frontendProxyEnabled) {
+  app.get("/", (_req, res) => {
+    res.redirect(302, "/api-docs");
+  });
+}
 app.use("/health-check", healthCheckRouter);
 app.use("/api/users", userRouter); // Standardized under /api
 app.use("/api/auth", authRouter); // Auth routes
@@ -95,8 +102,25 @@ app.use("/api/site-visit-boxes", siteVisitBoxRouter); // SiteVisitBox routes, sp
 app.use("/api/lidar", lidarRouter); // LiDAR routes for session management
 
 
-// Swagger UI
-app.use(openAPIRouter); // Assuming this serves API docs, path might need review if it conflicts
+// Swagger UI at /api-docs (keeps root free for future frontend or redirect)
+app.use("/api-docs", openAPIRouter);
+
+// Proxy non-API requests to Next.js when running combined (e.g. DigitalOcean single-component)
+if (frontendProxyEnabled) {
+  app.use(
+    createProxyMiddleware({
+      target: "http://127.0.0.1:3000",
+      changeOrigin: true,
+      pathFilter: (pathName) => {
+        if (pathName.startsWith("/api") || pathName.startsWith("/api-docs") || pathName.startsWith("/health-check")) {
+          return false;
+        }
+        return true;
+      },
+    })
+  );
+  logger.info("Frontend proxy enabled: / (except /api, /api-docs, /health-check) -> http://127.0.0.1:3000");
+}
 
 // Error handlers
 app.use(errorHandler());
