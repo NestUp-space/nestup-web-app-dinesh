@@ -1,10 +1,10 @@
 "use client";
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/card";
-import { Button } from "@/components/dashboard/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/dashboard/select";
-import { Label } from "@/components/dashboard/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import Link from 'next/link';
 import { useUser } from '@/context/UserContext'; // Import useUser
 import { useUsersList } from '@/hooks/useUsers'; // Import the new hook

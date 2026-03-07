@@ -2,7 +2,7 @@
 
 // Tabs, TabsContent, TabsList, TabsTrigger are now in ProjectTabs
 // PlusCircle, Button, Dialog components, Input, Label, Select components are now in CreateProjectDialog
-import { DashboardBreadcrumb } from '@/components/dashboard/dashboardBreadcrumb';
+import { DashboardBreadcrumb } from '@/components/layout/dashboardBreadcrumb';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';

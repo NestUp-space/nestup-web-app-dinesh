@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Save, Loader2, CheckCircle, AlertCircle, ChevronDown } from 'lucide-react';
-import { Button } from '@/components/dashboard/button';
+import { Button } from '@/components/ui/button';
 import { Subtask, Project, User } from '@/types';
 import { useUser } from '@/context/UserContext';
 import { PERMISSIONS as FE_PERMISSIONS } from '@/constants/permissions';

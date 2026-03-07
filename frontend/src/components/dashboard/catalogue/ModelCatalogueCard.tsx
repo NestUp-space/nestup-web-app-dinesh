@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from "next/legacy/image";
 import { Edit, Eye } from 'lucide-react';
 // Button component might be needed if the Link's child button is to be styled with project's Button
-// import { Button } from '@/components/dashboard/button'; 
+// import { Button } from '@/components/ui/button'; 
 
 export interface ListedModelData {
   id: string;

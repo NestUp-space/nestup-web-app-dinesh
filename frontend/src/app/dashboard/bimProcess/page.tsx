@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { ListChecks, Scissors, Calculator, ChevronRight } from 'lucide-react';
-import { DashboardBreadcrumb } from '@/components/dashboard/dashboardBreadcrumb'; // Import DashboardBreadcrumb
+import { DashboardBreadcrumb } from '@/components/layout/dashboardBreadcrumb'; // Import DashboardBreadcrumb
 
 interface BimOptionCardProps {
   href: string;

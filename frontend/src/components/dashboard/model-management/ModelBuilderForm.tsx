@@ -13,7 +13,7 @@ import BillOfMaterialListEditor from './BillOfMaterialListEditor';
 import { apiClient } from '@/lib/api/client';
 // import useSWR, { useSWRConfig } from 'swr'; // Replaced by useModelData for fetching
 // import { useSWRConfig } from 'swr'; // Not needed here if useSaveModel handles mutation
-import { Button } from '@/components/dashboard/button'; // Added Button import
+import { Button } from '@/components/ui/button'; // Added Button import
 import { useModelData, useSaveModel, SaveModelPayload } from '@/hooks/useCatalogue'; // Import the new hooks
 import {
   ModelInputParameterSchema,

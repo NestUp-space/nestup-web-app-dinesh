@@ -1,12 +1,10 @@
 import { Response, NextFunction, RequestHandler } from 'express'; // Removed Request
-import { PrismaClient } from '@prisma/client';
 import { CustomRequest } from './auth.middleware';
 import { hasRequiredPermissions, type PermissionOptions } from '../types/permissions';
 import { StatusCodes } from 'http-status-codes';
 import { ensureCustomRequest } from './customRequest.middleware';
 
-const prisma = new PrismaClient();
-
+import prisma from '../config/db';
 // Cache layer for performance optimization
 const permissionCache = new Map<number, Set<string>>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes

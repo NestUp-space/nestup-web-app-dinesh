@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Star, Clock, Shield } from "lucide-react"
 import Link from "next/link"
-import { Footer } from "@/components/landing-page/Footer"
-import Navbar from "@/components/landing-page/Navbar"
+import { Footer } from "@/components/layout/Footer"
+import Navbar from "@/components/layout/Navbar"
 import { QuoteProgress } from "@/components/quote/quote-progress"
 import FAQ from "@/components/landing-page/Faq"
 
@@ -123,7 +123,6 @@ export default function LandingPage() {
       <section className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl font-sans font-bold text-center text-primary-blue mb-8">
-            Frequently Asked Questions
           </h2>
           <FAQ />
         </div>

@@ -14,6 +14,7 @@ import bimRouter from "@/bim/routes/bim.routes"; // BIM router
 import catalogueRouter from "./catalogue/routes/model.routes"; // Model management router - CHANGED TO RELATIVE PATH
 import materialRouter from "@/routes/material.routes"; // Material router
 import siteVisitBoxRouter from "@/routes/siteVisitBox.routes"; // SiteVisitBox router
+import lidarRouter from "./lidar/routes/lidar.routes"; // LiDAR router
 import errorHandler from "@/common/middleware/errorHandler";
 import rateLimiter from "@/common/middleware/rateLimiter";
 import requestLogger from "@/common/middleware/requestLogger";
@@ -34,32 +35,25 @@ const allowedOrigins = env.CORS_ORIGIN
   ? env.CORS_ORIGIN.split(',').map(origin => origin.trim())
   : [env.FRONTEND_URL];
 
-console.log('--- [CORS DEBUG] Allowed origins:', allowedOrigins);
-console.log('--- [CORS DEBUG] CORS_ORIGIN env var:', env.CORS_ORIGIN);
-console.log('--- [CORS DEBUG] FRONTEND_URL env var:', env.FRONTEND_URL);
+const isDev = env.NODE_ENV === 'development';
+if (isDev) {
+  console.log('[CORS] Allowed origins:', allowedOrigins);
+}
 
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    console.log('--- [CORS DEBUG] Incoming origin:', origin);
-    
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) {
-      console.log('--- [CORS DEBUG] No origin provided, allowing request');
       return callback(null, true);
     }
     
-    // Check if origin is in allowed list using includes() instead of indexOf()
     const isAllowed = allowedOrigins.includes(origin);
-    console.log('--- [CORS DEBUG] Origin allowed:', isAllowed);
-    console.log('--- [CORS DEBUG] Checking origin:', origin, 'against allowed origins:', allowedOrigins);
     
     if (!isAllowed) {
-      const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}. Allowed origins: ${allowedOrigins.join(', ')}`;
-      console.log('--- [CORS DEBUG] CORS blocked:', msg);
+      const msg = `CORS policy does not allow origin: ${origin}`;
+      if (isDev) console.log('[CORS] Blocked:', origin);
       return callback(new Error(msg), false);
     }
     
-    console.log('--- [CORS DEBUG] CORS allowed for origin:', origin);
     return callback(null, true);
   },
   credentials: true,
@@ -81,15 +75,6 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // Handle preflight requests
 
-// Additional CORS debugging middleware
-app.use((req, _res, next) => {
-  console.log('--- [REQUEST DEBUG] Method:', req.method);
-  console.log('--- [REQUEST DEBUG] URL:', req.url);
-  console.log('--- [REQUEST DEBUG] Origin:', req.headers.origin);
-  console.log('--- [REQUEST DEBUG] Headers:', JSON.stringify(req.headers, null, 2));
-  next();
-});
-
 app.use(helmet());
 app.use(rateLimiter);
 
@@ -103,22 +88,11 @@ app.use("/api/auth", authRouter); // Auth routes
 app.use("/api/roles", roleRouter); // Role routes
 app.use("/api/projects", projectRouter); // Project routes
 
-// --- BIM Router Mounting ---
-console.log('--- [SERVER.TS] Attempting to mount bimRouter ---');
-console.log('--- [SERVER.TS] typeof bimRouter:', typeof bimRouter);
-console.log('--- [SERVER.TS] bimRouter object:', bimRouter); // Log the router object itself
-app.use("/api/bim", bimRouter); // BIM routes, standardized under /api
-console.log('--- [SERVER.TS] bimRouter mounted for /api/bim ---');
-
-// Inline test route for catalogue path
-app.get("/api/v1/catalogue/ping", (_req, res) => { // req prefixed with _
-  console.log("--- /api/v1/catalogue/ping HIT (inline in server.ts) ---");
-  res.status(200).send("Catalogue ping from server.ts is OK!");
-});
-
-app.use("/api/v1/catalogue", catalogueRouter); // Consolidated Catalogue routes
+app.use("/api/bim", bimRouter);
+app.use("/api/v1/catalogue", catalogueRouter);
 app.use("/api/materials", materialRouter); // Material routes, specific path
 app.use("/api/site-visit-boxes", siteVisitBoxRouter); // SiteVisitBox routes, specific path
+app.use("/api/lidar", lidarRouter); // LiDAR routes for session management
 
 
 // Swagger UI

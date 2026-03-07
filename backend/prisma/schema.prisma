@@ -38,6 +38,7 @@ model User {
   role                UserRole                 @relation(fields: [roleId], references: [id])
   team                Team?                    @relation("TeamMembers", fields: [teamId], references: [id])
   actions             UserAction[]
+  lidarSessions       LidarSession[]
 }
 
 model Team {
@@ -407,4 +408,214 @@ enum DocumentType {
   PROFORMA_INVOICE_PDF
   FINAL_INVOICE_PDF
   PROJECT_PLANK_LIST_CSV
+  LIDAR_FLOOR_PLAN_PDF
+  LIDAR_BOM_CSV
+  LIDAR_DIMENSION_REPORT_PDF
+}
+
+// ============================================
+// LiDAR Session Management Models
+// ============================================
+
+model LidarSession {
+  id            String              @id @default(cuid())
+  userId        Int
+  projectId     Int?                // Optional link to existing project
+  name          String?             // User-friendly session name
+  status        LidarSessionStatus  @default(CREATED)
+  deviceId      String?             // LiDAR device identifier
+  location      Json?               // {lat, lng} coordinates
+  metadata      Json                @default("{}")  // Additional session metadata
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  user          User                @relation(fields: [userId], references: [id])
+  scanData      LidarScanData?
+  processedData LidarProcessedData?
+  walls         LidarWall[]
+  features      LidarFeature[]
+  placedModules LidarPlacedModule[]
+  bom           LidarSessionBom?
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model LidarScanData {
+  id              String        @id @default(cuid())
+  sessionId       String        @unique
+  fileUrl         String?       // S3 URL for raw scan data
+  fileSize        BigInt?       // File size in bytes
+  pointCount      Int?          // Total number of scan points
+  scanFormat      ScanFormat    @default(CSV_2D)
+  uploadStatus    UploadStatus  @default(PENDING)
+  chunksReceived  Int           @default(0)
+  totalChunks     Int?
+  checksum        String?       // MD5 checksum for verification
+  rawData         Json?         // Raw point cloud data (for small datasets)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  session         LidarSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model LidarProcessedData {
+  id                  String        @id @default(cuid())
+  sessionId           String        @unique
+  floorPlanJson       Json?         // Processed floor plan geometry
+  roomDimensions      Json?         // {width, depth, height, area}
+  wallCount           Int?
+  processingStatus    ProcessingStatus @default(PENDING)
+  processingTimeMs    Int?          // Processing duration
+  errorMessage        String?
+  processedFileUrl    String?       // S3 URL for processed data
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  session             LidarSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model LidarWall {
+  id              String          @id @default(cuid())
+  sessionId       String
+  wallIndex       Int             // Order of wall in room
+  startPoint      Json            // {x, y} start coordinates in mm
+  endPoint        Json            // {x, y} end coordinates in mm
+  length          Float           // Wall length in mm
+  height          Float?          // Wall height in mm (default from room)
+  normalVector    Json?           // {x, y} normal direction
+  boundaryPoints  Json?           // Array of boundary points
+  createdAt       DateTime        @default(now())
+
+  session         LidarSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  features        LidarFeature[]
+  placedModules   LidarPlacedModule[]
+
+  @@unique([sessionId, wallIndex])
+  @@index([sessionId])
+}
+
+model LidarFeature {
+  id            String          @id @default(cuid())
+  wallId        String?
+  sessionId     String
+  featureType   FeatureType     // WINDOW, DOOR, PROTRUSION, etc.
+  position      Json            // {x, y, z} position in mm
+  dimensions    Json            // {width, height, depth}
+  metadata      Json            @default("{}")
+  createdAt     DateTime        @default(now())
+
+  wall          LidarWall?      @relation(fields: [wallId], references: [id], onDelete: Cascade)
+  session       LidarSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([wallId])
+}
+
+// Module templates for LiDAR placement (extends existing ModelDefinition concept)
+model LidarModuleTemplate {
+  id                  String                @id @default(cuid())
+  name                String                @unique
+  category            ModuleCategory
+  description         String?
+  thumbnailUrl        String?
+  modelUrl            String?               // GLB/GLTF 3D model URL
+  defaultDimensions   Json                  // {width, height, depth} in mm
+  constraints         Json                  // {minWidth, maxWidth, minHeight, ...}
+  parameters          Json                  @default("{}")  // Configurable parameters
+  placementRules      Json                  @default("{}")  // {allowedSurfaces, minHeightFromFloor, ...}
+  isActive            Boolean               @default(true)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  placedModules       LidarPlacedModule[]
+}
+
+model LidarPlacedModule {
+  id              String                @id @default(cuid())
+  sessionId       String
+  templateId      String
+  wallId          String?
+  position        Json                  // {x, y, z} position in mm
+  dimensions      Json                  // {width, height, depth} in mm
+  rotation        Float                 @default(0)  // Rotation in degrees
+  parameters      Json                  @default("{}")  // Custom parameters
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  session         LidarSession          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  template        LidarModuleTemplate   @relation(fields: [templateId], references: [id])
+  wall            LidarWall?            @relation(fields: [wallId], references: [id])
+
+  @@index([sessionId])
+  @@index([templateId])
+}
+
+model LidarSessionBom {
+  id              String        @id @default(cuid())
+  sessionId       String        @unique
+  materials       Json          // Array of material items
+  cutList         Json          // Array of cut specifications
+  hardware        Json          // Array of hardware items
+  summary         Json          // {totalModules, totalArea, totalSheets, ...}
+  generatedAt     DateTime      @default(now())
+
+  session         LidarSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// LiDAR-related Enums
+// ============================================
+
+enum LidarSessionStatus {
+  CREATED
+  UPLOADING
+  PROCESSING
+  PROCESSED
+  DESIGNING
+  COMPLETED
+  FAILED
+}
+
+enum ScanFormat {
+  CSV_2D      // 2D polar scan (angle, range, x, y)
+  PLY_3D      // 3D point cloud PLY format
+  PCD_3D      // Point Cloud Data format
+  NPY_3D      // NumPy array format
+}
+
+enum UploadStatus {
+  PENDING
+  UPLOADING
+  UPLOADED
+  FAILED
+}
+
+enum ProcessingStatus {
+  PENDING
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum FeatureType {
+  WINDOW
+  DOOR
+  PROTRUSION
+  RECESS
+  COLUMN
+  SWITCHBOARD
+  OTHER
+}
+
+enum ModuleCategory {
+  STORAGE
+  KITCHEN
+  WARDROBE
+  BATHROOM
+  LIVING
+  OFFICE
+  CUSTOM
 }

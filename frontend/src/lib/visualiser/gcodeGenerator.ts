@@ -141,6 +141,130 @@ function convertToGCodePlank(nestResult: NestResult): GCodePlank {
       } else if (type.includes('l_cut') || type.includes('l-cut')) {
         // L-cuts are handled separately
       }
+<<<<<<< HEAD
+=======
+
+      const absX = x + vbX;
+      const absY = y + vbY;
+      const depth = vb.z || 13;
+
+      lines.push(`G0 Z${config.Z_SAFE}`);
+      lines.push(`G0 X${formatNum(absX)} Y${formatNum(absY)}`);
+      lines.push(`G1 Z${formatNum(-depth)} F${config.PLUNGE_FEED_RATE}`);
+      lines.push(`G0 Z${config.Z_SAFE}`);
+    }
+    lines.push("");
+  }
+
+  // VB Double (5mm, T3)
+  if (vbDouble && vbDouble.length > 0) {
+    lines.push(...generateDrillHoles(plank, vbDouble, "T3", "VB Double", config));
+  }
+
+  return lines;
+}
+
+// ============================================
+// Main G-Code Generation
+// ============================================
+
+function generateGCodeForPlank(
+  plank: GCodePlank,
+  config: GCodeConfig = DEFAULT_CONFIG
+): Map<string, string[]> {
+  const toolCodes = new Map<string, string[]>();
+  const features = plank.features || {};
+
+  // T1 operations (profile, slots, L-cuts)
+  const t1Lines: string[] = [];
+  t1Lines.push(...generateProfileCut(plank, config));
+  if (features.slots) {
+    t1Lines.push(...generateSlots(plank, features.slots, config));
+  }
+  if (features.l_cuts) {
+    t1Lines.push(...generateLCuts(plank, features.l_cuts, config));
+  }
+  if (t1Lines.length > 0) {
+    toolCodes.set("T1", t1Lines);
+  }
+
+  // T2 operations (4mm screw holes)
+  if (features.screws && features.screws.length > 0) {
+    const t2Lines = generateDrillHoles(plank, features.screws, "T2", "Screw", config);
+    toolCodes.set("T2", t2Lines);
+  }
+
+  // T5 operations (35mm hinge boring)
+  if (features.hinges && features.hinges.length > 0) {
+    const t5Lines = generateHingeBoring(plank, features.hinges, config);
+    toolCodes.set("T5", t5Lines);
+  }
+
+  // T6 and T3 operations (VB holes)
+  if (features.vb_main || features.vb_double) {
+    const vbLines = generateVBHoles(plank, features.vb_main || [], features.vb_double || [], config);
+    if (vbLines.length > 0) {
+      toolCodes.set("T6", vbLines);
+    }
+  }
+
+  return toolCodes;
+}
+
+// ============================================
+// Sheet-level G-Code Generation
+// ============================================
+
+export interface GenerateGCodeOptions {
+  config?: GCodeConfig;
+  organizeBySuperCategory?: boolean;
+}
+
+export function generateGCodeForSheet(
+  planks: GCodePlank[],
+  sheetName: string,
+  options: GenerateGCodeOptions = {}
+): GCodeResult[] {
+  const config = options.config || DEFAULT_CONFIG;
+  const results: GCodeResult[] = [];
+
+  // Group operations by tool
+  const toolOperations = new Map<string, string[]>();
+
+  for (const plank of planks) {
+    const plankCodes = generateGCodeForPlank(plank, config);
+    
+    for (const [tool, lines] of Array.from(plankCodes.entries())) {
+      const existing = toolOperations.get(tool) || [];
+      existing.push(`; Plank: ${plank.id} - ${plank.name}`);
+      existing.push(...lines);
+      toolOperations.set(tool, existing);
+    }
+  }
+
+  // Generate files per tool
+  for (const [tool, operations] of Array.from(toolOperations.entries())) {
+    const toolInfo = TOOLS[tool as keyof typeof TOOLS];
+    const fileName = `${sheetName}_${tool}_${toolInfo?.name.replace(/\s+/g, "_") || "unknown"}.nc`;
+    
+    const content = [
+      ...generateHeader(config, tool),
+      `; Sheet: ${sheetName}`,
+      `; Tool: ${tool} - ${toolInfo?.name || "Unknown"}`,
+      `; Total planks: ${planks.length}`,
+      "",
+      ...operations,
+      ...generateFooter(config),
+    ].join("\n");
+
+    results.push({
+      sheetName,
+      fileName,
+      materialFolder: planks[0]?.material || "unknown",
+      thicknessFolder: `${planks[0]?.thickness || 0}mm`,
+      content,
+      plankCount: planks.length,
+>>>>>>> nestup/Development
     });
   }
 

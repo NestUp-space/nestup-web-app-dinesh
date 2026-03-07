@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Home, ChevronDown, ChevronUp, FileText, Calendar, MapPin, Phone, Star } from "lucide-react"
 import { QuoteProgress } from "@/components/quote/quote-progress"
-import Navbar from "@/components/landing-page/Navbar"
-import { Footer } from "@/components/landing-page/Footer"
+import Navbar from "@/components/layout/Navbar"
+import { Footer } from "@/components/layout/Footer"
 import StickyCTA from "@/components/common/StickyCTA"
 import { 
   materialOptions, 

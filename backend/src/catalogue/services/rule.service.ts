@@ -1,4 +1,5 @@
 import { JsonValue } from '@prisma/client/runtime/library'; // For Prisma Json type
+import { create, all, MathJsInstance } from 'mathjs';
 
 interface Rule {
   ruleType: 'simpleFormula' | 'directValue' | string; // Allow other types for future
@@ -19,9 +20,79 @@ const globalRules: RuntimeInputs = {
   edgeBandingThickness: 1,
 };
 
+/**
+ * Security: Create a limited mathjs instance that only allows safe mathematical operations.
+ * This prevents code injection attacks that were possible with new Function().
+ */
+const createSafeMath = (): MathJsInstance => {
+  const math = create(all);
+  
+  // Security: Disable dangerous functions that could be exploited
+  // We keep the core math.evaluate() but remove functions that could allow arbitrary code execution
+  const dangerousFunctions: (keyof MathJsInstance)[] = [
+    'import' as keyof MathJsInstance, 
+    'createUnit' as keyof MathJsInstance,
+    'parse' as keyof MathJsInstance, 
+    'simplify' as keyof MathJsInstance, 
+    'derivative' as keyof MathJsInstance, 
+    'rationalize' as keyof MathJsInstance, 
+    'compile' as keyof MathJsInstance
+  ];
+  
+  dangerousFunctions.forEach(fn => {
+    try {
+      // Attempt to make these functions throw instead of executing
+      (math as unknown as Record<string, unknown>)[fn as string] = () => {
+        throw new Error(`Function ${fn} is disabled for security reasons`);
+      };
+    } catch {
+      // Some functions may not exist or may be read-only
+    }
+  });
+  
+  return math;
+};
+
+const safeMath = createSafeMath();
+
+/**
+ * Security: Validates that a formula only contains safe mathematical expressions.
+ * Rejects any attempts at code injection.
+ */
+function validateFormula(formula: string): boolean {
+  // Allow: numbers, basic operators, parentheses, whitespace, decimal points
+  // Reject: any other characters that could be used for code injection
+  const safePattern = /^[\s\d+\-*/().]+$/;
+  return safePattern.test(formula);
+}
+
 export class RuleService {
   constructor() {
     console.log('RuleService initialized');
+  }
+
+  /**
+   * Security: Safely evaluates mathematical expressions using mathjs.
+   * This replaces the unsafe new Function() approach.
+   */
+  private safeEvaluateExpression(formula: string): number {
+    // Security: Validate formula before evaluation
+    if (!validateFormula(formula)) {
+      throw new Error(`Invalid formula: contains unsafe characters. Only numbers and basic operators (+, -, *, /, parentheses) are allowed.`);
+    }
+    
+    try {
+      // Use mathjs evaluate which is safe for mathematical expressions
+      const result = safeMath.evaluate(formula);
+      
+      if (typeof result !== 'number' || !isFinite(result)) {
+        throw new Error(`Formula evaluation did not produce a valid number: ${formula}`);
+      }
+      
+      return result;
+    } catch (error) {
+      throw new Error(`Failed to evaluate formula "${formula}": ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   /**
@@ -41,50 +112,55 @@ export class RuleService {
 
       // Substitute runtime inputs: runtime.variableName
       formula = formula.replace(/runtime\.([a-zA-Z0-9_]+)/g, (_, varName) => {
-        if (runtimeInputs.hasOwnProperty(varName)) {
+        if (Object.prototype.hasOwnProperty.call(runtimeInputs, varName)) {
           const val = runtimeInputs[varName];
-          if (typeof val === 'string') return `"${String(val)}"`; // Wrap strings in quotes for eval
-          return String(val); // Numbers, booleans
+          // Security: For mathjs, we only substitute numeric values into formulas
+          if (typeof val === 'number') {
+            return String(val);
+          }
+          if (typeof val === 'string') {
+            // If it's a string that looks like a number, use it
+            if (!isNaN(Number(val))) {
+              return val;
+            }
+            // Otherwise, return the string as-is (will be handled below)
+            return `"${val}"`;
+          }
+          return String(val); // booleans become "true"/"false"
         }
         throw new Error(`Runtime variable '${varName}' not found in inputs.`);
       });
 
       // Substitute global rules: global.variableName
       formula = formula.replace(/global\.([a-zA-Z0-9_]+)/g, (_, varName) => {
-        if (globalRules.hasOwnProperty(varName)) {
+        if (Object.prototype.hasOwnProperty.call(globalRules, varName)) {
           const val = globalRules[varName];
-           if (typeof val === 'string') return `"${String(val)}"`;
+          if (typeof val === 'number') {
+            return String(val);
+          }
+          if (typeof val === 'string' && !isNaN(Number(val))) {
+            return val;
+          }
           return String(val);
         }
         throw new Error(`Global variable '${varName}' not found in global rules.`);
       });
 
-      // Basic arithmetic evaluation (VERY simplified and potentially unsafe if not careful)
-      // For a production system, a proper math expression parser/evaluator library is recommended.
-      // This MVP version handles simple cases like "value - number" or "value + number".
       try {
-        // This is a simplified evaluator. For more complex math, use a library.
-        // It tries to handle simple arithmetic like "100 - 18" or "runtime.value + 5"
-        // It's NOT a full JavaScript eval.
-        // Ensure hyphen is at the end or escaped to be treated literally
-        if (/^[\s\d."'+*/()\-\[\]]+$/.test(formula)) { // Allow numbers, strings, basic operators, parentheses, and brackets (for safety, though not used in current eval)
-            // Using Function constructor for safer evaluation than direct eval()
-            // Still, this should be replaced with a proper math expression parser for production.
-            return new Function(`return ${formula}`)();
-        } else {
-            // If it's not simple arithmetic, and was supposed to be a direct value after substitution
-            // (e.g. a runtime string variable was substituted), it might just be the string itself.
-            // This part is tricky without a full parser. If formula is just a quoted string, unquote it.
-            if (formula.startsWith('"') && formula.endsWith('"')) {
-                return formula.slice(1, -1);
-            }
-            // If it's a number that was stringified
-            if (!isNaN(Number(formula))) {
-                return Number(formula);
-            }
-            // Otherwise, it might be a direct string value that was intended
-            return formula; 
+        // Security: Check if formula is a quoted string (non-mathematical)
+        if (formula.startsWith('"') && formula.endsWith('"')) {
+          return formula.slice(1, -1);
         }
+        
+        // Check if it's just a number
+        if (!isNaN(Number(formula))) {
+          return Number(formula);
+        }
+        
+        // Security: Use safe mathematical evaluation instead of new Function()
+        // This prevents code injection attacks
+        return this.safeEvaluateExpression(formula);
+        
       } catch (e) {
         console.error(`Error evaluating formula: "${rule.value}" (transformed to "${formula}")`, e);
         throw new Error(`Error evaluating formula: "${rule.value}".`);

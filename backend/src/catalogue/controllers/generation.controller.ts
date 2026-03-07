@@ -3,10 +3,9 @@ import { Request, Response, NextFunction } from 'express';
 import { JavaScriptFunctionService } from '../services/javascript-function.service'; // Import ExecutedScriptResult
 import { PlankListGeneratorService } from '../services/plank-list-generator.service';
 import { GeneratePlankListDto, TestItemScriptDto } from '../dtos/model.dto'; // Updated DTO path
-import { PrismaClient, ModelBomItem, BomItemType, ProjectModelInstance } from '@prisma/client'; // Updated Prisma types
+import { ModelBomItem, BomItemType, ProjectModelInstance } from '@prisma/client'; // Updated Prisma types
 import { z } from 'zod'; // For output validation
-
-const prisma = new PrismaClient();
+import prisma from '../../config/db';
 
 // Define the expected output schema for a plank item script (consistent with ModelService)
 const PlankOutputSchema = z.object({

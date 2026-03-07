@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { StatusCodes } from 'http-status-codes';
 import { CustomRequest } from '../middlewares/auth.middleware';
 import { 
@@ -12,8 +12,7 @@ import {
 } from '../types/project.types';
 import { PlyType, GrainDirection } from '@prisma/client'; // Import enums
 import { projectService } from '../services/project'; // Import project service
-
-const prisma = new PrismaClient();
+import prisma from '../config/db';
 
 export class ProjectController {
   static async getProjects(req: CustomRequest, res: Response): Promise<Response> {

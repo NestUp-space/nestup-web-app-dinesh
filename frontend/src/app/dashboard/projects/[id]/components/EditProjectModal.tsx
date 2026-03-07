@@ -6,7 +6,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { Button } from '@/components/dashboard/button';
+import { Button } from '@/components/ui/button';
 import { Project, User, UpdateProjectData, Status } from '@/types'; // Added Status
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,16 +18,16 @@ import {
   DialogTitle,
   DialogFooter,
   DialogClose,
-} from '@/components/dashboard/dialog';
-import { Input } from '@/components/dashboard/input';
-import { Label } from '@/components/dashboard/label';
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/dashboard/select';
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 interface EditProjectModalProps {

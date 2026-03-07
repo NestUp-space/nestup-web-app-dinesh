@@ -1,10 +1,10 @@
 "use client";
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/dashboard/card";
-import { Button } from "@/components/dashboard/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/dashboard/select";
-import { Label } from "@/components/dashboard/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { AlertCircle, CheckCircle, ChevronDown } from "lucide-react";
 import { useUser } from '@/context/UserContext';
 

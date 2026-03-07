@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import { CheckCircle, Wand2, AlertTriangle } from 'lucide-react'; // Added AlertTriangle
-import { Button } from '@/components/dashboard/button';
-import { Label } from '@/components/dashboard/label';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { safeEvaluateExpression, validateExpressionCode, SAMPLE_CONTEXT } from '@/utils/safeExpressionEvaluator';
 
@@ -156,7 +156,7 @@ export default function ExpressionInput({
       return { isValid: false, error: result.error };
     }
 
-    return { isValid: true, value: result.value };
+    return { isValid: true, value: result.value as string | number | undefined };
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {

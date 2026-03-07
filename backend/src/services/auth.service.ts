@@ -82,8 +82,6 @@ export const registerUser = async (data: RegisterUserData): Promise<ServiceRespo
 
 // Adjust return type to allow ServiceResponse<null> on failure
 export const loginUser = async (data: LoginUserData): Promise<ServiceResponse<{ token: string; user: Omit<User, 'password'> }> | ServiceResponse<null>> => {
-  console.log('Login attempt for email:', data.email);
-  
   const user = await prisma.user.findUnique({
     where: { email: data.email },
     include: {
@@ -99,26 +97,16 @@ export const loginUser = async (data: LoginUserData): Promise<ServiceResponse<{ 
     },
   });
 
-  console.log('User found (with role mappings):', user ? {
-    id: user.id,
-    email: user.email,
-    isActive: user.isActive,
-    verified: user.verified,
-    roleId: user.roleId,
-    roleType: user.role?.roleType
-  } : 'No user found');
-
   if (!user) {
     return ServiceResponse.failure('Invalid credentials', null, StatusCodes.UNAUTHORIZED);
   }
 
   if (!user.isActive) {
-    console.log('User account is inactive:', user.email);
     return ServiceResponse.failure('Account is inactive. Please contact support.', null, StatusCodes.FORBIDDEN);
   }
 
   const isPasswordValid = await bcrypt.compare(data.password, user.password);
-  console.log('Password validation result:', isPasswordValid);
+  // Security: Never log password validation results - timing attacks possible
   
   if (!isPasswordValid) {
     return ServiceResponse.failure('Invalid credentials', null, StatusCodes.UNAUTHORIZED);
@@ -159,15 +147,11 @@ export const loginUser = async (data: LoginUserData): Promise<ServiceResponse<{ 
 
   // Clear permission cache on successful login
   clearAllPermissionCache();
-  console.log('[AuthService] Permission cache cleared after successful login for user:', user.email);
 
-  console.log('Login successful for:', user.email);
-  console.log('User object being sent in login response:', JSON.stringify(userForResponse, null, 2));
   return ServiceResponse.success('Login successful', { token, user: userForResponse }, StatusCodes.OK);
 };
 
-export const resetPassword = async (email: string): Promise<ServiceResponse<null>> => {
-  console.log(`Password reset requested for ${email}`);
+export const resetPassword = async (_email: string): Promise<ServiceResponse<null>> => {
   return ServiceResponse.failure('Password reset not implemented yet', null, StatusCodes.NOT_IMPLEMENTED);
 };
 

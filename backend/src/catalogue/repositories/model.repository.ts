@@ -1,8 +1,7 @@
-import { PrismaClient, ModelDefinition, ModelInputParameter, ModelBomItem, ProjectModelInstance } from '@prisma/client'; // Removed Prisma from import
+import { ModelDefinition, ModelInputParameter, ModelBomItem, ProjectModelInstance } from '@prisma/client'; // Removed Prisma from import
+import prisma from '../../config/db';
 // Import DTOs or specific types for creation/update data if needed
 // e.g., import { CreateModelDefinitionData } from '../dtos/model.dto';
-
-const prisma = new PrismaClient();
 
 export class ModelRepository {
   constructor() {

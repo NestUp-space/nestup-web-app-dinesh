@@ -1,15 +1,25 @@
 import axios from "axios";
 
+/**
+ * WARNING: This script is for LOCAL DEVELOPMENT ONLY.
+ * Never run in production or with production credentials.
+ */
 async function testGetUsersByRoleEndpoint() {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('ERROR: This script should not be run in production!');
+    process.exit(1);
+  }
+
   try {
     // Get auth token
     const loginResponse = await axios.post("http://localhost:5001/api/auth/login", {
-      email: "surya8352@gmail.com",
-      password: "1234test"
+      email: process.env.TEST_USER_EMAIL || "",
+      password: process.env.TEST_USER_PASSWORD || "",
     });
     
     const token = loginResponse.data.token;
-    console.log("Auth token obtained:", token);
+    // Security: Don't log full token, just confirm it was received
+    console.log("Auth token obtained: [RECEIVED - length:", token?.length || 0, "]");
 
     // Test client role
     const clientResponse = await axios.get("http://localhost:5001/api/users/by-role?roleName=client", {

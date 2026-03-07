@@ -11,8 +11,8 @@ import useSWR, { mutate } from 'swr'; // Added SWR and mutate
 import { apiClient } from '@/lib/api/client'; // Added apiClient
 import { usePermissions } from '@/hooks/usePermissions'; // Import usePermissions
 import { PERMISSIONS } from '@/constants/permissions'; // Import PERMISSIONS
-import { Button } from '@/components/dashboard/button'; // Import Button
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/dashboard/select'; // Import Select components
+import { Button } from '@/components/ui/button'; // Import Button
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Import Select components
 import { PROJECT_STATUS as PROJECT_STATUS_MAP, PROJECT_STATUS_NAMES, PROJECT_STATUS_COLORS } from '@/constants/project'; // Import names and colors
 
 // Define type for ProjectModelInstance (simplified)

@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { PlusCircle, Edit, Eye } from 'lucide-react'; 
-import { DashboardBreadcrumb } from '@/components/dashboard/dashboardBreadcrumb'; // Import DashboardBreadcrumb
+import { DashboardBreadcrumb } from '@/components/layout/dashboardBreadcrumb'; // Import DashboardBreadcrumb
 import useSWR from 'swr';
 import { apiClient } from '@/lib/api/client';
 import Image from "next/legacy/image"; // For displaying images

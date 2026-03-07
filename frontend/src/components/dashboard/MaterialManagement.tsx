@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useProjectMaterials, useCreateMaterial, useUpdateMaterial, useDeleteMaterial, Material, CreateMaterialData } from '@/hooks';
-import { Button } from '@/components/dashboard/button';
+import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2, Save, X } from 'lucide-react';
 import { PLY_THICKNESS_VALUES } from '@/constants/materialConstants';
 

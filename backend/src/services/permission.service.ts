@@ -1,9 +1,7 @@
-import { PrismaClient } from '@prisma/client';
 import { ServiceResponse } from '../common/models/serviceResponse';
 import { StatusCodes } from 'http-status-codes';
 
-const prisma = new PrismaClient();
-
+import prisma from '../config/db';
 export interface Permission {
   id: number;
   permission: string;

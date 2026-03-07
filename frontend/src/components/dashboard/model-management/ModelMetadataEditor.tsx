@@ -3,8 +3,8 @@
 import React, { useState, ChangeEvent } from 'react';
 import { useFormContext } from 'react-hook-form'; 
 import Image from "next/legacy/image"; 
-import { Input } from '@/components/dashboard/input'; 
-import { Label } from '@/components/dashboard/label';   
+import { Input } from '@/components/ui/input'; 
+import { Label } from '@/components/ui/label';   
 import { cn } from '@/lib/utils';
 
 interface ModelFormData {

@@ -6,7 +6,7 @@
 'use client';
 
 import React from 'react';
-import { Button } from '@/components/dashboard/button';
+import { Button } from '@/components/ui/button';
 import { Edit3, Trash2 } from 'lucide-react';
 import { Project } from '@/types';
 

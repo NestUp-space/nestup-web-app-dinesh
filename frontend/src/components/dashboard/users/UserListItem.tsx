@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/dashboard/button';
+import { Button } from '@/components/ui/button';
 import { User } from '@/types'; // Using global User type
 
 interface UserListItemProps {

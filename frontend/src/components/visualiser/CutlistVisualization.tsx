@@ -1,5 +1,6 @@
 'use client';
 
+<<<<<<< HEAD
 /**
  * Cutlist Visualization Component
  * Redesigned with Orange, White, and Navy Blue color scheme
@@ -13,6 +14,11 @@
  * - Search/highlight functionality
  * - Material legend and utilization display
  */
+=======
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useCutlistStore, useAppStore } from "@/stores/visualiserStore";
+import type { NestResult, CutlistData, CutlistHole } from "@/types/visualiser";
+>>>>>>> nestup/Development
 
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { NestResult, SHEET_CONSTANTS } from '@/types/visualiser';

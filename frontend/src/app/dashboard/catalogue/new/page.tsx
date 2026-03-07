@@ -6,7 +6,7 @@ import { BomItemType } from '@/components/dashboard/model-management/modelSchema
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation'; // Added useRouter and useParams
-import { Button } from '@/components/dashboard/button'; // Added Button import
+import { Button } from '@/components/ui/button'; // Added Button import
 
 // Define a type for the form data, aligning with ModelFormData structure for bomItems
 interface SimplePlankDetails { // Based on PlankDetailsSchemaFrontend output (nullable)
