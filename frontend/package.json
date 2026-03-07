@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --turbo",
     "build": "next build",
-    "start": "next start",
+    "start": "npx next start",
     "lint": "next lint",
     "vercel:preview": "npx vercel --yes",
     "vercel:prod": "npx vercel --prod --yes"

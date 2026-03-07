@@ -28,7 +28,8 @@ function waitForPort(port, maxAttempts = 60) {
   });
 }
 
-const frontend = spawn('npm', ['start'], {
+const nextBin = path.join(FRONTEND_DIR, 'node_modules', 'next', 'dist', 'bin', 'next');
+const frontend = spawn(process.execPath, [nextBin, 'start'], {
   cwd: FRONTEND_DIR,
   stdio: 'inherit',
   detached: true,
