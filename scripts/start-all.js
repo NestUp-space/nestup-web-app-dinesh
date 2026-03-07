@@ -3,8 +3,9 @@
  * Starts frontend (Next.js on 3000) then backend (Express on 8080).
  * Used for single-component deploy on DigitalOcean so the app serves both UI and API.
  */
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 const http = require('http');
 
 const ROOT = path.join(__dirname, '..');
@@ -28,8 +29,17 @@ function waitForPort(port, maxAttempts = 60) {
   });
 }
 
-const nextBin = path.join(FRONTEND_DIR, 'node_modules', 'next', 'dist', 'bin', 'next');
-const frontend = spawn(process.execPath, [nextBin, 'start'], {
+function ensureFrontendDeps() {
+  const nextPath = path.join(FRONTEND_DIR, 'node_modules', 'next');
+  if (!fs.existsSync(nextPath)) {
+    console.log('Frontend node_modules missing; running npm install in frontend...');
+    execSync('npm install', { cwd: FRONTEND_DIR, stdio: 'inherit' });
+  }
+}
+
+ensureFrontendDeps();
+
+const frontend = spawn('npm', ['start'], {
   cwd: FRONTEND_DIR,
   stdio: 'inherit',
   detached: true,
