@@ -138,11 +138,6 @@ export const SnapIndicators: React.FC<SnapIndicatorsProps> = ({
         <FaceSnapIndicator snapPoint={snapResult.snapPoint} ghostPosition={ghostPosition} boxDimensions={boxDimensions} />
       )}
 
-      {/* Snap Type Label - shows what kind of snap is active */}
-      {isSnapped && snapResult != null && snapResult.snapPoint && (
-        <SnapTypeLabel snapPoint={snapResult.snapPoint} position={ghostPosition} boxHeight={boxDimensions.h} />
-      )}
-
       {/* Wall Snap Plane */}
       {isSnapped && snapResult != null && snapResult.snapPoint?.type === 'wall' && (
         <WallSnapPlane position={ghostPosition} width={boxDimensions.w} height={boxDimensions.h} />
@@ -176,10 +171,7 @@ export const SnapIndicators: React.FC<SnapIndicatorsProps> = ({
         <CollisionIndicator position={ghostPosition} dimensions={boxDimensions} />
       )}
 
-      {/* Distance Label with axis breakdown */}
-      {startPosition && (
-        <DistanceLabel from={startPosition} to={ghostPosition} lockedAxis={lockedAxis} snapResult={snapResult} />
-      )}
+      {/* Keep in-scene UI minimal while moving; distance is shown by compact move chip */}
 
       {/* All potential snap points within range - shown as small dots */}
       {snapResult?.activeSnaps.map((snap, i) => (

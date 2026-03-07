@@ -72,7 +72,6 @@ export {
   type AABB,
   AABBUtils,
   snapToGrid,
-  snapToPoints,
   snapToAxis,
   type CollisionResult,
   resolveCollision,

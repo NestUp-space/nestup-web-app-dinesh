@@ -22,7 +22,7 @@ export const MoveToolConfig = {
   SNAP_TOLERANCE: 2,          // Max correction allowed after snap (mm)
   
   // Collision
-  CONTACT_EPSILON: 0.01,      // Touching tolerance (mm)
+  CONTACT_EPSILON: 1,          // Touching tolerance (mm) - faces within 1mm are "touching", not intersecting
   
   // Floor and wall
   FLOOR_Z: 0,                 // Floor plane Z coordinate (in our data system)
@@ -102,12 +102,14 @@ export const AABBUtils = {
   },
 
   /**
-   * Check if two AABBs overlap (touching is allowed)
+   * Check if two AABBs overlap (touching is allowed, only true intersection).
+   * Uses CONTACT_EPSILON so faces that are flush/touching are NOT considered overlapping.
    */
   overlaps(a: AABB, b: AABB): boolean {
-    const overlapX = a.min.x < b.max.x && a.max.x > b.min.x;
-    const overlapY = a.min.y < b.max.y && a.max.y > b.min.y;
-    const overlapZ = a.min.z < b.max.z && a.max.z > b.min.z;
+    const eps = MoveToolConfig.CONTACT_EPSILON;
+    const overlapX = a.min.x < b.max.x - eps && a.max.x > b.min.x + eps;
+    const overlapY = a.min.y < b.max.y - eps && a.max.y > b.min.y + eps;
+    const overlapZ = a.min.z < b.max.z - eps && a.max.z > b.min.z + eps;
     return overlapX && overlapY && overlapZ;
   },
 
@@ -124,21 +126,8 @@ export const AABBUtils = {
 };
 
 // ============================================
-// SNAP SYSTEM
+// SNAP HELPERS
 // ============================================
-
-export interface SnapPoint {
-  position: Position;
-  type: 'corner' | 'edge' | 'center' | 'grid';
-  sourceId?: string;
-}
-
-export interface SnapResult {
-  snapped: boolean;
-  position: Position;
-  snapPoint?: SnapPoint;
-  axis?: 'x' | 'y' | 'z';
-}
 
 /**
  * Snap position to grid
@@ -148,39 +137,6 @@ export function snapToGrid(position: Position, gridSize: number = MoveToolConfig
     x: Math.round(position.x / gridSize) * gridSize,
     y: Math.round(position.y / gridSize) * gridSize,
     z: Math.round(position.z / gridSize) * gridSize,
-  };
-}
-
-/**
- * Snap position to nearest snap point if within threshold
- */
-export function snapToPoints(
-  position: Position,
-  snapPoints: SnapPoint[],
-  threshold: number = MoveToolConfig.SNAP_THRESHOLD
-): SnapResult {
-  let nearestPoint: SnapPoint | undefined;
-  let nearestDistance = Infinity;
-
-  for (const point of snapPoints) {
-    const distance = Vec3.distance(position, point.position);
-    if (distance < nearestDistance && distance < threshold) {
-      nearestDistance = distance;
-      nearestPoint = point;
-    }
-  }
-
-  if (nearestPoint) {
-    return {
-      snapped: true,
-      position: Vec3.clone(nearestPoint.position),
-      snapPoint: nearestPoint,
-    };
-  }
-
-  return {
-    snapped: false,
-    position,
   };
 }
 
@@ -298,28 +254,31 @@ export function constrainToWall(position: Position, boxDepth: number): Position 
 // ============================================
 
 /**
- * Convert from data coordinates to Three.js coordinates
- * Data: X=right, Y=front (towards viewer), Z=up
- * Three.js: X=right, Y=up, Z=towards camera
- * 
- * Positive Y in data = positive Z in Three.js = towards viewer
+ * Convert from data coordinates to Three.js coordinates.
+ *
+ * Data:     X = right,  Y = front (toward viewer),  Z = up
+ * Three.js: X = right,  Y = up,                     Z = toward camera
+ *
+ * Both data-Y and Three.js-Z point toward the viewer, so the mapping is
+ * POSITIVE (no sign flip needed). A box at data {x:100, y:200, z:300}
+ * appears at Three.js {x:100, y:300, z:200}.
  */
 export function dataToThree(pos: Position): Position {
   return {
     x: pos.x,
-    y: pos.z,     // Our Z (up) becomes Three.js Y
-    z: pos.y,     // Our Y (front) becomes positive Three.js Z (towards camera)
+    y: pos.z,   // data Z-up  -> Three.js Y-up
+    z: pos.y,   // data Y-front -> Three.js Z-front (same direction, no sign flip)
   };
 }
 
 /**
- * Convert from Three.js coordinates to data coordinates
+ * Convert from Three.js coordinates to data coordinates.
  */
 export function threeToData(pos: Position): Position {
   return {
     x: pos.x,
-    y: pos.z,     // Three.js Z becomes our Y (front)
-    z: pos.y,     // Three.js Y becomes our Z (up)
+    y: pos.z,   // Three.js Z-front -> data Y-front
+    z: pos.y,   // Three.js Y-up    -> data Z-up
   };
 }
 

@@ -9,6 +9,7 @@
 
 import { CatalogModel, PlywoodOption, LaminateOption } from '@/types/visualiser';
 import { CatalogBoxWithPlanks } from './catalogParser';
+import { validateCatalogData, type ValidationResult } from './catalogValidation';
 
 // ============================================
 // CONFIGURATION
@@ -16,19 +17,50 @@ import { CatalogBoxWithPlanks } from './catalogParser';
 
 const SHEETS_API_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
 
-// Sheet IDs from Apps Script DESIGNER_CONFIG
-export const SHEET_IDS = {
+// Default sheet IDs (overridden by env)
+const DEFAULT_SHEET_IDS = {
   catalogue: '1A9W8gsjkalw8DHwmkRsh33UnOy5Y0seAUhyDrWNWeKA',
   materialCatalog: '1BJnNmIwG8J07LJGhnWQJ-gJbENSGJ2ArRCxypJAGMto',
 };
 
-// Sheet ranges
+/** Sheet IDs from env (NEXT_PUBLIC_ or server-side). Used as single source of truth. */
+export function getSheetIds(): { catalogue: string; materialCatalog: string } {
+  const catalogue =
+    process.env.NEXT_PUBLIC_CATALOGUE_SHEET_ID ||
+    process.env.CATALOGUE_SHEET_ID ||
+    DEFAULT_SHEET_IDS.catalogue;
+  const materialCatalog =
+    process.env.NEXT_PUBLIC_MATERIAL_CATALOG_SHEET_ID ||
+    process.env.MATERIAL_CATALOG_SHEET_ID ||
+    DEFAULT_SHEET_IDS.materialCatalog;
+  return { catalogue, materialCatalog };
+}
+
+/** @deprecated Use getSheetIds() for env-based IDs */
+export const SHEET_IDS = {
+  get catalogue() {
+    return getSheetIds().catalogue;
+  },
+  get materialCatalog() {
+    return getSheetIds().materialCatalog;
+  },
+};
+
+// Material catalog: only first two sheets per requirements. Primary names; fallbacks for legacy sheets.
+export const MATERIAL_SHEET_NAMES = {
+  laminate: 'Laminate Catalog',
+  plywood: 'Plywood Catalog',
+} as const;
+const MATERIAL_SHEET_FALLBACKS = {
+  laminate: ['Laminate Catalog', 'Laminate Library'],
+  plywood: ['Plywood Catalog', 'Plywood Library'],
+};
+
+// Sheet ranges (cabinet = Sheet1; material = by sheet name)
 export const SHEET_RANGES = {
   catalogue: 'Sheet1!A:AZ',
-  plywood: 'Plywood Library!A:Z',
-  laminate: 'Laminate Library!A:Z',
-  edgeband: 'Edgeband Library!A:Z',
-  hardware: 'Hardware Library!A:Z',
+  plywood: `${MATERIAL_SHEET_NAMES.plywood}!A:Z`,
+  laminate: `${MATERIAL_SHEET_NAMES.laminate}!A:Z`,
 };
 
 // Auto-refresh interval (5 minutes)
@@ -56,6 +88,11 @@ export interface CatalogData {
   plywoodOptions: PlywoodOption[];
   laminateOptions: LaminateOption[];
   fetchedAt: string;
+}
+
+export interface CatalogFetchResult {
+  data: CatalogData | null;
+  validation: ValidationResult;
 }
 
 // ============================================
@@ -318,33 +355,50 @@ export function parsePlywoodLibrary(rows: string[][]): PlywoodOption[] {
 }
 
 /**
- * Parse Laminate Library data
+ * Parse Laminate Library data.
+ * Photo column: sheet header "Laminate Photo" (or "Photo", "Image", etc.) holds image URLs.
  */
 export function parseLaminateLibrary(rows: string[][]): LaminateOption[] {
   if (!rows || rows.length < 2) return [];
-  
+
   const headers = rows[0].map(h => String(h || '').trim());
+  const photoUrlCol = ['laminate photo', 'laminate_photo', 'photourl', 'photo_url', 'photo', 'image']
+    .map(name => findColumnIndex(headers, name))
+    .find(i => i >= 0) ?? 6;
+
+  const priceCol = ['price', 'laminate price', 'laminate_price', 'rate']
+    .map(name => findColumnIndex(headers, name))
+    .find(i => i >= 0) ?? 7;
+
   const cols = {
     sno: findColumnIndex(headers, 'sno') ?? findColumnIndex(headers, 's.no') ?? 0,
     brand: findColumnIndex(headers, 'brand') ?? 1,
     code: findColumnIndex(headers, 'code') ?? findColumnIndex(headers, 'colour_code') ?? 2,
     colour: findColumnIndex(headers, 'colour') ?? findColumnIndex(headers, 'colour_name') ?? findColumnIndex(headers, 'name') ?? 3,
     thickness: findColumnIndex(headers, 'thickness') ?? 4,
-    photoUrl: findColumnIndex(headers, 'photourl') ?? findColumnIndex(headers, 'photo_url') ?? findColumnIndex(headers, 'photo') ?? 5,
-    price: findColumnIndex(headers, 'price') ?? 6,
+    photoUrl: photoUrlCol,
+    price: priceCol,
     comments: findColumnIndex(headers, 'comments') ?? findColumnIndex(headers, 'remarks') ?? 7,
   };
-  
+
+  function parsePrice(value: string | number | null | undefined): number {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === 'number') return isNaN(value) ? 0 : value;
+    const cleaned = String(value).replace(/[^\d.-]/g, '');
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? 0 : num;
+  }
+
   const options: LaminateOption[] = [];
-  
+
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     const brand = (row[cols.brand] || '').trim();
     const code = (row[cols.code] || '').trim();
     if (!brand && !code) continue;
-    
+
     const colour = (row[cols.colour] || code).trim();
-    
+
     options.push({
       id: `lam_${i}`,
       sno: String(row[cols.sno] || i),
@@ -353,7 +407,7 @@ export function parseLaminateLibrary(rows: string[][]): LaminateOption[] {
       colour,
       thickness: parseFloat(row[cols.thickness] || '0.8') || 0.8,
       photoUrl: (row[cols.photoUrl] || '').trim(),
-      price: parseFloat(row[cols.price] || '0') || 0,
+      price: parsePrice(row[cols.price]),
       comments: (row[cols.comments] || '').trim(),
       displayName: `${brand} ${code} ${colour}`.trim(),
     });
@@ -364,28 +418,26 @@ export function parseLaminateLibrary(rows: string[][]): LaminateOption[] {
 }
 
 /**
- * Convert Google Drive sharing URL to direct image URL
+ * Convert Google Drive sharing URL to thumbnail URL for reliable img display
  */
 export function convertDriveUrl(driveUrl: string): string {
   if (!driveUrl) return '';
-  
-  // Already a direct URL
-  if (driveUrl.includes('uc?export=view')) return driveUrl;
-  
-  // Extract file ID from various Drive URL formats
+  if (driveUrl.includes('/thumbnail?') || driveUrl.includes('uc?export=view')) return driveUrl;
   const patterns = [
     /\/file\/d\/([a-zA-Z0-9_-]+)/,
-    /id=([a-zA-Z0-9_-]+)/,
+    /[?&]id=([a-zA-Z0-9_-]+)/,
     /\/d\/([a-zA-Z0-9_-]+)/,
   ];
-  
   for (const pattern of patterns) {
     const match = driveUrl.match(pattern);
     if (match && match[1]) {
-      return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+      return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w400`;
     }
   }
-  
+  const fileIdMatch = driveUrl.match(/[-\w]{25,}/);
+  if (fileIdMatch) {
+    return `https://drive.google.com/thumbnail?id=${fileIdMatch[0]}&sz=w400`;
+  }
   return driveUrl;
 }
 
@@ -394,49 +446,62 @@ export function convertDriveUrl(driveUrl: string): string {
 // ============================================
 
 /**
- * Fetch all catalog data from Google Sheets
+ * Fetch all catalog data from Google Sheets.
+ * Uses only cabinet sheet + first two material sheets (Laminate Catalog, Plywood Catalog).
+ * Validates raw data before parsing; when validation fails, data is null and errors are in validation.
+ * @param apiKey - Google Sheets API key
+ * @param sheetIds - Optional override for sheet IDs (from getSheetIds() or server env)
  */
-export async function fetchAllCatalogData(apiKey: string): Promise<CatalogData | null> {
+export async function fetchAllCatalogData(
+  apiKey: string,
+  sheetIds?: { catalogue: string; materialCatalog: string }
+): Promise<CatalogFetchResult> {
+  const invalidResult: CatalogFetchResult = {
+    data: null,
+    validation: { valid: false, errors: ['No API key provided.'] },
+  };
+
   if (!apiKey) {
     console.error('[GoogleSheets] No API key provided');
-    return null;
+    return invalidResult;
   }
-  
+
+  const ids = sheetIds ?? getSheetIds();
+
   try {
     console.log('[GoogleSheets] Fetching catalog data...');
-    
-    // Fetch catalogue and ALL material catalogs in parallel
-    console.log('[GoogleSheets] Fetching all material catalogs...');
-    const [catalogueData, plywoodData, laminateData, edgebandData, hardwareData] = await Promise.all([
-      fetchSheetData(SHEET_IDS.catalogue, SHEET_RANGES.catalogue, apiKey),
-      fetchSheetData(SHEET_IDS.materialCatalog, SHEET_RANGES.plywood, apiKey),
-      fetchSheetData(SHEET_IDS.materialCatalog, SHEET_RANGES.laminate, apiKey),
-      fetchSheetData(SHEET_IDS.materialCatalog, SHEET_RANGES.edgeband, apiKey).catch(() => null),
-      fetchSheetData(SHEET_IDS.materialCatalog, SHEET_RANGES.hardware, apiKey).catch(() => null),
+
+    const fetchMaterialSheet = async (names: readonly string[]) => {
+      for (const name of names) {
+        const data = await fetchSheetData(ids.materialCatalog, `${name}!A:Z`, apiKey);
+        if (data && data.length > 0) return data;
+      }
+      return null;
+    };
+    const [catalogueData, laminateData, plywoodData] = await Promise.all([
+      fetchSheetData(ids.catalogue, SHEET_RANGES.catalogue, apiKey),
+      fetchMaterialSheet(MATERIAL_SHEET_FALLBACKS.laminate),
+      fetchMaterialSheet(MATERIAL_SHEET_FALLBACKS.plywood),
     ]);
-    
-    // Parse the data
-    const { models, boxesWithPlanks } = catalogueData 
-      ? parseCatalogueData(catalogueData) 
+
+    const validation = validateCatalogData(catalogueData, laminateData, plywoodData);
+    if (!validation.valid) {
+      console.warn('[GoogleSheets] Catalog validation failed:', validation.errors);
+      return { data: null, validation };
+    }
+
+    const { models, boxesWithPlanks } = catalogueData
+      ? parseCatalogueData(catalogueData)
       : { models: [], boxesWithPlanks: [] };
-    
+
     const plywoodOptions = plywoodData ? parsePlywoodLibrary(plywoodData) : [];
     const laminateOptions = laminateData ? parseLaminateLibrary(laminateData) : [];
-    
-    // Log edgeband and hardware for future use
-    if (edgebandData) {
-      console.log(`[GoogleSheets] Edgeband data: ${edgebandData.length - 1} rows`);
-    }
-    if (hardwareData) {
-      console.log(`[GoogleSheets] Hardware data: ${hardwareData.length - 1} rows`);
-    }
-    
-    // Convert laminate photo URLs
-    const laminatesWithImages = laminateOptions.map(lam => ({
+
+    const laminatesWithImages = laminateOptions.map((lam) => ({
       ...lam,
       photoUrl: convertDriveUrl(lam.photoUrl || ''),
     }));
-    
+
     const result: CatalogData = {
       models,
       catalogBoxesWithPlanks: boxesWithPlanks,
@@ -444,13 +509,21 @@ export async function fetchAllCatalogData(apiKey: string): Promise<CatalogData |
       laminateOptions: laminatesWithImages,
       fetchedAt: new Date().toISOString(),
     };
-    
-    console.log(`[GoogleSheets] Fetched: ${models.length} models, ${boxesWithPlanks.length} boxes, ${plywoodOptions.length} plywood, ${laminatesWithImages.length} laminates`);
-    
-    return result;
+
+    console.log(
+      `[GoogleSheets] Fetched: ${models.length} models, ${boxesWithPlanks.length} boxes, ${plywoodOptions.length} plywood, ${laminatesWithImages.length} laminates`
+    );
+
+    return { data: result, validation };
   } catch (error) {
     console.error('[GoogleSheets] Error fetching catalog data:', error);
-    return null;
+    return {
+      data: null,
+      validation: {
+        valid: false,
+        errors: ['Unable to load catalog. Check sheet sharing and API key.'],
+      },
+    };
   }
 }
 

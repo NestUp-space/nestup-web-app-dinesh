@@ -9,12 +9,22 @@ export const ARUCO_DESIGN_QUERY_PARAM = 'fromArUco';
 
 export const ARUCO_DESIGN_DATA_PARAM = 'data';
 
+/** Wall feature for 3D placement (switchboard, window, door) */
+export interface ArUcoWallFeature {
+  type: string;
+  x_mm?: number;
+  y_mm?: number;
+  width_mm?: number;
+  height_mm?: number;
+}
+
 /** Minimal payload stored by ArUco and consumed by the designer */
 export interface ArUcoDesignPayload {
   wall_width_mm: number;
   wall_height_mm: number;
   wallContext?: { roomName: string; direction: string };
   roomPreset?: { presetLabel: string; wallLabel: string };
+  features?: ArUcoWallFeature[];
 }
 
 const MIN_DIMENSION_MM = 100;
@@ -49,6 +59,17 @@ export function validateArUcoPayload(
       presetLabel: String(rp.presetLabel ?? ''),
       wallLabel: String(rp.wallLabel ?? ''),
     };
+  }
+  if (Array.isArray(o.features)) {
+    payload.features = o.features
+      .filter((item): item is Record<string, unknown> => item != null && typeof item === 'object')
+      .map((item) => ({
+        type: String(item.type ?? ''),
+        x_mm: typeof item.x_mm === 'number' && Number.isFinite(item.x_mm) ? item.x_mm : undefined,
+        y_mm: typeof item.y_mm === 'number' && Number.isFinite(item.y_mm) ? item.y_mm : undefined,
+        width_mm: typeof item.width_mm === 'number' && Number.isFinite(item.width_mm) ? item.width_mm : undefined,
+        height_mm: typeof item.height_mm === 'number' && Number.isFinite(item.height_mm) ? item.height_mm : undefined,
+      }));
   }
   return payload;
 }

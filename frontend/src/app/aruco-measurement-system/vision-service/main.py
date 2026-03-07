@@ -30,6 +30,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 from PIL import Image, ImageOps
 
+from feature_detection import run_feature_detection, build_feature_summary
+
 # Directory containing this file; static assets (e.g. index.html) live in ./static
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -292,6 +294,9 @@ class MeasurementResult:
     calibration: Optional[Dict] = None
     wall_detection: Optional[Dict] = None
     processing_time_ms: Optional[int] = None
+    # Feature detection (windows, doors, switchboards) — always run; bbox_px for drawing
+    features: Optional[List[Dict[str, Any]]] = None
+    feature_summary: Optional[Dict[str, str]] = None
 
 
 class MeasurementRequest(BaseModel):
@@ -324,6 +329,8 @@ class MeasurementResponse(BaseModel):
     calibration: Optional[Dict] = None
     wall: Optional[Dict] = None
     processing_time_ms: Optional[int] = None
+    features: Optional[List[Dict]] = None
+    feature_summary: Optional[Dict[str, str]] = None
 
 
 # ============================================================================
@@ -1431,6 +1438,49 @@ async def measure_wall(
         
         # Override with laser measurements if provided
         response_dict = asdict(result)
+        
+        # Feature detection (windows, doors, switchboards) — run on every image
+        try:
+            detections = run_feature_detection(cv_image, conf=0.25)
+            feature_summary = build_feature_summary(detections)
+            response_dict["feature_summary"] = feature_summary
+            mm_per_pixel = getattr(result, "mm_per_pixel", None) if result.status == MeasurementStatus.SUCCESS else None
+            wall_det = getattr(result, "wall_detection", None)
+            corners_px = wall_det.get("corners_px") if isinstance(wall_det, dict) else None
+            left_x = top_y = bottom_y = None
+            if corners_px and len(corners_px) >= 4:
+                left_x = float(corners_px[0][0])
+                top_y = float(corners_px[0][1])
+                bottom_y = float(corners_px[3][1])
+            features_list = []
+            for d in detections:
+                x1, y1, x2, y2 = d.bbox_px
+                item = {
+                    "type": d.type,
+                    "bbox_px": [round(x1, 1), round(y1, 1), round(x2, 1), round(y2, 1)],
+                    "confidence": round(d.confidence, 3),
+                }
+                if mm_per_pixel is not None and mm_per_pixel > 0:
+                    width_mm = round((x2 - x1) * mm_per_pixel)
+                    height_mm = round((y2 - y1) * mm_per_pixel)
+                    if left_x is not None and bottom_y is not None:
+                        item["x_mm"] = round((x1 - left_x) * mm_per_pixel)
+                        item["y_mm"] = round((bottom_y - y2) * mm_per_pixel)
+                    else:
+                        item["x_mm"] = round(x1 * mm_per_pixel)
+                        item["y_mm"] = round(y1 * mm_per_pixel)
+                    item["width_mm"] = width_mm
+                    item["height_mm"] = height_mm
+                features_list.append(item)
+            response_dict["features"] = features_list
+        except Exception as fe:
+            logger.warning("Feature detection failed: %s", fe)
+            response_dict["features"] = []
+            response_dict["feature_summary"] = {
+                "windows": "No windows found",
+                "doors": "No doors found",
+                "switchboards": "No switchboards found",
+            }
         
         if laser_width_mm is not None and result.status == MeasurementStatus.SUCCESS:
             response_dict["wall_width_mm"] = int(laser_width_mm)

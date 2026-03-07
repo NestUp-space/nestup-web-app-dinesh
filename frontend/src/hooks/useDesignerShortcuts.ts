@@ -17,6 +17,7 @@
  * - R: Rotate tool
  * - G: Guidelines tool
  * - P: Paint tool
+ * - T: Measure tool (Tape Measure)
  */
 
 import { useEffect, useCallback } from 'react';
@@ -99,6 +100,13 @@ export function useDesignerShortcuts(options: UseDesignerShortcutsOptions = {}) 
         console.log('[Shortcuts] Redo');
       }
       return;
+    }
+
+    // While Move/Measure tools are active, tool-local handlers own key behavior
+    if (designMode === 'move' || designMode === 'measure') {
+      if (key === 'Escape' || key === 'Delete' || key === 'Backspace') {
+        return;
+      }
     }
 
     // ============================================
@@ -193,6 +201,14 @@ export function useDesignerShortcuts(options: UseDesignerShortcutsOptions = {}) 
         event.preventDefault();
         setDesignMode('paint');
         console.log('[Shortcuts] Paint tool (P)');
+        return;
+      }
+      
+      // T: Measure tool (Tape Measure)
+      if (lowerKey === 't') {
+        event.preventDefault();
+        setDesignMode('measure');
+        console.log('[Shortcuts] Measure tool (T)');
         return;
       }
     }
@@ -290,6 +306,7 @@ export function useDesignerShortcuts(options: UseDesignerShortcutsOptions = {}) 
     snapGridSize,
     getSelectedBox,
     setDesignMode,
+    designMode,
     isPlacingGuideline,
     cancelPlacingGuideline,
   ]);

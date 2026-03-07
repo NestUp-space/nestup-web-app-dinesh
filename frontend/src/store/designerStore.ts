@@ -24,6 +24,10 @@ import {
   MaterialSummary,
   PlankTemplate,
   Guideline,
+  MeasurementMode,
+  MeasurementResult,
+  MeasureGuideLine,
+  MeasureGuidePoint,
 } from '@/types/visualiser';
 import { CatalogBoxWithPlanks, getMaterialColor, transformSubComponentsToOperations, localConvertDriveUrl } from '@/lib/visualiser/catalogParser';
 import { 
@@ -46,6 +50,17 @@ export interface CustomerDetails {
   email: string;
   gst: string;
   transportAmount: number;
+}
+
+export interface MoveToolRuntimeState {
+  dragState: unknown;
+  movePhase: 'idle' | 'moving';
+  applyNumericInput: (input: string) => boolean;
+  inferencePoints: unknown[];
+  cancelTwoClick: () => void;
+  setLockedAxis: (axis: 'x' | 'y' | 'z' | null) => void;
+  copyModeToggle: () => void;
+  beginMoveFromSelection: () => void;
 }
 
 const DEFAULT_CUSTOMER_DETAILS: CustomerDetails = {
@@ -113,6 +128,16 @@ interface DesignerState {
   isPlacingGuideline: boolean;
   guidelineStartPoint: Position | null;
 
+  // Measurement Tool (Tape Measure)
+  measurementMode: MeasurementMode;
+  measurementHistory: MeasurementResult[];
+  measureGuideLines: MeasureGuideLine[];
+  measureGuidePoints: MeasureGuidePoint[];
+  measureGuidesVisible: boolean;
+  activeMeasurement: { startPoint: Position; currentPoint: Position } | null;
+  selectedMeasureGuideId: string | null;
+  moveToolRuntime: MoveToolRuntimeState | null;
+
   // File Generation
   generationProgress: GenerationProgress | null;
   rawData: Record<string, unknown>[] | null;
@@ -137,6 +162,9 @@ interface DesignerState {
   canUndo: () => boolean;
   canRedo: () => boolean;
   pushHistory: () => void;
+  beginHistoryTransaction: () => void;
+  endHistoryTransaction: () => void;
+  runInHistoryTransaction: <T>(operation: () => T) => T;
   clearHistory: () => void;
   
   // Walls
@@ -152,6 +180,7 @@ interface DesignerState {
   deleteBox: (id: string) => void;
   selectBox: (id: string | null) => void;
   moveBox: (id: string, position: Position) => void;
+  duplicateBox: (boxId: string, newPosition: Position) => string;
   rotateBox: (id: string, degrees: number) => void;
   
   // Update box dimensions with formula-based plank recalculation
@@ -205,6 +234,21 @@ interface DesignerState {
   finishPlacingGuideline: (endPoint: Position, axis: 'x' | 'y' | 'z') => void;
   cancelPlacingGuideline: () => void;
 
+  // Measurement Tool (Tape Measure)
+  setMeasurementMode: (mode: MeasurementMode) => void;
+  addMeasurement: (result: Omit<MeasurementResult, 'id' | 'timestamp'>) => string;
+  clearMeasurementHistory: () => void;
+  addMeasureGuideLine: (guide: Omit<MeasureGuideLine, 'id'>) => string;
+  updateMeasureGuideLine: (id: string, updates: Partial<MeasureGuideLine>) => void;
+  deleteMeasureGuideLine: (id: string) => void;
+  addMeasureGuidePoint: (point: Omit<MeasureGuidePoint, 'id'>) => string;
+  deleteMeasureGuidePoint: (id: string) => void;
+  clearMeasureGuides: () => void;
+  toggleMeasureGuidesVisible: () => void;
+  setActiveMeasurement: (measurement: { startPoint: Position; currentPoint: Position } | null) => void;
+  selectMeasureGuide: (id: string | null) => void;
+  setMoveToolRuntime: (runtime: MoveToolRuntimeState | null) => void;
+
   // File Generation
   setGenerationProgress: (progress: GenerationProgress | null) => void;
   updateGenerationStep: (stepId: string, updates: Partial<GenerationStep>) => void;
@@ -241,6 +285,12 @@ const generateId = (prefix: string): string => {
   idCounter += 1;
   return `${prefix}_${Date.now()}_${idCounter}`;
 };
+
+// History transaction batching:
+// - first mutating action inside a transaction pushes exactly one snapshot
+// - subsequent actions in same transaction do not fragment undo history
+let historyTransactionDepth = 0;
+let transactionHasSnapshot = false;
 
 // ============================================
 // HELPER: DETERMINE PLANK ROLE FROM NAME
@@ -365,6 +415,16 @@ export const useDesignerStore = create<DesignerState>()(
       isPlacingGuideline: false,
       guidelineStartPoint: null,
 
+      // Measurement Tool (Tape Measure)
+      measurementMode: 'measure' as MeasurementMode,
+      measurementHistory: [],
+      measureGuideLines: [],
+      measureGuidePoints: [],
+      measureGuidesVisible: true,
+      activeMeasurement: null,
+      selectedMeasureGuideId: null,
+      moveToolRuntime: null,
+
       generationProgress: null,
       rawData: null,
       formattedData: null,
@@ -385,10 +445,17 @@ export const useDesignerStore = create<DesignerState>()(
       // ============================================
       
       pushHistory: () => {
+        const inTransaction = historyTransactionDepth > 0;
+        if (inTransaction && transactionHasSnapshot) {
+          return;
+        }
         set((state) => {
           const snapshot: DesignSnapshot = {
             walls: JSON.parse(JSON.stringify(state.walls)),
             guidelines: JSON.parse(JSON.stringify(state.guidelines)),
+            measureGuideLines: JSON.parse(JSON.stringify(state.measureGuideLines)),
+            measureGuidePoints: JSON.parse(JSON.stringify(state.measureGuidePoints)),
+            measurementHistory: JSON.parse(JSON.stringify(state.measurementHistory)),
             timestamp: Date.now(),
           };
           
@@ -402,6 +469,29 @@ export const useDesignerStore = create<DesignerState>()(
             future: [], // Clear redo stack on new action
           };
         });
+        if (inTransaction) {
+          transactionHasSnapshot = true;
+        }
+      },
+
+      beginHistoryTransaction: () => {
+        historyTransactionDepth += 1;
+      },
+
+      endHistoryTransaction: () => {
+        historyTransactionDepth = Math.max(0, historyTransactionDepth - 1);
+        if (historyTransactionDepth === 0) {
+          transactionHasSnapshot = false;
+        }
+      },
+
+      runInHistoryTransaction: (operation) => {
+        get().beginHistoryTransaction();
+        try {
+          return operation();
+        } finally {
+          get().endHistoryTransaction();
+        }
       },
       
       undo: () => {
@@ -416,12 +506,18 @@ export const useDesignerStore = create<DesignerState>()(
             { 
               walls: JSON.parse(JSON.stringify(state.walls)), 
               guidelines: JSON.parse(JSON.stringify(state.guidelines)),
+              measureGuideLines: JSON.parse(JSON.stringify(state.measureGuideLines)),
+              measureGuidePoints: JSON.parse(JSON.stringify(state.measureGuidePoints)),
+              measurementHistory: JSON.parse(JSON.stringify(state.measurementHistory)),
               timestamp: Date.now() 
             },
             ...state.future,
           ].slice(0, HISTORY_LIMIT),
           walls: previousSnapshot.walls,
           guidelines: previousSnapshot.guidelines || [],
+          measureGuideLines: previousSnapshot.measureGuideLines || [],
+          measureGuidePoints: previousSnapshot.measureGuidePoints || [],
+          measurementHistory: previousSnapshot.measurementHistory || [],
           isDirty: true,
         });
       },
@@ -438,12 +534,18 @@ export const useDesignerStore = create<DesignerState>()(
             { 
               walls: JSON.parse(JSON.stringify(state.walls)), 
               guidelines: JSON.parse(JSON.stringify(state.guidelines)),
+              measureGuideLines: JSON.parse(JSON.stringify(state.measureGuideLines)),
+              measureGuidePoints: JSON.parse(JSON.stringify(state.measureGuidePoints)),
+              measurementHistory: JSON.parse(JSON.stringify(state.measurementHistory)),
               timestamp: Date.now() 
             },
           ].slice(-HISTORY_LIMIT),
           future: state.future.slice(1),
           walls: nextSnapshot.walls,
           guidelines: nextSnapshot.guidelines || [],
+          measureGuideLines: nextSnapshot.measureGuideLines || [],
+          measureGuidePoints: nextSnapshot.measureGuidePoints || [],
+          measurementHistory: nextSnapshot.measurementHistory || [],
           isDirty: true,
         });
       },
@@ -573,6 +675,44 @@ export const useDesignerStore = create<DesignerState>()(
         get().updateBox(id, { position });
       },
 
+      duplicateBox: (boxId, newPosition) => {
+        const state = get();
+        let sourceBox: Box | null = null;
+        let wallId: string | null = null;
+        for (const wall of state.walls) {
+          const box = wall.boxes.find((b) => b.id === boxId);
+          if (box) {
+            sourceBox = box;
+            wallId = wall.id;
+            break;
+          }
+        }
+        if (!sourceBox || !wallId) return '';
+        const newBoxId = generateId('box');
+        const newPlanks = (sourceBox.planks || []).map((p) => ({
+          ...p,
+          id: generateId('plank'),
+        }));
+        const newBox: Box = {
+          ...sourceBox,
+          id: newBoxId,
+          position: { ...newPosition },
+          planks: newPlanks,
+        };
+        get().pushHistory();
+        set((s) => ({
+          walls: s.walls.map((w) =>
+            w.id !== wallId
+              ? w
+              : { ...w, boxes: [...w.boxes, newBox] }
+          ),
+          selectedBoxId: newBoxId,
+          selectedPlankId: null,
+          isDirty: true,
+        }));
+        return newBoxId;
+      },
+
       rotateBox: (id, degrees) => {
         get().pushHistory(); // Save state before change
         set((state) => ({
@@ -598,11 +738,11 @@ export const useDesignerStore = create<DesignerState>()(
             boxes: wall.boxes.map((box) => {
               if (box.id !== boxId) return box;
               
-              // Merge current dimensions with updates
+              // Merge current dimensions with updates; fall back to box.dimensions when boxWidth/boxDepth/boxHeight are missing
               const newDimensions: BoxDimensions = {
-                boxWidth: dimensionUpdates.boxWidth ?? box.boxWidth ?? 600,
-                boxDepth: dimensionUpdates.boxDepth ?? box.boxDepth ?? 550,
-                boxHeight: dimensionUpdates.boxHeight ?? box.boxHeight ?? 720,
+                boxWidth: dimensionUpdates.boxWidth ?? box.boxWidth ?? box.dimensions?.lenX ?? 600,
+                boxDepth: dimensionUpdates.boxDepth ?? box.boxDepth ?? box.dimensions?.lenY ?? 550,
+                boxHeight: dimensionUpdates.boxHeight ?? box.boxHeight ?? box.dimensions?.lenZ ?? 720,
                 skirting: dimensionUpdates.skirting ?? box.skirting ?? 100,
                 skirtingWidth: dimensionUpdates.skirtingWidth ?? box.skirtingWidth ?? 50,
                 carcusThickness: dimensionUpdates.carcusThickness ?? box.carcusThickness ?? 18,
@@ -1171,6 +1311,108 @@ export const useDesignerStore = create<DesignerState>()(
           isPlacingGuideline: false,
           guidelineStartPoint: null,
         });
+      },
+
+      // ============================================
+      // MEASUREMENT TOOL (Tape Measure)
+      // ============================================
+
+      setMeasurementMode: (mode) => {
+        set({ measurementMode: mode });
+      },
+
+      addMeasurement: (result) => {
+        get().pushHistory();
+        const id = generateId('measure');
+        const measurement: MeasurementResult = {
+          ...result,
+          id,
+          timestamp: Date.now(),
+        };
+        set((state) => {
+          const newHistory = [measurement, ...state.measurementHistory].slice(0, 20);
+          return { measurementHistory: newHistory };
+        });
+        return id;
+      },
+
+      clearMeasurementHistory: () => {
+        set({ measurementHistory: [] });
+      },
+
+      addMeasureGuideLine: (guide) => {
+        get().pushHistory();
+        const id = generateId('mguide');
+        const newGuide: MeasureGuideLine = {
+          ...guide,
+          id,
+        };
+        set((state) => ({
+          measureGuideLines: [...state.measureGuideLines, newGuide],
+        }));
+        return id;
+      },
+
+      updateMeasureGuideLine: (id, updates) => {
+        get().pushHistory();
+        set((state) => ({
+          measureGuideLines: state.measureGuideLines.map((g) =>
+            g.id === id ? { ...g, ...updates } : g
+          ),
+        }));
+      },
+
+      deleteMeasureGuideLine: (id) => {
+        get().pushHistory();
+        set((state) => ({
+          measureGuideLines: state.measureGuideLines.filter((g) => g.id !== id),
+          selectedMeasureGuideId: state.selectedMeasureGuideId === id ? null : state.selectedMeasureGuideId,
+        }));
+      },
+
+      addMeasureGuidePoint: (point) => {
+        get().pushHistory();
+        const id = generateId('mgpoint');
+        const newPoint: MeasureGuidePoint = {
+          ...point,
+          id,
+        };
+        set((state) => ({
+          measureGuidePoints: [...state.measureGuidePoints, newPoint],
+        }));
+        return id;
+      },
+
+      deleteMeasureGuidePoint: (id) => {
+        get().pushHistory();
+        set((state) => ({
+          measureGuidePoints: state.measureGuidePoints.filter((p) => p.id !== id),
+        }));
+      },
+
+      clearMeasureGuides: () => {
+        get().pushHistory();
+        set({
+          measureGuideLines: [],
+          measureGuidePoints: [],
+          selectedMeasureGuideId: null,
+        });
+      },
+
+      toggleMeasureGuidesVisible: () => {
+        set((state) => ({ measureGuidesVisible: !state.measureGuidesVisible }));
+      },
+
+      setActiveMeasurement: (measurement) => {
+        set({ activeMeasurement: measurement });
+      },
+
+      selectMeasureGuide: (id) => {
+        set({ selectedMeasureGuideId: id });
+      },
+
+      setMoveToolRuntime: (runtime) => {
+        set({ moveToolRuntime: runtime });
       },
 
       // ============================================

@@ -29,6 +29,15 @@ export interface Vector3 {
 // WALL / BOX / PLANK HIERARCHY
 // ============================================
 
+/** Wall feature from ArUco/measurement (switchboard, window, door) for 3D placement */
+export interface WallFeature {
+  type: string;
+  x_mm?: number;
+  y_mm?: number;
+  width_mm?: number;
+  height_mm?: number;
+}
+
 export interface Wall {
   id: string;
   entityName: string;
@@ -37,6 +46,8 @@ export interface Wall {
   position: Position;
   dimensions: Dimensions;
   boxes: Box[];
+  /** Detected features (switchboards, windows, doors) with mm coordinates from measurement */
+  wallFeatures?: WallFeature[];
   rowIndex?: number;
 }
 
@@ -439,7 +450,62 @@ export interface SFTResult {
 // DESIGN STATE
 // ============================================
 
-export type DesignMode = 'select' | 'place' | 'move' | 'rotate' | 'paint' | 'guidelines';
+export type DesignMode = 'select' | 'place' | 'move' | 'rotate' | 'paint' | 'guidelines' | 'measure';
+
+// ============================================
+// MEASUREMENT TOOL TYPES
+// ============================================
+
+export type MeasurementMode = 'measure' | 'guide_create';
+
+export interface MeasurementResult {
+  id: string;
+  distance: number;
+  deltaX: number;
+  deltaY: number;
+  deltaZ: number;
+  startPoint: Position;
+  endPoint: Position;
+  timestamp: number;
+}
+
+export interface MeasureGuideLine {
+  id: string;
+  origin: Position;
+  direction: Position;
+  type: 'parallel' | 'perpendicular' | 'axis_x' | 'axis_y' | 'axis_z' | 'point_to_point';
+  offset: number;
+  referenceEdgeId?: string;
+  visible: boolean;
+  color: string;
+}
+
+export interface MeasureGuidePoint {
+  id: string;
+  position: Position;
+  type: 'endpoint' | 'midpoint' | 'custom';
+  label?: string;
+}
+
+export interface HoverMeasurementInfo {
+  type: 'edge' | 'face';
+  position: Position;
+  screenPosition: { x: number; y: number };
+  length?: number;
+  area?: number;
+  boxId: string;
+  edgeIndex?: number;
+}
+
+export interface BoxEdge {
+  id: string;
+  boxId: string;
+  start: Position;
+  end: Position;
+  direction: Position;
+  length: number;
+  edgeIndex: number;
+}
 
 // ============================================
 // GUIDELINES (Construction Lines)

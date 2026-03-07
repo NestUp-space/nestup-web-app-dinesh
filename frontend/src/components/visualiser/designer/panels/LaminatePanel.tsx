@@ -341,7 +341,7 @@ export const LaminatePanel: React.FC<LaminatePanelProps> = ({ isOpen, onClose })
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 <p className="text-sm">No laminates loaded</p>
-                <p className="text-xs mt-1">Add laminate library CSV to sample_data</p>
+                <p className="text-xs mt-1">Catalog loads from Google Sheets. Set sheet IDs and API key in env.</p>
               </>
             ) : (
               <p className="text-sm">No laminates match your filters</p>
@@ -351,10 +351,10 @@ export const LaminatePanel: React.FC<LaminatePanelProps> = ({ isOpen, onClose })
           <div className="grid grid-cols-2 gap-3">
             {filteredLaminates.map(laminate => (
               <div
-                key={laminate.id || laminate.code}
+                key={laminate.id}
                 onClick={() => handleLaminateClick(laminate)}
                 className={`rounded-lg overflow-hidden cursor-pointer transition-all border ${
-                  selectedLaminate?.code === laminate.code
+                  selectedLaminate?.id === laminate.id
                     ? 'ring-2 ring-orange-500 shadow-lg shadow-orange-200 border-orange-300'
                     : 'border-gray-200 hover:border-orange-300 hover:shadow-md'
                 }`}

@@ -57,7 +57,7 @@ export default function VisualiserPage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-6 py-12">
-        {/* Wall measurement CTA: only shown when NEXT_PUBLIC_SHOW_WALL_MEASURE=true (e.g. localhost or trial). Hidden on main site by default. */}
+        {/* Wall measurement CTA: only shown when NEXT_PUBLIC_SHOW_WALL_MEASURE=true (e.g. localhost). Hidden on main site by default. */}
         {process.env.NEXT_PUBLIC_SHOW_WALL_MEASURE === 'true' && (
           <div className="mb-8 rounded-xl bg-orange-50 border-2 border-orange-300 p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-orange-800 mb-2">Measure your wall, then design</h2>

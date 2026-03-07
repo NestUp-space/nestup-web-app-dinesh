@@ -3,7 +3,7 @@
  * Implements undo/redo functionality by tracking state snapshots
  */
 
-import { Wall, Guideline } from '@/types/visualiser';
+import { Wall, Guideline, MeasureGuideLine, MeasureGuidePoint, MeasurementResult } from '@/types/visualiser';
 
 // ============================================
 // TYPES
@@ -12,6 +12,9 @@ import { Wall, Guideline } from '@/types/visualiser';
 export interface DesignSnapshot {
   walls: Wall[];
   guidelines: Guideline[];
+  measureGuideLines?: MeasureGuideLine[];
+  measureGuidePoints?: MeasureGuidePoint[];
+  measurementHistory?: MeasurementResult[];
   timestamp: number;
 }
 
@@ -49,6 +52,7 @@ export const TRACKED_ACTIONS = [
   'updateBox',
   'deleteBox',
   'moveBox',
+  'duplicateBox',
   'rotateBox',
   'addPlank',
   'updatePlank',

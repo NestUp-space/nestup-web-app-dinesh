@@ -3,15 +3,13 @@
 /**
  * visualization_enhanced.gs
  * SketchUp-Style Cabinet Designer - Phase 0+1+2+3
- * 
- * PHASE 0: Foundation & Sheet Structure
- * PHASE 1: Catalog & Box Placement
- * PHASE 2: Dynamic Component Options
- * PHASE 3: Material Selection System (NEW)
- * 
+ *
+ * Sheet IDs here should match Next.js env: NEXT_PUBLIC_CATALOGUE_SHEET_ID, NEXT_PUBLIC_MATERIAL_CATALOG_SHEET_ID.
+ * Catalog is loaded from Google Sheets only (no local/CSV fallback).
+ *
  * Sheet Structure:
- * - Central_Catalogue: Read-only template with formulas (external file)
- * - Central_Material_Catalogue: Material catalog (plywood, laminates) (external file)
+ * - Central_Catalogue: Read-only template (external file)
+ * - Central_Material_Catalogue: Material catalog - use only first two sheets (Laminate, Plywood)
  * - site_measurements: Wall definitions
  * - Design_Data: Working design with boxes and planks
  */
@@ -21,15 +19,17 @@
 // ============================================
 
 const DESIGNER_CONFIG = {
-  // External Central_Catalogue file
+  // External Central_Catalogue file (align with NEXT_PUBLIC_CATALOGUE_SHEET_ID)
   catalogueFileId: '1A9W8gsjkalw8DHwmkRsh33UnOy5Y0seAUhyDrWNWeKA',
   catalogueSheetName: 'Sheet1',
 
-  // External Material Catalog file (NEW)
+  // External Material Catalog file (align with NEXT_PUBLIC_MATERIAL_CATALOG_SHEET_ID). Only first two sheets used.
   materialCatalogFileId: '1BJnNmIwG8J07LJGhnWQJ-gJbENSGJ2ArRCxypJAGMto',
   materialSheets: {
-    plywood: 'Plywood Library',
-    laminate: 'Laminate Library',
+    plywood: 'Plywood Catalog',
+    laminate: 'Laminate Catalog',
+    plywoodFallback: 'Plywood Library',
+    laminateFallback: 'Laminate Library',
     edgeband: 'Edgeband Library',
     hardware: 'Hardware Library'
   },
@@ -95,6 +95,13 @@ const DESIGNER_CONFIG = {
     price: 6,       // Column F - Laminate Price
     photoUrl: 7,    // Column G - Laminate Photo (Google Drive URL)
     comments: 8     // Column H - Comments
+  },
+
+  // Helper: get sheet by primary or fallback name (for Material catalog)
+  getMaterialSheet: function(ss, type) {
+    var primary = type === 'plywood' ? this.materialSheets.plywood : this.materialSheets.laminate;
+    var fallback = type === 'plywood' ? this.materialSheets.plywoodFallback : this.materialSheets.laminateFallback;
+    return ss.getSheetByName(primary) || ss.getSheetByName(fallback) || null;
   },
 
   // Core material types and their prefixes
@@ -180,10 +187,10 @@ function testMaterialCatalogConnection() {
 
   try {
     const materialFile = SpreadsheetApp.openById(DESIGNER_CONFIG.materialCatalogFileId);
-    const plywoodSheet = materialFile.getSheetByName(DESIGNER_CONFIG.materialSheets.plywood);
+    const plywoodSheet = DESIGNER_CONFIG.getMaterialSheet(materialFile, 'plywood');
 
     if (!plywoodSheet) {
-      ui.alert('Error', 'Connected to file but sheet "' + DESIGNER_CONFIG.materialSheets.plywood + '" not found.', ui.ButtonSet.OK);
+      ui.alert('Error', 'Connected to file but Plywood sheet not found (look for Plywood Catalog or Plywood Library).', ui.ButtonSet.OK);
       return;
     }
 
@@ -251,10 +258,10 @@ function getLaminateOptions() {
   try {
     // ✅ CORRECT - Use the config variable
     const ss = SpreadsheetApp.openById(DESIGNER_CONFIG.materialCatalogFileId);
-    const sheet = ss.getSheetByName(DESIGNER_CONFIG.materialSheets.laminate);
+    const sheet = DESIGNER_CONFIG.getMaterialSheet(ss, 'laminate');
 
     if (!sheet) {
-      return { success: false, error: 'Laminate Library sheet not found' };
+      return { success: false, error: 'Laminate sheet not found (look for Laminate Catalog or Laminate Library)' };
     }
 
     const data = sheet.getDataRange().getValues();
@@ -653,7 +660,7 @@ function lookupCoreMaterialFromLibrary(displayName) {
 
   try {
     var materialFile = SpreadsheetApp.openById(DESIGNER_CONFIG.materialCatalogFileId);
-    var plywoodSheet = materialFile.getSheetByName(DESIGNER_CONFIG.materialSheets.plywood);
+    var plywoodSheet = DESIGNER_CONFIG.getMaterialSheet(materialFile, 'plywood');
 
     if (!plywoodSheet) return null;
 
@@ -948,10 +955,10 @@ function applyLaminateToMultiplePlanks(plankRowIndices, outerLaminateCode, inner
 function getPlywoodOptions() {
   try {
     const materialFile = SpreadsheetApp.openById(DESIGNER_CONFIG.materialCatalogFileId);
-    const plywoodSheet = materialFile.getSheetByName(DESIGNER_CONFIG.materialSheets.plywood);
+    const plywoodSheet = DESIGNER_CONFIG.getMaterialSheet(materialFile, 'plywood');
 
     if (!plywoodSheet) {
-      return { success: false, error: 'Plywood Library sheet not found' };
+      return { success: false, error: 'Plywood sheet not found (look for Plywood Catalog or Plywood Library)' };
     }
 
     const lastRow = plywoodSheet.getLastRow();

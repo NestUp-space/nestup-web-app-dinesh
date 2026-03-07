@@ -36,13 +36,7 @@ export default function ProcessingPage() {
     measureWall(imageFile)
       .then((data) => {
         if (cancelled) return;
-        if (data.status === 'failed') {
-          const msg = data.error_message || 'Measurement failed';
-          router.replace(
-            `/measurements/error?type=api_error&message=${encodeURIComponent(msg)}`
-          );
-          return;
-        }
+        // Always go to results: when failed we still show feature_summary (windows, doors, switchboards)
         setResultLocal(data);
       })
       .catch((err: Error) => {

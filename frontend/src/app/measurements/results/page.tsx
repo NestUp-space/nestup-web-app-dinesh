@@ -2,8 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, ChevronUp, Save, RotateCcw, Home, Layout, PlusSquare, Copy } from 'lucide-react';
+import { ChevronDown, ChevronUp, Save, RotateCcw, Home, Layout, PlusSquare, Copy, X, Pencil } from 'lucide-react';
 import { Button, Card, MeasurementCard, ConfidenceBadge } from '@/components/measurements';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { useMeasurementFlow } from '@/context/MeasurementFlowContext';
 import { supabase } from '@/lib/measurements/supabase';
 import type { MeasurementResult } from '@/lib/measurements/measurementApi';
@@ -29,9 +36,156 @@ function getMarkerCounts(result: MeasurementResult) {
   return { charuco, aruco };
 }
 
+const FEATURE_COLORS: Record<string, string> = {
+  window: 'rgba(59, 130, 246, 0.6)',
+  door: 'rgba(34, 197, 94, 0.6)',
+  switchboard: 'rgba(234, 179, 8, 0.6)',
+};
+
+const FEATURE_TYPES = ['window', 'door', 'switchboard'] as const;
+type FeatureType = (typeof FEATURE_TYPES)[number];
+
+function getFeatureLabel(type: string): string {
+  return type === 'window' ? 'Window' : type === 'door' ? 'Door' : 'Switchboard';
+}
+
+function getFeatureSummaryFromFeatures(
+  features: MeasurementResult['features']
+): { windows: string; doors: string; switchboards: string } | null {
+  if (features === undefined) return null;
+  let windows = 0;
+  let doors = 0;
+  let switchboards = 0;
+  for (const f of features) {
+    if (f.type === 'window') windows++;
+    else if (f.type === 'door') doors++;
+    else if (f.type === 'switchboard') switchboards++;
+  }
+  return {
+    windows: windows ? `${windows} window${windows > 1 ? 's' : ''} detected` : 'No windows found',
+    doors: doors ? `${doors} door${doors > 1 ? 's' : ''} detected` : 'No doors found',
+    switchboards: switchboards ? `${switchboards} switchboard${switchboards > 1 ? 's' : ''} detected` : 'No switchboards found',
+  };
+}
+
+function AnnotatedImage({
+  src,
+  markers,
+  features,
+}: {
+  src: string;
+  markers?: Array<{ type: 'aruco' | 'charuco'; id: number; corners_px: number[][]; center_px: number[] }>;
+  features?: MeasurementResult['features'];
+}) {
+  const [size, setSize] = useState({ w: 0, h: 0, natW: 0, natH: 0 });
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    const img = imgRef.current;
+    if (!img) return;
+    const onLoad = () => {
+      const { naturalWidth: natW, naturalHeight: natH } = img;
+      const rect = img.getBoundingClientRect();
+      setSize({ w: rect.width, h: rect.height, natW, natH });
+    };
+    if (img.complete) onLoad();
+    else img.addEventListener('load', onLoad);
+    const ro = new ResizeObserver(() => {
+      if (img.complete && img.naturalWidth) onLoad();
+    });
+    ro.observe(img);
+    return () => {
+      img.removeEventListener('load', onLoad);
+      ro.disconnect();
+    };
+  }, [src]);
+
+  const hasOverlay = (markers?.length ?? 0) > 0 || (features?.length ?? 0) > 0;
+  const { natW, natH } = size;
+  if (natW <= 0 || natH <= 0) {
+    return <img ref={imgRef} src={src} alt="Wall capture" className="w-full h-full object-contain" />;
+  }
+
+  return (
+    <div className="grid grid-cols-1 grid-rows-1 w-full h-full [&>*]:col-start-1 [&>*]:row-start-1">
+      <img
+        ref={imgRef}
+        src={src}
+        alt="Wall capture"
+        className="w-full h-full object-contain"
+      />
+      {hasOverlay && (
+        <svg
+          className="w-full h-full min-w-0 min-h-0 pointer-events-none"
+          viewBox={`0 0 ${natW} ${natH}`}
+          preserveAspectRatio="xMidYMid meet"
+        >
+          {markers?.map((m, i) => {
+            const pts = m.corners_px?.flat().join(',');
+            if (!pts) return null;
+            return (
+              <g key={`m-${i}`}>
+                <polygon
+                  points={pts}
+                  fill="none"
+                  stroke={m.type === 'charuco' ? '#7BA878' : '#D4A574'}
+                  strokeWidth={Math.max(2, natW * 0.003)}
+                />
+                <text
+                  x={m.center_px?.[0] ?? 0}
+                  y={(m.center_px?.[1] ?? 0) - 8}
+                  textAnchor="middle"
+                  fill="white"
+                  fontSize={Math.max(12, natW * 0.02)}
+                  fontWeight="bold"
+                  stroke="black"
+                  strokeWidth={1}
+                >
+                  {m.type === 'charuco' ? 'ChArUco' : 'ArUco'}
+                </text>
+              </g>
+            );
+          })}
+          {features?.map((f, i) => {
+            const [x1, y1, x2, y2] = f.bbox_px ?? [0, 0, 0, 0];
+            const w = x2 - x1;
+            const h = y2 - y1;
+            const label = f.type === 'window' ? 'Window' : f.type === 'door' ? 'Door' : 'Switchboard';
+            const color = FEATURE_COLORS[f.type] ?? 'rgba(128,128,128,0.6)';
+            return (
+              <g key={`f-${i}`}>
+                <rect
+                  x={x1}
+                  y={y1}
+                  width={w}
+                  height={h}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth={Math.max(2, natW * 0.003)}
+                />
+                <text
+                  x={x1}
+                  y={y1 - 4}
+                  fill="white"
+                  fontSize={Math.max(11, natW * 0.018)}
+                  fontWeight="bold"
+                  stroke="black"
+                  strokeWidth={1}
+                >
+                  {label}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      )}
+    </div>
+  );
+}
+
 export default function ResultsPage() {
   const router = useRouter();
-  const { result, imageUrl, roomPreset, wallContext } = useMeasurementFlow();
+  const { result, imageUrl, roomPreset, wallContext, setResult } = useMeasurementFlow();
   const imageUrlRef = useRef(imageUrl);
 
   const [showTechnical, setShowTechnical] = useState(false);
@@ -40,6 +194,14 @@ export default function ResultsPage() {
   const [saved, setSaved] = useState(false);
   const [animateNumbers, setAnimateNumbers] = useState(false);
   const [jsonCopied, setJsonCopied] = useState(false);
+  const [editingFeatureIndex, setEditingFeatureIndex] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<{
+    type: FeatureType;
+    width_mm: number | '';
+    height_mm: number | '';
+    x_mm: number | '';
+    y_mm: number | '';
+  }>({ type: 'window', width_mm: '', height_mm: '', x_mm: '', y_mm: '' });
 
   const designPayload: DesignPayload | null = result
     ? { measurement: result, ...(wallContext && { wallContext }), ...(roomPreset && { roomPreset }) }
@@ -54,6 +216,23 @@ export default function ResultsPage() {
     });
   };
 
+  const handleRemoveFeature = (index: number) => {
+    if (!result?.features) return;
+    const next = result.features.filter((_, i) => i !== index);
+    setResult({ ...result, features: next });
+  };
+
+  const handleSaveEditedFeature = (index: number, updates: { type: FeatureType; width_mm?: number; height_mm?: number; x_mm?: number; y_mm?: number }) => {
+    if (!result?.features || index < 0 || index >= result.features.length) return;
+    const next = result.features.map((f, i) =>
+      i === index
+        ? { ...f, type: updates.type, ...(updates.width_mm != null && { width_mm: updates.width_mm }), ...(updates.height_mm != null && { height_mm: updates.height_mm }), ...(updates.x_mm != null && { x_mm: updates.x_mm }), ...(updates.y_mm != null && { y_mm: updates.y_mm }) }
+        : f
+    );
+    setResult({ ...result, features: next });
+    setEditingFeatureIndex(null);
+  };
+
   const handleContinueToDesign = () => {
     if (!result) return;
     const minimalPayload = {
@@ -61,6 +240,13 @@ export default function ResultsPage() {
       wall_height_mm: result.wall_height_mm ?? 0,
       ...(wallContext && { wallContext: { roomName: wallContext.roomName, direction: wallContext.direction } }),
       ...(roomPreset && { roomPreset: { presetLabel: roomPreset.presetLabel, wallLabel: roomPreset.wallLabel } }),
+      features: result.features?.map((f) => ({
+        type: f.type,
+        x_mm: f.x_mm,
+        y_mm: f.y_mm,
+        width_mm: f.width_mm,
+        height_mm: f.height_mm,
+      })) ?? [],
     };
     try {
       sessionStorage.setItem('nestup_aruco_design_payload', JSON.stringify(minimalPayload));
@@ -96,6 +282,19 @@ export default function ResultsPage() {
     const t = setTimeout(() => setAnimateNumbers(true), 100);
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    if (editingFeatureIndex === null || !result?.features?.[editingFeatureIndex]) return;
+    const f = result.features[editingFeatureIndex];
+    const type = (FEATURE_TYPES.includes(f.type as FeatureType) ? f.type : 'window') as FeatureType;
+    setEditForm({
+      type,
+      width_mm: f.width_mm ?? '',
+      height_mm: f.height_mm ?? '',
+      x_mm: f.x_mm ?? '',
+      y_mm: f.y_mm ?? '',
+    });
+  }, [editingFeatureIndex, result?.features]);
 
   const handleSave = async () => {
     if (!result) return;
@@ -134,6 +333,7 @@ export default function ResultsPage() {
 
   if (!result) return null;
 
+  const hasArUco = result.status === 'success' && (result.wall_width_mm ?? 0) > 0 && (result.wall_height_mm ?? 0) > 0;
   const wallHeightMm = result.wall_height_mm ?? 0;
   const wallWidthMm = result.wall_width_mm ?? 0;
   const uncertaintyMm =
@@ -158,38 +358,59 @@ export default function ResultsPage() {
       <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold text-nestup-charcoal mb-3">
-            Measurement Complete
+            {hasArUco ? 'Measurement Complete' : 'Detection Complete'}
           </h1>
           <p className="text-lg text-nestup-charcoal-light">
-            Your wall has been successfully measured
+            {hasArUco ? 'Your wall has been successfully measured' : 'ArUco marker not detected. ChArUco marker not detected. Showing detected objects below.'}
           </p>
         </div>
 
+        {(getFeatureSummaryFromFeatures(result.features) ?? result.feature_summary) && (
+          <Card className="mb-6">
+            <h3 className="font-semibold text-nestup-charcoal mb-3">Detected on wall</h3>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <span className="text-nestup-charcoal">
+                {(getFeatureSummaryFromFeatures(result.features) ?? result.feature_summary)?.windows}
+              </span>
+              <span className="text-nestup-charcoal">
+                {(getFeatureSummaryFromFeatures(result.features) ?? result.feature_summary)?.doors}
+              </span>
+              <span className="text-nestup-charcoal">
+                {(getFeatureSummaryFromFeatures(result.features) ?? result.feature_summary)?.switchboards}
+              </span>
+            </div>
+          </Card>
+        )}
+
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div
-            className={`transition-all duration-700 ${
-              animateNumbers ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-            }`}
-          >
-            <MeasurementCard
-              label="Wall Height"
-              value={wallHeightMm}
-              unit="mm"
-              subValue={`${(wallHeightMm / 1000).toFixed(2)} meters`}
-            />
-          </div>
-          <div
-            className={`transition-all duration-700 delay-100 ${
-              animateNumbers ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-            }`}
-          >
-            <MeasurementCard
-              label="Wall Width"
-              value={wallWidthMm}
-              unit="mm"
-              subValue={`${(wallWidthMm / 1000).toFixed(2)} meters`}
-            />
-          </div>
+          {hasArUco && (
+            <>
+              <div
+                className={`transition-all duration-700 ${
+                  animateNumbers ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+                }`}
+              >
+                <MeasurementCard
+                  label="Wall Height"
+                  value={wallHeightMm}
+                  unit="mm"
+                  subValue={`${(wallHeightMm / 1000).toFixed(2)} meters`}
+                />
+              </div>
+              <div
+                className={`transition-all duration-700 delay-100 ${
+                  animateNumbers ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+                }`}
+              >
+                <MeasurementCard
+                  label="Wall Width"
+                  value={wallWidthMm}
+                  unit="mm"
+                  subValue={`${(wallWidthMm / 1000).toFixed(2)} meters`}
+                />
+              </div>
+            </>
+          )}
           <div
             className={`transition-all duration-700 delay-200 ${
               animateNumbers ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
@@ -225,7 +446,11 @@ export default function ResultsPage() {
           <h3 className="font-semibold text-nestup-charcoal mb-4">Annotated Image</h3>
           <div className="aspect-video bg-nestup-beige rounded-nestup flex items-center justify-center relative overflow-hidden">
             {imageUrl ? (
-              <img src={imageUrl} alt="Wall capture" className="w-full h-full object-contain" />
+              <AnnotatedImage
+                src={imageUrl}
+                markers={result.wall?.detected_markers}
+                features={result.features}
+              />
             ) : (
               <svg viewBox="0 0 400 300" className="w-full h-full">
                 <rect x="0" y="0" width="400" height="300" fill="#EAE6DF" />
@@ -289,9 +514,171 @@ export default function ResultsPage() {
                   </ul>
                 </div>
               )}
+              <div className="pt-3 border-t border-nestup-sand">
+                <p className="text-nestup-charcoal-light mb-2">Detected objects</p>
+                {result.features && result.features.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {result.features.map((f, i) => {
+                      const color = FEATURE_COLORS[f.type] ?? 'rgba(128,128,128,0.6)';
+                      const label = getFeatureLabel(f.type);
+                      const dims =
+                        f.width_mm != null && f.height_mm != null
+                          ? ` ${Math.round(f.width_mm)} × ${Math.round(f.height_mm)} mm`
+                          : '';
+                      return (
+                        <div
+                          key={i}
+                          className="inline-flex items-center gap-1.5 pl-3 pr-1 py-1.5 rounded-full border-2 text-sm font-medium text-nestup-charcoal shadow-sm"
+                          style={{ borderColor: color, backgroundColor: color.replace('0.6', '0.2') }}
+                        >
+                          <span>
+                            {label}
+                            {dims}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setEditingFeatureIndex(i)}
+                            className="p-1 rounded hover:bg-black/10 text-nestup-charcoal-light hover:text-nestup-charcoal"
+                            title="Edit"
+                            aria-label="Edit object"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFeature(i)}
+                            className="p-1 rounded hover:bg-red-100 text-nestup-charcoal-light hover:text-red-600"
+                            title="Remove"
+                            aria-label="Remove object"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-nestup-charcoal-light text-sm">No objects detected</p>
+                )}
+              </div>
             </div>
           )}
         </Card>
+
+        <Dialog
+          open={editingFeatureIndex !== null}
+          onOpenChange={(open) => !open && setEditingFeatureIndex(null)}
+        >
+          <DialogContent className="sm:max-w-md bg-nestup-warm border-nestup-sand">
+            <DialogHeader>
+              <DialogTitle className="text-nestup-charcoal">Edit object</DialogTitle>
+            </DialogHeader>
+            {editingFeatureIndex !== null && result?.features?.[editingFeatureIndex] && (
+              <div className="grid gap-4 py-2">
+                <div>
+                  <label className="text-sm font-medium text-nestup-charcoal block mb-1.5">Type</label>
+                  <select
+                    value={editForm.type}
+                    onChange={(e) => setEditForm((p) => ({ ...p, type: e.target.value as FeatureType }))}
+                    className="w-full rounded-nestup border border-nestup-sand bg-white px-3 py-2 text-nestup-charcoal text-sm"
+                  >
+                    <option value="window">Window</option>
+                    <option value="door">Door</option>
+                    <option value="switchboard">Switchboard</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-nestup-charcoal block mb-1.5">Width (mm)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={editForm.width_mm === '' ? '' : editForm.width_mm}
+                      onChange={(e) =>
+                        setEditForm((p) => ({
+                          ...p,
+                          width_mm: e.target.value === '' ? '' : Number(e.target.value),
+                        }))
+                      }
+                      className="w-full rounded-nestup border border-nestup-sand bg-white px-3 py-2 text-nestup-charcoal text-sm"
+                      placeholder="—"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-nestup-charcoal block mb-1.5">Height (mm)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={editForm.height_mm === '' ? '' : editForm.height_mm}
+                      onChange={(e) =>
+                        setEditForm((p) => ({
+                          ...p,
+                          height_mm: e.target.value === '' ? '' : Number(e.target.value),
+                        }))
+                      }
+                      className="w-full rounded-nestup border border-nestup-sand bg-white px-3 py-2 text-nestup-charcoal text-sm"
+                      placeholder="—"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-nestup-charcoal block mb-1.5">X (mm)</label>
+                    <input
+                      type="number"
+                      value={editForm.x_mm === '' ? '' : editForm.x_mm}
+                      onChange={(e) =>
+                        setEditForm((p) => ({
+                          ...p,
+                          x_mm: e.target.value === '' ? '' : Number(e.target.value),
+                        }))
+                      }
+                      className="w-full rounded-nestup border border-nestup-sand bg-white px-3 py-2 text-nestup-charcoal text-sm"
+                      placeholder="—"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-nestup-charcoal block mb-1.5">Y (mm)</label>
+                    <input
+                      type="number"
+                      value={editForm.y_mm === '' ? '' : editForm.y_mm}
+                      onChange={(e) =>
+                        setEditForm((p) => ({
+                          ...p,
+                          y_mm: e.target.value === '' ? '' : Number(e.target.value),
+                        }))
+                      }
+                      className="w-full rounded-nestup border border-nestup-sand bg-white px-3 py-2 text-nestup-charcoal text-sm"
+                      placeholder="—"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="secondary"
+                onClick={() => setEditingFeatureIndex(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (editingFeatureIndex === null) return;
+                  handleSaveEditedFeature(editingFeatureIndex, {
+                    type: editForm.type,
+                    width_mm: editForm.width_mm === '' ? undefined : editForm.width_mm,
+                    height_mm: editForm.height_mm === '' ? undefined : editForm.height_mm,
+                    x_mm: editForm.x_mm === '' ? undefined : editForm.x_mm,
+                    y_mm: editForm.y_mm === '' ? undefined : editForm.y_mm,
+                  });
+                }}
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Card className="mb-8">
           <button
@@ -329,7 +716,7 @@ export default function ResultsPage() {
             <PlusSquare size={20} />
             Next wall
           </Button>
-          <Button onClick={handleContinueToDesign} className="flex items-center gap-2">
+          <Button onClick={handleContinueToDesign} disabled={!hasArUco} className="flex items-center gap-2" title={!hasArUco ? 'Wall dimensions required' : undefined}>
             <Layout size={20} />
             Continue to design
           </Button>

@@ -53,5 +53,15 @@ out/
 # TypeScript
 *.tsbuildinfo
 
+# Python
+__pycache__/
+*.pyc
+
 # Large files
 frontend.zip
+*.zip
+*.7z
+
+# Local caches/artifacts
+.cache_memory/
+.memory_bank/

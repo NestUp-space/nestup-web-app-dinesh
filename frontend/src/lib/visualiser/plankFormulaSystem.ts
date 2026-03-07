@@ -232,26 +232,66 @@ export function calculatePlanksFromFormulas(
 }
 
 /**
+ * Index of formulas by role so we can assign the correct formula when there are
+ * multiple planks with the same role (e.g. Door 1 and Door 2).
+ */
+const FORMULA_INDICES_BY_ROLE: Record<string, number[]> = (() => {
+  const map: Record<string, number[]> = {};
+  STANDARD_PLANK_FORMULAS.forEach((f, index) => {
+    const r = f.role;
+    if (!map[r]) map[r] = [];
+    map[r].push(index);
+  });
+  return map;
+})();
+
+/**
+ * Find the best matching formula for a plank: by entityName first, then by role + order index.
+ * This ensures e.g. two door planks get Door 1 and Door 2 formulas respectively, not both Door 1.
+ */
+function getFormulaForPlank(
+  plank: Plank,
+  roleOrderIndex: Record<string, number>
+): PlankFormula | undefined {
+  const nameLower = (plank.entityName || '').toLowerCase().trim();
+  // 1) Exact entityName match (e.g. "Door 1" <-> "Door 1")
+  if (nameLower) {
+    const byName = STANDARD_PLANK_FORMULAS.find(
+      (f) => f.entityName.toLowerCase() === nameLower
+    );
+    if (byName) return byName;
+  }
+
+  // 2) Match by role and order: Nth plank with this role -> Nth formula with this role
+  // So first door plank gets Door 1 formula, second gets Door 2, etc.
+  const indices = FORMULA_INDICES_BY_ROLE[plank.role];
+  if (!indices || indices.length === 0) return undefined;
+  const order = roleOrderIndex[plank.role] ?? 0;
+  const formulaIndex = indices[Math.min(order, indices.length - 1)];
+  return STANDARD_PLANK_FORMULAS[formulaIndex];
+}
+
+/**
  * Recalculate all plank dimensions when box dimensions change
- * This is the core function that mimics Google Sheets formula recalculation
+ * This is the core function that mimics Google Sheets formula recalculation.
+ * Assigns formulas by entityName first, then by role + plank order so multiple
+ * doors (Door 1, Door 2) each get the correct position and dimensions.
  */
 export function recalculatePlanks(
   existingPlanks: Plank[],
   newBoxDimensions: BoxDimensions
 ): Plank[] {
+  const roleOrderIndex: Record<string, number> = {};
   return existingPlanks.map((plank) => {
-    // Find the matching formula
-    const formula = STANDARD_PLANK_FORMULAS.find(
-      (f) => f.entityName.toLowerCase() === plank.entityName.toLowerCase() ||
-             f.role === plank.role
-    );
+    const formula = getFormulaForPlank(plank, roleOrderIndex);
+    if (plank.role) {
+      roleOrderIndex[plank.role] = (roleOrderIndex[plank.role] ?? 0) + 1;
+    }
 
     if (!formula) {
-      // If no formula found, return plank as-is
       return plank;
     }
 
-    // Recalculate dimensions and position using formulas
     return {
       ...plank,
       dimensions: {

@@ -34,7 +34,7 @@ export default function DesignerPage() {
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [laminatePanelOpen, setLaminatePanelOpen] = useState(false);
-  const [catalogSource, setCatalogSource] = useState<'google-sheets' | 'csv'>('csv');
+  const [catalogError, setCatalogError] = useState<string | null>(null);
 
   // Enable keyboard shortcuts
   const { canUndo, canRedo } = useDesignerShortcuts({ enabled: true });
@@ -66,34 +66,36 @@ export default function DesignerPage() {
     plywoodLibrary,
   } = useDesignerStore();
 
-  // Load catalog data function
+  // Load catalog data from Google Sheets only (no CSV fallback)
   const loadCatalog = useCallback(async (isRefresh = false) => {
     try {
+      setCatalogError(null);
       if (isRefresh) {
         setIsRefreshingCatalog(true);
       }
-      
-      // Load from Google Sheets (if configured) or CSV files
+
       const catalogData = await loadCatalogFromSampleData();
-      
-      if (catalogData.models.length > 0 || catalogData.laminateOptions.length > 0) {
-        setCatalogModels(catalogData.models);
-        setCatalogBoxesWithPlanks(catalogData.catalogBoxesWithPlanks);
-        setPlywoodLibrary(catalogData.plywoodOptions);
-        setLaminateLibrary(catalogData.laminateOptions);
-        setCatalogSource(catalogData.source);
-        setLastCatalogRefresh(new Date().toISOString());
-        console.log(`[Designer] Loaded from ${catalogData.source}:`);
-        console.log(`  - ${catalogData.models.length} cabinet models`);
-        console.log(`  - ${catalogData.laminateOptions.length} laminates`);
-        console.log(`  - ${catalogData.plywoodOptions.length} plywood options`);
-      } else {
-        console.warn('[Designer] No catalog data loaded');
+
+      if (catalogData.error) {
+        setCatalogError(catalogData.error);
+        setCatalogModels([]);
+        setCatalogBoxesWithPlanks([]);
+        setPlywoodLibrary([]);
+        setLaminateLibrary([]);
+        setCatalogLoaded(true);
+        return;
       }
-      
+
+      setCatalogModels(catalogData.models);
+      setCatalogBoxesWithPlanks(catalogData.catalogBoxesWithPlanks);
+      setPlywoodLibrary(catalogData.plywoodOptions);
+      setLaminateLibrary(catalogData.laminateOptions);
+      setLastCatalogRefresh(new Date().toISOString());
+      console.log('[Designer] Loaded from Google Sheets:', catalogData.models.length, 'models');
       setCatalogLoaded(true);
     } catch (error) {
       console.error('[Designer] Error loading catalog:', error);
+      setCatalogError('Unable to load catalog. Please try again.');
       setCatalogLoaded(true);
     } finally {
       setIsLoading(false);
@@ -150,6 +152,7 @@ export default function DesignerPage() {
       unitLocation: payload.wallContext?.direction ?? '',
       dimensions: { lenX: payload.wall_width_mm, lenY: 100, lenZ: payload.wall_height_mm },
       position: { x: 0, y: 0, z: 0 },
+      wallFeatures: payload.features ?? [],
     });
     setActiveWall(wallId);
     cleanArUcoParams();
@@ -175,7 +178,7 @@ export default function DesignerPage() {
         setPlywoodLibrary(newData.plywoodOptions);
         setLaminateLibrary(newData.laminateOptions);
         setLastCatalogRefresh(new Date().toISOString());
-        setCatalogSource('google-sheets');
+        setCatalogError(null);
         console.log(`[Designer] Auto-refresh complete: ${newData.models.length} models`);
       }
     }, REFRESH_INTERVAL_MS);
@@ -277,6 +280,19 @@ export default function DesignerPage() {
         {/* Left Panel - Catalog */}
         {leftPanelOpen && (
           <div className="w-80 border-r border-gray-200 bg-white overflow-hidden flex flex-col">
+            {catalogError && (
+              <div className="px-3 py-2 bg-amber-50 border-b border-amber-200 text-amber-800 text-sm flex-shrink-0">
+                <p className="font-medium">Catalog unavailable</p>
+                <p className="mt-0.5">{catalogError}</p>
+                <button
+                  type="button"
+                  onClick={() => loadCatalog(true)}
+                  className="mt-2 text-amber-700 underline hover:no-underline"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
             <CatalogPanel />
           </div>
         )}
@@ -320,7 +336,7 @@ export default function DesignerPage() {
             </div>
             {lastCatalogRefresh && (
               <p className="text-xs text-gray-400 mt-1">
-                {catalogSource === 'google-sheets' ? 'Live sync' : 'Local CSV'} • Last: {new Date(lastCatalogRefresh).toLocaleTimeString()}
+                Google Sheets • Last: {new Date(lastCatalogRefresh).toLocaleTimeString()}
               </p>
             )}
           </div>
@@ -391,7 +407,7 @@ export default function DesignerPage() {
               <span>|</span>
             </>
           )}
-          {catalogSource === 'google-sheets' && (
+          {lastCatalogRefresh && (
             <>
               <span className="text-orange-500">● Live</span>
               <span>|</span>

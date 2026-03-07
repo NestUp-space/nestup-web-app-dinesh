@@ -2,8 +2,16 @@ import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/clien
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 
+// When NEXT_PUBLIC_STRAPI_URL is empty: browser uses same-origin /cms, server uses localhost
+const graphqlUri =
+  process.env.NEXT_PUBLIC_STRAPI_URL
+    ? `${process.env.NEXT_PUBLIC_STRAPI_URL.replace(/\/$/, '')}/graphql`
+    : typeof window !== 'undefined'
+      ? '/cms/graphql'
+      : 'http://localhost:1338/graphql';
+
 const httpLink = createHttpLink({
-  uri: `${process.env.NEXT_PUBLIC_STRAPI_URL}/graphql`,
+  uri: graphqlUri,
 });
 
 const authLink = setContext((_, { headers }) => {

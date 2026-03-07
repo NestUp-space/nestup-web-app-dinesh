@@ -2,6 +2,16 @@
 
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
+## Visualiser & Catalog
+
+The designer loads **cabinet and material catalog from Google Sheets only** (no CSV or static fallback). Configure:
+
+- `NEXT_PUBLIC_GOOGLE_SHEETS_API_KEY` (and optionally `GOOGLE_SHEETS_API_KEY` for the server proxy)
+- `NEXT_PUBLIC_CATALOGUE_SHEET_ID` (Central Cabinet Catalog)
+- `NEXT_PUBLIC_MATERIAL_CATALOG_SHEET_ID` (Material Catalog; only the first two sheets—Laminate and Plywood—are used)
+
+See `.env.local.example` for details and sheet structure.
+
 ## Getting Started
 
 First, run the development server:

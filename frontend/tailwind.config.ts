@@ -7,6 +7,10 @@ const config: Config = {
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  blocklist: [
+    // Invalid arbitrary value: --spacing(8) is not valid CSS in var()
+    "[--cell-size:--spacing(8)]",
+  ],
   theme: {
     container: {
       center: true,

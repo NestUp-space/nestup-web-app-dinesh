@@ -339,10 +339,10 @@ const BoxProperties: React.FC<BoxPropertiesProps> = ({
         </button>
       </div>
 
-      {/* Model Info */}
+      {/* Box name: Level 1 entity name from catalog */}
       <div className="bg-orange-50 border border-orange-100 rounded p-3">
-        <div className="text-xs text-gray-500">Model</div>
-        <div className="font-medium text-gray-900">{box.boxModel || box.entityName || 'Custom'}</div>
+        <div className="text-xs text-gray-500">Name</div>
+        <div className="font-medium text-gray-900">{box.entityName || box.boxModel || 'Custom'}</div>
         <div className="text-xs text-gray-500 mt-1">{box.boxType || 'Standard'}</div>
       </div>
 
@@ -371,7 +371,7 @@ const BoxProperties: React.FC<BoxPropertiesProps> = ({
             <label className="block text-[10px] text-gray-400 mb-1">Width (mm)</label>
             <input
               type="number"
-              value={box.boxWidth || ''}
+              value={box.boxWidth ?? box.dimensions?.lenX ?? ''}
               onChange={(e) => handleDimensionChange('boxWidth', Number(e.target.value))}
               className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
             />
@@ -380,7 +380,7 @@ const BoxProperties: React.FC<BoxPropertiesProps> = ({
             <label className="block text-[10px] text-gray-400 mb-1">Depth (mm)</label>
             <input
               type="number"
-              value={box.boxDepth || ''}
+              value={box.boxDepth ?? box.dimensions?.lenY ?? ''}
               onChange={(e) => handleDimensionChange('boxDepth', Number(e.target.value))}
               className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
             />
@@ -389,7 +389,7 @@ const BoxProperties: React.FC<BoxPropertiesProps> = ({
             <label className="block text-[10px] text-gray-400 mb-1">Height (mm)</label>
             <input
               type="number"
-              value={box.boxHeight || ''}
+              value={box.boxHeight ?? box.dimensions?.lenZ ?? ''}
               onChange={(e) => handleDimensionChange('boxHeight', Number(e.target.value))}
               className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-sm text-gray-900 focus:border-orange-500 focus:outline-none"
             />

@@ -1,11 +1,20 @@
 /**
  * Vision-service API client for wall measurement.
  * Uses NEXT_PUBLIC_MEASUREMENT_API_URL (default http://127.0.0.1:8000).
+ * When empty, uses same-origin path /vision.
  */
 
-export const API_BASE_URL =
-  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_MEASUREMENT_API_URL) ||
-  'http://127.0.0.1:8000';
+function getMeasurementBaseUrl(): string {
+  if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_MEASUREMENT_API_URL) {
+    return process.env.NEXT_PUBLIC_MEASUREMENT_API_URL.replace(/\/$/, '');
+  }
+  if (typeof window !== 'undefined') {
+    return ''; // same origin -> proxy serves /vision
+  }
+  return 'http://127.0.0.1:8000';
+}
+
+export const API_BASE_URL = getMeasurementBaseUrl();
 
 export interface MeasurementResult {
   status: 'success' | 'failed';
@@ -31,6 +40,18 @@ export interface MeasurementResult {
     uncertainty?: unknown;
   };
   processing_time_ms?: number;
+  /** Detected windows, doors, switchboards (with bbox_px for drawing; x_mm etc. when ArUco present) */
+  features?: Array<{
+    type: string;
+    bbox_px: [number, number, number, number];
+    confidence?: number;
+    x_mm?: number;
+    y_mm?: number;
+    width_mm?: number;
+    height_mm?: number;
+  }>;
+  /** Human-readable summary: e.g. "2 windows detected", "No doors found" */
+  feature_summary?: { windows: string; doors: string; switchboards: string };
 }
 
 export interface MeasureWallOptions {
@@ -64,7 +85,8 @@ export async function measureWall(
     formData.append('laser_height_mm', options.laser_height_mm.trim());
   }
 
-  const response = await fetch(`${API_BASE_URL}/measure-wall`, {
+  const path = API_BASE_URL ? `${API_BASE_URL}/measure-wall` : '/vision/measure-wall';
+  const response = await fetch(path, {
     method: 'POST',
     body: formData,
   });

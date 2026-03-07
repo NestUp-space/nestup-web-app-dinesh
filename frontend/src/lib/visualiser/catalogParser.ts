@@ -1,11 +1,7 @@
 /**
  * catalogParser.ts
- * Port of visualization.js catalog parsing logic
- * Reads Central_Catalogue from Google Sheets (live) or CSV (fallback)
- * 
- * Priority:
- * 1. Google Sheets API (if API key configured)
- * 2. Local CSV files (fallback)
+ * Port of visualization.js catalog parsing logic.
+ * Reads Central Catalogue and Material Catalog from Google Sheets only (no CSV fallback).
  */
 
 import { CatalogModel, PlywoodOption, LaminateOption } from '@/types/visualiser';
@@ -13,8 +9,10 @@ import {
   fetchAllCatalogData,
   isGoogleSheetsConfigured,
   getApiKey,
+  getSheetIds,
   convertDriveUrl as convertDriveUrlFromSheets,
 } from './googleSheetsService';
+import type { ValidationResult } from './catalogValidation';
 
 // ============================================
 // CONFIGURATION - EXACT COPY FROM APPS SCRIPT
@@ -526,163 +524,141 @@ export function localConvertDriveUrl(url: string): string {
 }
 
 // ============================================
-// LOAD FROM GOOGLE SHEETS OR CSV (FALLBACK)
+// LOAD FROM GOOGLE SHEETS ONLY (NO FALLBACK)
 // ============================================
 
-/**
- * Load catalog data - tries Google Sheets first, then falls back to CSV
- */
-export async function loadCatalogFromSampleData(): Promise<{
+export interface LoadCatalogResult {
   models: CatalogModel[];
   catalogBoxesWithPlanks: CatalogBoxWithPlanks[];
   plywoodOptions: PlywoodOption[];
   laminateOptions: LaminateOption[];
-  source: 'google-sheets' | 'csv';
-}> {
-  // Try Google Sheets first if configured
-  if (isGoogleSheetsConfigured()) {
-    const apiKey = getApiKey();
-    if (apiKey) {
-      console.log('[CatalogParser] Attempting to load from Google Sheets...');
-      const sheetsData = await fetchAllCatalogData(apiKey);
-      
-      if (sheetsData && sheetsData.models.length > 0) {
-        console.log(`[CatalogParser] Loaded from Google Sheets: ${sheetsData.models.length} models`);
+  source: 'google-sheets';
+  validation?: ValidationResult;
+  error?: string;
+}
+
+/**
+ * Load catalog from Google Sheets only. Tries server /api/catalog first, then client-side fetch.
+ * No fallback to CSV or static data. On failure returns empty data and error/validation for UI.
+ */
+export async function loadCatalogFromSampleData(): Promise<LoadCatalogResult> {
+  const empty: LoadCatalogResult = {
+    models: [],
+    catalogBoxesWithPlanks: [],
+    plywoodOptions: [],
+    laminateOptions: [],
+    source: 'google-sheets',
+  };
+
+  // 1) Try server proxy (hides API key)
+  try {
+    const res = await fetch('/api/catalog');
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.models?.length > 0 || data?.laminateOptions?.length > 0 || data?.plywoodOptions?.length > 0) {
+        console.log(`[CatalogParser] Loaded from /api/catalog: ${data.models?.length ?? 0} models`);
         return {
-          models: sheetsData.models,
-          catalogBoxesWithPlanks: sheetsData.catalogBoxesWithPlanks,
-          plywoodOptions: sheetsData.plywoodOptions,
-          laminateOptions: sheetsData.laminateOptions,
+          models: data.models ?? [],
+          catalogBoxesWithPlanks: data.catalogBoxesWithPlanks ?? [],
+          plywoodOptions: data.plywoodOptions ?? [],
+          laminateOptions: data.laminateOptions ?? [],
           source: 'google-sheets',
         };
       }
-      console.log('[CatalogParser] Google Sheets returned no data, falling back to CSV...');
     }
+    if (res.status === 502 || res.status === 503) {
+      const body = await res.json().catch(() => ({}));
+      return {
+        ...empty,
+        error: body?.error ?? 'Catalog not available. Set sheet IDs and API key.',
+        validation: body?.validation,
+      };
+    }
+  } catch (e) {
+    console.debug('[CatalogParser] /api/catalog not available, trying client fetch');
   }
-  
-  // Fallback to CSV files
-  console.log('[CatalogParser] Loading from local CSV files...');
-  return loadCatalogFromCsv();
-}
 
-/**
- * Load catalog data from local CSV files only
- */
-export async function loadCatalogFromCsv(): Promise<{
-  models: CatalogModel[];
-  catalogBoxesWithPlanks: CatalogBoxWithPlanks[];
-  plywoodOptions: PlywoodOption[];
-  laminateOptions: LaminateOption[];
-  source: 'csv';
-}> {
-  const results = {
-    models: [] as CatalogModel[],
-    catalogBoxesWithPlanks: [] as CatalogBoxWithPlanks[],
-    plywoodOptions: [] as PlywoodOption[],
-    laminateOptions: [] as LaminateOption[],
-    source: 'csv' as const,
+  // 2) Client-side fetch when API key configured
+  if (!isGoogleSheetsConfigured()) {
+    return {
+      ...empty,
+      error: 'Catalog not configured. Set GOOGLE_SHEETS_API_KEY (or NEXT_PUBLIC_*) and sheet IDs.',
+    };
+  }
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    return { ...empty, error: 'Catalog not configured. Set Google Sheets API key and sheet IDs.' };
+  }
+
+  console.log('[CatalogParser] Loading from Google Sheets...');
+  const sheetIds = getSheetIds();
+  const { data, validation } = await fetchAllCatalogData(apiKey, sheetIds);
+
+  if (!validation.valid) {
+    return {
+      ...empty,
+      error: validation.errors?.length ? validation.errors.join(' ') : 'Catalog data invalid.',
+      validation,
+    };
+  }
+
+  if (!data) {
+    return {
+      ...empty,
+      error: 'Unable to load catalog. Check sheet sharing (anyone with link can view) and API key.',
+    };
+  }
+
+  console.log(`[CatalogParser] Loaded from Google Sheets: ${data.models.length} models`);
+  return {
+    models: data.models,
+    catalogBoxesWithPlanks: data.catalogBoxesWithPlanks,
+    plywoodOptions: data.plywoodOptions,
+    laminateOptions: data.laminateOptions,
+    source: 'google-sheets',
+    validation,
   };
-
-  try {
-    // Load Central Catalogue
-    const catalogResponse = await fetch('/sample_data/Central Catalogue - Sheet1.csv');
-    if (catalogResponse.ok) {
-      const catalogText = await catalogResponse.text();
-      const catalogData = parseCSV(catalogText);
-      
-      // Debug: Show first few rows of parsed CSV
-      console.log(`[CatalogParser] CSV parsed: ${catalogData.length} rows`);
-      console.log(`[CatalogParser] First 3 rows:`, catalogData.slice(0, 3));
-      
-      // Count levels in raw CSV
-      let level1 = 0, level2 = 0, level3 = 0;
-      const c = DESIGNER_CONFIG.catalogueColumns;
-      for (let i = 1; i < catalogData.length; i++) {
-        const row = catalogData[i];
-        if (!row || row.length === 0) continue;
-        const level = parseNumber(row[c.level]);
-        if (level === 1) level1++;
-        else if (level === 2) level2++;
-        else if (level === 3) level3++;
-      }
-      console.log(`[CatalogParser] CSV Level counts - L1 (boxes): ${level1}, L2 (planks): ${level2}, L3 (operations): ${level3}`);
-      
-      results.models = parseCatalogueCsv(catalogData);
-      results.catalogBoxesWithPlanks = parseCatalogueCsvWithPlanks(catalogData);
-      console.log(`[CatalogParser] Loaded ${results.models.length} models, ${results.catalogBoxesWithPlanks.length} boxes with planks from CSV`);
-    } else {
-      console.error(`[CatalogParser] Failed to load catalog CSV: ${catalogResponse.status}`);
-    }
-
-    // Load Plywood Library
-    const plywoodResponse = await fetch('/sample_data/_Central Material Catlouge - Plywood Library.csv');
-    if (plywoodResponse.ok) {
-      const plywoodText = await plywoodResponse.text();
-      const plywoodData = parseCSV(plywoodText);
-      results.plywoodOptions = parsePlywoodLibraryCsv(plywoodData);
-      console.log(`[CatalogParser] Loaded ${results.plywoodOptions.length} plywood options from CSV`);
-    }
-
-    // Load Laminate Library - try multiple file paths
-    const laminatePaths = [
-      '/sample_data/_Central Material Catlouge - Laminate Library.csv',
-      '/sample_data/Laminate Library.csv',
-    ];
-    
-    for (const path of laminatePaths) {
-      try {
-        const laminateResponse = await fetch(path);
-        if (laminateResponse.ok) {
-          const laminateText = await laminateResponse.text();
-          const laminateData = parseCSV(laminateText);
-          results.laminateOptions = parseLaminateLibraryCsv(laminateData);
-          console.log(`[CatalogParser] Loaded ${results.laminateOptions.length} laminate options from CSV: ${path}`);
-          break; // Stop after first successful load
-        }
-      } catch (e) {
-        console.debug(`[CatalogParser] Could not load laminate from ${path}`);
-      }
-    }
-    
-    if (results.laminateOptions.length === 0) {
-      console.warn('[CatalogParser] No laminate CSV found in any expected location');
-    }
-  } catch (error) {
-    console.error('[CatalogParser] Error loading catalog data from CSV:', error);
-  }
-
-  return results;
 }
 
 /**
- * Force refresh from Google Sheets (bypasses cache)
+ * Force refresh from Google Sheets (bypasses cache when using /api/catalog)
  */
 export async function refreshCatalogFromGoogleSheets(): Promise<{
   models: CatalogModel[];
   catalogBoxesWithPlanks: CatalogBoxWithPlanks[];
   plywoodOptions: PlywoodOption[];
   laminateOptions: LaminateOption[];
+  error?: string;
+  validation?: ValidationResult;
 } | null> {
+  try {
+    const res = await fetch('/api/catalog?refresh=1');
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        models: data.models ?? [],
+        catalogBoxesWithPlanks: data.catalogBoxesWithPlanks ?? [],
+        plywoodOptions: data.plywoodOptions ?? [],
+        laminateOptions: data.laminateOptions ?? [],
+      };
+    }
+  } catch {
+    // Fall back to client-side refresh
+  }
+
   const apiKey = getApiKey();
-  if (!apiKey) {
-    console.error('[CatalogParser] No API key configured for Google Sheets');
-    return null;
-  }
-  
-  console.log('[CatalogParser] Refreshing catalog from Google Sheets...');
-  const sheetsData = await fetchAllCatalogData(apiKey);
-  
-  if (sheetsData) {
-    console.log(`[CatalogParser] Refreshed: ${sheetsData.models.length} models from Google Sheets`);
-    return {
-      models: sheetsData.models,
-      catalogBoxesWithPlanks: sheetsData.catalogBoxesWithPlanks,
-      plywoodOptions: sheetsData.plywoodOptions,
-      laminateOptions: sheetsData.laminateOptions,
-    };
-  }
-  
-  return null;
+  if (!apiKey) return null;
+
+  const { data, validation } = await fetchAllCatalogData(apiKey, getSheetIds());
+  if (!validation.valid || !data) return null;
+
+  return {
+    models: data.models,
+    catalogBoxesWithPlanks: data.catalogBoxesWithPlanks,
+    plywoodOptions: data.plywoodOptions,
+    laminateOptions: data.laminateOptions,
+  };
 }
 
 // Re-export for convenience

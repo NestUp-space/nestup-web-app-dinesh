@@ -1,19 +1,26 @@
 'use client'
 
+import { Suspense, useEffect } from 'react'
 import { usePageTracking } from '@/hooks/useAnalytics'
-import { useEffect } from 'react'
+
+function PageTracker() {
+  usePageTracking()
+  return null
+}
 
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
-  // Track page views
-  usePageTracking()
-
-  // Initialize Google Analytics on component mount
   useEffect(() => {
-    // The gtag function is already loaded in the layout
     if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
       console.log('Google Analytics initialized')
     }
   }, [])
 
-  return <>{children}</>
+  return (
+    <>
+      <Suspense fallback={null}>
+        <PageTracker />
+      </Suspense>
+      {children}
+    </>
+  )
 }

@@ -293,7 +293,7 @@ const CatalogItem: React.FC<CatalogItemProps> = ({
           </div>
           <div className="min-w-0">
             <p className="text-sm font-medium text-gray-900 truncate">
-              {model.boxModel || model.entityName}
+              {model.entityName || model.boxModel}
             </p>
             <p className="text-xs text-gray-500 truncate">
               {model.boxWidth} × {model.boxDepth} × {model.boxHeight} mm

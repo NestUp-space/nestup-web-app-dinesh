@@ -16,7 +16,7 @@ import { Vec3, AABB, AABBUtils, MoveToolConfig } from './moveTool';
 // SNAP TYPES & CONFIGURATION
 // ============================================
 
-export type SnapType = 'grid' | 'edge' | 'corner' | 'wall' | 'floor' | 'face';
+export type SnapType = 'grid' | 'edge' | 'corner' | 'wall' | 'floor' | 'face' | 'magnet';
 
 export interface SnapPoint {
   position: Position;
@@ -42,19 +42,23 @@ export interface SnapResult {
 export const SnapConfig = {
   // Snap thresholds by type
   GRID_SNAP_THRESHOLD: 30,      // Always snaps within 30mm
-  EDGE_SNAP_THRESHOLD: 100,     // 100mm for edge midpoints
-  CORNER_SNAP_THRESHOLD: 100,   // 100mm for corners
-  FACE_SNAP_THRESHOLD: 80,      // 80mm for face-to-face alignment
-  WALL_SNAP_THRESHOLD: 50,      // 50mm from Y=0
-  FLOOR_SNAP_THRESHOLD: 50,     // 50mm from Z=0
+  EDGE_SNAP_THRESHOLD: 120,     // 120mm for edge midpoints
+  CORNER_SNAP_THRESHOLD: 150,   // 150mm for corners
+  FACE_SNAP_THRESHOLD: 200,     // 200mm for face-to-face magnetic attachment
+  WALL_SNAP_THRESHOLD: 80,      // 80mm from Y=0
+  FLOOR_SNAP_THRESHOLD: 80,     // 80mm from Z=0
+  
+  // MAGNET SNAP: Auto-snap when boxes are close to each other
+  MAGNET_SNAP_THRESHOLD: 50,    // 50mm - magnetic snap when boxes are close
   
   // Grid size
   GRID_SIZE: 50,
   
   // Priorities (higher = wins)
   PRIORITY: {
-    corner: 5,    // Highest - exact corner alignment
-    face: 4,      // Face-to-face alignment (edges flush)
+    magnet: 6,    // Highest - magnetic snap when very close
+    face: 5,      // Face-to-face alignment (edges flush) - highest named snap
+    corner: 4,    // Exact corner alignment
     edge: 3,      // Edge midpoint alignment
     wall: 2,
     floor: 2,
@@ -249,6 +253,16 @@ export function generateGridPoints(
 }
 
 // ============================================
+// SNAP HYSTERESIS STATE
+// ============================================
+
+export interface SnapHysteresisState {
+  activeSnapPoint: SnapPoint | null;
+  isSnapped: boolean;
+  snappedFrames: number;
+}
+
+// ============================================
 // SNAP RESOLUTION
 // ============================================
 
@@ -269,7 +283,8 @@ export function findBestSnap(
   boxDimensions: { w: number; d: number; h: number },
   targetPosition: Position,
   snapPoints: SnapPoint[],
-  enabledTypes: SnapType[] = ['grid', 'edge', 'corner', 'face', 'wall', 'floor']
+  enabledTypes: SnapType[] = ['grid', 'edge', 'corner', 'face', 'wall', 'floor'],
+  currentSnapState?: SnapHysteresisState
 ): SnapResult {
   // Get the corners of the moving box at target position
   const movingCorners = getBoxCorners(targetPosition, boxDimensions.w, boxDimensions.d, boxDimensions.h);
@@ -281,7 +296,81 @@ export function findBestSnap(
   // Get the faces of the moving box for face-to-face snapping
   const movingFaces = getBoxFaces(targetPosition, boxDimensions.w, boxDimensions.d, boxDimensions.h);
   
-  // Check each enabled snap type
+  // FIRST PASS: Check for MAGNET SNAP (highest priority)
+  // Triggers automatic snapping when boxes are very close - both corners AND faces
+  const magnetThreshold = SnapConfig.MAGNET_SNAP_THRESHOLD;
+  
+  // Magnet snap for corners/edges
+  for (const point of snapPoints) {
+    if (point.type !== 'corner' && point.type !== 'edge') continue;
+    
+    for (let i = 0; i < movingCorners.length; i++) {
+      const corner = movingCorners[i];
+      const distance = Vec3.distance(corner, point.position);
+      
+      if (distance <= magnetThreshold) {
+        const magnetPoint: SnapPoint = {
+          ...point,
+          type: 'magnet',
+          priority: SnapConfig.PRIORITY.magnet,
+          label: `Magnet: ${point.label}`,
+        };
+        
+        if (!activeSnaps.find(p => p.position === point.position)) {
+          activeSnaps.push(magnetPoint);
+        }
+        
+        const effectiveDistance = distance / SnapConfig.PRIORITY.magnet;
+        
+        if (effectiveDistance < bestEffectiveDistance) {
+          bestEffectiveDistance = effectiveDistance;
+          bestMatch = {
+            snapPoint: magnetPoint,
+            movingCornerIndex: i,
+            movingCorner: corner,
+            distance,
+          };
+        }
+      }
+    }
+  }
+  
+  // Magnet snap for faces (magnetic attachment - boxes snap flush)
+  for (const point of snapPoints) {
+    if (point.type !== 'face' || !point.faceAxis || point.faceValue === undefined) continue;
+    
+    for (const movingFace of movingFaces) {
+      if (movingFace.axis !== point.faceAxis) continue;
+      const faceDistance = Math.abs(movingFace.value - point.faceValue);
+      
+      if (faceDistance <= magnetThreshold) {
+        const magnetPoint: SnapPoint = {
+          ...point,
+          type: 'magnet',
+          priority: SnapConfig.PRIORITY.magnet,
+          label: `Magnet: ${point.label}`,
+        };
+        
+        if (!activeSnaps.find(p => p.position === point.position)) {
+          activeSnaps.push(magnetPoint);
+        }
+        
+        const effectiveDistance = faceDistance / SnapConfig.PRIORITY.magnet;
+        
+        if (effectiveDistance < bestEffectiveDistance) {
+          bestEffectiveDistance = effectiveDistance;
+          bestMatch = {
+            snapPoint: { ...magnetPoint, faceAxis: point.faceAxis, faceValue: point.faceValue },
+            movingCornerIndex: -1,
+            movingCorner: { x: 0, y: 0, z: 0 },
+            distance: faceDistance,
+          };
+        }
+      }
+    }
+  }
+  
+  // SECOND PASS: Check each enabled snap type (only if no magnet snap found)
   for (const point of snapPoints) {
     if (!enabledTypes.includes(point.type)) continue;
     
@@ -410,6 +499,70 @@ export function findBestSnap(
     }
   }
   
+  // Hysteresis: if currently snapped but no new bestMatch found within normal threshold,
+  // keep the old snap until distance exceeds SNAP_HYSTERESIS_OUT (140mm)
+  if (!bestMatch && currentSnapState?.isSnapped && currentSnapState.activeSnapPoint) {
+    const prevSnap = currentSnapState.activeSnapPoint;
+    const hysteresisOut = Math.max(MoveToolConfig.SNAP_HYSTERESIS_OUT, getThresholdForType(prevSnap.type) * 1.6);
+
+    // Frame debounce: keep previous snap for a few frames to avoid flicker.
+    if ((currentSnapState.snappedFrames ?? 0) < 3) {
+      if (prevSnap.type === 'corner' || prevSnap.type === 'edge' || prevSnap.type === 'magnet') {
+        const nearCorner = movingCorners[0];
+        bestMatch = {
+          snapPoint: prevSnap,
+          movingCornerIndex: 0,
+          movingCorner: nearCorner,
+          distance: 0,
+        };
+      } else {
+        bestMatch = {
+          snapPoint: prevSnap,
+          movingCornerIndex: -1,
+          movingCorner: { x: 0, y: 0, z: 0 },
+          distance: 0,
+        };
+      }
+    }
+
+    if (!bestMatch && (prevSnap.type === 'corner' || prevSnap.type === 'edge' || prevSnap.type === 'magnet')) {
+      for (let i = 0; i < movingCorners.length; i++) {
+        const dist = Vec3.distance(movingCorners[i], prevSnap.position);
+        if (dist < hysteresisOut) {
+          bestMatch = {
+            snapPoint: prevSnap,
+            movingCornerIndex: i,
+            movingCorner: movingCorners[i],
+            distance: dist,
+          };
+          break;
+        }
+      }
+    } else if (!bestMatch && prevSnap.type === 'face' && prevSnap.faceAxis && prevSnap.faceValue !== undefined) {
+      for (const mf of movingFaces) {
+        if (mf.axis !== prevSnap.faceAxis) continue;
+        const dist = Math.abs(mf.value - prevSnap.faceValue);
+        if (dist < hysteresisOut) {
+          bestMatch = {
+            snapPoint: prevSnap,
+            movingCornerIndex: -1,
+            movingCorner: { x: 0, y: 0, z: 0 },
+            distance: dist,
+          };
+          break;
+        }
+      }
+    } else if (!bestMatch && prevSnap.type === 'wall') {
+      if (Math.abs(targetPosition.y) < hysteresisOut) {
+        bestMatch = { snapPoint: prevSnap, movingCornerIndex: 0, movingCorner: movingCorners[0], distance: Math.abs(targetPosition.y) };
+      }
+    } else if (!bestMatch && prevSnap.type === 'floor') {
+      if (Math.abs(targetPosition.z) < hysteresisOut) {
+        bestMatch = { snapPoint: prevSnap, movingCornerIndex: 0, movingCorner: movingCorners[0], distance: Math.abs(targetPosition.z) };
+      }
+    }
+  }
+
   if (bestMatch) {
     // Calculate snapped position based on which corner snaps to which point
     const snappedPosition = calculateSnappedPosition(
@@ -477,6 +630,7 @@ export function findBestSnap(
  */
 function getThresholdForType(type: SnapType): number {
   switch (type) {
+    case 'magnet': return SnapConfig.MAGNET_SNAP_THRESHOLD;
     case 'corner': return SnapConfig.CORNER_SNAP_THRESHOLD;
     case 'face': return SnapConfig.FACE_SNAP_THRESHOLD;
     case 'edge': return SnapConfig.EDGE_SNAP_THRESHOLD;
@@ -528,14 +682,39 @@ function calculateSnappedPosition(
   const { w, d, h } = boxDimensions;
   
   switch (snapPoint.type) {
+    case 'magnet':
+      // Magnet snap can be corner-based or face-based
+      if (cornerIndex >= 0) {
+        const magnetCornerOffset = getCornerOffset(cornerIndex, w, d, h);
+        return {
+          x: snapPoint.position.x - magnetCornerOffset.x,
+          y: snapPoint.position.y - magnetCornerOffset.y,
+          z: snapPoint.position.z - magnetCornerOffset.z,
+        };
+      }
+      // Face-based magnet snap: align faces
+      if (snapPoint.faceAxis && snapPoint.faceValue !== undefined) {
+        const magnetFaces = getBoxFaces(targetPosition, w, d, h);
+        let closestDist = Infinity;
+        let fOffset = 0;
+        for (const mf of magnetFaces) {
+          if (mf.axis !== snapPoint.faceAxis) continue;
+          const dist = Math.abs(mf.value - snapPoint.faceValue);
+          if (dist < closestDist) {
+            closestDist = dist;
+            fOffset = snapPoint.faceValue - mf.value;
+          }
+        }
+        const magnetResult = Vec3.clone(targetPosition);
+        magnetResult[snapPoint.faceAxis] += fOffset;
+        return magnetResult;
+      }
+      return result;
+      
     case 'corner':
     case 'edge':
       // Calculate the offset from box position to the snapping corner
       const cornerOffset = getCornerOffset(cornerIndex, w, d, h);
-      
-      // New position places the snapping corner at the snap point
-      // box.position + cornerOffset = snapPoint.position
-      // Therefore: box.position = snapPoint.position - cornerOffset
       return {
         x: snapPoint.position.x - cornerOffset.x,
         y: snapPoint.position.y - cornerOffset.y,
@@ -585,6 +764,99 @@ function calculateSnappedPosition(
     default:
       return result;
   }
+}
+
+// ============================================
+// BOX-TO-BOX MAGNETIC SNAP (TOUCH SNAPPING)
+// ============================================
+
+const BOX_SNAP_THRESHOLD = 30;
+
+export interface BoxSnapResult {
+  snapped: boolean;
+  position: Position;
+  snappedAxis: 'x' | 'y' | 'z' | null;
+  snappedToBoxId: string | null;
+  touchingSide: 'min' | 'max' | null;
+}
+
+export function snapToNearbyBoxes(
+  targetPos: Position,
+  movingBoxDims: { w: number; d: number; h: number },
+  otherBoxes: { id: string; position: Position; dimensions: { w: number; d: number; h: number } }[],
+  threshold: number = BOX_SNAP_THRESHOLD
+): BoxSnapResult {
+  let snappedPos = { ...targetPos };
+  let snapped = false;
+  let snappedAxis: 'x' | 'y' | 'z' | null = null;
+  let snappedToBoxId: string | null = null;
+  let touchingSide: 'min' | 'max' | null = null;
+
+  const movingMin = { x: targetPos.x, y: targetPos.y, z: targetPos.z };
+  const movingMax = {
+    x: targetPos.x + movingBoxDims.w,
+    y: targetPos.y + movingBoxDims.d,
+    z: targetPos.z + movingBoxDims.h,
+  };
+
+  for (const other of otherBoxes) {
+    const otherMin = { x: other.position.x, y: other.position.y, z: other.position.z };
+    const otherMax = {
+      x: other.position.x + other.dimensions.w,
+      y: other.position.y + other.dimensions.d,
+      z: other.position.z + other.dimensions.h,
+    };
+
+    const overlapY = movingMin.y < otherMax.y && movingMax.y > otherMin.y;
+    const overlapZ = movingMin.z < otherMax.z && movingMax.z > otherMin.z;
+    const overlapX = movingMin.x < otherMax.x && movingMax.x > otherMin.x;
+
+    // X-axis: right→left and left→right
+    if (overlapY && overlapZ) {
+      const distRL = Math.abs(movingMax.x - otherMin.x);
+      if (distRL <= threshold && distRL > 0) {
+        snappedPos.x = otherMin.x - movingBoxDims.w;
+        snapped = true; snappedAxis = 'x'; snappedToBoxId = other.id; touchingSide = 'min';
+      }
+      const distLR = Math.abs(movingMin.x - otherMax.x);
+      if (distLR <= threshold && distLR > 0) {
+        snappedPos.x = otherMax.x;
+        snapped = true; snappedAxis = 'x'; snappedToBoxId = other.id; touchingSide = 'max';
+      }
+    }
+
+    // Y-axis: front→back and back→front
+    if (overlapX && overlapZ) {
+      const distFB = Math.abs(movingMax.y - otherMin.y);
+      if (distFB <= threshold && distFB > 0) {
+        snappedPos.y = otherMin.y - movingBoxDims.d;
+        snapped = true; snappedAxis = 'y'; snappedToBoxId = other.id; touchingSide = 'min';
+      }
+      const distBF = Math.abs(movingMin.y - otherMax.y);
+      if (distBF <= threshold && distBF > 0) {
+        snappedPos.y = otherMax.y;
+        snapped = true; snappedAxis = 'y'; snappedToBoxId = other.id; touchingSide = 'max';
+      }
+    }
+
+    // Z-axis: top→bottom and bottom→top (stacking)
+    if (overlapX && overlapY) {
+      const distTB = Math.abs(movingMax.z - otherMin.z);
+      if (distTB <= threshold && distTB > 0) {
+        snappedPos.z = otherMin.z - movingBoxDims.h;
+        snapped = true; snappedAxis = 'z'; snappedToBoxId = other.id; touchingSide = 'min';
+      }
+      const distBT = Math.abs(movingMin.z - otherMax.z);
+      if (distBT <= threshold && distBT > 0) {
+        snappedPos.z = otherMax.z;
+        snapped = true; snappedAxis = 'z'; snappedToBoxId = other.id; touchingSide = 'max';
+      }
+    }
+
+    if (snapped) break;
+  }
+
+  return { snapped, position: snappedPos, snappedAxis, snappedToBoxId, touchingSide };
 }
 
 // ============================================

@@ -151,8 +151,15 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     ),
     guidelines: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        {/* Ruler/Tape measure icon */}
+        {/* Construction lines icon */}
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+      </svg>
+    ),
+    measure: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        {/* Tape measure/ruler icon */}
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 12h12M6 12l3-3m-3 3l3 3m9-6l-3 3m3-3l-3-3" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6h2M3 12h2M3 18h2M19 6h2M19 12h2M19 18h2" />
       </svg>
     ),
   };
@@ -226,6 +233,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         label="Guide"
         active={designMode === 'guidelines'}
         onClick={() => setDesignMode('guidelines')}
+      />
+      <ToolButton
+        icon={modeIcons.measure}
+        label="Measure"
+        active={designMode === 'measure'}
+        onClick={() => setDesignMode('measure')}
       />
 
       <Divider />
