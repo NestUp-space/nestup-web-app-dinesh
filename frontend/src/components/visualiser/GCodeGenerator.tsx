@@ -7,8 +7,9 @@ import {
   generateGCodeZip,
   DEFAULT_CONFIG,
   type ProjectGCodeResult,
+  type GCodePlank,
+  type GCodeConfig,
 } from "@/lib/visualiser/gcodeGenerator";
-import type { GCodePlank, GCodeConfig } from "@/types/visualiser";
 
 // Demo data
 const DEMO_PLANKS: Record<string, GCodePlank[]> = {

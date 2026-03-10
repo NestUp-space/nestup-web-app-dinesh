@@ -54,7 +54,7 @@ interface PlankFeatures {
   l_cuts: LCutTriplet[];
 }
 
-interface GCodePlank {
+export interface GCodePlank {
   id: string;
   name: string;
   material: string;
@@ -68,7 +68,12 @@ interface GCodePlank {
   features: PlankFeatures;
 }
 
-interface GCodeResult {
+/** Config type for G-code generator (used by GCodeGenerator UI) */
+export interface GCodeConfig {
+  [key: string]: unknown;
+}
+
+export interface GCodeResult {
   sheetName: string;
   fileName: string;
   materialFolder: string;
@@ -76,6 +81,17 @@ interface GCodeResult {
   content: string;
   plankCount: number;
 }
+
+/** Result shape for project-level G-code generation (used by GCodeGenerator UI) */
+export interface ProjectGCodeResult {
+  files: GCodeResult[];
+  totalFiles: number;
+  totalPlanks: number;
+  byMaterial: Record<string, unknown>;
+}
+
+/** Default machine config (compatible with GCodeConfig) */
+export const DEFAULT_CONFIG: GCodeConfig = {};
 
 // ============================================
 // MACHINE CONSTANTS (From Apps Script)
@@ -643,6 +659,97 @@ export function generateGCode(
   });
 
   return results;
+}
+
+/**
+ * Generate G-code files from planks grouped by sheet (for UI / project-level use)
+ */
+export function generateGCodeForProject(
+  planksBySheet: Record<string, GCodePlank[]>,
+  _options?: { config?: unknown }
+): { files: GCodeResult[] } {
+  const planks = Object.values(planksBySheet).flat();
+  const groups = groupByMaterialAndThickness(planks);
+  const results: GCodeResult[] = [];
+
+  groups.forEach((group, groupKey) => {
+    let sheetIndex = 1;
+    const sortedSheets = Array.from(group.sheets.keys()).sort();
+
+    sortedSheets.forEach((sheetName) => {
+      const sheetPlanks = group.sheets.get(sheetName)!;
+      const uniqueSheetName = `${groupKey}_Sheet_${sheetIndex}`;
+      const fileName = `${uniqueSheetName}.nc`;
+      const content = generateGCodeForSheet(sheetPlanks, uniqueSheetName);
+
+      results.push({
+        sheetName: uniqueSheetName,
+        fileName,
+        materialFolder: group.materialFolder,
+        thicknessFolder: group.thicknessFolder,
+        content,
+        plankCount: sheetPlanks.length,
+      });
+      sheetIndex++;
+    });
+  });
+
+  return { files: results };
+}
+
+/**
+ * Build a ZIP blob from a project G-code result (for download without saving to disk)
+ */
+export async function generateGCodeZip(
+  projectResult: ProjectGCodeResult,
+  projectName: string = 'CNC_Project'
+): Promise<Blob> {
+  const gcodeResults = projectResult.files;
+  if (gcodeResults.length === 0) {
+    return new Blob([], { type: 'application/zip' });
+  }
+
+  const zip = new JSZip();
+  const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
+  const mainFolderName = `${projectName.replace(/[/\\?%*:|"<>]/g, '_')}_G_CODES_${timestamp}`;
+  const mainFolder = zip.folder(mainFolderName)!;
+
+  const materialFolders = new Map<string, JSZip>();
+  const thicknessFolders = new Map<string, JSZip>();
+
+  gcodeResults.forEach((result) => {
+    const matKey = result.materialFolder;
+    const thickKey = `${matKey}_${result.thicknessFolder}`;
+
+    if (!materialFolders.has(matKey)) {
+      materialFolders.set(matKey, mainFolder.folder(matKey)!);
+    }
+    if (!thicknessFolders.has(thickKey)) {
+      const matFolder = materialFolders.get(matKey)!;
+      thicknessFolders.set(thickKey, matFolder.folder(result.thicknessFolder)!);
+    }
+    const thickFolder = thicknessFolders.get(thickKey)!;
+    thickFolder.file(result.fileName, result.content);
+  });
+
+  const flatFolder = mainFolder.folder('ALL_NC_FILES_FLAT')!;
+  gcodeResults.forEach((result) => {
+    flatFolder.file(result.fileName, result.content);
+  });
+
+  const summary = [
+    'CNC G-CODE GENERATION SUMMARY',
+    '=========================================',
+    `Generated: ${new Date().toLocaleString()}`,
+    '',
+    'FILES GENERATED:',
+    ...gcodeResults.map((r) => `- ${r.fileName} (Sheet: ${r.sheetName}, Planks: ${r.plankCount})`),
+    '',
+    `Total Files: ${gcodeResults.length}`,
+  ].join('\n');
+  mainFolder.file('GENERATION_SUMMARY.txt', summary);
+
+  return zip.generateAsync({ type: 'blob' });
 }
 
 /**
