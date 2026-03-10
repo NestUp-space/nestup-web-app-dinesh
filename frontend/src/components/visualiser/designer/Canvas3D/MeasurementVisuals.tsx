@@ -97,8 +97,6 @@ export const InfiniteGuideLine: React.FC<InfiniteGuideLineProps> = ({
   isSelected = false,
   onSelect,
 }) => {
-  if (!guide.visible) return null;
-
   const points = useMemo(() => {
     const { origin, direction } = guide;
     const halfLength = MEASUREMENT_CONFIG.GUIDE_LINE_LENGTH / 2;
@@ -132,6 +130,8 @@ export const InfiniteGuideLine: React.FC<InfiniteGuideLineProps> = ({
     q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), guideDirThree);
     return q;
   }, [guide.direction.x, guide.direction.y, guide.direction.z]);
+
+  if (!guide.visible) return null;
 
   return (
     <group>
