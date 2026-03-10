@@ -74,6 +74,10 @@ export interface GCodePlank {
 
 /** Config type for G-code generator (used by GCodeGenerator UI) */
 export interface GCodeConfig {
+  Z_SAFE?: number;
+  SPINDLE_SPEED?: number;
+  CUTTING_FEED_RATE?: number;
+  PLUNGE_FEED_RATE?: number;
   [key: string]: unknown;
 }
 
@@ -94,8 +98,13 @@ export interface ProjectGCodeResult {
   byMaterial: Record<string, unknown>;
 }
 
-/** Default machine config (compatible with GCodeConfig) */
-export const DEFAULT_CONFIG: GCodeConfig = {};
+/** Default machine config (matches internal constants; UI can override) */
+export const DEFAULT_CONFIG: GCodeConfig = {
+  Z_SAFE: 26.0,
+  SPINDLE_SPEED: 18000,
+  CUTTING_FEED_RATE: 12000,
+  PLUNGE_FEED_RATE: 6000,
+};
 
 // ============================================
 // MACHINE CONSTANTS (From Apps Script)
