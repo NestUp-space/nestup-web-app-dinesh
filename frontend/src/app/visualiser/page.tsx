@@ -1,14 +1,8 @@
 'use client';
 
-<<<<<<< HEAD
 import React from 'react';
 import Link from 'next/link';
 import { useDesignerStore, useDesignSummary } from '@/stores/designerStore';
-=======
-import { useState } from "react";
-import Link from "next/link";
-import { useAppStore } from "@/stores/visualiserStore";
->>>>>>> nestup/Development
 
 export default function VisualiserPage() {
   const { projectName, lastSaved, clearDesign } = useDesignerStore();

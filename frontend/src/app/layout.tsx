@@ -45,7 +45,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-<<<<<<< HEAD
         {/* Chunk load error recovery (workaround for Next.js ChunkLoadError timeout) */}
         <script
           dangerouslySetInnerHTML={{
@@ -82,13 +81,11 @@ export default function RootLayout({
             `,
           }}
         />
-=======
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#FF8A00" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Nestup" />
->>>>>>> nestup/Development
         {/* Google Analytics */}
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
