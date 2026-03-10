@@ -13,7 +13,7 @@
  */
 
 import { NestResult, SHEET_CONSTANTS } from '@/types/visualiser';
-import { CustomerDetails } from '@/store/designerStore';
+import { CustomerDetails } from '@/stores/designerStore';
 
 // ============================================
 // TYPES

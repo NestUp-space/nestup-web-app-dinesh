@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useMemo, useCallback, useState, createContext
 import { Canvas, useThree, ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { useDesignerStore } from '@/store/designerStore';
+import { useDesignerStore } from '@/stores/designerStore';
 import { Wall, Box, Plank, DesignMode } from '@/types/visualiser';
 import { Guidelines } from './Guidelines';
 import { MeasurementVisuals } from './MeasurementVisuals';

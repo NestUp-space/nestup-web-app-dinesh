@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import Link from 'next/link';
-import { useDesignerStore } from '@/store/designerStore';
+import { useDesignerStore } from '@/stores/designerStore';
 import { formatDesignData, generatePlankList } from '@/lib/visualiser';
 
 export default function QAOutputPage() {

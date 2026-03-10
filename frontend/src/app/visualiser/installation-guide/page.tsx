@@ -17,7 +17,7 @@ import { Suspense, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows, Html } from '@react-three/drei';
-import { useDesignerStore } from '@/store/designerStore';
+import { useDesignerStore } from '@/stores/designerStore';
 import { Wall, Box, Plank } from '@/types/visualiser';
 import * as THREE from 'three';
 

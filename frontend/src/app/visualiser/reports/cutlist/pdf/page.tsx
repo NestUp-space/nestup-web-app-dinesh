@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useDesignerStore, useDesignSummary } from '@/store/designerStore';
+import { useDesignerStore, useDesignSummary } from '@/stores/designerStore';
 import {
   formatDesignData,
   generatePlankList,

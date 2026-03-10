@@ -7,7 +7,7 @@ import {
   useSelectedBox,
   useSelectedPlank,
   useDesignSummary,
-} from '@/store/designerStore';
+} from '@/stores/designerStore';
 import { DESIGNER_CONFIG } from '@/lib/visualiser/catalogParser';
 import { Wall, Box, PlywoodOption } from '@/types/visualiser';
 import { BoxDimensions } from '@/lib/visualiser/plankFormulaSystem';

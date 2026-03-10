@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useCallback, useMemo, createContext, useContext, useState } from 'react';
 import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
-import { useDesignerStore } from '@/store/designerStore';
+import { useDesignerStore } from '@/stores/designerStore';
 import { Position, Box } from '@/types/visualiser';
 import { useDragInteraction, DragState, MovePhase } from '@/hooks/useDragInteraction';
 import { MoveVisuals } from './MoveVisuals';

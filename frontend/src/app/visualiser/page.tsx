@@ -3,7 +3,7 @@
 <<<<<<< HEAD
 import React from 'react';
 import Link from 'next/link';
-import { useDesignerStore, useDesignSummary } from '@/store/designerStore';
+import { useDesignerStore, useDesignSummary } from '@/stores/designerStore';
 =======
 import { useState } from "react";
 import Link from "next/link";

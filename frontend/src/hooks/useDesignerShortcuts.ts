@@ -21,7 +21,7 @@
  */
 
 import { useEffect, useCallback } from 'react';
-import { useDesignerStore } from '@/store/designerStore';
+import { useDesignerStore } from '@/stores/designerStore';
 
 interface UseDesignerShortcutsOptions {
   enabled?: boolean;

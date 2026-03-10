@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import Link from 'next/link';
-import { useDesignerStore, useDesignSummary } from '@/store/designerStore';
+import { useDesignerStore, useDesignSummary } from '@/stores/designerStore';
 import { formatDesignData, generatePlankList, runNesting } from '@/lib/visualiser';
 import { SHEET_CONSTANTS } from '@/types/visualiser';
 

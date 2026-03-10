@@ -22,7 +22,7 @@ import type { NestResult, CutlistData, CutlistHole } from "@/types/visualiser";
 
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { NestResult, SHEET_CONSTANTS } from '@/types/visualiser';
-import { CustomerDetails } from '@/store/designerStore';
+import { CustomerDetails } from '@/stores/designerStore';
 
 // ============================================
 // COLOR CONSTANTS

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useDesignerStore } from '@/store/designerStore';
+import { useDesignerStore } from '@/stores/designerStore';
 import { CatalogModel } from '@/types/visualiser';
 import { BoxDefaultsManager } from '@/lib/visualiser/boxDefaultsManager';
 

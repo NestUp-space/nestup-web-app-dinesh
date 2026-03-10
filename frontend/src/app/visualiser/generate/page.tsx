@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useDesignerStore, useDesignSummary, useAllPlanks } from '@/store/designerStore';
+import { useDesignerStore, useDesignSummary, useAllPlanks } from '@/stores/designerStore';
 import {
   GenerationStep,
   GenerationProgress,
@@ -15,7 +15,7 @@ import {
 } from '@/types/visualiser';
 import { EdgeBindingDialog, EBSettings } from '@/components/visualiser/designer/dialogs/EdgeBindingDialog';
 import { ClientDetailsDialog } from '@/components/visualiser/designer/dialogs/ClientDetailsDialog';
-import { CustomerDetails } from '@/store/designerStore';
+import { CustomerDetails } from '@/stores/designerStore';
 
 // Import generation utilities
 import { formatDesignData } from '@/lib/visualiser/dataFormatter';

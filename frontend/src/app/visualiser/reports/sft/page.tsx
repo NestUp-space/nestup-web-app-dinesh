@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import Link from 'next/link';
-import { useDesignerStore, useDesignSummary } from '@/store/designerStore';
+import { useDesignerStore, useDesignSummary } from '@/stores/designerStore';
 
 export default function SFTResultsPage() {
   const summary = useDesignSummary();

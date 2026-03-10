@@ -5,4 +5,4 @@
 
 export { EdgeBindingDialog, type EBSettings } from './EdgeBindingDialog';
 export { ClientDetailsDialog } from './ClientDetailsDialog';
-export type { CustomerDetails } from '@/store/designerStore';
+export type { CustomerDetails } from '@/stores/designerStore';

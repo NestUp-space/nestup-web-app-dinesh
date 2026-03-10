@@ -8,7 +8,7 @@ import { PropertiesPanel } from '@/components/visualiser/designer/panels/Propert
 import { CatalogPanel } from '@/components/visualiser/designer/panels/CatalogPanel';
 import { LaminatePanel } from '@/components/visualiser/designer/panels/LaminatePanel';
 import { WallTabs } from '@/components/visualiser/designer/WallTabs';
-import { useDesignerStore } from '@/store/designerStore';
+import { useDesignerStore } from '@/stores/designerStore';
 import { 
   loadCatalogFromSampleData, 
   refreshCatalogFromGoogleSheets,

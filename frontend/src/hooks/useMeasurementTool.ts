@@ -16,7 +16,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import * as THREE from 'three';
-import { useDesignerStore, useAllBoxes } from '@/store/designerStore';
+import { useDesignerStore, useAllBoxes } from '@/stores/designerStore';
 import { 
   Position, 
   MeasurementMode, 

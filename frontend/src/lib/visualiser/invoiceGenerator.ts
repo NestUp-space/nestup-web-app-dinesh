@@ -10,7 +10,7 @@
  */
 
 import jsPDF from 'jspdf';
-import { CustomerDetails } from '@/store/designerStore';
+import { CustomerDetails } from '@/stores/designerStore';
 import { SFTCalculationResult } from './sftCalculation';
 import { MaterialEstimate } from '@/types/visualiser';
 

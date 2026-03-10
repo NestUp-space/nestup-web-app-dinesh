@@ -7,7 +7,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useDesignerStore, CustomerDetails } from '@/store/designerStore';
+import { useDesignerStore, CustomerDetails } from '@/stores/designerStore';
 
 interface ClientDetailsDialogProps {
   isOpen: boolean;

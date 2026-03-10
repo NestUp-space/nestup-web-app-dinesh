@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { useDesignerStore, useSelectedBox } from '@/store/designerStore';
+import { useDesignerStore, useSelectedBox } from '@/stores/designerStore';
 import { LaminateOption } from '@/types/visualiser';
 import { localConvertDriveUrl } from '@/lib/visualiser/catalogParser';
 

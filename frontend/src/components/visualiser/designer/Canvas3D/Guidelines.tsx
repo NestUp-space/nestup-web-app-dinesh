@@ -16,7 +16,7 @@ import React, { useMemo, useCallback, useState, useRef } from 'react';
 import { ThreeEvent, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Line, Html } from '@react-three/drei';
-import { useDesignerStore } from '@/store/designerStore';
+import { useDesignerStore } from '@/stores/designerStore';
 import { Position, Guideline } from '@/types/visualiser';
 
 // ============================================

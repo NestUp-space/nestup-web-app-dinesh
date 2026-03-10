@@ -12,7 +12,7 @@
 
 import { jsPDF } from 'jspdf';
 import type { MaterialEstimate, MaterialSummary } from '@/types/visualiser';
-import type { CustomerDetails } from '@/store/designerStore';
+import type { CustomerDetails } from '@/stores/designerStore';
 
 // ============================================
 // TYPES
