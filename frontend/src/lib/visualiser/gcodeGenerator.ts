@@ -48,13 +48,14 @@ interface SlotFeature {
   depth: number;
 }
 
+/** All arrays optional so callers can pass partial feature sets (e.g. demo data) */
 interface PlankFeatures {
-  screws: Position[];
-  hinges: Position[];
-  vb_main: Position[];
-  vb_double: Position[];
-  slots: SlotFeature[];
-  l_cuts: LCutTriplet[];
+  screws?: Position[];
+  hinges?: Position[];
+  vb_main?: Position[];
+  vb_double?: Position[];
+  slots?: SlotFeature[];
+  l_cuts?: LCutTriplet[];
 }
 
 export interface GCodePlank {
