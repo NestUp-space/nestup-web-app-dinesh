@@ -22,9 +22,12 @@ import { NestResult } from '@/types/visualiser';
 // TYPES
 // ============================================
 
+/** Hole/point position; z and diameter are optional (generator uses only x, y) */
 interface Position {
   x: number;
   y: number;
+  z?: number;
+  diameter?: number;
 }
 
 interface LCutTriplet {
