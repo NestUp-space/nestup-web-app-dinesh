@@ -290,7 +290,7 @@ function BoxGroup({
       ref={groupRef}
       position={[box.position.x, box.position.z, -box.position.y + zOffset]}
     >
-      {box.planks.map((plank) => (
+      {box.planks.map((plank: Plank) => (
         <PlankMesh
           key={plank.id}
           plank={plank}
@@ -650,7 +650,7 @@ function CurrentPlankInfo() {
 
   const currentWall = data?.walls[currentWallIndex];
   const currentBox = currentWall?.boxes[currentBoxIndex];
-  const currentPlank = currentBox?.planks.find(p => p.stepNumber === currentStep);
+  const currentPlank = currentBox?.planks.find((p: Plank) => p.stepNumber === currentStep);
 
   if (!currentPlank || currentStep === 0) return null;
 
