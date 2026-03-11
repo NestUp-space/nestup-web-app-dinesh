@@ -295,8 +295,8 @@ function BoxGroup({
           key={plank.id}
           plank={plank}
           boxPosition={{ x: 0, y: 0, z: 0 }}
-          isCurrentStep={currentStep === plank.stepNumber}
-          isPastStep={currentStep > plank.stepNumber}
+          isCurrentStep={currentStep === (plank.stepNumber ?? 0)}
+          isPastStep={currentStep > (plank.stepNumber ?? 0)}
           explodeAmount={isSelected ? explodeAmount : 0}
           isSelected={selectedPlankId === plank.id}
           onClick={() => onPlankClick(plank.id)}
