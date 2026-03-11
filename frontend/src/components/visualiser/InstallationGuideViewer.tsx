@@ -11,7 +11,7 @@ import {
 } from "@react-three/drei";
 import * as THREE from "three";
 import { useInstallationGuideStore, useAppStore } from "@/stores/visualiserStore";
-import type { Wall, Box, Plank, EditMode } from "@/types/visualiser";
+import type { Wall, Box, Plank, EditMode, MaterialLegendItem } from "@/types/visualiser";
 
 // Demo data for testing
 const DEMO_DATA = {
@@ -549,7 +549,7 @@ function SlidePanel({ isOpen, onClose }: SidePanelProps) {
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-2">
                 Material Legend
               </label>
-              {data?.materialLegend.map((mat) => (
+              {data?.materialLegend.map((mat: MaterialLegendItem) => (
                 <div key={mat.name} className="flex items-center gap-3 mb-2">
                   <div 
                     className="w-6 h-6 rounded border"
