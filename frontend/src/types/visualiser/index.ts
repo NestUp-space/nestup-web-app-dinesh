@@ -451,7 +451,7 @@ export interface SFTResult {
 // ============================================
 
 /** Installation guide / room viewer edit mode */
-export type EditMode = 'view' | 'select' | 'place' | 'move';
+export type EditMode = 'view' | 'select' | 'place' | 'move' | 'rotate' | 'boxMove';
 
 export type DesignMode = 'select' | 'place' | 'move' | 'rotate' | 'paint' | 'guidelines' | 'measure';
 
