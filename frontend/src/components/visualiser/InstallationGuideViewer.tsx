@@ -416,7 +416,7 @@ function Scene() {
       <WallSurface wall={currentWall} />
       
       {/* Boxes */}
-      {currentWall.boxes.map((box, index) => (
+      {currentWall.boxes.map((box: Box, index: number) => (
         <BoxGroup
           key={box.id}
           box={box}
@@ -494,7 +494,7 @@ function SlidePanel({ isOpen, onClose }: SidePanelProps) {
                 className="w-full p-3 border-2 rounded-xl text-gray-700 focus:border-orange-500 focus:outline-none"
               >
                 <option value={-1}>-- Choose Wall --</option>
-                {data?.walls.map((wall, index) => (
+                {data?.walls.map((wall: Wall, index: number) => (
                   <option key={wall.id} value={index}>
                     {wall.entityName} ({wall.roomName})
                   </option>
@@ -509,7 +509,7 @@ function SlidePanel({ isOpen, onClose }: SidePanelProps) {
                   Boxes ({currentWall.boxes.length})
                 </label>
                 <div className="space-y-2 max-h-48 overflow-auto">
-                  {currentWall.boxes.map((box, index) => (
+                  {currentWall.boxes.map((box: Box, index: number) => (
                     <button
                       key={box.id}
                       onClick={() => setCurrentBox(index)}
