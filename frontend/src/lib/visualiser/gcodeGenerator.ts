@@ -134,7 +134,7 @@ const FIXED_DEPTHS = {
  * Convert NestResult to GCodePlank format
  */
 function convertToGCodePlank(nestResult: NestResult): GCodePlank {
-  const features: PlankFeatures = {
+  const features: Required<PlankFeatures> = {
     screws: [],
     hinges: [],
     vb_main: [],
