@@ -630,3 +630,44 @@ export interface EditableOption {
   thicknessTarget?: string;
   derivedFrom?: string;
 }
+
+// ============================================
+// STORE DATA TYPES
+// ============================================
+
+/** Cutlist visualization data (sheets with nested planks) */
+export interface CutlistData {
+  sheets: SheetLayout[];
+  summary: {
+    totalPlanks: number;
+    totalSheets: number;
+    avgUtilization: number;
+  };
+  [key: string]: unknown;
+}
+
+/** Installation guide data (walls → boxes → planks with step ordering) */
+export interface InstallationGuideData {
+  walls: Wall[];
+  materialLegend: MaterialLegendItem[];
+  [key: string]: unknown;
+}
+
+/** Single G-code result file entry (used by store) */
+export interface GCodeResult {
+  sheetName: string;
+  fileName: string;
+  materialFolder: string;
+  thicknessFolder: string;
+  content: string;
+  plankCount: number;
+}
+
+/** Designer state snapshot (used by store) */
+export interface DesignerState {
+  walls: Wall[];
+  selectedWallId?: string | null;
+  selectedBoxId?: string | null;
+  selectedPlankId?: string | null;
+  [key: string]: unknown;
+}
