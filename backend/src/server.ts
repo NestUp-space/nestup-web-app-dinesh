@@ -76,14 +76,20 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // Handle preflight requests
 
-app.use(helmet());
+const frontendProxyEnabled = process.env.ENABLE_FRONTEND_PROXY === "1" || process.env.ENABLE_FRONTEND_PROXY === "true";
+
+app.use(
+  helmet({
+    contentSecurityPolicy: frontendProxyEnabled ? false : undefined,
+    crossOriginEmbedderPolicy: false,
+  })
+);
 app.use(rateLimiter);
 
 // Request logging
 app.use(requestLogger);
 
 // Routes
-const frontendProxyEnabled = process.env.ENABLE_FRONTEND_PROXY === "1" || process.env.ENABLE_FRONTEND_PROXY === "true";
 if (!frontendProxyEnabled) {
   app.get("/", (_req, res) => {
     res.redirect(302, "/api-docs");
