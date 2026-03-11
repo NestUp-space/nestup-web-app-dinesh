@@ -371,9 +371,9 @@ function Scene() {
       setSelectedPlank(plankId);
     } else {
       // Find plank and jump to its step
-      const plank = currentBox?.planks.find(p => p.id === plankId);
+      const plank = currentBox?.planks.find((p: Plank) => p.id === plankId);
       if (plank) {
-        setCurrentStep(plank.stepNumber);
+        setCurrentStep(plank.stepNumber ?? 0);
       }
     }
   };
