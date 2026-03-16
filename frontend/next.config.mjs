@@ -44,10 +44,16 @@ const nextConfig = {
     if (dev) {
       config.cache = false;
     }
-    // Ensure @ alias resolves in all environments (CI/build)
+    // Ensure path aliases resolve in all environments (CI/build)
+    const src = path.resolve(__dirname, "src");
     config.resolve.alias = {
       ...config.resolve.alias,
-      "@": path.resolve(__dirname, "src"),
+      "@": src,
+      "@components": path.resolve(__dirname, "src/components"),
+      "@context": path.resolve(__dirname, "src/context"),
+      "@img": path.resolve(__dirname, "public/img"),
+      "@lib": path.resolve(__dirname, "lib"),
+      "@constants": path.resolve(__dirname, "src/constants"),
     };
     return config;
   },
