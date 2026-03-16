@@ -22,7 +22,7 @@
     "experimentalDecorators": true,
     "resolveJsonModule": true,
     "baseUrl": ".",
-    "types": ["node", "vitest/globals"],
+    "types": ["node"],
     "paths": {
       "@/*": ["src/*"]
     }
