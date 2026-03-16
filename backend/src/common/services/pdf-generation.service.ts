@@ -35,7 +35,7 @@ export class PdfGenerationService {
       };
 
       const pdfBuffer = await page.pdf(pdfOptions);
-      return pdfBuffer;
+      return Buffer.from(pdfBuffer) as Buffer;
     } catch (error) {
       console.error('Error generating PDF:', error);
       // Consider more specific error handling or re-throwing a custom error
