@@ -41,20 +41,33 @@ if (isDev) {
   console.log('[CORS] Allowed origins:', allowedOrigins);
 }
 
+const frontendHost =
+  (process.env.ENABLE_FRONTEND_PROXY === "1" || process.env.ENABLE_FRONTEND_PROXY === "true") && env.FRONTEND_URL
+    ? new URL(env.FRONTEND_URL).host
+    : null;
+
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     if (!origin) {
       return callback(null, true);
     }
-    
-    const isAllowed = allowedOrigins.includes(origin);
-    
+    const normalized = origin.replace(/\/$/, "");
+    let isAllowed =
+      allowedOrigins.includes(origin) ||
+      allowedOrigins.includes(normalized) ||
+      allowedOrigins.some((o) => normalized.startsWith(o.replace(/\/$/, "")));
+    if (!isAllowed && frontendHost) {
+      try {
+        isAllowed = new URL(origin).host === frontendHost;
+      } catch {
+        // ignore invalid origin URL
+      }
+    }
     if (!isAllowed) {
       const msg = `CORS policy does not allow origin: ${origin}`;
-      if (isDev) console.log('[CORS] Blocked:', origin);
+      if (isDev) console.log("[CORS] Blocked:", origin);
       return callback(new Error(msg), false);
     }
-    
     return callback(null, true);
   },
   credentials: true,
@@ -111,21 +124,21 @@ app.use("/api/lidar", lidarRouter); // LiDAR routes for session management
 // Swagger UI at /api-docs (keeps root free for future frontend or redirect)
 app.use("/api-docs", openAPIRouter);
 
-// Proxy non-API requests to Next.js when running combined (e.g. DigitalOcean single-component)
+// Proxy non-API requests (and Next.js API route /api/catalog) to Next.js when running combined (e.g. DigitalOcean single-component)
 if (frontendProxyEnabled) {
   app.use(
     createProxyMiddleware({
       target: "http://127.0.0.1:3000",
       changeOrigin: true,
       pathFilter: (pathName) => {
-        if (pathName.startsWith("/api") || pathName.startsWith("/api-docs") || pathName.startsWith("/health-check")) {
-          return false;
-        }
+        if (pathName.startsWith("/api-docs") || pathName.startsWith("/health-check")) return false;
+        if (pathName.startsWith("/api/catalog")) return true;
+        if (pathName.startsWith("/api")) return false;
         return true;
       },
     })
   );
-  logger.info("Frontend proxy enabled: / (except /api, /api-docs, /health-check) -> http://127.0.0.1:3000");
+  logger.info("Frontend proxy enabled: / and /api/catalog -> Next.js, other /api -> Express");
 }
 
 // Error handlers
