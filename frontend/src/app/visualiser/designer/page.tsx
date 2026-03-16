@@ -238,7 +238,7 @@ export default function DesignerPage() {
 
   if (isLoading) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-white">
+      <div className="h-full min-h-[60vh] w-full flex items-center justify-center bg-white">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-orange-500 mx-auto mb-4"></div>
           <p className="text-gray-900 text-lg">Loading Designer...</p>
@@ -249,7 +249,7 @@ export default function DesignerPage() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-gray-50 overflow-hidden">
+    <div className="h-full min-h-0 flex-1 flex flex-col bg-gray-50 overflow-hidden w-full">
       {/* Toolbar */}
       <Toolbar
         leftPanelOpen={leftPanelOpen}
