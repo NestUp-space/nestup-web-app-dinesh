@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 // Strapi production URL (set in DigitalOcean for blog/CMS images)
 const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL;
 const strapiOrigin = strapiUrl ? new URL(strapiUrl).origin : null;
@@ -39,6 +44,11 @@ const nextConfig = {
     if (dev) {
       config.cache = false;
     }
+    // Ensure @ alias resolves in all environments (CI/build)
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@": path.resolve(__dirname, "src"),
+    };
     return config;
   },
 };
