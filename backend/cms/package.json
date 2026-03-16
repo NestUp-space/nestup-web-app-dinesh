@@ -21,6 +21,7 @@
     "@strapi/plugin-users-permissions": "5.20.0",
     "@strapi/strapi": "5.20.0",
     "better-sqlite3": "11.3.0",
+    "pg": "^8.11.0",
     "gray-matter": "^4.0.3",
     "node-fetch": "^3.3.2",
     "react": "^18.0.0",

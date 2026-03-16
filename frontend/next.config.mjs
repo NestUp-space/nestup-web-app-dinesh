@@ -1,4 +1,9 @@
 /** @type {import('next').NextConfig} */
+
+// Strapi production URL (set in DigitalOcean for blog/CMS images)
+const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL;
+const strapiOrigin = strapiUrl ? new URL(strapiUrl).origin : null;
+
 const nextConfig = {
   // Disable React Strict Mode to prevent double rendering in development
   reactStrictMode: false,
@@ -15,6 +20,15 @@ const nextConfig = {
         port: '1338',
         pathname: '/uploads/**',
       },
+      ...(strapiOrigin
+        ? [
+            {
+              protocol: strapiOrigin.startsWith('https') ? 'https' : 'http',
+              hostname: new URL(strapiOrigin).hostname,
+              pathname: '/uploads/**',
+            },
+          ]
+        : []),
     ],
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
