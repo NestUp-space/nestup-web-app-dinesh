@@ -1,7 +1,6 @@
 'use client';
 
 import React, { Suspense } from 'react';
-import Navbar from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 
 export default function VisualiserLayout({
@@ -11,9 +10,6 @@ export default function VisualiserLayout({
 }) {
   return (
     <div className="min-h-screen w-screen flex flex-col bg-white">
-      <header className="flex-shrink-0 sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-        <Navbar />
-      </header>
       <main className="flex-1 flex flex-col min-h-0">
         <Suspense
           fallback={
