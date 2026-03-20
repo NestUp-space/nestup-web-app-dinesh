@@ -150,8 +150,8 @@ function detectIncutCutType(points: Point[]): string {
   if (points.length === 4) {
     const xs = points.map((p) => p.x);
     const ys = points.map((p) => p.y);
-    const uniqueX = [...new Set(xs.map((x) => Math.round(x * 10) / 10))];
-    const uniqueY = [...new Set(ys.map((y) => Math.round(y * 10) / 10))];
+    const uniqueX = Array.from(new Set(xs.map((x) => Math.round(x * 10) / 10)));
+    const uniqueY = Array.from(new Set(ys.map((y) => Math.round(y * 10) / 10)));
     if (uniqueX.length === 2 && uniqueY.length === 2) return 'RECT';
   }
   return 'LINE';
