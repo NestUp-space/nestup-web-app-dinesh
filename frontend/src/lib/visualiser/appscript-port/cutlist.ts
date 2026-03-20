@@ -847,7 +847,7 @@ export function createCutlist(
           algorithmParams?.gaMutationRate ?? 2,
           materialThicknessKey,
           dynamicOpHeader
-        ).details;
+        ).details!;
         break;
       case 'sa':
         result = _runSimulatedAnnealingForGroup(
@@ -857,7 +857,7 @@ export function createCutlist(
           algorithmParams?.saCoolingRate ?? 0.995,
           materialThicknessKey,
           dynamicOpHeader
-        ).details;
+        ).details!;
         break;
       case 'pso':
         result = _runPsoForGroup(
