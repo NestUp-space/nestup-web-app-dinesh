@@ -11,6 +11,8 @@ interface ToolbarProps {
   rightPanelOpen: boolean;
   onToggleLeftPanel: () => void;
   onToggleRightPanel: () => void;
+  /** When false, hide the Logo & Back link at the start (e.g. in visualiser designer). Default true. */
+  showLogoBack?: boolean;
 }
 
 interface ToolButtonProps {
@@ -52,6 +54,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   rightPanelOpen,
   onToggleLeftPanel,
   onToggleRightPanel,
+  showLogoBack = true,
 }) => {
   const router = useRouter();
   const summary = useDesignSummary();
@@ -70,6 +73,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     resetCamera,
     setViewMode,
     addWall,
+    setActiveWall,
     clearDesign,
     getDesignData,
     projectName,
@@ -79,17 +83,18 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     const wallCount = summary.totalWalls;
     // Coordinate system: X=right, Y=depth (backward), Z=height (up)
     // Wall at origin, extending in X for width, Y for depth (thickness), Z for height
-    addWall({
+    const newWallId = addWall({
       entityName: `Wall ${wallCount + 1}`,
       roomName: 'Room 1',
       unitLocation: ['North', 'South', 'East', 'West'][wallCount % 4],
       position: { x: 0, y: 0, z: 0 }, // Wall always at origin in single-wall mode
-      dimensions: { 
+      dimensions: {
         lenX: 3000,  // Width (X direction)
         lenY: 200,   // Depth/thickness (Y direction, extends backward)
         lenZ: 2700   // Height (Z direction, up)
       },
     });
+    setActiveWall(newWallId);
   };
 
   const handleExport = () => {
@@ -166,18 +171,21 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
   return (
     <div className="h-14 border-b border-gray-200 bg-white backdrop-blur-sm flex items-center px-2 gap-1 overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
-      {/* Logo & Back */}
-      <Link
-        href="/visualiser"
-        className="flex items-center gap-2 mr-2 text-orange-500 hover:text-orange-600 transition-colors shrink-0"
-      >
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        <span className="font-semibold">Visualiser</span>
-      </Link>
-
-      <Divider />
+      {showLogoBack && (
+        <>
+          {/* Logo & Back */}
+          <Link
+            href="/visualiser"
+            className="flex items-center gap-2 mr-2 text-orange-500 hover:text-orange-600 transition-colors shrink-0"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="font-semibold">Visualiser</span>
+          </Link>
+          <Divider />
+        </>
+      )}
 
       {/* Panel Toggles */}
       <ToolButton
