@@ -1,191 +1,348 @@
 'use client';
 
 /**
- * Installation Guide Page
- * Interactive 3D assembly guide for customers
- * Based on Apps Script "visualization.js" and "installationguide.js"
- * 
- * Features:
- * - 3D visualization of cabinets
- * - Step-by-step assembly instructions
- * - Explode view for individual boxes
- * - Plank checklist
- * - Material legend
+ * Installation Guide Page — exact port of App Script UI + premium enhancements.
+ *
+ * Layout: Full-screen 3D canvas with floating UI overlays
+ * (menu button, print, fit-view, edit-mode pill, step controls, plank info card,
+ *  slide-in panel, tooltip, save indicator, loading spinner).
+ *
+ * Coordinate mapping matches App Script exactly:
+ *   Three.js X = Data X
+ *   Three.js Y = Data Z  (height)
+ *   Three.js Z = -Data Y  (depth, flipped)
  */
 
-import { Suspense, useState, useCallback, useMemo } from 'react';
+import { Suspense, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment, ContactShadows, Html } from '@react-three/drei';
-import { useDesignerStore } from '@/stores/designerStore';
-import { Wall, Box, Plank } from '@/types/visualiser';
 import * as THREE from 'three';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
+import { OrbitControls, Environment } from '@react-three/drei';
+import { useDesignerStore } from '@/stores/designerStore';
+import {
+  buildInstallationGuide,
+  enrichMaterialFromPipeline,
+  syncPlankIdsToRaw,
+  convertDesignerRawDataTo2D,
+  updatePlankPositionInData,
+  updateBoxPositionInData,
+} from '@/lib/visualiser/appscript-port';
+import type { VisualizationData, WallData, BoxData, PlankData } from '@/lib/visualiser/appscript-port';
+import { generateRawData } from '@/lib/visualiser/rawDataGenerator';
 
 // ============================================
-// TYPES
+// CONSTANTS — matching App Script
 // ============================================
+const FORWARD_DISTANCE = 1000;
+const SCENE_BG = '#F5F7FA';
 
-interface PlankWithStep extends Plank {
-  stepNumber: number;
-  explodeOffset: { x: number; y: number; z: number };
+const COLORS = {
+  primary: '#F97316',
+  primaryDark: '#EA580C',
+  primaryLight: '#FDBA74',
+  white: '#FFFFFF',
+  navy: '#1E3A5F',
+  background: '#FFF7ED',
+  border: '#FED7AA',
+  textDark: '#374151',
+  textMedium: '#6B7280',
+  ash: '#9CA3AF',
+  ashLight: '#E5E7EB',
+  bgLight: '#F5F5F5',
+  wallColor: '#F9FAFB',
+  boxSelect: '#3B82F6',
+  green: '#22C55E',
+  red: '#EF4444',
+};
+
+// ============================================
+// COORDINATE HELPERS — exact App Script mapping
+// ============================================
+function toThreePos(x: number, y: number, z: number): [number, number, number] {
+  return [x, z, -y];
 }
 
 // ============================================
-// HELPER FUNCTIONS
+// WOOD TEXTURE GENERATOR (premium enhancement)
 // ============================================
+function hexToRgb(hex: string) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) }
+    : { r: 200, g: 180, b: 150 };
+}
 
-function getMaterialColor(material: string): string {
-  const materialColors: Record<string, string> = {
-    '2632 SF Inner': '#DEB887',
-    'BB EHGP 701': '#FFFFFF',
-    '7070': '#E5E7EB',
-    'EHGP 701': '#FAF9F6',
-    'Color (Kitchen)': '#F5DEB3',
-    'Plywood': '#D2B48C',
-    'MDF': '#DEB887',
-    'HDHMR': '#C4A86C',
+function luminance(r: number, g: number, b: number) {
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+
+function generateWoodTexture(
+  baseColor: string,
+  canvasW: number,
+  canvasH: number,
+  plankId: string,
+  dims: { lenX: number; lenY: number; lenZ: number },
+  seed: number,
+): THREE.CanvasTexture {
+  const w = Math.min(512, Math.max(128, Math.round(canvasW / 4)));
+  const h = Math.min(512, Math.max(128, Math.round(canvasH / 4)));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  const { r, g, b } = hexToRgb(baseColor);
+
+  ctx.fillStyle = baseColor;
+  ctx.fillRect(0, 0, w, h);
+
+  const rng = (s: number) => {
+    const v = Math.sin(s * 127.1 + seed * 311.7) * 43758.5453;
+    return v - Math.floor(v);
   };
-  return materialColors[material?.trim()] || '#D1D5DB';
-}
 
-function getExplodeDirection(role: string): { x: number; y: number; z: number } {
-  const d = 300; // Explode distance
-  switch (role) {
-    case 'left': return { x: -d, y: 0, z: 0 };
-    case 'right': return { x: d, y: 0, z: 0 };
-    case 'top': return { x: 0, y: d, z: 0 };
-    case 'bottom': return { x: 0, y: -d, z: 0 };
-    case 'back': return { x: 0, y: 0, z: d };
-    case 'front': case 'door': return { x: 0, y: 0, z: -d };
-    case 'shelf': return { x: 0, y: 0, z: -d * 0.5 };
-    case 'skirting': return { x: 0, y: -d * 0.3, z: -d * 0.3 };
-    case 'drawer': return { x: 0, y: 0, z: -d * 0.7 };
-    default: return { x: 0, y: 0, z: -d * 0.4 };
-  }
-}
-
-function getAssemblyOrder(role: string): number {
-  const orderMap: Record<string, number> = {
-    'skirting': 1, 'bottom': 2, 'left': 3, 'right': 4,
-    'back': 5, 'top': 6, 'shelf': 7, 'dummy': 8,
-    'facia': 9, 'drawer': 10, 'front': 11, 'door': 12, 'other': 7,
-  };
-  return orderMap[role] || 7;
-}
-
-function getAssemblyDirection(role: string): { arrow: string; text: string } {
-  switch (role) {
-    case 'left': return { arrow: '→', text: 'Place LEFT panel' };
-    case 'right': return { arrow: '←', text: 'Place RIGHT panel' };
-    case 'top': return { arrow: '↓', text: 'Place on TOP' };
-    case 'bottom': return { arrow: '↑', text: 'Place at BOTTOM' };
-    case 'back': return { arrow: '⟵', text: 'Place at BACK' };
-    case 'front': case 'door': return { arrow: '⟶', text: 'Attach FRONT' };
-    case 'shelf': return { arrow: '—', text: 'Insert SHELF' };
-    case 'skirting': return { arrow: '↓', text: 'Fix SKIRTING' };
-    case 'drawer': return { arrow: '⟶', text: 'Slide DRAWER' };
-    default: return { arrow: '•', text: 'Place part' };
-  }
-}
-
-// ============================================
-// 3D COMPONENTS
-// ============================================
-
-interface PlankMeshProps {
-  plank: PlankWithStep;
-  isExploded: boolean;
-  isHighlighted: boolean;
-  isCurrentStep: boolean;
-  opacity: number;
-  onClick?: () => void;
-}
-
-function PlankMesh({ plank, isExploded, isHighlighted, isCurrentStep, opacity, onClick }: PlankMeshProps) {
-  const color = plank.materialColor || getMaterialColor(plank.material);
-  
-  const position = useMemo(() => {
-    const base = [
-      plank.position.x + plank.dimensions.lenX / 2,
-      plank.position.z + plank.dimensions.lenZ / 2,
-      -(plank.position.y + plank.dimensions.lenY / 2),
-    ] as [number, number, number];
-    
-    if (isExploded) {
-      return [
-        base[0] + plank.explodeOffset.x,
-        base[1] + plank.explodeOffset.z,
-        base[2] - plank.explodeOffset.y,
-      ] as [number, number, number];
+  const grainCount = 12 + Math.floor(rng(1) * 10);
+  for (let i = 0; i < grainCount; i++) {
+    const gy = (i / grainCount) * h + (rng(i * 7) - 0.5) * 20;
+    const variation = (rng(i * 13) - 0.5) * 30;
+    const dr = Math.max(0, Math.min(255, r + variation));
+    const dg = Math.max(0, Math.min(255, g + variation - 10));
+    const db = Math.max(0, Math.min(255, b + variation - 15));
+    ctx.strokeStyle = `rgba(${Math.round(dr)},${Math.round(dg)},${Math.round(db)},${0.3 + rng(i * 3) * 0.4})`;
+    ctx.lineWidth = 1 + rng(i * 5) * 3;
+    ctx.beginPath();
+    ctx.moveTo(0, gy);
+    for (let x = 0; x < w; x += 8) {
+      ctx.lineTo(x, gy + Math.sin(x * 0.02 + rng(i) * 10) * (3 + rng(i * 2) * 5));
     }
-    
-    return base;
-  }, [plank, isExploded]);
+    ctx.stroke();
+  }
+
+  const knotCount = Math.floor(rng(99) * 2);
+  for (let k = 0; k < knotCount; k++) {
+    const kx = rng(k * 41) * w;
+    const ky = rng(k * 67) * h;
+    const kr = 4 + rng(k * 89) * 8;
+    const grad = ctx.createRadialGradient(kx, ky, 0, kx, ky, kr);
+    grad.addColorStop(0, `rgba(${Math.max(0, r - 50)},${Math.max(0, g - 50)},${Math.max(0, b - 40)},0.6)`);
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(kx, ky, kr * 1.2, kr, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (plankId) {
+    const lum = luminance(r, g, b);
+    const textColor = lum > 0.5 ? 'rgba(30,30,30,0.82)' : 'rgba(255,255,255,0.88)';
+    ctx.shadowColor = lum > 0.5 ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 2;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const idSize = Math.max(10, Math.min(28, w * 0.12));
+    ctx.font = `bold ${idSize}px Arial, sans-serif`;
+    ctx.fillStyle = textColor;
+    ctx.fillText(plankId, w / 2, h / 2 - idSize * 0.3);
+    const dimSize = Math.max(8, idSize * 0.65);
+    ctx.font = `${dimSize}px Arial, sans-serif`;
+    ctx.fillText(`${dims.lenX}x${dims.lenY}x${dims.lenZ}`, w / 2, h / 2 + idSize * 0.5);
+    ctx.shadowBlur = 0;
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+// ============================================
+// PLANK MESH
+// ============================================
+interface PlankMeshProps {
+  plank: PlankData;
+  targetOpacity: number;
+  isCurrentStep: boolean;
+  isSelected: boolean;
+  explodeAmount: number;
+  onClick?: () => void;
+  onPointerOver?: () => void;
+  onPointerOut?: () => void;
+}
+
+function PlankMesh({ plank, targetOpacity, isCurrentStep, isSelected, explodeAmount, onClick, onPointerOver, onPointerOut }: PlankMeshProps) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const opacityRef = useRef(targetOpacity);
+
+  // App Script: mesh.position.set(plank.x + lenX/2, plank.z + lenZ/2, -(plank.y + lenY/2))
+  const basePos = useMemo((): [number, number, number] => [
+    plank.position.x + plank.dimensions.lenX / 2,
+    plank.position.z + plank.dimensions.lenZ / 2,
+    -(plank.position.y + plank.dimensions.lenY / 2),
+  ], [plank.position, plank.dimensions]);
+
+  const explodeVec = useMemo((): [number, number, number] => {
+    if (explodeAmount <= 0) return [0, 0, 0];
+    const ed = plank.explodeDirection;
+    return [ed.x * explodeAmount, ed.z * explodeAmount, -ed.y * explodeAmount];
+  }, [plank.explodeDirection, explodeAmount]);
+
+  const targetPos = useMemo(
+    () => new THREE.Vector3(basePos[0] + explodeVec[0], basePos[1] + explodeVec[1], basePos[2] + explodeVec[2]),
+    [basePos, explodeVec],
+  );
+
+  // App Script: BoxGeometry(lenX, lenZ, lenY)
+  const geoArgs = useMemo((): [number, number, number] => [
+    plank.dimensions.lenX,
+    plank.dimensions.lenZ,
+    plank.dimensions.lenY,
+  ], [plank.dimensions]);
+
+  const seedHash = useMemo(() => {
+    let h = 0;
+    for (let i = 0; i < plank.id.length; i++) h = ((h << 5) - h + plank.id.charCodeAt(i)) | 0;
+    return Math.abs(h);
+  }, [plank.id]);
+
+  const texture = useMemo(() => {
+    const faceW = Math.max(plank.dimensions.lenX, plank.dimensions.lenY);
+    const faceH = Math.max(plank.dimensions.lenZ, Math.min(plank.dimensions.lenX, plank.dimensions.lenY));
+    return generateWoodTexture(plank.materialColor, faceW, faceH, plank.id, plank.dimensions, seedHash);
+  }, [plank.materialColor, plank.id, plank.dimensions, seedHash]);
+
+  const emissiveColor = useMemo(() => {
+    if (isSelected) return new THREE.Color(0x333300);
+    if (isCurrentStep) return new THREE.Color(0x225522);
+    return new THREE.Color(0x000000);
+  }, [isSelected, isCurrentStep]);
+
+  useFrame(() => {
+    if (!meshRef.current) return;
+    meshRef.current.position.lerp(targetPos, 0.12);
+    opacityRef.current += (targetOpacity - opacityRef.current) * 0.12;
+    const mat = meshRef.current.material as THREE.MeshStandardMaterial;
+    if (mat.opacity !== undefined) {
+      mat.opacity = opacityRef.current;
+      mat.transparent = opacityRef.current < 0.99;
+    }
+  });
 
   return (
     <mesh
-      position={position}
-      onClick={onClick}
+      ref={meshRef}
+      position={basePos}
+      castShadow
+      receiveShadow
+      onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+      onPointerOver={(e) => { e.stopPropagation(); onPointerOver?.(); }}
+      onPointerOut={onPointerOut}
     >
-      <boxGeometry args={[plank.dimensions.lenX, plank.dimensions.lenZ, plank.dimensions.lenY]} />
+      <boxGeometry args={geoArgs} />
       <meshStandardMaterial
-        color={isCurrentStep ? '#4CAF50' : isHighlighted ? '#FFD700' : color}
-        transparent={opacity < 1}
-        opacity={opacity}
-        wireframe={opacity < 0.5}
+        map={texture}
+        roughness={0.72}
+        metalness={0.0}
+        envMapIntensity={0.35}
+        transparent
+        opacity={targetOpacity}
+        emissive={emissiveColor}
+        emissiveIntensity={isSelected ? 0.4 : isCurrentStep ? 0.3 : 0}
       />
-      
-      {/* Step number label */}
-      {isCurrentStep && (
-        <Html position={[0, plank.dimensions.lenZ / 2 + 50, 0]} center>
-          <div className="bg-green-500 text-white px-2 py-1 rounded text-sm font-bold">
-            Step {plank.stepNumber}
-          </div>
-        </Html>
-      )}
+      <lineSegments>
+        <edgesGeometry args={[new THREE.BoxGeometry(...geoArgs)]} />
+        <lineBasicMaterial color={0x374151} transparent opacity={0.3} />
+      </lineSegments>
     </mesh>
   );
 }
 
-interface BoxGroupProps {
-  box: Box;
-  isExploded: boolean;
-  currentStep: number;
-  onPlankClick?: (plank: Plank) => void;
+// ============================================
+// WALL SURFACE — matches App Script exactly
+// ============================================
+function WallSurface({ wall }: { wall: WallData }) {
+  const lenX = wall.dimensions.lenX || 5000;
+  const lenZ = wall.dimensions.lenZ || 3000;
+  return (
+    <mesh
+      position={[lenX / 2, -25, lenZ / 2]}
+      receiveShadow
+    >
+      <boxGeometry args={[lenX, 50, lenZ]} />
+      <meshLambertMaterial color={COLORS.wallColor} transparent opacity={0.8} />
+    </mesh>
+  );
 }
 
-function BoxGroup({ box, isExploded, currentStep, onPlankClick }: BoxGroupProps) {
-  // Prepare planks with step info
-  const sortedPlanks = useMemo(() => {
-    return [...box.planks]
-      .map((plank) => ({
-        ...plank,
-        assemblyOrder: getAssemblyOrder(plank.role),
-        explodeOffset: getExplodeDirection(plank.role),
-      }))
-      .sort((a, b) => a.assemblyOrder - b.assemblyOrder)
-      .map((plank, index) => ({
-        ...plank,
-        stepNumber: index + 1,
-      }));
-  }, [box.planks]);
+// ============================================
+// BOX GROUP
+// ============================================
+interface BoxGroupProps {
+  box: BoxData;
+  isActiveBox: boolean;
+  currentStep: number;
+  explodeAmount: number;
+  selectedPlankId: string | null;
+  forwardOffset: number;
+  onPlankClick: (plank: PlankData, box: BoxData) => void;
+  onPlankHover: (plank: PlankData | null) => void;
+}
+
+function BoxGroup({ box, isActiveBox, currentStep, explodeAmount, selectedPlankId, forwardOffset, onPlankClick, onPlankHover }: BoxGroupProps) {
+  const groupRef = useRef<THREE.Group>(null);
+
+  // App Script: boxGroup3D.position.set(box.position.x, box.position.z, -box.position.y)
+  const basePos = useMemo((): THREE.Vector3 =>
+    new THREE.Vector3(box.position.x, box.position.z, -box.position.y),
+    [box.position],
+  );
+
+  const targetPos = useMemo(
+    () => new THREE.Vector3(basePos.x, basePos.y, basePos.z + forwardOffset),
+    [basePos, forwardOffset],
+  );
+
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.position.lerp(targetPos, 0.08);
+    }
+  });
+
+  const sortedPlanks = useMemo(
+    () => [...box.planks].sort((a, b) => (a.assemblyOrder ?? 7) - (b.assemblyOrder ?? 7)),
+    [box.planks],
+  );
 
   return (
-    <group position={[box.position.x, box.position.z, -box.position.y]}>
-      {sortedPlanks.map((plank) => {
-        const isCurrentStep = plank.stepNumber === currentStep;
-        const isPastStep = plank.stepNumber < currentStep;
-        const isFutureStep = plank.stepNumber > currentStep;
+    <group ref={groupRef} position={[basePos.x, basePos.y, basePos.z]}>
+      {sortedPlanks.map((plank, idx) => {
+        const step = idx + 1;
+        let opacity: number;
+        let isCurrent = false;
+
+        if (!isActiveBox) {
+          opacity = 0.15;
+        } else if (currentStep === 0) {
+          opacity = 0.95;
+        } else if (step < currentStep) {
+          opacity = 0.7;
+        } else if (step === currentStep) {
+          opacity = 1.0;
+          isCurrent = true;
+        } else {
+          opacity = 0.2;
+        }
 
         return (
           <PlankMesh
             key={plank.id}
             plank={plank}
-            isExploded={isExploded && !isPastStep}
-            isHighlighted={false}
-            isCurrentStep={isCurrentStep}
-            opacity={isFutureStep ? 0.3 : 1}
-            onClick={() => onPlankClick?.(plank)}
+            targetOpacity={opacity}
+            isCurrentStep={isCurrent}
+            isSelected={selectedPlankId === plank.id}
+            explodeAmount={isActiveBox ? explodeAmount : 0}
+            onClick={() => onPlankClick(plank, box)}
+            onPointerOver={() => onPlankHover(plank)}
+            onPointerOut={() => onPlankHover(null)}
           />
         );
       })}
@@ -194,322 +351,654 @@ function BoxGroup({ box, isExploded, currentStep, onPlankClick }: BoxGroupProps)
 }
 
 // ============================================
-// SIDEBAR COMPONENTS
+// CAMERA ANIMATOR — lerps camera to target
 // ============================================
+function CameraAnimator({ target, lookAt }: { target: THREE.Vector3 | null; lookAt: THREE.Vector3 | null }) {
+  const { camera } = useThree();
+  const controlsRef = useRef<{ target: THREE.Vector3 } | null>(null);
 
-interface BoxSelectorProps {
-  walls: Wall[];
-  selectedBoxId: string | null;
-  onSelectBox: (boxId: string) => void;
+  const orbitControls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3 } | null;
+  useEffect(() => { controlsRef.current = orbitControls; }, [orbitControls]);
+
+  useFrame(() => {
+    if (target) {
+      camera.position.lerp(target, 0.06);
+    }
+    if (lookAt && controlsRef.current) {
+      controlsRef.current.target.lerp(lookAt, 0.06);
+    }
+  });
+
+  return null;
 }
 
-function BoxSelector({ walls, selectedBoxId, onSelectBox }: BoxSelectorProps) {
-  return (
-    <div className="space-y-2">
-      <h3 className="font-semibold text-gray-700">Select Cabinet</h3>
-      {walls.map((wall) => (
-        <div key={wall.id} className="space-y-1">
-          <p className="text-sm text-gray-500">{wall.roomName} - {wall.unitLocation}</p>
-          {wall.boxes.map((box) => (
-            <button
-              key={box.id}
-              onClick={() => onSelectBox(box.id)}
-              className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
-                selectedBoxId === box.id
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-              }`}
-            >
-              {box.entityName || box.boxType}
-            </button>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
+// ============================================
+// MAIN PAGE
+// ============================================
+type EditMode = 'view' | 'move' | 'rotate' | 'boxMove';
 
-interface StepInstructionsProps {
-  box: Box | null;
-  currentStep: number;
-  onStepChange: (step: number) => void;
-}
+export default function InstallationGuidePage() {
+  const walls = useDesignerStore((s) => s.walls);
+  const rawData = useDesignerStore((s) => s.rawData);
+  const pipelineResult = useDesignerStore((s) => s.pipelineResult);
+  const projectName = useDesignerStore((s) => s.projectName);
 
-function StepInstructions({ box, currentStep, onStepChange }: StepInstructionsProps) {
-  if (!box) {
+  const [selectedWallIdx, setSelectedWallIdx] = useState(-1);
+  const [selectedBoxIdx, setSelectedBoxIdx] = useState(-1);
+  const [previousBoxIdx, setPreviousBoxIdx] = useState(-1);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [explodeAmount, setExplodeAmount] = useState(0);
+  const [editMode, setEditMode] = useState<EditMode>('view');
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [selectedPlankId, setSelectedPlankId] = useState<string | null>(null);
+  const [hoveredPlank, setHoveredPlank] = useState<PlankData | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [loading, setLoading] = useState(true);
+
+  const [cameraTarget, setCameraTarget] = useState<THREE.Vector3 | null>(null);
+  const [cameraLookAt, setCameraLookAt] = useState<THREE.Vector3 | null>(null);
+
+  const rawValuesRef = useRef<unknown[][] | null>(null);
+
+  // Build visualization data
+  const visualizationData = useMemo((): VisualizationData | null => {
+    let rawValues: unknown[][];
+
+    if (rawData && Array.isArray(rawData) && rawData.length > 0) {
+      const header = Object.keys((rawData as Record<string, unknown>[])[0]);
+      const rows = (rawData as Record<string, unknown>[]).map((r) => header.map((h) => r[h]));
+      rawValues = [header, ...rows];
+      if (pipelineResult?.formattedData?.header?.length) {
+        try {
+          rawValues = syncPlankIdsToRaw(
+            { header: pipelineResult.formattedData.header, rows: pipelineResult.formattedData.rows },
+            rawValues,
+          );
+        } catch { /* keep rawValues as-is */ }
+      }
+    } else if (walls.length > 0) {
+      const rawDataRows = generateRawData(walls);
+      rawValues = convertDesignerRawDataTo2D(rawDataRows as Parameters<typeof convertDesignerRawDataTo2D>[0]);
+      if (pipelineResult?.formattedData?.header?.length) {
+        try {
+          rawValues = syncPlankIdsToRaw(
+            { header: pipelineResult.formattedData.header, rows: pipelineResult.formattedData.rows },
+            rawValues,
+          );
+        } catch { /* keep rawValues as-is */ }
+      }
+    } else {
+      return null;
+    }
+
+    if (rawValues.length < 2) return null;
+    rawValuesRef.current = rawValues;
+
+    try {
+      let vizData = buildInstallationGuide(rawValues);
+      if (pipelineResult?.formattedData?.header?.length) {
+        vizData = enrichMaterialFromPipeline(vizData, pipelineResult.formattedData);
+      }
+      return vizData;
+    } catch (err) {
+      console.error('Failed to build installation guide:', err);
+      return null;
+    }
+  }, [rawData, walls, pipelineResult]);
+
+  const allWalls = visualizationData?.walls ?? [];
+  const materialLegend = visualizationData?.materialLegend ?? [];
+  const summary = visualizationData?.summary;
+
+  // Auto-select first wall on load
+  useEffect(() => {
+    if (allWalls.length > 0 && selectedWallIdx < 0) {
+      setSelectedWallIdx(0);
+      setLoading(false);
+    } else if (allWalls.length === 0) {
+      setLoading(false);
+    }
+  }, [allWalls, selectedWallIdx]);
+
+  const selectedWall = selectedWallIdx >= 0 ? allWalls[selectedWallIdx] ?? null : null;
+  const selectedBox = selectedWall && selectedBoxIdx >= 0 ? selectedWall.boxes[selectedBoxIdx] ?? null : null;
+
+  // Sorted planks of selected box
+  const sortedPlanks = useMemo(() => {
+    if (!selectedBox) return [];
+    return [...selectedBox.planks].sort((a, b) => (a.assemblyOrder ?? 7) - (b.assemblyOrder ?? 7));
+  }, [selectedBox]);
+
+  const totalSteps = sortedPlanks.length;
+  const currentPlank = currentStep > 0 ? sortedPlanks[currentStep - 1] ?? null : null;
+
+  // Fit-to-view: camera to fit entire wall
+  const fitToView = useCallback(() => {
+    if (!selectedWall) return;
+    const lenX = selectedWall.dimensions.lenX || 5000;
+    const lenZ = selectedWall.dimensions.lenZ || 3000;
+    const cx = lenX / 2;
+    const cy = lenZ / 2;
+    const maxDim = Math.max(lenX, lenZ);
+    const dist = maxDim * 1.8;
+    setCameraTarget(new THREE.Vector3(cx + dist * 0.5, cy + dist * 0.4, cy + dist * 0.9));
+    setCameraLookAt(new THREE.Vector3(cx, cy, -100));
+  }, [selectedWall]);
+
+  // Fit-to-box: camera to fit a specific box
+  const fitToBox = useCallback((boxIdx: number) => {
+    if (!selectedWall || boxIdx < 0) return;
+    const box = selectedWall.boxes[boxIdx];
+    if (!box) return;
+    const cx = box.position.x + (box.dimensions.lenX || 500) / 2;
+    const cz = box.position.z + (box.dimensions.lenZ || 500) / 2;
+    const [tx, ty, tz] = toThreePos(cx, box.position.y, cz);
+    const maxDim = Math.max(box.dimensions.lenX || 500, box.dimensions.lenY || 500, box.dimensions.lenZ || 500);
+    const dist = maxDim * 2.5;
+    setCameraTarget(new THREE.Vector3(tx + dist * 0.6, ty + dist * 0.4, tz + dist * 0.8 + FORWARD_DISTANCE));
+    setCameraLookAt(new THREE.Vector3(tx, ty, tz + FORWARD_DISTANCE));
+  }, [selectedWall]);
+
+  // Wall selection
+  const handleSelectWall = useCallback((idx: number) => {
+    setSelectedWallIdx(idx);
+    setSelectedBoxIdx(-1);
+    setPreviousBoxIdx(-1);
+    setCurrentStep(0);
+    setExplodeAmount(0);
+    setSelectedPlankId(null);
+    setTimeout(() => fitToView(), 50);
+  }, [fitToView]);
+
+  // Box selection — matches App Script selectBox()
+  const handleSelectBox = useCallback((idx: number) => {
+    setPreviousBoxIdx(selectedBoxIdx);
+    setSelectedBoxIdx(idx);
+    setCurrentStep(0);
+    setExplodeAmount(0);
+    setSelectedPlankId(null);
+    setTimeout(() => fitToBox(idx), 100);
+  }, [selectedBoxIdx, fitToBox]);
+
+  // Plank click handler
+  const handlePlankClick = useCallback((plank: PlankData, box: BoxData) => {
+    if (!selectedWall) return;
+    const boxIdx = selectedWall.boxes.findIndex((b) => b.id === box.id);
+
+    if (editMode === 'boxMove') {
+      if (boxIdx >= 0) handleSelectBox(boxIdx);
+      return;
+    }
+
+    if (editMode === 'move' || editMode === 'rotate') {
+      setSelectedPlankId(plank.id);
+      return;
+    }
+
+    // View mode
+    if (boxIdx >= 0 && boxIdx !== selectedBoxIdx) {
+      handleSelectBox(boxIdx);
+    }
+    const stepIdx = sortedPlanks.findIndex((p) => p.id === plank.id);
+    if (stepIdx >= 0) {
+      setCurrentStep(stepIdx + 1);
+    }
+  }, [editMode, selectedWall, selectedBoxIdx, handleSelectBox, sortedPlanks]);
+
+  // Step controls
+  const changeStep = useCallback((delta: number) => {
+    setCurrentStep((prev) => Math.max(0, Math.min(prev + delta, totalSteps)));
+  }, [totalSteps]);
+
+  // Mouse tracking for tooltip
+  useEffect(() => {
+    const handler = (e: MouseEvent) => setTooltipPos({ x: e.clientX, y: e.clientY });
+    window.addEventListener('mousemove', handler);
+    return () => window.removeEventListener('mousemove', handler);
+  }, []);
+
+  // Edit save handlers
+  const handleEditSave = useCallback((plankRowIndex: number, newX: number, newY: number, newZ: number) => {
+    if (!rawValuesRef.current) return;
+    setSaveStatus('saving');
+    try {
+      updatePlankPositionInData(rawValuesRef.current, plankRowIndex, newX, newY, newZ);
+      setSaveStatus('saved');
+    } catch {
+      setSaveStatus('error');
+    }
+    setTimeout(() => setSaveStatus('idle'), 1500);
+  }, []);
+
+  const handleBoxSave = useCallback((plankUpdates: { rowIndex: number; newX: number; newY: number; newZ: number }[]) => {
+    if (!rawValuesRef.current) return;
+    setSaveStatus('saving');
+    try {
+      updateBoxPositionInData(rawValuesRef.current, plankUpdates);
+      setSaveStatus('saved');
+    } catch {
+      setSaveStatus('error');
+    }
+    setTimeout(() => setSaveStatus('idle'), 1500);
+  }, []);
+
+  const handleSetEditMode = useCallback((mode: EditMode) => {
+    setEditMode(mode);
+    setSelectedPlankId(null);
+  }, []);
+
+  // ============================================
+  // NO DATA STATE
+  // ============================================
+  if (!loading && allWalls.length === 0) {
     return (
-      <div className="text-gray-500 text-center py-4">
-        Select a cabinet to view assembly steps
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-2xl p-10 text-center max-w-md border border-orange-100">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-orange-100 flex items-center justify-center">
+            <svg className="w-10 h-10 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-blue-900 mb-3">No Design Data</h1>
+          <p className="text-gray-500 mb-8">
+            Generate files from raw data or create a design to view the installation guide.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Link href="/visualiser/designer" className="px-6 py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors font-medium shadow-md shadow-orange-500/25">
+              Go to Designer
+            </Link>
+            <Link href="/visualiser/generate" className="px-6 py-3 bg-orange-100 text-orange-700 rounded-xl hover:bg-orange-200 transition-colors font-medium">
+              Generate Files
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
 
-  const sortedPlanks = [...box.planks]
-    .map((plank) => ({
-      ...plank,
-      assemblyOrder: getAssemblyOrder(plank.role),
-    }))
-    .sort((a, b) => a.assemblyOrder - b.assemblyOrder);
-
-  const totalSteps = sortedPlanks.length;
-  const currentPlank = sortedPlanks[currentStep - 1];
-
+  // ============================================
+  // MAIN RENDER — Full-screen 3D with floating UI
+  // ============================================
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-gray-700">Assembly Steps</h3>
-        <span className="text-sm text-gray-500">
-          {currentStep} / {totalSteps}
-        </span>
+    <div className="relative w-full h-screen overflow-hidden" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+
+      {/* ======== LOADING OVERLAY ======== */}
+      {loading && (
+        <div className="absolute inset-0 z-[1000] bg-white flex flex-col items-center justify-center">
+          <div className="w-12 h-12 border-4 rounded-full animate-spin" style={{ borderColor: COLORS.ashLight, borderTopColor: COLORS.primary }} />
+          <p className="mt-4 text-sm" style={{ color: COLORS.textMedium }}>Loading Installation Guide...</p>
+        </div>
+      )}
+
+      {/* ======== 3D CANVAS (full screen) ======== */}
+      <div className="absolute inset-0">
+        <Canvas
+          shadows
+          camera={{ position: [3000, 2000, 4000], fov: 45, near: 1, far: 100000 }}
+          gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0 }}
+          onCreated={({ scene }) => { scene.background = new THREE.Color(SCENE_BG); }}
+        >
+          <Suspense fallback={null}>
+            <ambientLight intensity={0.7} />
+            <directionalLight position={[2000, 3000, 2000]} intensity={0.6} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-far={30000} shadow-camera-left={-5000} shadow-camera-right={5000} shadow-camera-top={5000} shadow-camera-bottom={-5000} />
+            <directionalLight position={[-1000, 1000, -1000]} intensity={0.3} />
+
+            {selectedWall && <WallSurface wall={selectedWall} />}
+
+            {selectedWall?.boxes.map((box, idx) => (
+              <BoxGroup
+                key={box.id}
+                box={box}
+                isActiveBox={selectedBoxIdx < 0 || idx === selectedBoxIdx}
+                currentStep={idx === selectedBoxIdx ? currentStep : 0}
+                explodeAmount={idx === selectedBoxIdx ? explodeAmount : 0}
+                selectedPlankId={selectedPlankId}
+                forwardOffset={idx === selectedBoxIdx ? FORWARD_DISTANCE : 0}
+                onPlankClick={handlePlankClick}
+                onPlankHover={setHoveredPlank}
+              />
+            ))}
+
+            <OrbitControls
+              makeDefault
+              enableDamping
+              dampingFactor={0.05}
+              screenSpacePanning
+              minDistance={500}
+              maxDistance={15000}
+            />
+            <Environment preset="studio" />
+
+            <CameraAnimator target={cameraTarget} lookAt={cameraLookAt} />
+          </Suspense>
+        </Canvas>
       </div>
 
-      {/* Progress Bar */}
-      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+      {/* ======== TOOLTIP ======== */}
+      {hoveredPlank && (
         <div
-          className="h-full bg-green-500 transition-all"
-          style={{ width: `${(currentStep / totalSteps) * 100}%` }}
-        />
+          className="fixed pointer-events-none z-[300] bg-white text-sm rounded-xl shadow-xl max-w-[250px] leading-relaxed"
+          style={{
+            left: tooltipPos.x + 15,
+            top: tooltipPos.y + 15,
+            borderLeft: `4px solid ${COLORS.primary}`,
+            padding: '12px 16px',
+            color: COLORS.textDark,
+          }}
+        >
+          <strong style={{ color: COLORS.primary, fontSize: '16px' }}>{hoveredPlank.id}</strong><br />
+          <strong>{hoveredPlank.entityName}</strong><br />
+          <span style={{ color: COLORS.ash, fontSize: '11px' }}>{hoveredPlank.material || 'No material'}</span><br />
+          <span style={{ fontFamily: 'monospace' }}>
+            {hoveredPlank.dimensions.lenX} x {hoveredPlank.dimensions.lenY} x {hoveredPlank.dimensions.lenZ} mm
+          </span>
+        </div>
+      )}
+
+      {/* ======== FLOATING MENU BUTTON (top-left) ======== */}
+      <button
+        onClick={() => setPanelOpen(true)}
+        className="absolute top-5 left-5 z-[100] w-14 h-14 rounded-full bg-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all flex items-center justify-center text-2xl"
+        style={{ color: COLORS.textDark }}
+        title="Menu"
+      >
+        &#9776;
+      </button>
+
+      {/* ======== FLOATING PRINT BUTTON (top-right) ======== */}
+      <button
+        onClick={() => window.print()}
+        className="absolute top-5 right-5 z-[100] w-14 h-14 rounded-full bg-white shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all flex items-center justify-center text-xl print:hidden"
+        style={{ color: COLORS.textDark }}
+        title="Print"
+      >
+        &#128424;
+      </button>
+
+      {/* ======== FLOATING FIT BUTTON (bottom-right) ======== */}
+      <button
+        onClick={fitToView}
+        className="absolute bottom-[100px] right-5 z-[100] w-14 h-14 rounded-full shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all flex items-center justify-center text-xl text-white print:hidden"
+        style={{ background: COLORS.primary }}
+        title="Fit View"
+      >
+        &#8857;
+      </button>
+
+      {/* ======== EDIT MODE BUTTONS (top-center) ======== */}
+      <div className="absolute top-5 left-1/2 -translate-x-1/2 z-[100] flex gap-1 bg-white rounded-full p-1.5 shadow-lg print:hidden">
+        {([
+          { id: 'view' as EditMode, icon: '\uD83D\uDC41\uFE0F', label: 'View' },
+          { id: 'move' as EditMode, icon: '\u271D', label: 'Move' },
+          { id: 'rotate' as EditMode, icon: '\u21BB', label: 'Rotate' },
+          { id: 'boxMove' as EditMode, icon: '\uD83D\uDCE6', label: 'Box' },
+        ]).map((m) => (
+          <button
+            key={m.id}
+            onClick={() => handleSetEditMode(m.id)}
+            className="w-11 h-11 rounded-full border-2 border-transparent flex items-center justify-center text-lg transition-all cursor-pointer"
+            style={{
+              background: editMode === m.id
+                ? (m.id === 'boxMove' ? COLORS.boxSelect : COLORS.primary)
+                : COLORS.bgLight,
+              color: editMode === m.id ? COLORS.white : COLORS.textDark,
+              borderColor: editMode === m.id
+                ? (m.id === 'boxMove' ? COLORS.boxSelect : COLORS.primary)
+                : 'transparent',
+            }}
+            title={m.label}
+          >
+            {m.icon}
+          </button>
+        ))}
       </div>
 
-      {/* Current Step */}
-      {currentPlank && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-2xl">{getAssemblyDirection(currentPlank.role).arrow}</span>
-            <div>
-              <p className="font-bold text-green-800">Step {currentStep}</p>
-              <p className="text-sm text-green-600">{getAssemblyDirection(currentPlank.role).text}</p>
+      {/* ======== SAVE INDICATOR ======== */}
+      {saveStatus !== 'idle' && (
+        <div
+          className="absolute top-20 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 px-4 py-2 rounded-full text-white text-sm font-semibold shadow-lg print:hidden"
+          style={{
+            background: saveStatus === 'saving' ? COLORS.primary : saveStatus === 'saved' ? COLORS.green : COLORS.red,
+          }}
+        >
+          <span className={saveStatus === 'saving' ? 'animate-pulse' : ''}>
+            {saveStatus === 'saving' ? '\uD83D\uDCBE' : saveStatus === 'saved' ? '\u2713' : '\u2715'}
+          </span>
+          <span>
+            {saveStatus === 'saving' ? (editMode === 'boxMove' ? 'Saving box...' : 'Saving...') : saveStatus === 'saved' ? (editMode === 'boxMove' ? 'Box saved!' : 'Saved!') : 'Error!'}
+          </span>
+        </div>
+      )}
+
+      {/* ======== TRANSFORM HINT ======== */}
+      {editMode !== 'view' && (
+        <div
+          className="absolute bottom-40 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 rounded-lg text-white text-xs print:hidden"
+          style={{ background: editMode === 'boxMove' ? COLORS.boxSelect : 'rgba(0,0,0,0.7)' }}
+        >
+          {editMode === 'move' && 'Click a plank to move it'}
+          {editMode === 'rotate' && 'Click a plank to rotate it'}
+          {editMode === 'boxMove' && '\uD83D\uDCE6 Click a box to select and move it (all planks will move)'}
+        </div>
+      )}
+
+      {/* ======== CURRENT PLANK INFO (bottom-left) ======== */}
+      {selectedBoxIdx >= 0 && currentStep > 0 && currentPlank && (
+        <div
+          className="absolute bottom-5 left-5 z-[100] bg-white rounded-2xl shadow-lg max-w-[280px] p-4 print:hidden"
+        >
+          <div className="text-3xl font-extrabold font-mono" style={{ color: COLORS.primary }}>{currentPlank.id}</div>
+          <div className="text-base font-semibold mt-1" style={{ color: COLORS.textDark }}>{currentPlank.entityName}</div>
+          {selectedBox && (
+            <div className="text-xs mt-0.5" style={{ color: COLORS.ash }}>
+              {selectedBox.roomName} &bull; {selectedBox.entityName}
             </div>
+          )}
+          <div className="text-xs mt-0.5" style={{ color: COLORS.textMedium }}>{currentPlank.material || 'No material'}</div>
+          <div className="text-sm font-semibold font-mono mt-2 pt-2" style={{ color: COLORS.textDark, borderTop: `1px solid ${COLORS.ashLight}` }}>
+            {currentPlank.dimensions.lenX} x {currentPlank.dimensions.lenY} x {currentPlank.dimensions.lenZ} mm
           </div>
-          <div className="text-sm text-gray-600 space-y-1">
-            <p><strong>Part:</strong> {currentPlank.entityName}</p>
-            <p><strong>Material:</strong> {currentPlank.material}</p>
-            <p><strong>Size:</strong> {currentPlank.dimensions.lenX} × {currentPlank.dimensions.lenY} × {currentPlank.dimensions.lenZ} mm</p>
+          <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-lg text-sm font-semibold" style={{ background: '#FFF7ED', color: COLORS.primary }}>
+            <span className="text-2xl">{currentPlank.assemblyDirection?.arrow ?? '\u2022'}</span>
+            <span>{currentPlank.assemblyDirection?.text ?? 'Place part'}</span>
           </div>
         </div>
       )}
 
-      {/* Navigation */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => onStepChange(Math.max(1, currentStep - 1))}
-          disabled={currentStep === 1}
-          className="flex-1 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          ← Previous
-        </button>
-        <button
-          onClick={() => onStepChange(Math.min(totalSteps, currentStep + 1))}
-          disabled={currentStep === totalSteps}
-          className="flex-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Next →
-        </button>
-      </div>
-
-      {/* Checklist */}
-      <div className="mt-4">
-        <h4 className="font-medium text-gray-700 mb-2">Parts Checklist</h4>
-        <div className="space-y-1 max-h-48 overflow-y-auto">
-          {sortedPlanks.map((plank, index) => (
-            <div
-              key={plank.id}
-              className={`flex items-center gap-2 p-2 rounded text-sm cursor-pointer ${
-                index + 1 === currentStep
-                  ? 'bg-green-100 border border-green-300'
-                  : index + 1 < currentStep
-                  ? 'bg-gray-100 text-gray-500'
-                  : 'bg-white border border-gray-200'
-              }`}
-              onClick={() => onStepChange(index + 1)}
-            >
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
-                index + 1 < currentStep
-                  ? 'bg-green-500 text-white'
-                  : index + 1 === currentStep
-                  ? 'bg-green-200 text-green-800'
-                  : 'bg-gray-200 text-gray-600'
-              }`}>
-                {index + 1 < currentStep ? '✓' : index + 1}
-              </span>
-              <span className="flex-1 truncate">{plank.entityName}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================
-// MAIN PAGE COMPONENT
-// ============================================
-
-export default function InstallationGuidePage() {
-  const walls = useDesignerStore((state) => state.walls);
-  const projectName = useDesignerStore((state) => state.projectName);
-
-  const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
-  const [currentStep, setCurrentStep] = useState(1);
-  const [isExploded, setIsExploded] = useState(false);
-
-  // Find selected box
-  const selectedBox = useMemo(() => {
-    for (const wall of walls) {
-      const box = wall.boxes.find((b) => b.id === selectedBoxId);
-      if (box) return box;
-    }
-    return null;
-  }, [walls, selectedBoxId]);
-
-  // Reset step when box changes
-  const handleSelectBox = useCallback((boxId: string) => {
-    setSelectedBoxId(boxId);
-    setCurrentStep(1);
-  }, []);
-
-  // Material legend
-  const materialLegend = useMemo(() => {
-    const materials = new Set<string>();
-    walls.forEach((wall) => {
-      wall.boxes.forEach((box) => {
-        box.planks.forEach((plank) => {
-          if (plank.material) materials.add(plank.material);
-        });
-      });
-    });
-    return Array.from(materials).map((mat) => ({
-      name: mat,
-      color: getMaterialColor(mat),
-    }));
-  }, [walls]);
-
-  if (walls.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-lg p-8 text-center max-w-md">
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">No Design Data</h1>
-          <p className="text-gray-600 mb-6">
-            Please create or load a design first to view the installation guide.
-          </p>
-          <Link
-            href="/visualiser/designer"
-            className="inline-block px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+      {/* ======== STEP CONTROLS (bottom-center pill) ======== */}
+      {selectedBoxIdx >= 0 && (
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-4 bg-white px-6 py-3 rounded-full shadow-xl print:hidden">
+          <button
+            onClick={() => changeStep(-1)}
+            disabled={currentStep <= 0}
+            className="w-12 h-12 rounded-full border-2 text-xl font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:border-orange-500 hover:text-orange-500"
+            style={{ borderColor: COLORS.ashLight, color: COLORS.textDark, background: COLORS.white }}
           >
-            Go to Designer
-          </Link>
+            &#9664;
+          </button>
+          <div className="text-center min-w-[80px]">
+            <div className="text-2xl font-bold" style={{ color: COLORS.primary }}>{currentStep}</div>
+            <div className="text-xs" style={{ color: COLORS.textMedium }}>of {totalSteps}</div>
+          </div>
+          <button
+            onClick={() => changeStep(1)}
+            disabled={currentStep >= totalSteps}
+            className="w-12 h-12 rounded-full border-2 text-xl font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            style={{ background: COLORS.primary, borderColor: COLORS.primary, color: COLORS.white }}
+          >
+            &#9654;
+          </button>
         </div>
-      </div>
-    );
-  }
+      )}
 
-  return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-4 shadow-lg">
-        <div className="flex items-center justify-between">
+      {/* ======== OVERLAY (when panel is open) ======== */}
+      <div
+        className={`absolute inset-0 z-[150] transition-all duration-300 ${panelOpen ? 'bg-black/30 visible' : 'invisible opacity-0'}`}
+        onClick={() => setPanelOpen(false)}
+      />
+
+      {/* ======== SLIDE-IN PANEL (left) ======== */}
+      <div
+        className={`absolute top-0 left-0 h-full bg-white shadow-xl z-[200] flex flex-col overflow-hidden transition-transform duration-300 print:hidden ${panelOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        style={{ width: 340 }}
+      >
+        {/* Panel header */}
+        <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: COLORS.ashLight }}>
+          <div className="text-lg font-bold" style={{ color: COLORS.textDark }}>Installation Guide</div>
+          <button
+            onClick={() => setPanelOpen(false)}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-xl transition-all hover:text-white"
+            style={{ background: COLORS.ashLight, color: COLORS.textDark }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.primary; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = COLORS.ashLight; e.currentTarget.style.color = COLORS.textDark; }}
+          >
+            &#10005;
+          </button>
+        </div>
+
+        {/* Panel content */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-5">
+          {/* Wall Selector */}
           <div>
-            <h1 className="text-2xl font-bold">Installation Guide</h1>
-            <p className="text-purple-200 text-sm">{projectName}</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isExploded}
-                onChange={(e) => setIsExploded(e.target.checked)}
-                className="w-4 h-4 rounded"
-              />
-              <span>Explode View</span>
-            </label>
-            <Link
-              href="/visualiser/designer"
-              className="px-4 py-2 bg-white/20 rounded hover:bg-white/30 transition-colors"
+            <div className="text-[11px] font-bold uppercase tracking-wider mb-2.5" style={{ color: COLORS.textMedium }}>Select Wall</div>
+            <select
+              className="w-full px-4 py-3.5 rounded-xl text-sm font-medium border-2 cursor-pointer focus:outline-none"
+              style={{ borderColor: COLORS.ashLight, color: COLORS.textDark }}
+              value={selectedWallIdx}
+              onChange={(e) => handleSelectWall(parseInt(e.target.value))}
+              onFocus={(e) => { e.currentTarget.style.borderColor = COLORS.primary; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = COLORS.ashLight; }}
             >
-              Back to Designer
-            </Link>
+              <option value={-1}>-- Choose Wall --</option>
+              {allWalls.map((w, i) => (
+                <option key={w.id} value={i}>
+                  {w.entityName || `Wall ${i + 1}`}{w.roomName ? ` (${w.roomName})` : ''}
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
-      </header>
 
-      <div className="flex-1 flex">
-        {/* Left Sidebar - Box Selector */}
-        <div className="w-64 bg-white border-r border-gray-200 p-4 overflow-y-auto">
-          <BoxSelector
-            walls={walls}
-            selectedBoxId={selectedBoxId}
-            onSelectBox={handleSelectBox}
-          />
-          
+          {/* Box List */}
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-wider mb-2.5" style={{ color: COLORS.textMedium }}>
+              Boxes {selectedWall ? `(${selectedWall.boxes.length})` : ''}
+            </div>
+            <div className="max-h-[200px] overflow-y-auto space-y-2">
+              {selectedWall ? selectedWall.boxes.map((box, idx) => (
+                <button
+                  key={box.id}
+                  onClick={() => { handleSelectBox(idx); setPanelOpen(false); }}
+                  className="w-full text-left px-3.5 py-3 rounded-xl border-2 transition-all cursor-pointer"
+                  style={{
+                    borderColor: idx === selectedBoxIdx ? COLORS.primary : COLORS.ashLight,
+                    background: idx === selectedBoxIdx ? '#FFF7ED' : COLORS.white,
+                  }}
+                >
+                  <div className="text-sm font-semibold" style={{ color: COLORS.textDark }}>{box.entityName || `Box ${idx + 1}`}</div>
+                  <div className="text-xs mt-1" style={{ color: COLORS.textMedium }}>{box.planks.length} planks</div>
+                </button>
+              )) : (
+                <div className="py-5 text-center text-sm" style={{ color: COLORS.textMedium }}>Select a wall first</div>
+              )}
+            </div>
+          </div>
+
+          {/* Explode Slider */}
+          <div className="p-4 rounded-xl" style={{ background: COLORS.bgLight }}>
+            <div className="flex justify-between mb-3">
+              <span className="text-xs font-semibold" style={{ color: COLORS.textDark }}>Explode View</span>
+              <span className="text-xs font-bold" style={{ color: COLORS.primary }}>{Math.round(explodeAmount * 100)}%</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={Math.round(explodeAmount * 100)}
+              onChange={(e) => setExplodeAmount(parseInt(e.target.value) / 100)}
+              className="w-full h-2 rounded-full appearance-none cursor-pointer"
+              style={{ background: COLORS.ashLight, accentColor: COLORS.primary }}
+            />
+          </div>
+
+          {/* Parts Checklist */}
+          {selectedBox && (
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-wider mb-2.5" style={{ color: COLORS.textMedium }}>Parts Checklist</div>
+              <div className="max-h-[200px] overflow-y-auto space-y-1.5">
+                {sortedPlanks.map((plank, idx) => {
+                  const step = idx + 1;
+                  const isDone = step < currentStep;
+                  const isCurrent = step === currentStep;
+                  return (
+                    <button
+                      key={plank.id}
+                      onClick={() => setCurrentStep(step)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer text-left"
+                      style={{ background: isCurrent ? COLORS.bgLight : 'transparent' }}
+                    >
+                      <div
+                        className="w-5.5 h-5.5 rounded-md flex items-center justify-center text-sm shrink-0"
+                        style={{
+                          width: 22,
+                          height: 22,
+                          border: `2px solid ${isDone ? COLORS.primary : COLORS.ash}`,
+                          background: isDone ? COLORS.primary : 'transparent',
+                          color: isDone ? COLORS.white : 'transparent',
+                          borderRadius: 6,
+                        }}
+                      >
+                        {isDone ? '\u2713' : ''}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-semibold truncate" style={{ color: COLORS.textDark }}>{plank.entityName}</div>
+                        <div className="text-[11px] font-mono truncate" style={{ color: COLORS.textMedium }}>{plank.material} &bull; {plank.dimensions.lenX}x{plank.dimensions.lenY}x{plank.dimensions.lenZ}</div>
+                      </div>
+                      <div className="text-sm font-bold font-mono shrink-0" style={{ color: COLORS.primary }}>{plank.id}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Material Legend */}
-          <div className="mt-6">
-            <h3 className="font-semibold text-gray-700 mb-2">Materials</h3>
-            <div className="space-y-1">
-              {materialLegend.map((mat) => (
-                <div key={mat.name} className="flex items-center gap-2 text-sm">
-                  <div
-                    className="w-4 h-4 rounded border border-gray-300"
-                    style={{ backgroundColor: mat.color }}
-                  />
-                  <span className="text-gray-600 truncate">{mat.name}</span>
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-wider mb-2.5" style={{ color: COLORS.textMedium }}>Material Legend</div>
+            <div className="space-y-2">
+              {materialLegend.map((m) => (
+                <div key={m.name} className="flex items-center gap-2.5">
+                  <div className="w-6 h-6 rounded-md shrink-0" style={{ background: m.color, border: `1px solid ${COLORS.ashLight}` }} />
+                  <span className="text-xs" style={{ color: COLORS.textDark }}>{m.name}</span>
                 </div>
               ))}
             </div>
           </div>
-        </div>
 
-        {/* 3D Canvas */}
-        <div className="flex-1 relative">
-          <Canvas
-            shadows
-            camera={{ position: [2000, 1500, 2000], fov: 50, near: 1, far: 50000 }}
+          {/* Back link */}
+          <Link
+            href="/visualiser/generate"
+            className="block text-center text-sm font-medium py-3 rounded-xl transition-colors"
+            style={{ background: COLORS.background, color: COLORS.primary }}
           >
-            <Suspense fallback={null}>
-              <ambientLight intensity={0.5} />
-              <directionalLight position={[10, 20, 10]} intensity={1} castShadow />
-              
-              {/* Render selected box */}
-              {selectedBox && (
-                <BoxGroup
-                  box={selectedBox}
-                  isExploded={isExploded}
-                  currentStep={currentStep}
-                />
-              )}
-              
-              {/* Grid helper */}
-              <gridHelper args={[5000, 50, '#888888', '#cccccc']} rotation={[0, 0, 0]} />
-              
-              <OrbitControls makeDefault />
-              <Environment preset="apartment" />
-              <ContactShadows position={[0, -1, 0]} opacity={0.4} blur={2} />
-            </Suspense>
-          </Canvas>
-          
-          {/* Step indicator overlay */}
-          {selectedBox && (
-            <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-sm rounded-lg p-4 shadow-lg">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-gray-700">
-                  {selectedBox.entityName || selectedBox.boxType}
-                </span>
-                <span className="text-sm text-gray-500">
-                  Step {currentStep} of {selectedBox.planks.length}
-                </span>
-              </div>
-            </div>
-          )}
+            &larr; Back to Generate
+          </Link>
         </div>
 
-        {/* Right Sidebar - Step Instructions */}
-        <div className="w-80 bg-white border-l border-gray-200 p-4 overflow-y-auto">
-          <StepInstructions
-            box={selectedBox}
-            currentStep={currentStep}
-            onStepChange={setCurrentStep}
-          />
-        </div>
+        {/* Panel footer with summary */}
+        {summary && (
+          <div className="px-5 py-3 border-t text-[11px]" style={{ borderColor: COLORS.ashLight, color: COLORS.textMedium }}>
+            {summary.totalWalls} walls &bull; {summary.totalBoxes} cabinets &bull; {summary.totalPlanks} parts
+          </div>
+        )}
       </div>
+
+      {/* ======== PRINT STYLES ======== */}
+      <style jsx global>{`
+        @media print {
+          .print\\:hidden { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 }

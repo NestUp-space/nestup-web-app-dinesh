@@ -50,6 +50,13 @@ interface CutlistVisualizationProps {
   onDownloadPDF?: (allSheets: boolean) => void;
   onPrintLabels?: () => void;
   onDownloadCSV?: () => void;
+  /** Edit mode: show selection and wire click/drag for parent toolbar */
+  editMode?: boolean;
+  selectedPlankId?: string | null;
+  onSelectPlank?: (plankId: string | null) => void;
+  onMovePlank?: (plankId: string, newSheetNum: number, newX: number, newY: number) => void;
+  onRotate?: (plankId: string) => void;
+  onFlip?: (plankId: string, direction: 'horizontal' | 'vertical') => void;
 }
 
 interface SheetData {
@@ -160,6 +167,12 @@ export function CutlistVisualization({
   onDownloadPDF,
   onPrintLabels,
   onDownloadCSV,
+  editMode = false,
+  selectedPlankId = null,
+  onSelectPlank,
+  onMovePlank,
+  onRotate,
+  onFlip,
 }: CutlistVisualizationProps) {
   // State
   const [zoom, setZoom] = useState(50);
@@ -176,6 +189,7 @@ export function CutlistVisualization({
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   
   const containerRef = useRef<HTMLDivElement>(null);
+  const dragStateRef = useRef<{ plankId: string; sheetNum: number; startX: number; startY: number; startPlankX: number; startPlankY: number } | null>(null);
 
   // Group planks by sheet
   const sheetData = useMemo(() => {
@@ -695,26 +709,63 @@ export function CutlistVisualization({
                     const h = plank.height * scale;
 
                     const hasFeatures = (plank.holes && plank.holes.length > 0) || ((plank as NestResultWithLCuts).l_cuts && (plank as NestResultWithLCuts).l_cuts!.length > 0);
+                    const isSelected = editMode && selectedPlankId === plank.id;
+
+                    const handlePlankClick = (e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      if (editMode && onSelectPlank) onSelectPlank(plank.id);
+                    };
+
+                    const handlePointerDown = (e: React.PointerEvent) => {
+                      if (!editMode || !onMovePlank) return;
+                      e.currentTarget.setPointerCapture(e.pointerId);
+                      dragStateRef.current = {
+                        plankId: plank.id,
+                        sheetNum: sheet.sheetNum,
+                        startX: e.clientX,
+                        startY: e.clientY,
+                        startPlankX: plank.x,
+                        startPlankY: plank.y,
+                      };
+                    };
+                    const handlePointerUp = (e: React.PointerEvent) => {
+                      e.currentTarget.releasePointerCapture(e.pointerId);
+                      const state = dragStateRef.current;
+                      dragStateRef.current = null;
+                      if (state && state.plankId === plank.id && onMovePlank) {
+                        const dx = (e.clientX - state.startX) / scale;
+                        const dy = -(e.clientY - state.startY) / scale;
+                        const newX = Math.max(0, Math.min(sheetWidth - plank.width, state.startPlankX + dx));
+                        const newY = Math.max(0, Math.min(sheetHeight - plank.height, state.startPlankY + dy));
+                        if (Math.abs(newX - plank.x) > 0.5 || Math.abs(newY - plank.y) > 0.5) {
+                          onMovePlank(plank.id, sheet.sheetNum, newX, newY);
+                        }
+                      }
+                    };
 
                     return (
                       <div
                         key={plank.id}
-                        className={`absolute border flex flex-col items-center justify-center cursor-pointer transition-all hover:z-10 hover:shadow-xl ${
-                          isMatch && highlightSearch ? 'ring-4 z-20' : ''
-                        } ${hasFeatures && showHoles ? 'ring-1' : ''}`}
+                        className={`absolute border flex flex-col items-center justify-center transition-all hover:z-10 hover:shadow-xl ${
+                          editMode ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
+                        } ${(isMatch && highlightSearch) || isSelected ? 'ring-4 z-20' : ''} ${hasFeatures && showHoles ? 'ring-1' : ''}`}
                         style={{
                           left: x,
                           top: y,
                           width: w,
                           height: h,
                           backgroundColor: plankColor,
-                          borderColor: COLORS.navyDark,
-                          borderWidth: 1,
-                          ringColor: isMatch && highlightSearch ? COLORS.primary : hasFeatures ? COLORS.primaryLight : 'transparent',
+                          borderColor: isSelected ? COLORS.primary : COLORS.navyDark,
+                          borderWidth: isSelected ? 3 : 1,
+                          ringColor: (isMatch && highlightSearch) || isSelected ? COLORS.primary : hasFeatures ? COLORS.primaryLight : 'transparent',
                         } as React.CSSProperties & { ringColor?: string }}
-                        onMouseEnter={(e) => handlePlankMouseEnter(plank, e)}
+                        onMouseEnter={(e) => !editMode && handlePlankMouseEnter(plank, e)}
                         onMouseMove={handlePlankMouseMove}
                         onMouseLeave={handlePlankMouseLeave}
+                        onClick={handlePlankClick}
+                        onPointerDown={editMode && onMovePlank ? handlePointerDown : undefined}
+                        onPointerUp={editMode && onMovePlank ? handlePointerUp : undefined}
+                        onPointerCancel={editMode && onMovePlank ? handlePointerUp : undefined}
                       >
                         {showIds && w > 25 && h > 20 && (
                           <span 

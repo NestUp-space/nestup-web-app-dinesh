@@ -4,7 +4,6 @@ import { useBlogPosts } from "@/hooks/useBlogPosts";
 import { useBlogCategories } from "@/hooks/useBlogCategories";
 import BlogResourcesClient from "@/components/resources/BlogResourcesClient";
 import { Skeleton } from "@/components/ui/skeleton";
-import Navbar from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { ResourcesHeroSection } from "@/components/resources/ResourcesHeroSection";
 import Link from "next/link";
@@ -29,7 +28,6 @@ export default function ResourcesPage() {
   if (featuredLoading || recentLoading || categoriesLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center mb-16">
             <Skeleton className="h-12 w-48 mx-auto mb-4" />
@@ -56,7 +54,6 @@ export default function ResourcesPage() {
   if (blogError) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <ResourcesHeroSection />
         
         {/* Show tools section even when blog fails */}

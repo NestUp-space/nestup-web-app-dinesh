@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { login as loginApi, register as registerApi } from "@/lib/api/auth";
 import { useUser } from "@/context/UserContext";
-import Navbar from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 
 interface RoleOption {
@@ -182,9 +181,6 @@ const LoginRegister = () => {
 
   return (
     <section>
-      <div className="h-24 top-0 fixed bg-white z-50">
-         <Navbar />
-      </div>
       <div className="min-h-screen flex items-center justify-center bg-neutral-light py-24 mt-24 w-screen">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-6xl mx-auto bg-white rounded-dls-lg shadow-lg border border-neutral-light overflow-hidden">
           {/* Left Column: Value Proposition, Trust Indicators, Visuals */}

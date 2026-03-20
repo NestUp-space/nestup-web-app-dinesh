@@ -3,43 +3,43 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useDesignerStore, useDesignSummary, useAllPlanks } from '@/stores/designerStore';
+import { useDesignerStore, useDesignSummary } from '@/stores/designerStore';
 import {
   GenerationStep,
   GenerationProgress,
-  FormattedPlankData,
-  PlankListItem,
-  NestResult,
-  MaterialSummary,
   Wall,
 } from '@/types/visualiser';
 import { EdgeBindingDialog, EBSettings } from '@/components/visualiser/designer/dialogs/EdgeBindingDialog';
 import { ClientDetailsDialog } from '@/components/visualiser/designer/dialogs/ClientDetailsDialog';
 import { CustomerDetails } from '@/stores/designerStore';
 
-// Import generation utilities
-import { formatDesignData } from '@/lib/visualiser/dataFormatter';
-import { generatePlankList as createPlankList } from '@/lib/visualiser/plankListGenerator';
-import { runNesting, AlgorithmType, GAParams, SAParams, PSOParams, generateMaterialSummary as createMaterialSummary } from '@/lib/visualiser/nestingEngine';
-import { calculateSFT } from '@/lib/visualiser/sftCalculation';
-import { generateRawData, backfillPlankIds, RawDataRow } from '@/lib/visualiser/rawDataGenerator';
+// AppScript-ported pipeline and converters
+import {
+  runPipelineAsync,
+  convertDesignerRawDataTo2D,
+  pipelineFormattedToStore,
+  pipelinePlankListToStore,
+  pipelineNestToStore,
+  pipelineMaterialSummaryToStore,
+  rows2DToObjects,
+  exportToCSV,
+  exportAllAsZip,
+  syncPlankIdsToRaw,
+  generateGCodeFiles,
+  buildGCodeZip,
+  downloadGCodeZip,
+} from '@/lib/visualiser/appscript-port';
+import type { GCodeResult } from '@/lib/visualiser/appscript-port';
+import { generateRawData, RawDataRow } from '@/lib/visualiser/rawDataGenerator';
 
 // Import table views
 import {
-  DataTableModal,
+  DataTableView,
   RawDataTable,
   FormattedDataTable,
   PlankListTable,
-  NestResultTable,
   MaterialSummaryTable,
 } from '@/components/visualiser/DataTableView';
-
-// Algorithm options for dropdown
-const ALGORITHM_OPTIONS: { id: AlgorithmType; name: string; description: string }[] = [
-  { id: 'ga', name: 'Genetic Algorithm (GA)', description: 'Population-based optimization' },
-  { id: 'sa', name: 'Simulated Annealing (SA)', description: 'Temperature-based probabilistic search' },
-  { id: 'pso', name: 'Particle Swarm Optimization (PSO)', description: 'Swarm intelligence optimization' },
-];
 
 // Generation steps configuration - includes Raw Data first
 const GENERATION_STEPS: Omit<GenerationStep, 'status'>[] = [
@@ -54,12 +54,12 @@ const GENERATION_STEPS: Omit<GenerationStep, 'status'>[] = [
   { id: 'output-qa', name: 'Output QA Sheet' },
   { id: 'pressing-list', name: 'Pressing List' },
   { id: 'gcode', name: 'G-Code Files' },
+  { id: 'installation-guide', name: 'Installation Guide' },
 ];
 
 export default function GeneratePage() {
   const router = useRouter();
   const summary = useDesignSummary();
-  const allPlanks = useAllPlanks();
 
   const {
     walls,
@@ -77,6 +77,8 @@ export default function GeneratePage() {
     setNestResults,
     materialSummary,
     setMaterialSummary,
+    pipelineResult,
+    setPipelineResult,
   } = useDesignerStore();
 
   const customerDetails = useDesignerStore((state) => state.customerDetails);
@@ -84,17 +86,14 @@ export default function GeneratePage() {
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [completedFiles, setCompletedFiles] = useState<string[]>([]);
+  const [gcodeResults, setGcodeResults] = useState<GCodeResult[] | null>(null);
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState<'bfd' | 'ga' | 'sa' | 'pso' | 'tournament'>('tournament');
   
   // Pre-generation dialog states
   const [showEBDialog, setShowEBDialog] = useState(false);
   const [showClientDialog, setShowClientDialog] = useState(false);
   const [ebSettings, setEbSettings] = useState<EBSettings>({});
-  
-  // Algorithm optimization state
-  const [showAlgorithmDropdown, setShowAlgorithmDropdown] = useState(false);
-  const [isRunningAlgorithm, setIsRunningAlgorithm] = useState(false);
-  const [selectedAlgorithm, setSelectedAlgorithm] = useState<AlgorithmType | null>(null);
-  
+
   // Data view modal state - which data table to show
   const [viewingData, setViewingData] = useState<string | null>(null);
 
@@ -118,74 +117,74 @@ export default function GeneratePage() {
   }, [walls]);
 
   // ====== LEVEL 3 DIAGNOSTICS ======
-  // Calculate Level 3 data statistics for debugging
   const level3Diagnostics = useMemo(() => {
     let planksWithOperations = 0;
     let planksWithoutOperations = 0;
     const operationCounts: Record<string, number> = {
-      screws: 0,
-      hinges: 0,
-      vb_main: 0,
-      vb_double: 0,
-      slots: 0,
-      grooves: 0,
-      profiles: 0,
-      l_cuts: 0,
+      screws: 0, hinges: 0, vb_main: 0, vb_double: 0,
+      slots: 0, grooves: 0, profiles: 0, l_cuts: 0,
     };
 
-    walls.forEach((wall) => {
-      wall.boxes.forEach((box) => {
-        box.planks.forEach((plank) => {
-          if (plank.operations) {
-            const ops = plank.operations;
-            const hasAnyOp =
-              (ops.screws && ops.screws.length > 0) ||
-              (ops.hinges && ops.hinges.length > 0) ||
-              (ops.vb_main && ops.vb_main.length > 0) ||
-              (ops.vb_double && ops.vb_double.length > 0) ||
-              (ops.slots && ops.slots.length > 0) ||
-              (ops.grooves && ops.grooves.length > 0) ||
-              (ops.profiles && ops.profiles.length > 0) ||
-              (ops.l_cuts && ops.l_cuts.length > 0);
+    const countOps = (ops: typeof operationCounts extends Record<string, number> ? Record<string, number> : never) => {
+      void ops;
+    };
+    void countOps;
 
-            if (hasAnyOp) {
-              planksWithOperations++;
-              operationCounts.screws += ops.screws?.length || 0;
-              operationCounts.hinges += ops.hinges?.length || 0;
-              operationCounts.vb_main += ops.vb_main?.length || 0;
-              operationCounts.vb_double += ops.vb_double?.length || 0;
-              operationCounts.slots += ops.slots?.length || 0;
-              operationCounts.grooves += ops.grooves?.length || 0;
-              operationCounts.profiles += ops.profiles?.length || 0;
-              operationCounts.l_cuts += ops.l_cuts?.length || 0;
-            } else {
-              planksWithoutOperations++;
-            }
-          } else {
-            planksWithoutOperations++;
-          }
+    const processPlankOps = (ops: {
+      screws?: unknown[]; hinges?: unknown[]; vb_main?: unknown[]; vb_double?: unknown[];
+      slots?: unknown[]; grooves?: unknown[]; profiles?: unknown[]; l_cuts?: unknown[];
+    }) => {
+      const hasAnyOp =
+        (ops.screws && ops.screws.length > 0) || (ops.hinges && ops.hinges.length > 0) ||
+        (ops.vb_main && ops.vb_main.length > 0) || (ops.vb_double && ops.vb_double.length > 0) ||
+        (ops.slots && ops.slots.length > 0) || (ops.grooves && ops.grooves.length > 0) ||
+        (ops.profiles && ops.profiles.length > 0) || (ops.l_cuts && ops.l_cuts.length > 0);
+      if (hasAnyOp) {
+        planksWithOperations++;
+        operationCounts.screws += ops.screws?.length || 0;
+        operationCounts.hinges += ops.hinges?.length || 0;
+        operationCounts.vb_main += ops.vb_main?.length || 0;
+        operationCounts.vb_double += ops.vb_double?.length || 0;
+        operationCounts.slots += ops.slots?.length || 0;
+        operationCounts.grooves += ops.grooves?.length || 0;
+        operationCounts.profiles += ops.profiles?.length || 0;
+        operationCounts.l_cuts += ops.l_cuts?.length || 0;
+      } else {
+        planksWithoutOperations++;
+      }
+    };
+
+    if (walls.length > 0) {
+      walls.forEach((wall) => {
+        wall.boxes.forEach((box) => {
+          box.planks.forEach((plank) => {
+            if (plank.operations) processPlankOps(plank.operations);
+            else planksWithoutOperations++;
+          });
         });
       });
-    });
+    } else if (formattedData && formattedData.length > 0) {
+      formattedData.forEach((plank) => {
+        if (plank.operations) processPlankOps(plank.operations);
+        else planksWithoutOperations++;
+      });
+    }
 
     const totalOperations = Object.values(operationCounts).reduce((a, b) => a + b, 0);
-    const hasLevel3Data = totalOperations > 0;
-
     return {
-      planksWithOperations,
-      planksWithoutOperations,
-      operationCounts,
-      totalOperations,
-      hasLevel3Data,
+      planksWithOperations, planksWithoutOperations,
+      operationCounts, totalOperations,
+      hasLevel3Data: totalOperations > 0,
     };
-  }, [walls]);
+  }, [walls, formattedData]);
 
-  // Redirect if no design
+  // Redirect if no design and no pipeline result (e.g. from Import Raw Data)
+  const hasPipelineResult = !!pipelineResult;
   useEffect(() => {
-    if (summary.totalPlanks === 0 && summary.totalBoxes === 0) {
+    if (summary.totalPlanks === 0 && summary.totalBoxes === 0 && !hasPipelineResult) {
       router.push('/visualiser/designer');
     }
-  }, [summary, router]);
+  }, [summary, router, hasPipelineResult]);
 
   // Initialize progress on mount
   useEffect(() => {
@@ -198,6 +197,18 @@ export default function GeneratePage() {
       });
     }
   }, [generationProgress, setGenerationProgress]);
+
+  // Auto-generate G-code from pipelineResult (e.g. after navigating from import-raw-data)
+  useEffect(() => {
+    if (pipelineResult?.cutlist && !gcodeResults) {
+      try {
+        const gcode = generateGCodeFiles(pipelineResult.cutlist.header, pipelineResult.cutlist.rows);
+        setGcodeResults(gcode);
+      } catch (err) {
+        console.error('Auto G-code generation failed:', err);
+      }
+    }
+  }, [pipelineResult, gcodeResults]);
 
   // Handle clicking "Start Generation" - shows dialogs first
   const handleStartGeneration = () => {
@@ -218,19 +229,10 @@ export default function GeneratePage() {
     generateFiles(ebSettings);
   };
 
-  // Handle going back from client dialog to EB dialog
-  const handleClientBack = () => {
-    setShowClientDialog(false);
-    setShowEBDialog(true);
-  };
-
-  // Actual file generation (after dialogs)
+  // Actual file generation (after dialogs) — uses AppScript-ported pipeline
   const generateFiles = useCallback(async (eb: EBSettings) => {
     setIsGenerating(true);
     setCompletedFiles([]);
-    
-    console.log('[Generate] Starting with EB settings:', eb);
-    console.log('[Generate] Customer details:', customerDetails);
 
     const steps = GENERATION_STEPS.map((s) => ({ ...s, status: 'pending' as const }));
     setGenerationProgress({
@@ -240,274 +242,123 @@ export default function GeneratePage() {
       hasError: false,
     });
 
-    try {
-      let generatedRawData: RawDataRow[] = [];
-      let generatedFormattedData: FormattedPlankData[] = [];
-      let generatedPlankList: PlankListItem[] = [];
-      let plankIdMap: Map<string, string> = new Map();
-
-      for (const step of steps) {
-        // Update current step to processing
-        updateGenerationStep(step.id, { status: 'processing' });
-        const currentProgress = useDesignerStore.getState().generationProgress;
-        if (currentProgress) {
-          setGenerationProgress({ ...currentProgress, currentStepId: step.id });
-        }
-
-        // Generate actual data based on step
-        switch (step.id) {
-          case 'raw-data':
-            // Generate raw data first (Level 0-3 hierarchy)
-            console.log('[Generate] Generating raw data...');
-            generatedRawData = generateRawData(walls);
-            console.log(`[Generate] Raw data generated: ${generatedRawData.length} rows`);
-            // Store temporarily - will backfill IDs after formatted data step
-            setRawData(generatedRawData as unknown as Record<string, unknown>[]);
-            break;
-
-          case 'formatted-data':
-            // Use actual dataFormatter - this generates plank IDs
-            console.log('[Generate] Formatting data...');
-            const formatResult = formatDesignData(walls, {
-              validateSize: true,
-              includeOperations: true,
-              ebSettings: eb,
-            });
-            generatedFormattedData = formatResult.data;
-            plankIdMap = formatResult.plankIdMap;
-            setFormattedData(generatedFormattedData);
-            console.log(`[Generate] Formatted data: ${generatedFormattedData.length} planks with IDs`);
-            
-            // Backfill plank IDs to raw data
-            if (generatedRawData.length > 0) {
-              console.log('[Generate] Backfilling plank IDs to raw data...');
-              const rawDataWithIds = backfillPlankIds(generatedRawData, plankIdMap);
-              // Also backfill Level 3 (operations) with parent plank IDs
-              let lastPlankId = '';
-              const finalRawData = rawDataWithIds.map(row => {
-                if (row.level === 2 && row.plankId) {
-                  lastPlankId = row.plankId;
-                } else if (row.level === 3 && !row.plankId && lastPlankId) {
-                  return { ...row, plankId: lastPlankId };
-                }
-                return row;
-              });
-              setRawData(finalRawData as unknown as Record<string, unknown>[]);
-              generatedRawData = finalRawData;
-              console.log('[Generate] Raw data backfilled with plank IDs');
-            }
-            break;
-
-          case 'plank-list':
-            // Use actual plankListGenerator
-            console.log('[Generate] Generating plank list...');
-            const plankResult = createPlankList(generatedFormattedData);
-            generatedPlankList = plankResult.plankList;
-            setPlankList(generatedPlankList);
-            console.log(`[Generate] Plank list: ${generatedPlankList.length} planks`);
-            break;
-
-          case 'cutlist':
-            // Auto-run MaxRects nesting algorithm
-            console.log('[Generate] Running MaxRects nesting algorithm...');
-            const nestingResult = runNesting(
-              generatedPlankList, 
-              'maxrects', // Auto-run MaxRects
-              undefined,
-              (message, percent) => {
-                console.log(`[Nesting] ${message} (${percent}%)`);
-              }
-            );
-            
-            // Store nesting results in expected format
-            const generatedNestResults: NestResult[] = nestingResult.allPlacedPlanks.map((p) => ({
-              id: p.id,
-              name: p.name,
-              material: p.material,
-              thickness: p.thickness,
-              sheetNum: p.sheetNum,
-              x: p.x,
-              y: p.y,
-              width: p.placedWidth,
-              height: p.placedHeight,
-              rotated: p.rotated,
-              color: p.color || '#4ECDC4',
-              originalWidth: p.originalWidth,
-              originalHeight: p.originalHeight,
-              ebValue: p.ebValue,
-              holes: p.operations.map((op) => ({
-                x: op.x,
-                y: op.y,
-                type: op.type,
-                isRectangular: op.isRectangular,
-                description: op.description,
-                diameter: op.diameter,
-                width: op.width,
-                length: op.length,
-              })),
-            }));
-            setNestResults(generatedNestResults);
-            console.log(`[Generate] Nesting complete: ${nestingResult.totalSheets} sheets, ${nestingResult.totalUtilization.toFixed(1)}% utilization`);
-            break;
-
-          case 'material-summary':
-            // Generate material summary from nesting results
-            const currentNestResults = useDesignerStore.getState().nestResults;
-            if (currentNestResults) {
-              // Group by material_thickness
-              const summaryMap = new Map<string, MaterialSummary>();
-              const ebTotals: { [key: string]: number } = {};
-              
-              currentNestResults.forEach((plank) => {
-                const baseMaterial = plank.material
-                  .replace(/\(\s*\d+(\.\d+)?\s*mm\s*\)/gi, '')
-                  .replace(/\s*\([^)]+\)/g, '')
-                  .trim();
-                const key = `${baseMaterial}_${plank.thickness}mm`;
-                
-                const existing = summaryMap.get(key);
-                if (existing) {
-                  existing.plankCount++;
-                  existing.totalArea += plank.width * plank.height;
-                } else {
-                  summaryMap.set(key, {
-                    materialThickness: `${baseMaterial} (${plank.thickness}mm)`,
-                    baseMaterial,
-                    thickness: plank.thickness,
-                    roomNames: 'N/A',
-                    plankCount: 1,
-                    totalArea: plank.width * plank.height,
-                    sheetsUsed: 0,
-                    avgAreaPerSheet: 0,
-                    utilization: 0,
-                    totalEdge: 0,
-                  });
-                }
-              });
-              
-              // Calculate sheets used
-              const SHEET_AREA = 1220 * 2440;
-              summaryMap.forEach((summary) => {
-                summary.sheetsUsed = Math.ceil(summary.totalArea / SHEET_AREA);
-                summary.avgAreaPerSheet = summary.totalArea / summary.sheetsUsed;
-                summary.utilization = (summary.totalArea / (summary.sheetsUsed * SHEET_AREA)) * 100;
-              });
-              
-              setMaterialSummary(Array.from(summaryMap.values()));
-            }
-            break;
-            
-          case 'sft-results':
-            // Calculate SFT
-            const sftResult = calculateSFT(walls);
-            console.log(`[Generate] SFT calculated: ${sftResult.totalSquareFeet.toFixed(2)} sq ft`);
-            break;
-        }
-
-        // Small delay for visual feedback
-        await new Promise((resolve) => setTimeout(resolve, 300));
-
-        // Mark step complete
-        updateGenerationStep(step.id, { status: 'complete' });
-        setCompletedFiles((prev) => [...prev, step.id]);
+    const markStep = (stepId: string, status: 'processing' | 'complete' | 'error', error?: string) => {
+      updateGenerationStep(stepId, { status, ...(error && { error }) });
+      if (status === 'complete' || status === 'error') {
+        setCompletedFiles((prev) => [...prev, stepId]);
       }
-
-      // All done
-      const finalProgress = useDesignerStore.getState().generationProgress;
-      if (finalProgress) {
-        setGenerationProgress({ ...finalProgress, isComplete: true, currentStepId: null });
-      }
-    } catch (error) {
-      console.error('Generation error:', error);
-      const errorProgress = useDesignerStore.getState().generationProgress;
-      if (errorProgress) {
-        setGenerationProgress({ ...errorProgress, hasError: true });
-      }
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [updateGenerationStep, setGenerationProgress, setFormattedData, setPlankList, setNestResults, setMaterialSummary, walls, customerDetails]);
-
-  // Run optimization algorithm (optional, after initial generation)
-  const runOptimizationAlgorithm = useCallback(async (algorithm: AlgorithmType) => {
-    const plankList = useDesignerStore.getState().plankList;
-    if (!plankList || plankList.length === 0) {
-      alert('Please generate files first before running optimization.');
-      return;
-    }
-
-    setIsRunningAlgorithm(true);
-    setSelectedAlgorithm(algorithm);
-    setShowAlgorithmDropdown(false);
-
-    console.log(`[Generate] Running ${algorithm.toUpperCase()} optimization...`);
+    };
 
     try {
-      // Default parameters for each algorithm
-      let params: GAParams | SAParams | PSOParams;
-      switch (algorithm) {
-        case 'ga':
-          params = { populationSize: 20, generations: 50, mutationRate: 2 } as GAParams;
-          break;
-        case 'sa':
-          params = { iterations: 1000, initialTemperature: 100, coolingRate: 0.995 } as SAParams;
-          break;
-        case 'pso':
-          params = { particles: 20, iterations: 50, inertia: 0.7, cognitive: 1.5, social: 1.5 } as PSOParams;
-          break;
-        default:
-          params = {} as GAParams;
+      // Step 1: Raw data (from walls or already set by Import Raw Data)
+      let rawDataRows: RawDataRow[] = [];
+      if (walls.length > 0) {
+        markStep('raw-data', 'processing');
+        rawDataRows = generateRawData(walls);
+        setRawData(rawDataRows as unknown as Record<string, unknown>[]);
+        await new Promise((r) => setTimeout(r, 150));
+        markStep('raw-data', 'complete');
+      } else {
+        // Import flow: raw data may already be in store or from pipelineResult
+        markStep('raw-data', 'complete');
       }
 
-      const nestingResult = runNesting(
-        plankList,
-        algorithm,
-        params,
-        (message, percent) => {
-          console.log(`[${algorithm.toUpperCase()}] ${message} (${percent}%)`);
+      const rawValues = convertDesignerRawDataTo2D(rawDataRows as Parameters<typeof convertDesignerRawDataTo2D>[0]);
+      if (rawValues.length < 2) {
+        throw new Error('No raw data to process. Add design in designer or import raw data.');
+      }
+
+      const customerDetailsForPipeline: Record<string, string> = {
+        'customer name': customerDetails.customerName,
+        'firm name': customerDetails.firmName,
+        'site address': customerDetails.address,
+        'contact number': customerDetails.phone,
+        'email': customerDetails.email,
+        'gst': String(customerDetails.gst),
+        'transport amount': String(customerDetails.transportAmount),
+      };
+
+      const progressSteps: Record<string, string> = {
+        'validate': 'raw-data',
+        'formatted-data': 'formatted-data',
+        'plank-list': 'plank-list',
+        'cutlist': 'cutlist',
+        'material-summary': 'material-summary',
+        'pressing-list': 'pressing-list',
+        'material-estimate': 'material-estimate',
+        'input-qa': 'input-qa',
+        'output-qa': 'output-qa',
+        'complete': 'output-qa',
+      };
+
+      const result = await runPipelineAsync(
+        {
+          rawValues,
+          ebSettings: eb,
+          customerDetails: customerDetailsForPipeline,
+          nestingParams: { algorithm: selectedAlgorithm },
+        },
+        (step, message) => {
+          const stepId = progressSteps[step];
+          if (stepId) {
+            updateGenerationStep(stepId, { status: 'processing' });
+            const prog = useDesignerStore.getState().generationProgress;
+            if (prog) setGenerationProgress({ ...prog, currentStepId: stepId });
+          }
+          if (step === 'cutlist' && message) {
+            const prog = useDesignerStore.getState().generationProgress;
+            if (prog) {
+              const updated = prog.steps.map(s => s.id === 'cutlist' ? { ...s, name: message } : s);
+              setGenerationProgress({ ...prog, steps: updated });
+            }
+          }
         }
       );
 
-      // Update results
-      const nestResults: NestResult[] = nestingResult.allPlacedPlanks.map((p) => ({
-        id: p.id,
-        name: p.name,
-        material: p.material,
-        thickness: p.thickness,
-        sheetNum: p.sheetNum,
-        x: p.x,
-        y: p.y,
-        width: p.placedWidth,
-        height: p.placedHeight,
-        rotated: p.rotated,
-        color: p.color || '#4ECDC4',
-        originalWidth: p.originalWidth,
-        originalHeight: p.originalHeight,
-        ebValue: p.ebValue,
-        holes: p.operations.map((op) => ({
-          x: op.x,
-          y: op.y,
-          type: op.type,
-          isRectangular: op.isRectangular,
-          description: op.description,
-          diameter: op.diameter,
-          width: op.width,
-          length: op.length,
-        })),
-      }));
-      setNestResults(nestResults);
+      setPipelineResult(result);
+      setFormattedData(pipelineFormattedToStore(result.formattedData));
+      setPlankList(pipelinePlankListToStore(result.plankList));
+      setNestResults(pipelineNestToStore(result.cutlist));
+      setMaterialSummary(pipelineMaterialSummaryToStore(result.materialSummary));
+      setGcodeResults(generateGCodeFiles(result.cutlist.header, result.cutlist.rows));
 
-      console.log(`[Generate] ${algorithm.toUpperCase()} optimization complete: ${nestingResult.totalSheets} sheets, ${nestingResult.totalUtilization.toFixed(1)}% utilization`);
-      alert(`${algorithm.toUpperCase()} optimization complete!\n\nSheets: ${nestingResult.totalSheets}\nUtilization: ${nestingResult.totalUtilization.toFixed(1)}%`);
+      // Mark any steps the pipeline doesn't report
+      ['formatted-data', 'plank-list', 'cutlist', 'material-summary', 'pressing-list', 'material-estimate', 'input-qa', 'output-qa'].forEach((id) => {
+        if (!useDesignerStore.getState().generationProgress?.steps.find((s) => s.id === id)?.status || useDesignerStore.getState().generationProgress?.steps.find((s) => s.id === id)?.status === 'processing') {
+          markStep(id, 'complete');
+        }
+      });
+      markStep('sft-results', 'complete');
+      markStep('gcode', 'complete');
+      markStep('installation-guide', 'complete');
 
+      const finalProg = useDesignerStore.getState().generationProgress;
+      if (finalProg) setGenerationProgress({ ...finalProg, isComplete: true, currentStepId: null });
     } catch (error) {
-      console.error('Algorithm error:', error);
-      alert(`Error running ${algorithm}: ${error}`);
+      console.error('Generation error:', error);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      const currentProgress = useDesignerStore.getState().generationProgress;
+      if (currentProgress?.currentStepId) {
+        updateGenerationStep(currentProgress.currentStepId, { status: 'error', error: errMsg });
+      }
+      const errProg = useDesignerStore.getState().generationProgress;
+      if (errProg) setGenerationProgress({ ...errProg, hasError: true });
     } finally {
-      setIsRunningAlgorithm(false);
-      setSelectedAlgorithm(null);
+      setIsGenerating(false);
     }
-  }, [setNestResults]);
+  }, [
+    walls,
+    customerDetails,
+    selectedAlgorithm,
+    setGenerationProgress,
+    updateGenerationStep,
+    setRawData,
+    setPipelineResult,
+    setFormattedData,
+    setPlankList,
+    setNestResults,
+    setMaterialSummary,
+  ]);
 
   const getStepIcon = (status: GenerationStep['status']) => {
     switch (status) {
@@ -539,22 +390,192 @@ export default function GeneratePage() {
   };
 
   const downloadAll = () => {
-    // In production, this would create a ZIP file with all generated files
-    alert('Download functionality will be implemented with actual file generation.');
+    const result = useDesignerStore.getState().pipelineResult;
+    const name = useDesignerStore.getState().projectName || 'export';
+    if (!result) {
+      alert('No generated files to download. Run generation first.');
+      return;
+    }
+    exportAllAsZip(result, name, gcodeResults ?? undefined);
+  };
+
+  const handleSyncPlankIdsToRaw = () => {
+    const result = useDesignerStore.getState().pipelineResult;
+    const raw = useDesignerStore.getState().rawData;
+    if (!result?.formattedData?.header?.length) {
+      alert('No formatted data. Run generation first.');
+      return;
+    }
+    if (!raw?.length) {
+      alert('No raw data to sync into.');
+      return;
+    }
+    const headers = Object.keys(raw[0] as object);
+    const rawValues = [headers, ...(raw as Record<string, unknown>[]).map((r) => headers.map((h) => r[h]))];
+    const updated = syncPlankIdsToRaw(
+      { header: result.formattedData.header, rows: result.formattedData.rows },
+      rawValues
+    );
+    const updatedHeader = updated[0] as string[];
+    const updatedRows = updated.slice(1) as unknown[][];
+    setRawData(rows2DToObjects(updatedHeader, updatedRows));
+    alert('Plank IDs synced to raw data. Download raw data or Download All to export.');
+  };
+
+  const handleDownloadStep = (stepId: string) => {
+    const result = useDesignerStore.getState().pipelineResult;
+    if (!result) return;
+    const base = (projectName || 'export').replace(/[^\w\s-]/g, '_').trim() || 'export';
+    const date = new Date().toISOString().slice(0, 10);
+    switch (stepId) {
+      case 'raw-data':
+        if (rawData?.length) {
+          const headers = rawData.length ? Object.keys(rawData[0] as object) : [];
+          const rows = (rawData as Record<string, unknown>[]).map((r) => Object.values(r));
+          exportToCSV(headers, rows, `${base}_raw_data_${date}.csv`);
+        }
+        break;
+      case 'formatted-data':
+        exportToCSV(result.formattedData.header, result.formattedData.rows, `${base}_formatted_data_${date}.csv`);
+        break;
+      case 'plank-list':
+        exportToCSV(result.plankList.header, result.plankList.rows, `${base}_plank_list_${date}.csv`);
+        break;
+      case 'cutlist':
+        exportToCSV(result.cutlist.header, result.cutlist.rows, `${base}_cutlist_${date}.csv`);
+        break;
+      case 'material-summary':
+        exportToCSV(result.materialSummary.header, result.materialSummary.rows, `${base}_material_summary_${date}.csv`);
+        break;
+      case 'material-estimate':
+        exportToCSV(result.materialEstimate.plywood.header, result.materialEstimate.plywood.rows, `${base}_material_estimate_${date}.csv`);
+        break;
+      case 'input-qa':
+        if (result.inputQA.sections[0]) {
+          const s = result.inputQA.sections[0];
+          exportToCSV(s.tableHeaders, s.rows, `${base}_input_qa_${date}.csv`);
+        }
+        break;
+      case 'output-qa':
+        exportToCSV(result.outputQA.tableHeader, result.outputQA.rows, `${base}_output_qa_${date}.csv`);
+        break;
+      case 'pressing-list':
+        exportToCSV(result.pressingList.tableHeader, result.pressingList.rows, `${base}_pressing_list_${date}.csv`);
+        break;
+      case 'gcode':
+        if (gcodeResults?.length) {
+          buildGCodeZip(gcodeResults, projectName || 'export').then((blob) =>
+            downloadGCodeZip(blob, projectName || 'export')
+          );
+        }
+        break;
+      default:
+        break;
+    }
   };
 
   // Handle viewing data - opens modal for data table steps, navigates for others
   const handleViewData = (stepId: string) => {
-    // Steps that should show data table modals
-    const dataTableSteps = ['raw-data', 'formatted-data', 'plank-list', 'material-summary'];
-    
+    const dataTableSteps = [
+      'raw-data', 'formatted-data', 'plank-list', 'material-summary',
+      'material-estimate', 'input-qa', 'output-qa', 'pressing-list',
+      'gcode',
+    ];
     if (dataTableSteps.includes(stepId)) {
       setViewingData(stepId);
     } else {
-      // Navigate to the report page for other steps
       const link = getReportLink(stepId);
       router.push(link);
     }
+  };
+
+  const EditableSheetModal = ({ title, sections, onClose }: {
+    title: string;
+    sections: { title: string; headers: string[]; rows: (string | number | boolean)[][] }[];
+    onClose: () => void;
+  }) => {
+    const [localSections, setLocalSections] = React.useState(() =>
+      sections.map(sec => ({
+        ...sec,
+        rows: sec.rows.map(r => [...r]),
+        checked: sec.rows.map(() => false),
+      }))
+    );
+
+    const handleCellEdit = (si: number, ri: number, ci: number, value: string) => {
+      setLocalSections(prev => {
+        const next = [...prev];
+        const sectionCopy = { ...next[si], rows: next[si].rows.map(r => [...r]) };
+        sectionCopy.rows[ri][ci] = value;
+        next[si] = sectionCopy;
+        return next;
+      });
+    };
+
+    const handleCheck = (si: number, ri: number) => {
+      setLocalSections(prev => {
+        const next = [...prev];
+        const sectionCopy = { ...next[si], checked: [...next[si].checked] };
+        sectionCopy.checked[ri] = !sectionCopy.checked[ri];
+        next[si] = sectionCopy;
+        return next;
+      });
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+        <div className="w-full max-w-7xl max-h-[90vh] overflow-auto bg-white rounded-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b sticky top-0 z-10">
+            <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+            <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+          {localSections.map((sec, si) => (
+            <div key={si} className="p-4">
+              {si > 0 && <h3 className="text-sm font-bold text-gray-700 mb-2">{sec.title}</h3>}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead className="bg-gray-100 sticky top-12 z-[5]"><tr>
+                    <th className="px-3 py-2 border text-center w-10">✓</th>
+                    {sec.headers.map((h, hi) => <th key={hi} className="px-3 py-2 border text-left whitespace-nowrap">{h}</th>)}
+                  </tr></thead>
+                  <tbody>
+                    {sec.rows.map((row, ri) => (
+                      <tr key={ri} className={sec.checked[ri] ? 'bg-green-50' : 'hover:bg-blue-50'}>
+                        <td className="px-3 py-2 border text-center">
+                          <input type="checkbox" className="w-4 h-4" checked={sec.checked[ri] || false} onChange={() => handleCheck(si, ri)} />
+                        </td>
+                        {sec.headers.map((_h, ci) => {
+                          const cellVal = row[ci];
+                          if (typeof cellVal === 'boolean') {
+                            return (
+                              <td key={ci} className="px-3 py-2 border text-center">
+                                <input type="checkbox" className="w-4 h-4" checked={!!cellVal} onChange={() => handleCellEdit(si, ri, ci, cellVal ? '' : 'true')} />
+                              </td>
+                            );
+                          }
+                          return (
+                            <td key={ci} className="px-1 py-1 border">
+                              <input
+                                type="text"
+                                className="w-full px-2 py-1 text-sm border-0 bg-transparent focus:bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-300 rounded"
+                                value={String(cellVal ?? '')}
+                                onChange={(e) => handleCellEdit(si, ri, ci, e.target.value)}
+                              />
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   // Render the data view modal based on viewingData state
@@ -578,7 +599,19 @@ export default function GeneratePage() {
         return (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="w-full max-w-7xl max-h-[90vh] overflow-auto">
-              <FormattedDataTable data={formattedData} onClose={closeModal} />
+              <FormattedDataTable
+                data={formattedData}
+                onClose={closeModal}
+                editable={!!pipelineResult}
+                onSave={(updated) => {
+                  setFormattedData(updated);
+                  handleSyncPlankIdsToRaw();
+                }}
+                onPlankIdChange={(updated) => {
+                  setFormattedData(updated);
+                  handleSyncPlankIdsToRaw();
+                }}
+              />
             </div>
           </div>
         );
@@ -601,10 +634,96 @@ export default function GeneratePage() {
           </div>
         );
       case 'cutlist':
-        // Navigate to cutlist page for visualization
         router.push(getReportLink(viewingData));
         setViewingData(null);
         return null;
+      case 'material-estimate': {
+        if (!pipelineResult?.materialEstimate) return null;
+        const meSections: { title: string; headers: string[]; rows: (string | number | boolean)[][] }[] = [];
+        const me = pipelineResult.materialEstimate;
+        if (me.plywood.rows.length > 0) meSections.push({ title: 'Plywood / Core Material', headers: me.plywood.header, rows: me.plywood.rows });
+        if (me.laminate.rows.length > 0) meSections.push({ title: 'Laminate', headers: me.laminate.header, rows: me.laminate.rows });
+        if (me.edgeBanding.rows.length > 0) meSections.push({ title: 'Edge Banding', headers: me.edgeBanding.header, rows: me.edgeBanding.rows });
+        if (me.hardware.rows.length > 0) meSections.push({ title: 'Hardware', headers: me.hardware.header, rows: me.hardware.rows });
+        return (
+          <EditableSheetModal
+            title="Material Estimate"
+            sections={meSections}
+            onClose={closeModal}
+          />
+        );
+      }
+      case 'input-qa':
+        if (!pipelineResult?.inputQA?.sections?.length) return null;
+        return (
+          <EditableSheetModal
+            title={pipelineResult.inputQA.sections[0].title || 'Input QA'}
+            sections={pipelineResult.inputQA.sections.map((sec) => ({
+              title: sec.title,
+              headers: sec.tableHeaders,
+              rows: sec.rows,
+            }))}
+            onClose={closeModal}
+          />
+        );
+      case 'output-qa':
+        if (!pipelineResult?.outputQA) return null;
+        return (
+          <EditableSheetModal
+            title="Output QA"
+            sections={[{
+              title: 'Output QA',
+              headers: pipelineResult.outputQA.tableHeader,
+              rows: pipelineResult.outputQA.rows,
+            }]}
+            onClose={closeModal}
+          />
+        );
+      case 'pressing-list':
+        if (!pipelineResult?.pressingList) return null;
+        return (
+          <EditableSheetModal
+            title="Pressing List"
+            sections={[{
+              title: 'Pressing List',
+              headers: pipelineResult.pressingList.tableHeader,
+              rows: pipelineResult.pressingList.rows,
+            }]}
+            onClose={closeModal}
+          />
+        );
+      case 'gcode':
+        if (!gcodeResults || gcodeResults.length === 0) return null;
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={closeModal}>
+            <div className="w-full max-w-5xl max-h-[90vh] overflow-auto bg-white rounded-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b sticky top-0 z-10">
+                <h2 className="text-lg font-semibold text-gray-900">G-Code Files ({gcodeResults.length} files)</h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => { buildGCodeZip(gcodeResults, projectName || 'export').then(blob => downloadGCodeZip(blob, projectName || 'export')); }}
+                    className="px-3 py-1.5 text-sm bg-orange-500 text-white rounded hover:bg-orange-600"
+                  >Download All (.zip)</button>
+                  <button onClick={closeModal} className="p-1.5 text-gray-400 hover:text-gray-600">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+              </div>
+              <div className="p-4 space-y-3">
+                {gcodeResults.map((gc, i) => (
+                  <details key={i} className="border rounded">
+                    <summary className="px-4 py-2 bg-gray-50 cursor-pointer hover:bg-gray-100 font-mono text-sm">
+                      {gc.fileName} <span className="text-gray-400 text-xs">({gc.content.length} chars)</span>
+                    </summary>
+                    <pre className="p-4 text-xs font-mono bg-gray-900 text-green-400 overflow-x-auto max-h-60 whitespace-pre">
+                      {gc.content}
+                    </pre>
+                  </details>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
       default:
         return null;
     }
@@ -806,61 +925,34 @@ export default function GeneratePage() {
               </p>
             </div>
             {!isGenerating && !generationProgress?.isComplete && (
-              <button
-                onClick={handleStartGeneration}
-                className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition-all shadow-md shadow-orange-500/25"
-              >
-                Start Generation
-              </button>
+              <div className="flex items-center gap-3">
+                <select
+                  value={selectedAlgorithm}
+                  onChange={(e) => setSelectedAlgorithm(e.target.value as typeof selectedAlgorithm)}
+                  className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white focus:ring-2 focus:ring-orange-300 focus:outline-none"
+                >
+                  <option value="tournament">Tournament (Best)</option>
+                  <option value="bfd">Best Fit Decreasing</option>
+                  <option value="ga">Genetic Algorithm</option>
+                  <option value="sa">Simulated Annealing</option>
+                  <option value="pso">Particle Swarm (PSO)</option>
+                </select>
+                <button
+                  onClick={handleStartGeneration}
+                  className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition-all shadow-md shadow-orange-500/25"
+                >
+                  Start Generation
+                </button>
+              </div>
             )}
             {generationProgress?.isComplete && (
               <div className="flex items-center gap-3">
-                {/* Run Algorithm Dropdown */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowAlgorithmDropdown(!showAlgorithmDropdown)}
-                    disabled={isRunningAlgorithm}
-                    className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-all flex items-center gap-2 disabled:opacity-50 border border-gray-300"
-                  >
-                    {isRunningAlgorithm ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-                        <span className="text-orange-600">Running {selectedAlgorithm?.toUpperCase()}...</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-5 h-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                        Run Algorithm
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </>
-                    )}
-                  </button>
-                  
-                  {/* Dropdown Menu */}
-                  {showAlgorithmDropdown && (
-                    <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-20">
-                      <div className="px-4 py-2 border-b border-gray-200 bg-gray-50">
-                        <p className="text-xs text-gray-500">Optional: Run additional optimization</p>
-                      </div>
-                      {ALGORITHM_OPTIONS.map((algo) => (
-                        <button
-                          key={algo.id}
-                          onClick={() => runOptimizationAlgorithm(algo.id)}
-                          className="w-full px-4 py-3 text-left hover:bg-orange-50 transition-colors"
-                        >
-                          <p className="font-medium text-blue-900">{algo.name}</p>
-                          <p className="text-xs text-gray-500">{algo.description}</p>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Download All Button */}
+                <button
+                  onClick={handleSyncPlankIdsToRaw}
+                  className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-all flex items-center gap-2 border border-gray-300"
+                >
+                  Sync plank IDs to raw
+                </button>
                 <button
                   onClick={downloadAll}
                   className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all flex items-center gap-2 shadow-md"
@@ -935,25 +1027,71 @@ export default function GeneratePage() {
                     )}
                   </div>
 
-                  {/* View Buttons (for completed steps) - Different types for different steps */}
+                  {/* View / Download (for completed steps) */}
                   {step.status === 'complete' && (
                     <div className="flex gap-2">
-                      {/* View Table Format - for data tables */}
-                      {['raw-data', 'formatted-data', 'plank-list', 'material-summary'].includes(step.id) && (
-                        <button
-                          onClick={() => handleViewData(step.id)}
-                          className="text-xs px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded font-medium transition-colors"
-                        >
-                          View Table Format
-                        </button>
+                      {['raw-data', 'formatted-data', 'plank-list', 'material-summary', 'material-estimate', 'input-qa', 'output-qa', 'pressing-list'].includes(step.id) && (
+                        <>
+                          <button
+                            onClick={() => handleViewData(step.id)}
+                            className="text-xs px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded font-medium transition-colors"
+                          >
+                            View Table
+                          </button>
+                          <button
+                            onClick={() => handleDownloadStep(step.id)}
+                            className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded font-medium transition-colors"
+                          >
+                            Download CSV
+                          </button>
+                        </>
                       )}
-                      {/* View - for visualizations and reports */}
-                      {['cutlist', 'material-estimate', 'sft-results', 'input-qa', 'output-qa', 'pressing-list', 'gcode'].includes(step.id) && (
+                      {['cutlist'].includes(step.id) && (
+                        <>
+                          <button
+                            onClick={() => router.push(getReportLink(step.id))}
+                            className="text-xs px-3 py-1.5 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded font-medium transition-colors"
+                          >
+                            View
+                          </button>
+                          <button
+                            onClick={() => handleDownloadStep(step.id)}
+                            className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded font-medium transition-colors"
+                          >
+                            Download CSV
+                          </button>
+                        </>
+                      )}
+                      {step.id === 'gcode' && gcodeResults && gcodeResults.length > 0 && (
+                        <>
+                          <button
+                            onClick={() => handleViewData('gcode')}
+                            className="text-xs px-3 py-1.5 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded font-medium transition-colors"
+                          >
+                            View G-Code
+                          </button>
+                          <button
+                            onClick={() => handleDownloadStep('gcode')}
+                            className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded font-medium transition-colors"
+                          >
+                            Download ZIP
+                          </button>
+                        </>
+                      )}
+                      {step.id === 'sft-results' && (
                         <button
                           onClick={() => router.push(getReportLink(step.id))}
                           className="text-xs px-3 py-1.5 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded font-medium transition-colors"
                         >
                           View
+                        </button>
+                      )}
+                      {step.id === 'installation-guide' && (
+                        <button
+                          onClick={() => router.push(getReportLink(step.id))}
+                          className="text-xs px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded font-medium transition-colors"
+                        >
+                          Generate Installation Guide
                         </button>
                       )}
                     </div>
@@ -1075,12 +1213,10 @@ export default function GeneratePage() {
 // ============================================
 
 function getReportLink(stepId: string): string {
-  // Note: raw-data, formatted-data, plank-list now open modals directly
-  // This function is used for steps that navigate to report pages
   const links: Record<string, string> = {
-    'raw-data': '/visualiser/generate', // Modal handled separately
-    'formatted-data': '/visualiser/generate', // Modal handled separately
-    'plank-list': '/visualiser/generate', // Modal handled separately
+    'raw-data': '/visualiser/generate',
+    'formatted-data': '/visualiser/generate',
+    'plank-list': '/visualiser/generate',
     'cutlist': '/visualiser/reports/cutlist',
     'material-summary': '/visualiser/reports/material-estimate',
     'material-estimate': '/visualiser/reports/material-estimate',
@@ -1089,6 +1225,7 @@ function getReportLink(stepId: string): string {
     'output-qa': '/visualiser/reports/qa-output',
     'pressing-list': '/visualiser/reports/pressing-list',
     'gcode': '/visualiser/reports/cutlist',
+    'installation-guide': '/visualiser/installation-guide',
   };
   return links[stepId] || '/visualiser';
 }

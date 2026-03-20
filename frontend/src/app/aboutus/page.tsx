@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Footer } from "@/components/layout/Footer";
-import Navbar from "@/components/layout/Navbar";
 
 export const metadata: Metadata = {
   title: "About Us",
@@ -16,9 +15,6 @@ import AboutUsWhyNestupSection from "@/components/about-us/AboutUsWhyNestupSecti
 export default function AboutUsPage() {
   return (
     <section>
-      <div className="h-24 top-0 fixed bg-white z-50">
-         <Navbar />
-      </div>
       <div className="min-h-screen bg-neutral-light text-gray-900 mt-24 w-screen">
         <main className="w-full">
           <AboutUsHeroSection />

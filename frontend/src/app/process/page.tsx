@@ -4,7 +4,6 @@
 import { useRef } from "react";
 import FAQ from "@components/landing-page/Faq";
 import { Footer } from "@/components/layout/Footer";
-import Navbar from "@/components/layout/Navbar";
 import { DetailedProcess } from "@/components/landing-page/detailedProcess";
 
 const Process = () => {
@@ -13,9 +12,6 @@ const Process = () => {
 
   return ( 
     <div className="">
-      <div className="h-24 top-0 fixed bg-white z-50">
-         <Navbar />
-      </div>
       <div className="mt-24 w-screen" >
         {/* text*/}
         <div className=" gap-0 flex flex-col md:gap-0 lg:gap-8 lg:pr-0 xl:gap-16 w-screen lg:w-2/3 xl:1/2">

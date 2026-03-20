@@ -8,7 +8,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Home, Check, ChevronDown, MapPin } from "lucide-react"
 import { cn } from "@/lib/utils"
-import Navbar from "@/components/layout/Navbar"
 import StickyCTA from "@/components/common/StickyCTA"
 import { QuoteProgress } from "@/components/quote/quote-progress"
 import { hyderabadSocieties, type Society } from "@/data/get-quote/societies"
@@ -47,9 +46,6 @@ export default function SocietySelectionPage() {
 
   return (
     <div className="min-h-screen bg-neutral-light">
-      <div className="h-20 md:h-24 top-0 fixed bg-white z-50">
-        <Navbar />
-      </div>
       <div className="mt-20 md:mt-24 w-full">
         <div className="bg-neutral-light">
           {/* Progress Bar */}

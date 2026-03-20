@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Home, ChevronDown, ChevronUp, FileText, Calendar, MapPin, Phone, Star } from "lucide-react"
 import { QuoteProgress } from "@/components/quote/quote-progress"
-import Navbar from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
 import StickyCTA from "@/components/common/StickyCTA"
 import { 
@@ -147,9 +146,6 @@ export default function MaterialSelectionPage() {
 
   return (
     <div className="">
-      <div className="h-20 md:h-24 top-0 fixed bg-white z-50">
-        <Navbar />
-      </div>
       <div className="mt-20 md:mt-24 w-screen">
         <div className="min-h-screen bg-neutral-light">
           {/* Progress Bar */}

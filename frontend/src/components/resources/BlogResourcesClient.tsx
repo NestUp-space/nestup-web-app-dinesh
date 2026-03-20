@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import Navbar from "@/components/layout/Navbar";
 import {
   Calendar,
   Clock,
@@ -80,7 +79,6 @@ export default function BlogResourcesClient({ blogData }: BlogResourcesClientPro
   if (currentPage === "blog") {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         {/* Hero Section */}
         <ResourcesHeroSection />
 

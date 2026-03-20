@@ -170,6 +170,32 @@ export default function VisualiserPage() {
             </p>
           </Link>
 
+          {/* Import Raw Data Card — upload CSV/Excel and run pipeline without designer */}
+          <Link
+            href="/visualiser/import-raw-data"
+            className="group rounded-xl bg-white border border-gray-200 p-6 hover:border-orange-400 hover:shadow-lg hover:shadow-orange-100 transition-all"
+          >
+            <div className="h-12 w-12 rounded-lg bg-orange-100 flex items-center justify-center mb-4 group-hover:bg-orange-200 transition-colors">
+              <svg
+                className="h-6 w-6 text-orange-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.96 3.18 2 2 0 0118 5.006 10.733 10.733 0 0121 14v2M7 16v2a2 2 0 002 2h6a2 2 0 002-2v-2M7 16h10"
+                />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold mb-2 text-gray-900">Import Raw Data</h3>
+            <p className="text-sm text-gray-500">
+              Upload SketchUp raw data (CSV or Excel) and generate cutlist and reports
+            </p>
+          </Link>
+
           {/* Generate Files Card */}
           <Link
             href="/visualiser/generate"

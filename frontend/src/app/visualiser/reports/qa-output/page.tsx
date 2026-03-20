@@ -1,12 +1,32 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useDesignerStore } from '@/stores/designerStore';
 import { formatDesignData, generatePlankList } from '@/lib/visualiser';
+import type { PipelineResult } from '@/lib/visualiser/appscript-port';
+
+function formatQACell(cell: unknown): string {
+  if (cell === null || cell === undefined) return '';
+  if (typeof cell === 'object') {
+    try {
+      return JSON.stringify(cell);
+    } catch {
+      return String(cell);
+    }
+  }
+  return String(cell);
+}
 
 export default function QAOutputPage() {
-  const { walls, projectName } = useDesignerStore();
+  const pipelineResult = useDesignerStore((state) => state.pipelineResult);
+  const walls = useDesignerStore((state) => state.walls);
+  const projectName = useDesignerStore((state) => state.projectName);
+
+  const [checkedByRow, setCheckedByRow] = useState<Record<number, boolean>>({});
+
+  const outputQA: PipelineResult['outputQA'] | undefined = pipelineResult?.outputQA;
+  const usePipelineQA = Boolean(outputQA?.rows && outputQA.rows.length > 0);
 
   const qaItems = useMemo(() => {
     if (walls.length === 0) return [];
@@ -23,6 +43,18 @@ export default function QAOutputPage() {
       eb: plank.edgeBinding,
     }));
   }, [walls]);
+
+  const rowCount = usePipelineQA ? outputQA!.rows.length : qaItems.length;
+
+  useEffect(() => {
+    setCheckedByRow({});
+  }, [usePipelineQA, rowCount]);
+
+  const toggleRow = (rowIndex: number, checked: boolean) => {
+    setCheckedByRow((prev) => ({ ...prev, [rowIndex]: checked }));
+  };
+
+  const itemCount = usePipelineQA ? outputQA!.rows.length : qaItems.length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
@@ -55,39 +87,78 @@ export default function QAOutputPage() {
           <div className="px-6 py-4 border-b border-gray-700">
             <h2 className="font-semibold">Cut Pieces Quality Check</h2>
             <p className="text-sm text-gray-400 mt-1">
-              Verify all cut planks after processing ({qaItems.length} items)
+              Verify all cut planks after processing ({itemCount} items)
             </p>
           </div>
-          
+
           <div className="overflow-x-auto max-h-[600px]">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-700/50 sticky top-0">
-                <tr>
-                  <th className="px-3 py-3 text-left w-10">#</th>
-                  <th className="px-3 py-3 text-left">Plank ID</th>
-                  <th className="px-3 py-3 text-left">Name</th>
-                  <th className="px-3 py-3 text-left">Material</th>
-                  <th className="px-3 py-3 text-center">Dimensions</th>
-                  <th className="px-3 py-3 text-center w-12">EB</th>
-                  <th className="px-3 py-3 text-center w-16">OK</th>
-                </tr>
-              </thead>
-              <tbody>
-                {qaItems.map((item) => (
-                  <tr key={item.id} className="border-t border-gray-700/50 hover:bg-gray-700/30">
-                    <td className="px-3 py-2 text-gray-500">{item.id}</td>
-                    <td className="px-3 py-2 font-mono text-xs">{item.plankId}</td>
-                    <td className="px-3 py-2">{item.name}</td>
-                    <td className="px-3 py-2 text-gray-400">{item.material}</td>
-                    <td className="px-3 py-2 text-center font-mono text-xs">{item.dimensions}</td>
-                    <td className="px-3 py-2 text-center">{item.eb}</td>
-                    <td className="px-3 py-2 text-center">
-                      <input type="checkbox" className="w-4 h-4 rounded" />
-                    </td>
+            {usePipelineQA ? (
+              <table className="w-full text-sm">
+                <thead className="bg-gray-700/50 sticky top-0">
+                  <tr>
+                    <th className="px-3 py-3 text-center w-16">OK</th>
+                    {outputQA!.tableHeader.map((h, hi) => (
+                      <th key={hi} className="px-3 py-3 text-left">
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {outputQA!.rows.map((row, ri) => (
+                    <tr key={ri} className="border-t border-gray-700/50 hover:bg-gray-700/30">
+                      <td className="px-3 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={!!checkedByRow[ri]}
+                          onChange={(e) => toggleRow(ri, e.target.checked)}
+                          className="w-4 h-4 rounded border-gray-500 bg-gray-700 text-blue-600 focus:ring-blue-500 focus:ring-offset-gray-900"
+                        />
+                      </td>
+                      {outputQA!.tableHeader.map((_, ci) => (
+                        <td key={ci} className="px-3 py-2 text-gray-200">
+                          {formatQACell(row[ci])}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-gray-700/50 sticky top-0">
+                  <tr>
+                    <th className="px-3 py-3 text-left w-10">#</th>
+                    <th className="px-3 py-3 text-left">Plank ID</th>
+                    <th className="px-3 py-3 text-left">Name</th>
+                    <th className="px-3 py-3 text-left">Material</th>
+                    <th className="px-3 py-3 text-center">Dimensions</th>
+                    <th className="px-3 py-3 text-center w-12">EB</th>
+                    <th className="px-3 py-3 text-center w-16">OK</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {qaItems.map((item) => (
+                    <tr key={item.id} className="border-t border-gray-700/50 hover:bg-gray-700/30">
+                      <td className="px-3 py-2 text-gray-500">{item.id}</td>
+                      <td className="px-3 py-2 font-mono text-xs">{item.plankId}</td>
+                      <td className="px-3 py-2">{item.name}</td>
+                      <td className="px-3 py-2 text-gray-400">{item.material}</td>
+                      <td className="px-3 py-2 text-center font-mono text-xs">{item.dimensions}</td>
+                      <td className="px-3 py-2 text-center">{item.eb}</td>
+                      <td className="px-3 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={!!checkedByRow[item.id]}
+                          onChange={(e) => toggleRow(item.id, e.target.checked)}
+                          className="w-4 h-4 rounded border-gray-500 bg-gray-700 text-blue-600 focus:ring-blue-500 focus:ring-offset-gray-900"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
 
           <div className="p-6 border-t border-gray-700">

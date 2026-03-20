@@ -28,7 +28,7 @@ function createCutlist() {
       "Original Width", "Original Height", "EB Value" 
     ];
     
-    const finalResults = [baseHeaders.concat(dynamicOpHeader)];
+    const finalResults = [baseHeaders.concat(dynamicOpHeader).concat("Cut Order")];
     let sheetCounter = 1;
 
     for (const materialThicknessKey in planksByGroup) {
@@ -40,12 +40,13 @@ function createCutlist() {
 
       result.layout.forEach(row => {
         row[4] = row[4] + sheetCounter - 1;
-        finalResults.push(row);
+        finalResults.push(row.concat(''));
       });
 
       sheetCounter += result.sheetsUsed;
     }
 
+    _fillCutOrderColumn(finalResults);
     _writeResultsToSheet(finalResults);
     ui.alert('✅ Optimized Cutlist created successfully!');
   } catch (error) {
@@ -115,7 +116,7 @@ function _runNestingProcess(solverFunction, toastMessage, successMessage) {
       "Original Width", "Original Height", "EB Value"
     ];
     
-    const finalResults = [baseHeaders.concat(dynamicOpHeader)];
+    const finalResults = [baseHeaders.concat(dynamicOpHeader).concat("Cut Order")];
     let sheetCounter = 1;
 
     for (const materialThicknessKey in planksByGroup) {
@@ -124,10 +125,11 @@ function _runNestingProcess(solverFunction, toastMessage, successMessage) {
       const bestSolution = solverFunction(planks, materialThicknessKey, dynamicOpHeader);
       bestSolution.details.layout.forEach(row => {
         row[4] = row[4] + sheetCounter - 1;
-        finalResults.push(row);
+        finalResults.push(row.concat(''));
       });
       sheetCounter += bestSolution.details.sheetsUsed;
     }
+    _fillCutOrderColumn(finalResults);
     _writeResultsToSheet(finalResults);
     ui.alert(`✅ ${successMessage}!\nFound optimal order using ${sheetCounter - 1} sheets.`);
   } catch (error) {
@@ -161,9 +163,27 @@ function evaluateLayout(planksOrder, materialThicknessGroupKey, dynamicOpHeader)
   for (const plank of planksOrder) {
     let globalBestFit = { score: Infinity, sheetIndex: -1, rectIndex: -1, orientation: null };
     
-    // 1️⃣ ROTATION ALLOWANCE LOGIC
-    const options = [{ w: plank.width, h: plank.height, rotated: false }];
-    if (plank.grain !== 'Y' && plank.grain !== 'YES') {
+    // ════════════════════════════════════════════════════════════════════════════
+    // 1️⃣ ROTATION ALLOWANCE LOGIC (GRAIN ENFORCEMENT)
+    // ════════════════════════════════════════════════════════════════════════════
+    // GRAIN RULES:
+    // - grainLocked = true: Rotation NOT allowed
+    // - grainLocked = false: Rotation allowed for nesting optimization
+    // ════════════════════════════════════════════════════════════════════════════
+    
+    // Normalize grain value
+    var grainValue = String(plank.grain || '').trim().toUpperCase();
+    var grainLocked = false;
+    
+    if (grainValue === 'Y' || grainValue === 'YES' || grainValue === 'TRUE' || grainValue === '1') {
+      grainLocked = true;
+    } else if (grainValue === 'N' || grainValue === 'NO' || grainValue === 'FALSE' || grainValue === '0') {
+      grainLocked = false;
+    }
+    // else: grainLocked remains false (rotation allowed)
+    
+    var options = [{ w: plank.width, h: plank.height, rotated: false }];
+    if (!grainLocked) {
       options.push({ w: plank.height, h: plank.width, rotated: true });
     }
 
@@ -243,8 +263,20 @@ function evaluateLayout(planksOrder, materialThicknessGroupKey, dynamicOpHeader)
       height: _cleanNum(orientation.h) 
     };
 
-    // Process operations (unchanged)
+    // ════════════════════════════════════════════════════════════════════════════
+    // PROCESS OPERATIONS USING SHARED TRANSFORM MODULE
+    // ════════════════════════════════════════════════════════════════════════════
+    // All coordinate transforms use CNCTransform.transformLocalToSheet()
+    // Formula for 90° clockwise rotation:
+    //   Xsheet = plankX + Ylocal
+    //   Ysheet = plankY + (originalWidth - Xlocal)
+    // ════════════════════════════════════════════════════════════════════════════
+    
     const operationValues = Array(dynamicOpHeader.length).fill('');
+    
+    // Get original dimensions (pre-rotation) for transform calculations
+    const originalDims = { width: plank.width, height: plank.height };
+    
     if (plank.operations) {
       for (const opType in plank.operations) {
         const isGrooveOp = (opType.includes('slot') || opType.includes('groove') || opType.includes('profile'));
@@ -255,12 +287,23 @@ function evaluateLayout(planksOrder, materialThicknessGroupKey, dynamicOpHeader)
           
           let absoluteX, absoluteY;
 
+          // Apply rotation transform
           if (!orientation.rotated) {
+            // Not rotated: simple translation
             absoluteX = placedRect.x + localX;
             absoluteY = placedRect.y + localY;
           } else {
+            // Rotated 90° clockwise: proper rotation formula
             absoluteX = placedRect.x + localY;
-            absoluteY = placedRect.y + (placedRect.height - localX);
+            if (isGrooveOp && operation.width) {
+              // Features with dimensions: subtract width to maintain reference corner
+              // The original bottom-left corner becomes top-left after rotation
+              // Subtract feature width to get the new bottom-left corner
+              absoluteY = placedRect.y + (originalDims.width - localX - operation.width);
+            } else {
+              // Point operations (holes): Y_new = originalWidth - X_old
+              absoluteY = placedRect.y + (originalDims.width - localX);
+            }
           }
 
           const xHeader = `${opType}_${opNum}_X`;
@@ -277,6 +320,7 @@ function evaluateLayout(planksOrder, materialThicknessGroupKey, dynamicOpHeader)
             const lenHeader = `${opType}_${opNum}_length`;
             const widthHeader = `${opType}_${opNum}_width`;
             if (opHeaderIndexMap.has(lenHeader)) {
+              // For rotated planks, slot length/width swap is handled by visualizer
               operationValues[opHeaderIndexMap.get(lenHeader)] = operation.length.toFixed(1);
               operationValues[opHeaderIndexMap.get(widthHeader)] = operation.width.toFixed(1);
             }
@@ -285,29 +329,35 @@ function evaluateLayout(planksOrder, materialThicknessGroupKey, dynamicOpHeader)
       }
     }
 
-    // Process L-cut triplets
-    const lCutValues = [];
+    // ════════════════════════════════════════════════════════════════════════════
+    // PROCESS L-CUT TRIPLETS - PLANK-LOCAL COORDINATES
+    // ════════════════════════════════════════════════════════════════════════════
+    // Nest Result stores PLANK-LOCAL coords (matches physical cut piece).
+    // G-code adds plank position to convert to sheet space when cutting.
+    // - ROTATION: For rotated planks, local coords are in rotated plank space
+    // - MIRRORING: Already handled in FormattedData.js stage
+    // ════════════════════════════════════════════════════════════════════════════
     if (plank.l_cuts && plank.l_cuts.length > 0) {
       plank.l_cuts.forEach((lcut, index) => {
         const lCutNum = index + 1;
         
-        let absStartX, absStartY, absCenterX, absCenterY, absEndX, absEndY;
+        let localStartX, localStartY, localCenterX, localCenterY, localEndX, localEndY;
         
         if (!orientation.rotated) {
-          absStartX = placedRect.x + lcut.start.x;
-          absStartY = placedRect.y + lcut.start.y;
-          absCenterX = placedRect.x + lcut.center.x;
-          absCenterY = placedRect.y + lcut.center.y;
-          absEndX = placedRect.x + lcut.end.x;
-          absEndY = placedRect.y + lcut.end.y;
+          localStartX = lcut.start.x;
+          localStartY = lcut.start.y;
+          localCenterX = lcut.center.x;
+          localCenterY = lcut.center.y;
+          localEndX = lcut.end.x;
+          localEndY = lcut.end.y;
         } else {
-          // When rotated, swap X/Y and adjust
-          absStartX = placedRect.x + lcut.start.y;
-          absStartY = placedRect.y + (placedRect.height - lcut.start.x);
-          absCenterX = placedRect.x + lcut.center.y;
-          absCenterY = placedRect.y + (placedRect.height - lcut.center.x);
-          absEndX = placedRect.x + lcut.end.y;
-          absEndY = placedRect.y + (placedRect.height - lcut.end.x);
+          // Rotated 90° clockwise: X_new = Y_old, Y_new = originalWidth - X_old
+          localStartX = lcut.start.y;
+          localStartY = originalDims.width - lcut.start.x;
+          localCenterX = lcut.center.y;
+          localCenterY = originalDims.width - lcut.center.x;
+          localEndX = lcut.end.y;
+          localEndY = originalDims.width - lcut.end.x;
         }
         
         const startXHeader = `L_cut_${lCutNum}_start_X`;
@@ -318,38 +368,82 @@ function evaluateLayout(planksOrder, materialThicknessGroupKey, dynamicOpHeader)
         const endYHeader = `L_cut_${lCutNum}_end_Y`;
         
         if (opHeaderIndexMap.has(startXHeader)) {
-          operationValues[opHeaderIndexMap.get(startXHeader)] = absStartX.toFixed(1);
-          operationValues[opHeaderIndexMap.get(startYHeader)] = absStartY.toFixed(1);
-          operationValues[opHeaderIndexMap.get(centerXHeader)] = absCenterX.toFixed(1);
-          operationValues[opHeaderIndexMap.get(centerYHeader)] = absCenterY.toFixed(1);
-          operationValues[opHeaderIndexMap.get(endXHeader)] = absEndX.toFixed(1);
-          operationValues[opHeaderIndexMap.get(endYHeader)] = absEndY.toFixed(1);
+          operationValues[opHeaderIndexMap.get(startXHeader)] = localStartX.toFixed(1);
+          operationValues[opHeaderIndexMap.get(startYHeader)] = localStartY.toFixed(1);
+          operationValues[opHeaderIndexMap.get(centerXHeader)] = localCenterX.toFixed(1);
+          operationValues[opHeaderIndexMap.get(centerYHeader)] = localCenterY.toFixed(1);
+          operationValues[opHeaderIndexMap.get(endXHeader)] = localEndX.toFixed(1);
+          operationValues[opHeaderIndexMap.get(endYHeader)] = localEndY.toFixed(1);
         }
       });
     }
     
-    // Process Gola profile triplets (same logic as L-cuts)
+    // ════════════════════════════════════════════════════════════════════════════
+    // PROCESS INCUT CUTS - PLANK-LOCAL COORDINATES (2 or 4 POINTS EACH)
+    // ════════════════════════════════════════════════════════════════════════════
+    // Same rotation rule as L-cuts: 90° CW → X_new = Y_old, Y_new = originalWidth - X_old
+    if (plank.incut_cuts && plank.incut_cuts.length > 0) {
+      plank.incut_cuts.forEach((incut, index) => {
+        const incutNum = index + 1;
+        
+        const rotatePoint = (pt) => {
+          if (!orientation.rotated) return { x: pt.x, y: pt.y };
+          return { x: pt.y, y: originalDims.width - pt.x };
+        };
+        
+        const local1 = rotatePoint(incut.point1);
+        const local2 = rotatePoint(incut.point2);
+        
+        const setVal = (header, val) => {
+          if (opHeaderIndexMap.has(header)) {
+            operationValues[opHeaderIndexMap.get(header)] = val.toFixed(1);
+          }
+        };
+        
+        setVal(`Incut_cut_${incutNum}_point1_X`, local1.x);
+        setVal(`Incut_cut_${incutNum}_point1_Y`, local1.y);
+        setVal(`Incut_cut_${incutNum}_point2_X`, local2.x);
+        setVal(`Incut_cut_${incutNum}_point2_Y`, local2.y);
+        
+        if (incut.point3) {
+          const local3 = rotatePoint(incut.point3);
+          setVal(`Incut_cut_${incutNum}_point3_X`, local3.x);
+          setVal(`Incut_cut_${incutNum}_point3_Y`, local3.y);
+        }
+        if (incut.point4) {
+          const local4 = rotatePoint(incut.point4);
+          setVal(`Incut_cut_${incutNum}_point4_X`, local4.x);
+          setVal(`Incut_cut_${incutNum}_point4_Y`, local4.y);
+        }
+      });
+    }
+    
+    // ════════════════════════════════════════════════════════════════════════════
+    // PROCESS GOLA PROFILE TRIPLETS - PLANK-LOCAL COORDINATES
+    // ════════════════════════════════════════════════════════════════════════════
+    // Nest Result stores PLANK-LOCAL coords (matches physical cut piece).
+    // G-code adds plank position to convert to sheet space when cutting.
+    // ════════════════════════════════════════════════════════════════════════════
     if (plank.gola_profiles && plank.gola_profiles.length > 0) {
       plank.gola_profiles.forEach((gola, index) => {
         const golaNum = index + 1;
         
-        let absStartX, absStartY, absCenterX, absCenterY, absEndX, absEndY;
+        let localStartX, localStartY, localCenterX, localCenterY, localEndX, localEndY;
         
         if (!orientation.rotated) {
-          absStartX = placedRect.x + gola.start.x;
-          absStartY = placedRect.y + gola.start.y;
-          absCenterX = placedRect.x + gola.center.x;
-          absCenterY = placedRect.y + gola.center.y;
-          absEndX = placedRect.x + gola.end.x;
-          absEndY = placedRect.y + gola.end.y;
+          localStartX = gola.start.x;
+          localStartY = gola.start.y;
+          localCenterX = gola.center.x;
+          localCenterY = gola.center.y;
+          localEndX = gola.end.x;
+          localEndY = gola.end.y;
         } else {
-          // When rotated, swap X/Y and adjust
-          absStartX = placedRect.x + gola.start.y;
-          absStartY = placedRect.y + (placedRect.height - gola.start.x);
-          absCenterX = placedRect.x + gola.center.y;
-          absCenterY = placedRect.y + (placedRect.height - gola.center.x);
-          absEndX = placedRect.x + gola.end.y;
-          absEndY = placedRect.y + (placedRect.height - gola.end.x);
+          localStartX = gola.start.y;
+          localStartY = originalDims.width - gola.start.x;
+          localCenterX = gola.center.y;
+          localCenterY = originalDims.width - gola.center.x;
+          localEndX = gola.end.y;
+          localEndY = originalDims.width - gola.end.x;
         }
         
         const startXHeader = `Gola_profile_${golaNum}_start_X`;
@@ -360,12 +454,12 @@ function evaluateLayout(planksOrder, materialThicknessGroupKey, dynamicOpHeader)
         const endYHeader = `Gola_profile_${golaNum}_end_Y`;
         
         if (opHeaderIndexMap.has(startXHeader)) {
-          operationValues[opHeaderIndexMap.get(startXHeader)] = absStartX.toFixed(1);
-          operationValues[opHeaderIndexMap.get(startYHeader)] = absStartY.toFixed(1);
-          operationValues[opHeaderIndexMap.get(centerXHeader)] = absCenterX.toFixed(1);
-          operationValues[opHeaderIndexMap.get(centerYHeader)] = absCenterY.toFixed(1);
-          operationValues[opHeaderIndexMap.get(endXHeader)] = absEndX.toFixed(1);
-          operationValues[opHeaderIndexMap.get(endYHeader)] = absEndY.toFixed(1);
+          operationValues[opHeaderIndexMap.get(startXHeader)] = localStartX.toFixed(1);
+          operationValues[opHeaderIndexMap.get(startYHeader)] = localStartY.toFixed(1);
+          operationValues[opHeaderIndexMap.get(centerXHeader)] = localCenterX.toFixed(1);
+          operationValues[opHeaderIndexMap.get(centerYHeader)] = localCenterY.toFixed(1);
+          operationValues[opHeaderIndexMap.get(endXHeader)] = localEndX.toFixed(1);
+          operationValues[opHeaderIndexMap.get(endYHeader)] = localEndY.toFixed(1);
         }
       });
     }
@@ -462,6 +556,8 @@ function _getPlanksFromSheet() {
   const lCutMaxIndex = { count: 0 };
   // Track Gola profile triplet headers separately
   const golaProfileMaxIndex = { count: 0 };
+  // Track Incut (inclined) cut headers: Incut_cut_N_point1_X, etc.
+  const incutMaxIndex = { count: 0 };
   
   formattedHeaders.forEach(h => {
     // Check for L-cut triplet headers: L_cut_N_start_X, L_cut_N_center_Y, etc.
@@ -480,6 +576,14 @@ function _getPlanksFromSheet() {
       return; // Don't process as regular operation
     }
     
+    // Check for Incut (inclined) cut headers: Incut_cut_N_point1_X .. point4_Y
+    const incutMatch = h.match(/^Incut_cut_(\d+)_point(1|2|3|4)_(X|Y)$/);
+    if (incutMatch) {
+      const idx = parseInt(incutMatch[1]);
+      if (idx > incutMaxIndex.count) incutMaxIndex.count = idx;
+      return; // Don't process as regular operation
+    }
+    
     const match = h.match(/^([a-zA-Z]+(?:_[a-zA-Z]+)*?)_(\d+?)_(X|Y|Z|length|width|type|notes)$/);
     if (match) {
       opTypes.add(match[1]); 
@@ -494,7 +598,7 @@ function _getPlanksFromSheet() {
     const plankId = String(row[plankIdColF]).trim();
     if (plankId) {
       const operations = {};
-      const existingDetails = plankDetailsMap.get(plankId) || { operations: {}, l_cuts: [] };
+      const existingDetails = plankDetailsMap.get(plankId) || { operations: {}, l_cuts: [], gola_profiles: [], incut_cuts: [] };
       opTypes.forEach(opType => {
         operations[opType] = existingDetails.operations[opType] || []; 
         const maxCount = maxOpCounts[opType] || 0;
@@ -606,9 +710,59 @@ function _getPlanksFromSheet() {
         }
       }
       
-      // --- MODIFIED: Store EB Value, L-cuts, and Gola profiles in Map ---
+      // Extract Incut cuts - 2 or 4 points per cut
+      const incut_cuts = existingDetails.incut_cuts || [];
+      for (let incIdx = 1; incIdx <= incutMaxIndex.count; incIdx++) {
+        const p1XIdx = formattedHeaders.indexOf(`Incut_cut_${incIdx}_point1_X`);
+        const p1YIdx = formattedHeaders.indexOf(`Incut_cut_${incIdx}_point1_Y`);
+        const p2XIdx = formattedHeaders.indexOf(`Incut_cut_${incIdx}_point2_X`);
+        const p2YIdx = formattedHeaders.indexOf(`Incut_cut_${incIdx}_point2_Y`);
+        
+        if (p1XIdx === -1 || p1YIdx === -1 || p2XIdx === -1 || p2YIdx === -1) continue;
+        
+        const p1X = parseFloat(String(row[p1XIdx] ?? '').replace(/mm/g, '').trim());
+        const p1Y = parseFloat(String(row[p1YIdx] ?? '').replace(/mm/g, '').trim());
+        const p2X = parseFloat(String(row[p2XIdx] ?? '').replace(/mm/g, '').trim());
+        const p2Y = parseFloat(String(row[p2YIdx] ?? '').replace(/mm/g, '').trim());
+        
+        if (!isNaN(p1X) && !isNaN(p1Y) && !isNaN(p2X) && !isNaN(p2Y) &&
+            (p1X !== 0 || p1Y !== 0 || p2X !== 0 || p2Y !== 0)) {
+          const incutObj = {
+            point1: { x: p1X, y: p1Y },
+            point2: { x: p2X, y: p2Y }
+          };
+          
+          // Check for point3 and point4 (4-point rectangular cutout)
+          const p3XIdx = formattedHeaders.indexOf(`Incut_cut_${incIdx}_point3_X`);
+          const p3YIdx = formattedHeaders.indexOf(`Incut_cut_${incIdx}_point3_Y`);
+          const p4XIdx = formattedHeaders.indexOf(`Incut_cut_${incIdx}_point4_X`);
+          const p4YIdx = formattedHeaders.indexOf(`Incut_cut_${incIdx}_point4_Y`);
+          
+          if (p3XIdx !== -1 && p3YIdx !== -1 && p4XIdx !== -1 && p4YIdx !== -1) {
+            const p3X = parseFloat(String(row[p3XIdx] ?? '').replace(/mm/g, '').trim());
+            const p3Y = parseFloat(String(row[p3YIdx] ?? '').replace(/mm/g, '').trim());
+            const p4X = parseFloat(String(row[p4XIdx] ?? '').replace(/mm/g, '').trim());
+            const p4Y = parseFloat(String(row[p4YIdx] ?? '').replace(/mm/g, '').trim());
+            if (!isNaN(p3X) && !isNaN(p3Y) && !(p3X === 0 && p3Y === 0)) {
+              incutObj.point3 = { x: p3X, y: p3Y };
+            }
+            if (!isNaN(p4X) && !isNaN(p4Y) && !(p4X === 0 && p4Y === 0)) {
+              incutObj.point4 = { x: p4X, y: p4Y };
+            }
+          }
+          
+          const incutExists = incut_cuts.some(ic =>
+            ic.point1.x === p1X && ic.point1.y === p1Y && ic.point2.x === p2X && ic.point2.y === p2Y
+          );
+          if (!incutExists) {
+            incut_cuts.push(incutObj);
+          }
+        }
+      }
+      
+      // --- MODIFIED: Store EB Value, L-cuts, Gola profiles, and Incut cuts in Map ---
       const ebVal = ebIndex > -1 ? (parseFloat(row[ebIndex]) || 0) : 0;
-      plankDetailsMap.set(plankId, { operations, ebValue: ebVal, l_cuts, gola_profiles });
+      plankDetailsMap.set(plankId, { operations, ebValue: ebVal, l_cuts, gola_profiles, incut_cuts });
     }
   }
 
@@ -639,6 +793,21 @@ function _getPlanksFromSheet() {
       `Gola_profile_${i}_center_X`, `Gola_profile_${i}_center_Y`,
       `Gola_profile_${i}_end_X`, `Gola_profile_${i}_end_Y`
     );
+  }
+  
+  // Add Incut cut headers - 2 points always, plus point3/point4 if present in formatted data
+  const hasPoint3Headers = formattedHeaders.some(h => /^Incut_cut_\d+_point3_X$/.test(h));
+  for (let i = 1; i <= incutMaxIndex.count; i++) {
+    dynamicOpHeader.push(
+      `Incut_cut_${i}_point1_X`, `Incut_cut_${i}_point1_Y`,
+      `Incut_cut_${i}_point2_X`, `Incut_cut_${i}_point2_Y`
+    );
+    if (hasPoint3Headers) {
+      dynamicOpHeader.push(
+        `Incut_cut_${i}_point3_X`, `Incut_cut_${i}_point3_Y`,
+        `Incut_cut_${i}_point4_X`, `Incut_cut_${i}_point4_Y`
+      );
+    }
   }
 
   const plankListSheet = ss.getSheetByName("Plank List");
@@ -679,14 +848,15 @@ function _getPlanksFromSheet() {
     
     // RESTORED: Fetch details so operations can be attached
     const uniqueIdForLookup = String(id).trim();
-    const details = plankDetailsMap.get(uniqueIdForLookup) || { operations: {}, ebValue: 0, l_cuts: [], gola_profiles: [] }; 
+    const details = plankDetailsMap.get(uniqueIdForLookup) || { operations: {}, ebValue: 0, l_cuts: [], gola_profiles: [], incut_cuts: [] }; 
 
     grouped[groupKey].push({
       id: String(id), name: String(name), width, height, thickness,
       material: originalMaterial, grain, operations: details.operations,
       ebValue: details.ebValue, // Store EB value in object
       l_cuts: details.l_cuts || [], // Store L-cut triplets
-      gola_profiles: details.gola_profiles || [] // Store Gola profile triplets
+      gola_profiles: details.gola_profiles || [], // Store Gola profile triplets
+      incut_cuts: details.incut_cuts || [] // Store inclined (incut) cuts - 2 points each
     });
   }
 
@@ -784,6 +954,47 @@ function _runPsoForGroup(planks, params, materialThicknessKey, dynamicOpHeader) 
 // =================================================================
 // =================     HELPER & UTILITY FUNCTIONS     ================
 // =================================================================
+
+const CUT_ORDER_PLANK_THRESHOLD = 12;
+const COL_SHEET = 4;
+const COL_X = 5;
+const COL_Y = 6;
+
+/**
+ * Fills the Cut Order column (last column) in finalResults.
+ * For each sheet with more than CUT_ORDER_PLANK_THRESHOLD planks, assigns 1, 2, 3... by position (Y then X).
+ * Leaves Cut Order blank for sheets with <= 12 planks.
+ */
+function _fillCutOrderColumn(finalResults) {
+  if (!finalResults || finalResults.length < 2) return;
+  const header = finalResults[0];
+  const cutOrderCol = header.length - 1;
+  if (header[cutOrderCol] !== "Cut Order") return;
+
+  const dataRows = finalResults.slice(1);
+  const bySheet = {};
+  dataRows.forEach((row, idx) => {
+    const sheet = row[COL_SHEET];
+    if (!bySheet[sheet]) bySheet[sheet] = [];
+    bySheet[sheet].push({ row: row, originalIndex: idx });
+  });
+
+  Object.keys(bySheet).forEach(sheetKey => {
+    const group = bySheet[sheetKey];
+    if (group.length <= CUT_ORDER_PLANK_THRESHOLD) return;
+    group.sort((a, b) => {
+      const yA = parseFloat(a.row[COL_Y]) || 0;
+      const yB = parseFloat(b.row[COL_Y]) || 0;
+      if (yA !== yB) return yA - yB;
+      const xA = parseFloat(a.row[COL_X]) || 0;
+      const xB = parseFloat(b.row[COL_X]) || 0;
+      return xA - xB;
+    });
+    group.forEach((item, i) => {
+      item.row[cutOrderCol] = i + 1;
+    });
+  });
+}
 
 function _writeResultsToSheet(results) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1065,15 +1276,40 @@ function drawCutlist() {
       w: headers.indexOf('Placed Width'),
       h: headers.indexOf('Placed Height'),
       rot: headers.indexOf('Rotated'),
-      // --- MODIFIED: Read Original Size & EB ---
       origW: headers.indexOf('Original Width'),
       origH: headers.indexOf('Original Height'),
-      eb: headers.indexOf('EB Value')
+      eb: headers.indexOf('EB Value'),
+      cutOrder: headers.indexOf('Cut Order')
     };
 
-    if (Object.values(hIdx).some(i => i === -1)) throw new Error("Missing standard columns in 'Nest Result'.");
+    const requiredCols = ['id', 'name', 'mat', 'thk', 'sheet', 'x', 'y', 'w', 'h', 'rot', 'origW', 'origH', 'eb'];
+    if (requiredCols.some(k => hIdx[k] === -1)) throw new Error("Missing standard columns in 'Nest Result'.");
 
-    // 2. Scan for Dynamic Operation Columns
+    // 2. Build room/box lookup from Formatted_Plank_Data (by plank ID)
+    const roomBoxByPlankId = new Map();
+    const formattedSheet = ss.getSheetByName("Formatted_Plank_Data");
+    if (formattedSheet) {
+      const formattedData = formattedSheet.getDataRange().getValues();
+      if (formattedData.length >= 2) {
+        const formattedHeaders = formattedData[0].map(h => String(h).trim());
+        const plankIdCol = formattedHeaders.indexOf('plank_id');
+        const roomNameCol = formattedHeaders.indexOf('room_name');
+        const boxModelCol = formattedHeaders.indexOf('box_model');
+        if (plankIdCol >= 0) {
+          for (let r = 1; r < formattedData.length; r++) {
+            const row = formattedData[r];
+            const pid = String(row[plankIdCol] || '').trim();
+            if (!pid) continue;
+            roomBoxByPlankId.set(pid, {
+              roomName: roomNameCol >= 0 ? String(row[roomNameCol] || '').trim() : '',
+              boxModel: boxModelCol >= 0 ? String(row[boxModelCol] || '').trim() : ''
+            });
+          }
+        }
+      }
+    }
+
+    // 3. Scan for Dynamic Operation Columns
     const opTypes = new Set();
     const maxOpCounts = {};
     headers.forEach(h => {
@@ -1085,7 +1321,7 @@ function drawCutlist() {
       }
     });
 
-    // 3. Process Rows
+    // 4. Process Rows
     const placedPlanks = [];
     for (let i = 1; i < resultData.length; i++) {
       const row = resultData[i];
@@ -1179,16 +1415,13 @@ function drawCutlist() {
           continue;
         }
         
-        // Convert to relative coordinates for visualizer (absolute - plank position)
-        // Clamp to plank boundaries to ensure L-cuts don't render outside
-        const plankW = Number(row[hIdx.w]);
-        const plankH = Number(row[hIdx.h]);
-        const relStartX = Math.max(0, Math.min(Number(startX) - plankAbsX, plankW));
-        const relStartY = Math.max(0, Math.min(Number(startY) - plankAbsY, plankH));
-        const relCenterX = Math.max(0, Math.min(Number(centerX) - plankAbsX, plankW));
-        const relCenterY = Math.max(0, Math.min(Number(centerY) - plankAbsY, plankH));
-        const relEndX = Math.max(0, Math.min(Number(endX) - plankAbsX, plankW));
-        const relEndY = Math.max(0, Math.min(Number(endY) - plankAbsY, plankH));
+        // Nest Result stores plank-local; use directly for visualizer (no conversion)
+        const relStartX = Number(startX);
+        const relStartY = Number(startY);
+        const relCenterX = Number(centerX);
+        const relCenterY = Number(centerY);
+        const relEndX = Number(endX);
+        const relEndY = Number(endY);
         
         l_cuts.push({
           start: { x: relStartX, y: relStartY },
@@ -1227,16 +1460,13 @@ function drawCutlist() {
           continue;
         }
         
-        // Convert to relative coordinates for visualizer (absolute - plank position)
-        // Clamp to plank boundaries to ensure Gola profiles don't render outside
-        const plankW = Number(row[hIdx.w]);
-        const plankH = Number(row[hIdx.h]);
-        const relStartX = Math.max(0, Math.min(Number(startX) - plankAbsX, plankW));
-        const relStartY = Math.max(0, Math.min(Number(startY) - plankAbsY, plankH));
-        const relCenterX = Math.max(0, Math.min(Number(centerX) - plankAbsX, plankW));
-        const relCenterY = Math.max(0, Math.min(Number(centerY) - plankAbsY, plankH));
-        const relEndX = Math.max(0, Math.min(Number(endX) - plankAbsX, plankW));
-        const relEndY = Math.max(0, Math.min(Number(endY) - plankAbsY, plankH));
+        // Nest Result stores plank-local; use directly for visualizer (no conversion)
+        const relStartX = Number(startX);
+        const relStartY = Number(startY);
+        const relCenterX = Number(centerX);
+        const relCenterY = Number(centerY);
+        const relEndX = Number(endX);
+        const relEndY = Number(endY);
         
         gola_profiles.push({
           start: { x: relStartX, y: relStartY },
@@ -1246,6 +1476,52 @@ function drawCutlist() {
         
         golaIdx++;
       }
+
+      // Extract Incut cuts - 2 or 4 points per cut for visualization
+      const incut_cuts = [];
+      let incutIdx = 1;
+      while (true) {
+        const p1XCol = headers.indexOf(`Incut_cut_${incutIdx}_point1_X`);
+        const p1YCol = headers.indexOf(`Incut_cut_${incutIdx}_point1_Y`);
+        const p2XCol = headers.indexOf(`Incut_cut_${incutIdx}_point2_X`);
+        const p2YCol = headers.indexOf(`Incut_cut_${incutIdx}_point2_Y`);
+        
+        if (p1XCol === -1 || p1YCol === -1 || p2XCol === -1 || p2YCol === -1) break;
+        
+        const p1X = row[p1XCol];
+        const p1Y = row[p1YCol];
+        const p2X = row[p2XCol];
+        const p2Y = row[p2YCol];
+        
+        if (p1X === "" && p1Y === "" && p2X === "" && p2Y === "") {
+          incutIdx++;
+          continue;
+        }
+        
+        const incutObj = {
+          point1: { x: Number(p1X), y: Number(p1Y) },
+          point2: { x: Number(p2X), y: Number(p2Y) }
+        };
+        
+        const p3XCol = headers.indexOf(`Incut_cut_${incutIdx}_point3_X`);
+        const p3YCol = headers.indexOf(`Incut_cut_${incutIdx}_point3_Y`);
+        const p4XCol = headers.indexOf(`Incut_cut_${incutIdx}_point4_X`);
+        const p4YCol = headers.indexOf(`Incut_cut_${incutIdx}_point4_Y`);
+        if (p3XCol !== -1 && p3YCol !== -1) {
+          const p3X = row[p3XCol], p3Y = row[p3YCol];
+          if (p3X !== "" && p3Y !== "") incutObj.point3 = { x: Number(p3X), y: Number(p3Y) };
+        }
+        if (p4XCol !== -1 && p4YCol !== -1) {
+          const p4X = row[p4XCol], p4Y = row[p4YCol];
+          if (p4X !== "" && p4Y !== "") incutObj.point4 = { x: Number(p4X), y: Number(p4Y) };
+        }
+        
+        incut_cuts.push(incutObj);
+        incutIdx++;
+      }
+
+      const plankId = String(row[hIdx.id]).trim();
+      const roomBox = roomBoxByPlankId.get(plankId) || { roomName: '', boxModel: '' };
 
       placedPlanks.push({
         id: String(row[hIdx.id]),
@@ -1261,14 +1537,18 @@ function drawCutlist() {
         holes: holes,
         l_cuts: l_cuts, // L-cut triplets for visualization
         gola_profiles: gola_profiles, // Gola profile triplets for visualization
+        incut_cuts: incut_cuts, // Inclined (incut) cuts - 2 points each, line visualization
         // --- MODIFIED: Pass Original Sizes to UI ---
         originalWidth: Number(row[hIdx.origW]),
         originalHeight: Number(row[hIdx.origH]),
-        ebValue: Number(row[hIdx.eb])
+        ebValue: Number(row[hIdx.eb]),
+        roomName: roomBox.roomName,
+        boxModel: roomBox.boxModel,
+        cutOrder: (hIdx.cutOrder >= 0 && row[hIdx.cutOrder] !== '' && row[hIdx.cutOrder] != null) ? (parseInt(row[hIdx.cutOrder], 10) || null) : null
       });
     }
 
-    // 4. Group by Sheet
+    // 5. Group by Sheet
     const sheetGroups = {};
     const materialThicknessColors = {};
     const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FED766', '#2AB7CA', '#F08A5D', '#B22727', '#54A0FF', '#5F2CD', '#FF9F43'];
@@ -1286,7 +1566,7 @@ function drawCutlist() {
     const SHEET_HEIGHT = 2440;
     const SPACING = 10;
 
-    const template = HtmlService.createTemplateFromFile("cutlist_visual");
+    const template = HtmlService.createTemplateFromFile("cutlist_editor");
     template.data = JSON.stringify({
       clientDetails: clientName, 
       spreadsheetName: ss.getName(),
@@ -1296,7 +1576,7 @@ function drawCutlist() {
     });
 
     const html = template.evaluate().setWidth(1400).setHeight(850);
-    ui.showModalDialog(html, "📐 Cutlist Visualization Dashboard");
+    ui.showModalDialog(html, "Cutlist Editor");
 
   } catch (error) {
     ui.alert(`❌ Visualization Error: ${error.message}`);
@@ -1332,4 +1612,490 @@ function _getClientName(ss) {
   }
   
   return details;
+}
+
+// =================================================================
+// ====================     EDITABLE CUTLIST FUNCTIONS     ==========
+// =================================================================
+
+/**
+ * Saves the edited cutlist from the visual editor back to the Nest Result sheet.
+ * Called from the HTML editor via google.script.run
+ * @param {string} jsonString - JSON string containing layouts and modifications
+ * @returns {Object} - Success/failure status with message
+ */
+function saveEditedCutlist(jsonString) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const nestSheet = ss.getSheetByName("Nest Result");
+    if (!nestSheet) {
+      throw new Error("Nest Result sheet not found");
+    }
+    
+    const payload = JSON.parse(jsonString);
+    const layouts = payload.layouts;           // Updated allSheetLayouts
+    const modifications = payload.modifications;  // Array of changes
+    
+    if (!modifications || modifications.length === 0) {
+      return { success: true, message: "No changes to save" };
+    }
+    
+    // Get existing data
+    const data = nestSheet.getDataRange().getValues();
+    const headers = data[0].map(h => String(h).trim());
+    
+    // Column indices for standard columns
+    let cols = {
+      id: headers.indexOf("Plank ID"),
+      name: headers.indexOf("Plank Name"),
+      material: headers.indexOf("Material"),
+      thickness: headers.indexOf("Thickness"),
+      sheet: headers.indexOf("Sheet"),
+      x: headers.indexOf("X"),
+      y: headers.indexOf("Y"),
+      width: headers.indexOf("Placed Width"),
+      height: headers.indexOf("Placed Height"),
+      rotated: headers.indexOf("Rotated"),
+      origWidth: headers.indexOf("Original Width"),
+      origHeight: headers.indexOf("Original Height"),
+      ebValue: headers.indexOf("EB Value"),
+      cutOrder: headers.indexOf("Cut Order")
+    };
+
+    // If we have cutOrder modifications but no Cut Order column, extend sheet
+    const hasCutOrderMods = modifications.some(m => m.type === 'cutOrder');
+    if (hasCutOrderMods && cols.cutOrder === -1) {
+      data[0].push("Cut Order");
+      for (let r = 1; r < data.length; r++) data[r].push('');
+      cols.cutOrder = data[0].length - 1;
+    }
+    
+    // Validate required columns exist
+    if (cols.id === -1 || cols.x === -1 || cols.y === -1 || cols.sheet === -1) {
+      throw new Error("Missing required columns in Nest Result sheet");
+    }
+    
+    // Process each modification
+    let modifiedCount = 0;
+    
+    for (const mod of modifications) {
+      // Find row by Plank ID
+      let rowIndex = -1;
+      for (let r = 1; r < data.length; r++) {
+        if (String(data[r][cols.id]).trim() === String(mod.plankId).trim()) {
+          rowIndex = r;
+          break;
+        }
+      }
+      
+      if (rowIndex === -1) {
+        Logger.log(`Warning: Plank ID ${mod.plankId} not found in Nest Result`);
+        continue;
+      }
+      
+      // Get old position for coordinate recalculation
+      const oldX = parseFloat(data[rowIndex][cols.x]) || 0;
+      const oldY = parseFloat(data[rowIndex][cols.y]) || 0;
+      const oldWidth = parseFloat(data[rowIndex][cols.width]) || 0;
+      const oldHeight = parseFloat(data[rowIndex][cols.height]) || 0;
+      
+      if (mod.type === 'move') {
+        // Update sheet number
+        data[rowIndex][cols.sheet] = mod.toSheet;
+        
+        // Update X, Y coordinates
+        data[rowIndex][cols.x] = mod.newX.toFixed(1);
+        data[rowIndex][cols.y] = mod.newY.toFixed(1);
+        
+        // Recalculate operation coordinates (shift by delta)
+        _recalculateOperationCoords(data, rowIndex, headers, oldX, oldY, mod.newX, mod.newY);
+        
+        modifiedCount++;
+      }
+      
+      if (mod.type === 'rotate') {
+        // Update rotated flag
+        const wasRotated = String(data[rowIndex][cols.rotated]).toLowerCase() === 'yes';
+        data[rowIndex][cols.rotated] = wasRotated ? "No" : "Yes";
+        
+        // Swap width and height
+        data[rowIndex][cols.width] = oldHeight.toFixed(1);
+        data[rowIndex][cols.height] = oldWidth.toFixed(1);
+        
+        // Also swap original dimensions if present
+        if (cols.origWidth !== -1 && cols.origHeight !== -1) {
+          const origW = parseFloat(data[rowIndex][cols.origWidth]) || 0;
+          const origH = parseFloat(data[rowIndex][cols.origHeight]) || 0;
+          data[rowIndex][cols.origWidth] = origH.toFixed(1);
+          data[rowIndex][cols.origHeight] = origW.toFixed(1);
+        }
+        
+        // Recalculate operation coordinates with rotation transform
+        _recalculateOperationCoordsRotated(data, rowIndex, headers, mod.angle || 90, oldWidth, oldHeight);
+        
+        modifiedCount++;
+      }
+      
+      if (mod.type === 'flip') {
+        // Flip operation coordinates
+        _recalculateOperationCoordsFlipped(data, rowIndex, headers, mod.direction, oldWidth, oldHeight);
+        
+        modifiedCount++;
+      }
+
+      if (mod.type === 'cutOrder' && cols.cutOrder >= 0 && mod.cutOrder != null) {
+        data[rowIndex][cols.cutOrder] = parseInt(mod.cutOrder, 10) || '';
+        modifiedCount++;
+      }
+    }
+
+    // Sync L_cut, Gola_profile, Incut_cut from editor layouts so they persist after reopen
+    _syncPlankLocalFeaturesFromLayouts(data, headers, cols, layouts);
+    
+    // Write back to sheet
+    nestSheet.getRange(1, 1, data.length, data[0].length).setValues(data);
+    
+    return { 
+      success: true, 
+      message: `Successfully saved ${modifiedCount} modification(s) to Nest Result sheet` 
+    };
+    
+  } catch (error) {
+    Logger.log(`saveEditedCutlist Error: ${error.message}\nStack: ${error.stack}`);
+    return { 
+      success: false, 
+      message: `Failed to save: ${error.message}` 
+    };
+  }
+}
+
+/**
+ * Syncs L_cut, Gola_profile, and Incut_cut from editor payload.layouts into sheet data
+ * so they persist after save and reopen (avoids L-cuts going missing).
+ * Extends data columns if L_cut/Gola/Incut headers are missing.
+ */
+function _syncPlankLocalFeaturesFromLayouts(data, headers, cols, layouts) {
+  if (!layouts || typeof layouts !== 'object') return;
+  var plankById = {};
+  var maxLCut = 0, maxGola = 0, maxIncut = 0;
+  Object.keys(layouts).forEach(function (sheetNum) {
+    var planks = layouts[sheetNum];
+    if (Array.isArray(planks)) {
+      planks.forEach(function (p) {
+        if (p && p.id != null) {
+          plankById[String(p.id).trim()] = p;
+          if (p.l_cuts && p.l_cuts.length > maxLCut) maxLCut = p.l_cuts.length;
+          if (p.gola_profiles && p.gola_profiles.length > maxGola) maxGola = p.gola_profiles.length;
+          if (p.incut_cuts && p.incut_cuts.length > maxIncut) maxIncut = p.incut_cuts.length;
+        }
+      });
+    }
+  });
+
+  var needCols = [];
+  for (var i = 1; i <= maxLCut; i++) {
+    needCols.push('L_cut_' + i + '_start_X', 'L_cut_' + i + '_start_Y', 'L_cut_' + i + '_center_X', 'L_cut_' + i + '_center_Y', 'L_cut_' + i + '_end_X', 'L_cut_' + i + '_end_Y');
+  }
+  for (var i = 1; i <= maxGola; i++) {
+    needCols.push('Gola_profile_' + i + '_start_X', 'Gola_profile_' + i + '_start_Y', 'Gola_profile_' + i + '_center_X', 'Gola_profile_' + i + '_center_Y', 'Gola_profile_' + i + '_end_X', 'Gola_profile_' + i + '_end_Y');
+  }
+  var hasInplankPoints = false;
+  Object.keys(plankById).forEach(function (pid) {
+    var p = plankById[pid];
+    if (p && p.incut_cuts) p.incut_cuts.forEach(function (ic) {
+      if (ic.point3 || ic.point4) hasInplankPoints = true;
+    });
+  });
+  for (var i = 1; i <= maxIncut; i++) {
+    needCols.push('Incut_cut_' + i + '_point1_X', 'Incut_cut_' + i + '_point1_Y', 'Incut_cut_' + i + '_point2_X', 'Incut_cut_' + i + '_point2_Y');
+    if (hasInplankPoints) {
+      needCols.push('Incut_cut_' + i + '_point3_X', 'Incut_cut_' + i + '_point3_Y', 'Incut_cut_' + i + '_point4_X', 'Incut_cut_' + i + '_point4_Y');
+    }
+  }
+  for (var c = 0; c < needCols.length; c++) {
+    if (headers.indexOf(needCols[c]) === -1) {
+      headers.push(needCols[c]);
+      data[0].push(needCols[c]);
+      for (var r = 1; r < data.length; r++) data[r].push('');
+    }
+  }
+
+  for (var r = 1; r < data.length; r++) {
+    var row = data[r];
+    var plankId = row[cols.id] != null ? String(row[cols.id]).trim() : '';
+    if (!plankId) continue;
+    var plank = plankById[plankId];
+    if (!plank) continue;
+
+    var idx = 1;
+    if (plank.l_cuts && plank.l_cuts.length > 0) {
+      plank.l_cuts.forEach(function (lc) {
+        var startXCol = headers.indexOf('L_cut_' + idx + '_start_X');
+        var startYCol = headers.indexOf('L_cut_' + idx + '_start_Y');
+        var centerXCol = headers.indexOf('L_cut_' + idx + '_center_X');
+        var centerYCol = headers.indexOf('L_cut_' + idx + '_center_Y');
+        var endXCol = headers.indexOf('L_cut_' + idx + '_end_X');
+        var endYCol = headers.indexOf('L_cut_' + idx + '_end_Y');
+        if (startXCol !== -1 && startYCol !== -1 && centerXCol !== -1 && centerYCol !== -1 && endXCol !== -1 && endYCol !== -1) {
+          row[startXCol] = (lc.start && lc.start.x != null) ? Number(lc.start.x).toFixed(1) : '';
+          row[startYCol] = (lc.start && lc.start.y != null) ? Number(lc.start.y).toFixed(1) : '';
+          row[centerXCol] = (lc.center && lc.center.x != null) ? Number(lc.center.x).toFixed(1) : '';
+          row[centerYCol] = (lc.center && lc.center.y != null) ? Number(lc.center.y).toFixed(1) : '';
+          row[endXCol] = (lc.end && lc.end.x != null) ? Number(lc.end.x).toFixed(1) : '';
+          row[endYCol] = (lc.end && lc.end.y != null) ? Number(lc.end.y).toFixed(1) : '';
+        }
+        idx++;
+      });
+    }
+    while (true) {
+      var startXCol = headers.indexOf('L_cut_' + idx + '_start_X');
+      if (startXCol === -1) break;
+      var startYCol = headers.indexOf('L_cut_' + idx + '_start_Y');
+      var centerXCol = headers.indexOf('L_cut_' + idx + '_center_X');
+      var centerYCol = headers.indexOf('L_cut_' + idx + '_center_Y');
+      var endXCol = headers.indexOf('L_cut_' + idx + '_end_X');
+      var endYCol = headers.indexOf('L_cut_' + idx + '_end_Y');
+      if (startYCol === -1 || centerXCol === -1 || centerYCol === -1 || endXCol === -1 || endYCol === -1) break;
+      row[startXCol] = row[startYCol] = row[centerXCol] = row[centerYCol] = row[endXCol] = row[endYCol] = '';
+      idx++;
+    }
+
+    idx = 1;
+    if (plank.gola_profiles && plank.gola_profiles.length > 0) {
+      plank.gola_profiles.forEach(function (gp) {
+        var startXCol = headers.indexOf('Gola_profile_' + idx + '_start_X');
+        var startYCol = headers.indexOf('Gola_profile_' + idx + '_start_Y');
+        var centerXCol = headers.indexOf('Gola_profile_' + idx + '_center_X');
+        var centerYCol = headers.indexOf('Gola_profile_' + idx + '_center_Y');
+        var endXCol = headers.indexOf('Gola_profile_' + idx + '_end_X');
+        var endYCol = headers.indexOf('Gola_profile_' + idx + '_end_Y');
+        if (startXCol !== -1 && startYCol !== -1 && centerXCol !== -1 && centerYCol !== -1 && endXCol !== -1 && endYCol !== -1) {
+          row[startXCol] = (gp.start && gp.start.x != null) ? Number(gp.start.x).toFixed(1) : '';
+          row[startYCol] = (gp.start && gp.start.y != null) ? Number(gp.start.y).toFixed(1) : '';
+          row[centerXCol] = (gp.center && gp.center.x != null) ? Number(gp.center.x).toFixed(1) : '';
+          row[centerYCol] = (gp.center && gp.center.y != null) ? Number(gp.center.y).toFixed(1) : '';
+          row[endXCol] = (gp.end && gp.end.x != null) ? Number(gp.end.x).toFixed(1) : '';
+          row[endYCol] = (gp.end && gp.end.y != null) ? Number(gp.end.y).toFixed(1) : '';
+        }
+        idx++;
+      });
+    }
+    while (true) {
+      var startXCol = headers.indexOf('Gola_profile_' + idx + '_start_X');
+      if (startXCol === -1) break;
+      var startYCol = headers.indexOf('Gola_profile_' + idx + '_start_Y');
+      var centerXCol = headers.indexOf('Gola_profile_' + idx + '_center_X');
+      var centerYCol = headers.indexOf('Gola_profile_' + idx + '_center_Y');
+      var endXCol = headers.indexOf('Gola_profile_' + idx + '_end_X');
+      var endYCol = headers.indexOf('Gola_profile_' + idx + '_end_Y');
+      if (startYCol === -1 || centerXCol === -1 || centerYCol === -1 || endXCol === -1 || endYCol === -1) break;
+      row[startXCol] = row[startYCol] = row[centerXCol] = row[centerYCol] = row[endXCol] = row[endYCol] = '';
+      idx++;
+    }
+
+    idx = 1;
+    if (plank.incut_cuts && plank.incut_cuts.length > 0) {
+      plank.incut_cuts.forEach(function (ic) {
+        var p1XCol = headers.indexOf('Incut_cut_' + idx + '_point1_X');
+        var p1YCol = headers.indexOf('Incut_cut_' + idx + '_point1_Y');
+        var p2XCol = headers.indexOf('Incut_cut_' + idx + '_point2_X');
+        var p2YCol = headers.indexOf('Incut_cut_' + idx + '_point2_Y');
+        if (p1XCol !== -1 && p1YCol !== -1 && p2XCol !== -1 && p2YCol !== -1) {
+          row[p1XCol] = (ic.point1 && ic.point1.x != null) ? Number(ic.point1.x).toFixed(1) : '';
+          row[p1YCol] = (ic.point1 && ic.point1.y != null) ? Number(ic.point1.y).toFixed(1) : '';
+          row[p2XCol] = (ic.point2 && ic.point2.x != null) ? Number(ic.point2.x).toFixed(1) : '';
+          row[p2YCol] = (ic.point2 && ic.point2.y != null) ? Number(ic.point2.y).toFixed(1) : '';
+        }
+        var p3XCol = headers.indexOf('Incut_cut_' + idx + '_point3_X');
+        var p3YCol = headers.indexOf('Incut_cut_' + idx + '_point3_Y');
+        var p4XCol = headers.indexOf('Incut_cut_' + idx + '_point4_X');
+        var p4YCol = headers.indexOf('Incut_cut_' + idx + '_point4_Y');
+        if (p3XCol !== -1 && p3YCol !== -1) {
+          row[p3XCol] = (ic.point3 && ic.point3.x != null) ? Number(ic.point3.x).toFixed(1) : '';
+          row[p3YCol] = (ic.point3 && ic.point3.y != null) ? Number(ic.point3.y).toFixed(1) : '';
+        }
+        if (p4XCol !== -1 && p4YCol !== -1) {
+          row[p4XCol] = (ic.point4 && ic.point4.x != null) ? Number(ic.point4.x).toFixed(1) : '';
+          row[p4YCol] = (ic.point4 && ic.point4.y != null) ? Number(ic.point4.y).toFixed(1) : '';
+        }
+        idx++;
+      });
+    }
+    while (true) {
+      var p1XCol = headers.indexOf('Incut_cut_' + idx + '_point1_X');
+      if (p1XCol === -1) break;
+      var p1YCol = headers.indexOf('Incut_cut_' + idx + '_point1_Y');
+      var p2XCol = headers.indexOf('Incut_cut_' + idx + '_point2_X');
+      var p2YCol = headers.indexOf('Incut_cut_' + idx + '_point2_Y');
+      if (p1YCol === -1 || p2XCol === -1 || p2YCol === -1) break;
+      row[p1XCol] = row[p1YCol] = row[p2XCol] = row[p2YCol] = '';
+      var p3XCol = headers.indexOf('Incut_cut_' + idx + '_point3_X');
+      var p3YCol = headers.indexOf('Incut_cut_' + idx + '_point3_Y');
+      var p4XCol = headers.indexOf('Incut_cut_' + idx + '_point4_X');
+      var p4YCol = headers.indexOf('Incut_cut_' + idx + '_point4_Y');
+      if (p3XCol !== -1) row[p3XCol] = '';
+      if (p3YCol !== -1) row[p3YCol] = '';
+      if (p4XCol !== -1) row[p4XCol] = '';
+      if (p4YCol !== -1) row[p4YCol] = '';
+      idx++;
+    }
+  }
+}
+
+/**
+ * Recalculates operation coordinates when a plank is moved (translation only).
+ * Only shifts coordinates that are stored in ABSOLUTE (sheet) space.
+ * L_cut, Gola_profile, and Incut_cut are stored in PLANK-LOCAL coords and must NOT be shifted on move.
+ */
+function _recalculateOperationCoords(data, rowIndex, headers, oldX, oldY, newX, newY) {
+  const deltaX = newX - oldX;
+  const deltaY = newY - oldY;
+
+  // Plank-local columns: do not apply delta (they stay relative to plank origin)
+  function isPlankLocalColumn(header) {
+    return /^L_cut_\d+_/.test(header) || /^Gola_profile_\d+_/.test(header) || /^Incut_cut_\d+_/.test(header);
+  }
+
+  headers.forEach((header, colIndex) => {
+    if (isPlankLocalColumn(header)) return;
+
+    // Match X coordinate columns (standard ops only; plank-local already skipped)
+    if (header.match(/_X$/) && (header.match(/_\d+_/) || header.match(/_start_X$/) || header.match(/_center_X$/) || header.match(/_end_X$/))) {
+      const val = parseFloat(data[rowIndex][colIndex]);
+      if (!isNaN(val) && val !== 0 && data[rowIndex][colIndex] !== '') {
+        data[rowIndex][colIndex] = (val + deltaX).toFixed(1);
+      }
+    }
+    // Match Y coordinate columns
+    if (header.match(/_Y$/) && (header.match(/_\d+_/) || header.match(/_start_Y$/) || header.match(/_center_Y$/) || header.match(/_end_Y$/))) {
+      const val = parseFloat(data[rowIndex][colIndex]);
+      if (!isNaN(val) && val !== 0 && data[rowIndex][colIndex] !== '') {
+        data[rowIndex][colIndex] = (val + deltaY).toFixed(1);
+      }
+    }
+  });
+}
+
+/**
+ * Recalculates operation coordinates when a plank is rotated.
+ * All operations (holes, grooves, L_cut, Gola_profile, Incut_cut) follow the plank.
+ * - Holes/grooves/slots: stored ABSOLUTE; convert to relative, rotate, convert back to absolute (and swap length/width for grooves).
+ * - L_cut, Gola_profile, Incut_cut: stored PLANK-LOCAL; treat as relative, rotate, write back relative.
+ */
+function _recalculateOperationCoordsRotated(data, rowIndex, headers, angle, plankWidth, plankHeight) {
+  const plankX = parseFloat(data[rowIndex][headers.indexOf("X")]) || 0;
+  const plankY = parseFloat(data[rowIndex][headers.indexOf("Y")]) || 0;
+
+  function isPlankLocalColumn(header) {
+    return /^L_cut_\d+_/.test(header) || /^Gola_profile_\d+_/.test(header) || /^Incut_cut_\d+_/.test(header);
+  }
+  
+  headers.forEach((header, colIndex) => {
+    const xMatch = header.match(/^(.+_\d+)_X$/) || header.match(/^(.+)_(start|center|end)_X$/);
+    if (!xMatch) return;
+    const baseKey = xMatch[1];
+    const yHeader = header.replace(/_X$/, '_Y');
+    const yColIndex = headers.indexOf(yHeader);
+    if (yColIndex === -1) return;
+
+    const valX = parseFloat(data[rowIndex][colIndex]);
+    const valY = parseFloat(data[rowIndex][yColIndex]);
+    if (isNaN(valX) || isNaN(valY) || data[rowIndex][colIndex] === '' || data[rowIndex][yColIndex] === '') return;
+
+    const isPlankLocal = isPlankLocalColumn(header);
+    let relX, relY;
+    if (isPlankLocal) {
+      relX = valX;
+      relY = valY;
+    } else {
+      relX = valX - plankX;
+      relY = valY - plankY;
+    }
+    if (relX === 0 && relY === 0 && !isPlankLocal) return;
+
+    let newRelX, newRelY;
+    if (angle === 90 || angle === -270) {
+      newRelX = relY;
+      newRelY = plankWidth - relX;
+    } else if (angle === 180 || angle === -180) {
+      newRelX = plankWidth - relX;
+      newRelY = plankHeight - relY;
+    } else if (angle === 270 || angle === -90) {
+      newRelX = plankHeight - relY;
+      newRelY = relX;
+    } else {
+      newRelX = relY;
+      newRelY = plankWidth - relX;
+    }
+
+    if (isPlankLocal) {
+      data[rowIndex][colIndex] = newRelX.toFixed(1);
+      data[rowIndex][yColIndex] = newRelY.toFixed(1);
+    } else {
+      data[rowIndex][colIndex] = (plankX + newRelX).toFixed(1);
+      data[rowIndex][yColIndex] = (plankY + newRelY).toFixed(1);
+    }
+  });
+
+  // Groove/slot length and width swapping (standard ops only)
+  headers.forEach((header, colIndex) => {
+    const match = header.match(/^(.+_\d+)_X$/);
+    if (!match) return;
+    const baseKey = match[1];
+    const lenColIndex = headers.indexOf(baseKey + "_length");
+    const widthColIndex = headers.indexOf(baseKey + "_width");
+    if (lenColIndex === -1 || widthColIndex === -1) return;
+    const oldLen = parseFloat(data[rowIndex][lenColIndex]) || 0;
+    const oldWidth = parseFloat(data[rowIndex][widthColIndex]) || 0;
+    if (oldLen !== 0 || oldWidth !== 0) {
+      if (angle === 90 || angle === 270 || angle === -90 || angle === -270) {
+        data[rowIndex][lenColIndex] = oldWidth.toFixed(1);
+        data[rowIndex][widthColIndex] = oldLen.toFixed(1);
+      }
+    }
+  });
+}
+
+/**
+ * Recalculates operation coordinates when a plank is flipped.
+ * All operations (holes, grooves, L_cut, Gola_profile, Incut_cut) follow the plank.
+ * - Holes/grooves: stored ABSOLUTE; convert to relative, mirror, convert back to absolute.
+ * - L_cut, Gola_profile, Incut_cut: stored PLANK-LOCAL; treat as relative, mirror, write back relative.
+ */
+function _recalculateOperationCoordsFlipped(data, rowIndex, headers, direction, plankWidth, plankHeight) {
+  const plankX = parseFloat(data[rowIndex][headers.indexOf("X")]) || 0;
+  const plankY = parseFloat(data[rowIndex][headers.indexOf("Y")]) || 0;
+
+  function isPlankLocalColumn(header) {
+    return /^L_cut_\d+_/.test(header) || /^Gola_profile_\d+_/.test(header) || /^Incut_cut_\d+_/.test(header);
+  }
+  
+  headers.forEach((header, colIndex) => {
+    const xMatch = header.match(/^(.+)_X$/);
+    if (!xMatch || (!header.match(/_\d+_/) && !header.match(/_start_X$/) && !header.match(/_center_X$/) && !header.match(/_end_X$/))) return;
+    const yHeader = header.replace('_X', '_Y');
+    const yColIndex = headers.indexOf(yHeader);
+    if (yColIndex === -1) return;
+
+    const valX = parseFloat(data[rowIndex][colIndex]);
+    const valY = parseFloat(data[rowIndex][yColIndex]);
+    if (isNaN(valX) || isNaN(valY) || data[rowIndex][colIndex] === '' || data[rowIndex][yColIndex] === '') return;
+
+    const isPlankLocal = isPlankLocalColumn(header);
+    let relX = isPlankLocal ? valX : valX - plankX;
+    let relY = isPlankLocal ? valY : valY - plankY;
+    
+    let newRelX = relX;
+    let newRelY = relY;
+    if (direction === 'horizontal') newRelX = plankWidth - relX;
+    else if (direction === 'vertical') newRelY = plankHeight - relY;
+
+    if (isPlankLocal) {
+      data[rowIndex][colIndex] = newRelX.toFixed(1);
+      data[rowIndex][yColIndex] = newRelY.toFixed(1);
+    } else {
+      data[rowIndex][colIndex] = (plankX + newRelX).toFixed(1);
+      data[rowIndex][yColIndex] = (plankY + newRelY).toFixed(1);
+    }
+  });
 }

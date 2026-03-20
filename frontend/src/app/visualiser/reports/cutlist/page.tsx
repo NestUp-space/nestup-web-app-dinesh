@@ -10,7 +10,16 @@ import {
   runNesting,
   nestResultsToCSV,
 } from '@/lib/visualiser';
+import {
+  applyCutlistModifications,
+  pipelineNestToStore,
+  exportToCSV,
+  generateSmartCutSequence,
+  generateGCodeFiles,
+} from '@/lib/visualiser/appscript-port';
+import type { CutlistModification } from '@/lib/visualiser/appscript-port';
 import { SheetLayout, NestResult, SHEET_CONSTANTS } from '@/types/visualiser';
+import { downloadCutlistPdf, enrichSheetPdfDataFromCutlist, type SheetPdfData } from '@/lib/visualiser/pdfGenerator';
 
 // ============================================
 // COLOR CONSTANTS
@@ -140,10 +149,35 @@ function getHoleTypeConfig(holeType: string) {
 // MAIN COMPONENT
 // ============================================
 
+const SHEET_AREA = SHEET_CONSTANTS.SHEET_WIDTH * SHEET_CONSTANTS.SHEET_HEIGHT;
+
+function nestResultsToSheetLayouts(results: NestResult[]): SheetLayout[] {
+  const bySheet = new Map<number, NestResult[]>();
+  results.forEach((p) => {
+    const list = bySheet.get(p.sheetNum) || [];
+    list.push(p);
+    bySheet.set(p.sheetNum, list);
+  });
+  const sheetNums = Array.from(bySheet.keys()).sort((a, b) => a - b);
+  return sheetNums.map((sheetNum) => {
+    const planks = bySheet.get(sheetNum)!;
+    const area = planks.reduce((sum, p) => sum + p.width * p.height, 0);
+    const utilization = SHEET_AREA > 0 ? (area / SHEET_AREA) * 100 : 0;
+    const material = planks[0]?.material ?? '';
+    return {
+      sheetNum,
+      materialThickness: material,
+      planks,
+      utilization,
+      freeRects: [],
+    };
+  });
+}
+
 export default function CutlistPage() {
   const router = useRouter();
   const summary = useDesignSummary();
-  const { walls, customerDetails } = useDesignerStore();
+  const { walls, customerDetails, pipelineResult, nestResults: storeNestResults, setPipelineResult, setNestResults, projectName } = useDesignerStore();
 
   // View State
   const [selectedSheet, setSelectedSheet] = useState<string>('all');
@@ -151,6 +185,13 @@ export default function CutlistPage() {
   const [tooltipData, setTooltipData] = useState<PlankWithFeatures | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Edit mode
+  const [editMode, setEditMode] = useState(false);
+  const [modifications, setModifications] = useState<CutlistModification[]>([]);
+  const [selectedPlankId, setSelectedPlankId] = useState<string | null>(null);
+  const [cutOrderInput, setCutOrderInput] = useState<string>('');
+  const [moveToSheetInput, setMoveToSheetInput] = useState<string>('');
   
   // Display Options
   const [zoom, setZoom] = useState(50);
@@ -160,46 +201,135 @@ export default function CutlistPage() {
   const [showHoleLabels, setShowHoleLabels] = useState(false);
   const [highlightSearch, setHighlightSearch] = useState(true);
 
-  // Generate nesting data
-  const { sheetLayouts, nestResults, totalSummary, materialSheetMap } = useMemo(() => {
-    if (walls.length === 0) {
-      return { sheetLayouts: [], nestResults: [], totalSummary: null, materialSheetMap: new Map() };
-    }
+  // Sequence state: which sheets have smart cut sequence enabled
+  const [sequenceSheets, setSequenceSheets] = useState<Set<number>>(new Set());
+  // Cut order map per sheet: sheetNum -> Map<plankId, order>
+  const [cutOrderMaps, setCutOrderMaps] = useState<Map<number, Map<string, number>>>(new Map());
 
-    const { data: formattedData } = formatDesignData(walls);
-    const { plankList } = generatePlankList(formattedData);
-    const { results, sheetLayouts, summary: nestingSummary } = runNesting(plankList);
+  // Loading state for async fallback computation
+  const [isComputingFallback, setIsComputingFallback] = useState(false);
 
-    // Build per-material sheet numbering map
+  type CutlistState = {
+    sheetLayouts: SheetLayout[];
+    nestResults: NestResult[];
+    totalSummary: { totalPlanks: number; totalSheets: number; averageUtilization: number } | null;
+    materialSheetMap: Map<string, Map<number, number>>;
+    canEdit: boolean;
+  };
+
+  const buildMaterialSheetMap = useCallback((layouts: SheetLayout[]) => {
     const materialSheetMap = new Map<string, Map<number, number>>();
     const materialCounters = new Map<string, number>();
-    
-    sheetLayouts.forEach((sheet, index) => {
+    layouts.forEach((sheet, index) => {
       if (sheet.planks.length > 0) {
         const material = getCleanMaterial(sheet.planks[0].material);
-        if (!materialSheetMap.has(material)) {
-          materialSheetMap.set(material, new Map());
-        }
+        if (!materialSheetMap.has(material)) materialSheetMap.set(material, new Map());
         const counter = (materialCounters.get(material) || 0) + 1;
         materialCounters.set(material, counter);
         materialSheetMap.get(material)!.set(index + 1, counter);
       }
     });
+    return materialSheetMap;
+  }, []);
 
-    return {
-      sheetLayouts,
-      nestResults: results,
-      totalSummary: nestingSummary,
-      materialSheetMap,
-    };
-  }, [walls]);
-
-  // Redirect if no design
-  useEffect(() => {
-    if (summary.totalBoxes === 0) {
-      router.push('/visualiser/designer');
+  // Fast path: re-derive from raw cutlist CSV so latest conversion logic (dimension swap, colors) always applies
+  const pipelineState = useMemo<CutlistState | null>(() => {
+    if (pipelineResult?.cutlist) {
+      const freshNest = pipelineNestToStore(pipelineResult.cutlist);
+      if (freshNest.length > 0) {
+        const sheetLayoutsFresh = nestResultsToSheetLayouts(freshNest);
+        const avgUtil = sheetLayoutsFresh.length > 0
+          ? sheetLayoutsFresh.reduce((s, sh) => s + sh.utilization, 0) / sheetLayoutsFresh.length
+          : 0;
+        return {
+          sheetLayouts: sheetLayoutsFresh,
+          nestResults: freshNest,
+          totalSummary: { totalPlanks: freshNest.length, totalSheets: sheetLayoutsFresh.length, averageUtilization: avgUtil },
+          materialSheetMap: buildMaterialSheetMap(sheetLayoutsFresh),
+          canEdit: true,
+        };
+      }
     }
-  }, [summary, router]);
+    return null;
+  }, [pipelineResult, buildMaterialSheetMap]);
+
+  // Slow path: compute from walls asynchronously so we don't block the first paint
+  const [fallbackState, setFallbackState] = useState<CutlistState | null>(null);
+
+  useEffect(() => {
+    if (pipelineState || walls.length === 0) {
+      setFallbackState(null);
+      return;
+    }
+    setIsComputingFallback(true);
+    const timer = setTimeout(() => {
+      const { data: formattedData } = formatDesignData(walls);
+      const { plankList } = generatePlankList(formattedData);
+      const { results, sheetLayouts: layouts, summary: nestingSummary } = runNesting(plankList);
+      const materialSheetMap = buildMaterialSheetMap(layouts);
+      setFallbackState({
+        sheetLayouts: layouts,
+        nestResults: results,
+        totalSummary: nestingSummary,
+        materialSheetMap,
+        canEdit: false,
+      });
+      setIsComputingFallback(false);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [walls, pipelineState, buildMaterialSheetMap]);
+
+  const emptyState: CutlistState = useMemo(() => ({
+    sheetLayouts: [], nestResults: [], totalSummary: null, materialSheetMap: new Map(), canEdit: false,
+  }), []);
+
+  const { sheetLayouts, nestResults, totalSummary, materialSheetMap, canEdit } =
+    pipelineState ?? fallbackState ?? emptyState;
+
+  // When in edit mode, apply modifications to get display cutlist
+  const { displaySheetLayouts, displayNestResults } = useMemo(() => {
+    if (!editMode || modifications.length === 0 || !pipelineResult?.cutlist) {
+      return { displaySheetLayouts: sheetLayouts, displayNestResults: nestResults };
+    }
+    try {
+      const edited = applyCutlistModifications(
+        { header: pipelineResult.cutlist.header, rows: pipelineResult.cutlist.rows },
+        modifications
+      );
+      const newNest = pipelineNestToStore(edited);
+      return {
+        displaySheetLayouts: nestResultsToSheetLayouts(newNest),
+        displayNestResults: newNest,
+      };
+    } catch (err) {
+      console.error('Failed to apply cutlist modifications:', err);
+      return { displaySheetLayouts: sheetLayouts, displayNestResults: nestResults };
+    }
+  }, [editMode, modifications, pipelineResult?.cutlist, sheetLayouts, nestResults]);
+
+  const effectiveSheetLayouts = editMode && modifications.length > 0 ? displaySheetLayouts : sheetLayouts;
+  const effectiveNestResults = editMode && modifications.length > 0 ? displayNestResults : nestResults;
+
+  const [hasCheckedRedirect, setHasCheckedRedirect] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    const check = (attempt: number) => {
+      if (cancelled) return;
+      const currentState = useDesignerStore.getState();
+      const hasData = currentState.walls.length > 0 || !!currentState.pipelineResult || (currentState.nestResults?.length ?? 0) > 0;
+      if (hasData) {
+        setHasCheckedRedirect(true);
+        return;
+      }
+      if (attempt >= 5) {
+        router.push('/visualiser/designer');
+        return;
+      }
+      setTimeout(() => check(attempt + 1), 300);
+    };
+    setTimeout(() => check(0), 200);
+    return () => { cancelled = true; };
+  }, [router]);
 
   // Get material sheet number
   const getMaterialSheetNumber = useCallback((sheetNum: number, material: string): number => {
@@ -209,23 +339,33 @@ export default function CutlistPage() {
 
   // Get display title for sheet
   const getSheetDisplayTitle = useCallback((sheetNum: number): string => {
-    const sheet = sheetLayouts[sheetNum - 1];
+    const sheet = effectiveSheetLayouts[sheetNum - 1];
     if (!sheet || sheet.planks.length === 0) return `Sheet ${sheetNum}`;
     const material = getCleanMaterial(sheet.planks[0].material);
     const matNum = getMaterialSheetNumber(sheetNum, sheet.planks[0].material);
     return `${material} Sheet ${matNum}`;
-  }, [sheetLayouts, getMaterialSheetNumber]);
+  }, [effectiveSheetLayouts, getMaterialSheetNumber]);
 
   // Download handlers
   const handleDownloadCSV = () => {
-    const csv = nestResultsToCSV(nestResults);
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `cutlist_${customerDetails?.customerName || 'export'}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    if (pipelineResult?.cutlist && (editMode ? modifications.length > 0 : true)) {
+      const data = editMode && modifications.length > 0
+        ? applyCutlistModifications(
+            { header: pipelineResult.cutlist.header, rows: pipelineResult.cutlist.rows },
+            modifications
+          )
+        : { header: pipelineResult.cutlist.header, rows: pipelineResult.cutlist.rows };
+      exportToCSV(data.header, data.rows, `cutlist_${customerDetails?.customerName || 'export'}.csv`);
+    } else {
+      const csv = nestResultsToCSV(effectiveNestResults);
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cutlist_${customerDetails?.customerName || 'export'}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   };
 
   // Tooltip handler
@@ -244,14 +384,246 @@ export default function CutlistPage() {
   const totalFeatures = useMemo(() => {
     let holes = 0;
     let lcuts = 0;
-    nestResults.forEach(plank => {
+    effectiveNestResults.forEach(plank => {
       holes += plank.holes?.length || 0;
       lcuts += (plank as PlankWithFeatures).l_cuts?.length || 0;
     });
     return { holes, lcuts, total: holes + lcuts };
-  }, [nestResults]);
+  }, [effectiveNestResults]);
 
-  if (sheetLayouts.length === 0) {
+  // Edit mode: selection and actions
+  const handleSelectPlank = useCallback((plankId: string | null) => {
+    setSelectedPlankId(plankId);
+    if (plankId) {
+      const plank = effectiveNestResults.find((p) => p.id === plankId);
+      setCutOrderInput(plank ? String((plank as { cutOrder?: number }).cutOrder ?? '') : '');
+      setMoveToSheetInput(plank ? String(plank.sheetNum) : '');
+    }
+  }, [effectiveNestResults]);
+
+  const handleRotate = useCallback(() => {
+    if (!selectedPlankId) return;
+    setModifications((m) => [...m, { type: 'rotate', plankId: selectedPlankId, angle: 90 }]);
+  }, [selectedPlankId]);
+
+  const handleFlipH = useCallback(() => {
+    if (!selectedPlankId) return;
+    setModifications((m) => [...m, { type: 'flip', plankId: selectedPlankId, direction: 'horizontal' }]);
+  }, [selectedPlankId]);
+
+  const handleFlipV = useCallback(() => {
+    if (!selectedPlankId) return;
+    setModifications((m) => [...m, { type: 'flip', plankId: selectedPlankId, direction: 'vertical' }]);
+  }, [selectedPlankId]);
+
+  const handleMoveToSheet = useCallback(() => {
+    if (!selectedPlankId || !moveToSheetInput) return;
+    const toSheet = parseInt(moveToSheetInput, 10);
+    if (!Number.isFinite(toSheet) || toSheet < 1) return;
+    const plank = effectiveNestResults.find((p) => p.id === selectedPlankId);
+    if (!plank) return;
+    setModifications((m) => [...m, { type: 'move', plankId: selectedPlankId, toSheet, newX: plank.x, newY: plank.y }]);
+  }, [selectedPlankId, moveToSheetInput, effectiveNestResults]);
+
+  const handleCutOrder = useCallback(() => {
+    if (!selectedPlankId || cutOrderInput === '') return;
+    const order = parseInt(cutOrderInput, 10);
+    if (!Number.isFinite(order) || order < 0) return;
+    setModifications((m) => [...m, { type: 'cutOrder', plankId: selectedPlankId, cutOrder: order }]);
+  }, [selectedPlankId, cutOrderInput]);
+
+  const handleSaveEdit = useCallback(() => {
+    if (!pipelineResult?.cutlist || modifications.length === 0) {
+      setEditMode(false);
+      setModifications([]);
+      setSelectedPlankId(null);
+      return;
+    }
+    const edited = applyCutlistModifications(
+      { header: pipelineResult.cutlist.header, rows: pipelineResult.cutlist.rows },
+      modifications
+    );
+    // Auto-regenerate G-code from the saved cutlist
+    try {
+      const gcodeResult = generateGCodeFiles(edited.header, edited.rows);
+      setPipelineResult({ ...pipelineResult, cutlist: edited, gcode: gcodeResult });
+    } catch {
+      setPipelineResult({ ...pipelineResult, cutlist: edited });
+    }
+    const newNest = pipelineNestToStore(edited);
+    setNestResults(newNest);
+    setModifications([]);
+    setSelectedPlankId(null);
+    setEditMode(false);
+  }, [pipelineResult, modifications, setPipelineResult, setNestResults]);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditMode(false);
+    setModifications([]);
+    setSelectedPlankId(null);
+  }, []);
+
+  // Arrow key nudge (5mm) + keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+
+      // Zoom shortcuts (work regardless of edit mode)
+      if (e.key === '=' || e.key === '+') { e.preventDefault(); setZoom(z => Math.min(200, z + 10)); return; }
+      if (e.key === '-') { e.preventDefault(); setZoom(z => Math.max(10, z - 10)); return; }
+      if (e.key === '0') { e.preventDefault(); setZoom(50); return; }
+      if (e.key === '1') { e.preventDefault(); setZoom(100); return; }
+
+      if (!editMode) return;
+
+      // Deselect
+      if ((e.key === 'Delete' || e.key === 'Escape') && selectedPlankId) {
+        e.preventDefault();
+        setSelectedPlankId(null);
+        return;
+      }
+
+      if (!selectedPlankId) return;
+
+      // Arrow key nudge (5mm)
+      const NUDGE = 5;
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        const plank = effectiveNestResults.find(p => p.id === selectedPlankId);
+        if (!plank) return;
+        let dx = 0, dy = 0;
+        if (e.key === 'ArrowLeft') dx = -NUDGE;
+        if (e.key === 'ArrowRight') dx = NUDGE;
+        if (e.key === 'ArrowUp') dy = NUDGE;
+        if (e.key === 'ArrowDown') dy = -NUDGE;
+        const newX = Math.max(0, Math.min(SHEET_CONSTANTS.SHEET_WIDTH - plank.width, plank.x + dx));
+        const newY = Math.max(0, Math.min(SHEET_CONSTANTS.SHEET_HEIGHT - plank.height, plank.y + dy));
+        setModifications(m => [...m, { type: 'move', plankId: selectedPlankId, toSheet: plank.sheetNum, newX, newY }]);
+        return;
+      }
+
+      // Rotate
+      if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        setModifications(m => [...m, { type: 'rotate', plankId: selectedPlankId, angle: 90 }]);
+        return;
+      }
+      // Flip horizontal
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        setModifications(m => [...m, { type: 'flip', plankId: selectedPlankId, direction: 'horizontal' }]);
+        return;
+      }
+      // Flip vertical
+      if (e.key === 'v' || e.key === 'V') {
+        e.preventDefault();
+        setModifications(m => [...m, { type: 'flip', plankId: selectedPlankId, direction: 'vertical' }]);
+        return;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [editMode, selectedPlankId, effectiveNestResults]);
+
+  // Ctrl+Scroll zoom handler
+  const handleWheelZoom = useCallback((e: React.WheelEvent) => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -10 : 10;
+    setZoom(z => Math.max(10, Math.min(200, z + delta)));
+  }, []);
+
+  const handleMovePlank = useCallback((plankId: string, newSheetNum: number, newX: number, newY: number) => {
+    setModifications((m) => [...m, { type: 'move', plankId, toSheet: newSheetNum, newX, newY }]);
+  }, []);
+
+  // Toggle smart cut sequence for a sheet
+  const handleToggleSequence = useCallback((sheetNum: number) => {
+    setSequenceSheets(prev => {
+      const next = new Set(prev);
+      if (next.has(sheetNum)) {
+        next.delete(sheetNum);
+        setCutOrderMaps(m => { const nm = new Map(m); nm.delete(sheetNum); return nm; });
+      } else {
+        next.add(sheetNum);
+        const sheet = effectiveSheetLayouts[sheetNum - 1];
+        if (sheet) {
+          const seqMap = generateSmartCutSequence(
+            sheet.planks.map(p => ({ id: p.id, x: p.x, y: p.y, width: p.width, height: p.height })),
+            SHEET_CONSTANTS.SHEET_WIDTH,
+            SHEET_CONSTANTS.SHEET_HEIGHT,
+          );
+          setCutOrderMaps(m => { const nm = new Map(m); nm.set(sheetNum, seqMap); return nm; });
+          // Apply cut order as modifications
+          const newMods: CutlistModification[] = [];
+          seqMap.forEach((order, plankId) => {
+            newMods.push({ type: 'cutOrder', plankId, cutOrder: order });
+          });
+          setModifications(prev => [...prev, ...newMods]);
+        }
+      }
+      return next;
+    });
+  }, [effectiveSheetLayouts]);
+
+
+  // Download PDF with current (possibly edited) cutlist; enrich with L-cuts/Gola/Incuts from cutlist 2D when available
+  const handleDownloadPDF = useCallback(async () => {
+    const sheetPdfData: SheetPdfData[] = effectiveSheetLayouts.map((sheet, index) => ({
+      sheetNum: index + 1,
+      planks: sheet.planks,
+      displayTitle: getSheetDisplayTitle(index + 1),
+      material: getCleanMaterial(sheet.planks[0]?.material || ''),
+      utilization: sheet.utilization,
+    }));
+    let sheetsToUse = sheetPdfData;
+    const effectiveCutlist = pipelineResult?.cutlist && (editMode && modifications.length > 0)
+      ? applyCutlistModifications(
+          { header: pipelineResult.cutlist.header, rows: pipelineResult.cutlist.rows },
+          modifications
+        )
+      : pipelineResult?.cutlist;
+    if (effectiveCutlist && sheetPdfData.length > 0) {
+      sheetsToUse = enrichSheetPdfDataFromCutlist(sheetPdfData, effectiveCutlist.header, effectiveCutlist.rows);
+    }
+    try {
+      await downloadCutlistPdf({
+        clientName: customerDetails?.customerName || 'Client',
+        projectName: projectName || 'Cutlist',
+        sheets: sheetsToUse,
+        printAll: true,
+      });
+    } catch (err) {
+      console.error('PDF download error:', err);
+    }
+  }, [
+    effectiveSheetLayouts,
+    pipelineResult?.cutlist,
+    editMode,
+    modifications,
+    getSheetDisplayTitle,
+    customerDetails?.customerName,
+    projectName,
+  ]);
+
+  if (isComputingFallback) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: COLORS.background }}>
+        <div className="text-center p-8 bg-white rounded-2xl shadow-lg">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center animate-pulse" style={{ backgroundColor: COLORS.primaryLight }}>
+            <svg className="w-8 h-8 animate-spin" fill="none" viewBox="0 0 24 24" stroke={COLORS.primary}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold mb-2" style={{ color: COLORS.navy }}>Generating Cutlist...</h2>
+          <p className="text-gray-500">Computing nesting layout from design data</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (effectiveSheetLayouts.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: COLORS.background }}>
         <div className="text-center p-8 bg-white rounded-2xl shadow-lg">
@@ -261,7 +633,7 @@ export default function CutlistPage() {
             </svg>
           </div>
           <h2 className="text-xl font-semibold mb-2" style={{ color: COLORS.navy }}>No Design Data</h2>
-          <p className="text-gray-500 mb-4">Create a design first to generate cutlist</p>
+          <p className="text-gray-500 mb-4">Create a design or import raw data to generate cutlist</p>
           <Link 
             href="/visualiser/designer" 
             className="inline-flex items-center px-6 py-3 rounded-lg text-white font-medium transition-colors"
@@ -276,8 +648,8 @@ export default function CutlistPage() {
 
   // Filter sheets based on selection
   const sheetsToRender = selectedSheet === 'all' 
-    ? sheetLayouts.map((s, i) => ({ sheet: s, num: i + 1 }))
-    : [{ sheet: sheetLayouts[parseInt(selectedSheet) - 1], num: parseInt(selectedSheet) }].filter(s => s.sheet);
+    ? effectiveSheetLayouts.map((s, i) => ({ sheet: s, num: i + 1 }))
+    : [{ sheet: effectiveSheetLayouts[parseInt(selectedSheet) - 1], num: parseInt(selectedSheet) }].filter(s => s.sheet);
 
   const effectiveZoom = zoom / 100;
 
@@ -307,23 +679,43 @@ export default function CutlistPage() {
                 {customerDetails?.customerName && (
                   <p className="text-sm text-white/80">{customerDetails.customerName}</p>
                 )}
+                {pipelineResult?.winningConfigLabel && (
+                  <p className="text-xs text-white/60 mt-0.5">Generated by: {pipelineResult.winningConfigLabel}</p>
+                )}
               </div>
             </div>
 
             {/* Center - Stats */}
             <div className="flex gap-8">
-              <StatCard label="Total Planks" value={nestResults.length} />
-              <StatCard label="Sheets Used" value={sheetLayouts.length} />
+              <StatCard label="Total Planks" value={effectiveNestResults.length} />
+              <StatCard label="Sheets Used" value={effectiveSheetLayouts.length} />
               <StatCard label="Utilization" value={`${totalSummary?.averageUtilization?.toFixed(1) || 0}%`} />
               <StatCard label="Level 3 Features" value={totalFeatures.total} highlight />
             </div>
 
             {/* Right - Actions */}
             <div className="flex items-center gap-2">
+              {canEdit && !editMode && (
+                <button
+                  onClick={() => setEditMode(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-md border-2 border-white/80"
+                  style={{ backgroundColor: COLORS.white, color: COLORS.primary }}
+                >
+                  Edit layout
+                </button>
+              )}
+              {editMode && (
+                <>
+                  <button onClick={handleCancelEdit} className="px-3 py-2 rounded-lg text-sm font-medium text-white hover:bg-white/20">Cancel</button>
+                  {modifications.length > 0 && (
+                    <button onClick={handleSaveEdit} className="px-3 py-2 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700">Save</button>
+                  )}
+                </>
+              )}
               <ActionButton onClick={handleDownloadCSV} icon="download">
                 CSV
               </ActionButton>
-              <ActionButton onClick={() => router.push('/visualiser/reports/cutlist/pdf')} icon="pdf">
+              <ActionButton onClick={handleDownloadPDF} icon="pdf">
                 PDF
               </ActionButton>
               <ActionButton onClick={() => router.push('/visualiser/reports/cutlist/labels')} icon="label">
@@ -333,6 +725,41 @@ export default function CutlistPage() {
           </div>
         </div>
       </header>
+
+      {/* Edit toolbar when plank selected */}
+      {editMode && selectedPlankId && (
+        <div className="px-6 py-3 flex items-center gap-4 bg-white border-b" style={{ borderColor: COLORS.border }}>
+          <span className="text-sm font-medium" style={{ color: COLORS.navy }}>Plank: {selectedPlankId}</span>
+          <button onClick={handleRotate} className="px-3 py-1.5 rounded-lg text-sm font-medium border" style={{ borderColor: COLORS.primary, color: COLORS.primary }} title="Shortcut: R">Rotate 90°</button>
+          <button onClick={handleFlipH} className="px-3 py-1.5 rounded-lg text-sm font-medium border" style={{ borderColor: COLORS.primary, color: COLORS.primary }} title="Shortcut: F">Flip H</button>
+          <button onClick={handleFlipV} className="px-3 py-1.5 rounded-lg text-sm font-medium border" style={{ borderColor: COLORS.primary, color: COLORS.primary }} title="Shortcut: V">Flip V</button>
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600">Move to sheet</label>
+            <input
+              type="number"
+              min={1}
+              value={moveToSheetInput}
+              onChange={(e) => setMoveToSheetInput(e.target.value)}
+              className="w-16 px-2 py-1 border rounded text-sm"
+              style={{ borderColor: COLORS.border }}
+            />
+            <button onClick={handleMoveToSheet} className="px-3 py-1.5 rounded-lg text-sm font-medium text-white" style={{ backgroundColor: COLORS.primary }}>Move</button>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600">Cut order</label>
+            <input
+              type="number"
+              min={0}
+              value={cutOrderInput}
+              onChange={(e) => setCutOrderInput(e.target.value)}
+              className="w-16 px-2 py-1 border rounded text-sm"
+              style={{ borderColor: COLORS.border }}
+            />
+            <button onClick={handleCutOrder} className="px-3 py-1.5 rounded-lg text-sm font-medium text-white" style={{ backgroundColor: COLORS.primary }}>Set</button>
+          </div>
+          {modifications.length > 0 && <span className="text-sm text-amber-600">{modifications.length} change(s) — Save to apply</span>}
+        </div>
+      )}
 
       <div className="flex" style={{ height: 'calc(100vh - 80px)' }}>
         {/* Sidebar */}
@@ -353,8 +780,8 @@ export default function CutlistPage() {
                   '--tw-ring-color': COLORS.primary 
                 } as React.CSSProperties}
               >
-                <option value="all">All Sheets ({sheetLayouts.length})</option>
-                {sheetLayouts.map((_, index) => (
+                <option value="all">All Sheets ({effectiveSheetLayouts.length})</option>
+                {effectiveSheetLayouts.map((_, index) => (
                   <option key={index + 1} value={index + 1}>
                     {getSheetDisplayTitle(index + 1)}
                   </option>
@@ -390,17 +817,57 @@ export default function CutlistPage() {
                   {zoom}%
                 </span>
               </div>
-              <input
-                type="range"
-                min="10"
-                max="200"
-                value={zoom}
-                onChange={(e) => setZoom(parseInt(e.target.value))}
-                className="w-full h-2 rounded-lg appearance-none cursor-pointer"
-                style={{ 
-                  background: `linear-gradient(to right, ${COLORS.primary} 0%, ${COLORS.primary} ${(zoom - 10) / 1.9}%, #E5E7EB ${(zoom - 10) / 1.9}%, #E5E7EB 100%)` 
-                }}
-              />
+              <div className="flex items-center gap-2 mb-2">
+                <button
+                  onClick={() => setZoom(z => Math.max(10, z - 10))}
+                  className="w-8 h-8 rounded-lg border flex items-center justify-center text-sm font-bold hover:bg-gray-50"
+                  style={{ borderColor: COLORS.border, color: COLORS.navy }}
+                >
+                  -
+                </button>
+                <input
+                  type="range"
+                  min="10"
+                  max="200"
+                  value={zoom}
+                  onChange={(e) => setZoom(parseInt(e.target.value))}
+                  className="flex-1 h-2 rounded-lg appearance-none cursor-pointer"
+                  style={{ 
+                    background: `linear-gradient(to right, ${COLORS.primary} 0%, ${COLORS.primary} ${(zoom - 10) / 1.9}%, #E5E7EB ${(zoom - 10) / 1.9}%, #E5E7EB 100%)` 
+                  }}
+                />
+                <button
+                  onClick={() => setZoom(z => Math.min(200, z + 10))}
+                  className="w-8 h-8 rounded-lg border flex items-center justify-center text-sm font-bold hover:bg-gray-50"
+                  style={{ borderColor: COLORS.border, color: COLORS.navy }}
+                >
+                  +
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setZoom(50)}
+                  className="flex-1 px-2 py-1.5 rounded-lg border text-xs font-medium hover:bg-gray-50"
+                  style={{ borderColor: zoom === 50 ? COLORS.primary : COLORS.border, color: zoom === 50 ? COLORS.primary : COLORS.navy }}
+                >
+                  Fit
+                </button>
+                <button
+                  onClick={() => setZoom(100)}
+                  className="flex-1 px-2 py-1.5 rounded-lg border text-xs font-medium hover:bg-gray-50"
+                  style={{ borderColor: zoom === 100 ? COLORS.primary : COLORS.border, color: zoom === 100 ? COLORS.primary : COLORS.navy }}
+                >
+                  100%
+                </button>
+                <button
+                  onClick={() => setZoom(150)}
+                  className="flex-1 px-2 py-1.5 rounded-lg border text-xs font-medium hover:bg-gray-50"
+                  style={{ borderColor: zoom === 150 ? COLORS.primary : COLORS.border, color: zoom === 150 ? COLORS.primary : COLORS.navy }}
+                >
+                  150%
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1">Ctrl+Scroll to zoom. Keys: +/- zoom, 0=fit, 1=100%</p>
             </div>
 
             {/* Display Options */}
@@ -441,7 +908,7 @@ export default function CutlistPage() {
             <div>
               <h3 className="text-sm font-semibold mb-3" style={{ color: COLORS.navy }}>Sheet Utilization</h3>
               <div className="space-y-2">
-                {sheetLayouts.map((sheet, index) => (
+                {effectiveSheetLayouts.map((sheet, index) => (
                   <div 
                     key={index} 
                     className="p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md"
@@ -479,7 +946,7 @@ export default function CutlistPage() {
         </aside>
 
         {/* Visualization Area */}
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-6 overflow-auto outline-none" tabIndex={0} onWheelCapture={handleWheelZoom}>
           {sheetsToRender.map(({ sheet, num }) => (
             <SheetCanvas
               key={num}
@@ -495,6 +962,13 @@ export default function CutlistPage() {
               highlightSearch={highlightSearch}
               highlightedPlank={highlightedPlank}
               onPlankHover={handlePlankHover}
+              editMode={editMode}
+              selectedPlankId={selectedPlankId}
+              onSelectPlank={handleSelectPlank}
+              onMovePlank={handleMovePlank}
+              sequenceEnabled={sequenceSheets.has(num)}
+              onToggleSequence={() => handleToggleSequence(num)}
+              cutOrderMap={cutOrderMaps.get(num)}
             />
           ))}
         </main>
@@ -602,6 +1076,13 @@ interface SheetCanvasProps {
   highlightSearch: boolean;
   highlightedPlank: string | null;
   onPlankHover: (plank: PlankWithFeatures | null, e?: React.MouseEvent) => void;
+  editMode?: boolean;
+  selectedPlankId?: string | null;
+  onSelectPlank?: (plankId: string | null) => void;
+  onMovePlank?: (plankId: string, newSheetNum: number, newX: number, newY: number) => void;
+  sequenceEnabled?: boolean;
+  onToggleSequence?: () => void;
+  cutOrderMap?: Map<string, number>;
 }
 
 const SheetCanvas: React.FC<SheetCanvasProps> = ({
@@ -617,6 +1098,13 @@ const SheetCanvas: React.FC<SheetCanvasProps> = ({
   highlightSearch,
   highlightedPlank,
   onPlankHover,
+  editMode = false,
+  selectedPlankId = null,
+  onSelectPlank,
+  onMovePlank,
+  sequenceEnabled = false,
+  onToggleSequence,
+  cutOrderMap,
 }) => {
   const sheetWidth = SHEET_CONSTANTS.SHEET_WIDTH;
   const sheetHeight = SHEET_CONSTANTS.SHEET_HEIGHT;
@@ -650,6 +1138,24 @@ const SheetCanvas: React.FC<SheetCanvasProps> = ({
           </p>
         </div>
         <div className="flex items-center gap-4">
+          {onToggleSequence && (
+            <button
+              onClick={onToggleSequence}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                sequenceEnabled ? 'text-white' : ''
+              }`}
+              style={{
+                backgroundColor: sequenceEnabled ? COLORS.primary : COLORS.white,
+                borderColor: COLORS.primary,
+                color: sequenceEnabled ? COLORS.white : COLORS.primary,
+              }}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+              </svg>
+              {sequenceEnabled ? 'Sequence ON' : 'Sequence'}
+            </button>
+          )}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ backgroundColor: COLORS.white }}>
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS.primary }}></span>
             <span className="text-sm font-medium" style={{ color: COLORS.navy }}>
@@ -675,6 +1181,7 @@ const SheetCanvas: React.FC<SheetCanvasProps> = ({
               key={plank.id}
               plank={plank as PlankWithFeatures}
               sheetHeight={sheetHeight}
+              sheetNum={sheetNum}
               zoom={zoom}
               showIds={showIds}
               showDimensions={showDimensions}
@@ -684,6 +1191,11 @@ const SheetCanvas: React.FC<SheetCanvasProps> = ({
               highlightSearch={highlightSearch}
               isHighlighted={highlightedPlank === plank.id}
               onHover={onPlankHover}
+              editMode={editMode}
+              isSelected={selectedPlankId === plank.id}
+              onSelect={onSelectPlank ? () => onSelectPlank(plank.id) : undefined}
+              onMove={onMovePlank ? (newX, newY) => onMovePlank(plank.id, sheetNum, newX, newY) : undefined}
+              cutOrder={cutOrderMap?.get(plank.id)}
             />
           ))}
         </div>
@@ -699,6 +1211,7 @@ const SheetCanvas: React.FC<SheetCanvasProps> = ({
 interface PlankElementProps {
   plank: PlankWithFeatures;
   sheetHeight: number;
+  sheetNum: number;
   zoom: number;
   showIds: boolean;
   showDimensions: boolean;
@@ -708,11 +1221,17 @@ interface PlankElementProps {
   highlightSearch: boolean;
   isHighlighted: boolean;
   onHover: (plank: PlankWithFeatures | null, e?: React.MouseEvent) => void;
+  editMode?: boolean;
+  isSelected?: boolean;
+  onSelect?: () => void;
+  onMove?: (newX: number, newY: number) => void;
+  cutOrder?: number;
 }
 
 const PlankElement: React.FC<PlankElementProps> = ({
   plank,
   sheetHeight,
+  sheetNum,
   zoom,
   showIds,
   showDimensions,
@@ -722,10 +1241,18 @@ const PlankElement: React.FC<PlankElementProps> = ({
   highlightSearch,
   isHighlighted,
   onHover,
+  editMode = false,
+  isSelected = false,
+  onSelect,
+  onMove,
+  cutOrder,
 }) => {
-  const x = plank.x * zoom;
-  // CNC Y-FLIP: Origin is bottom-left in CNC, top-left in browser
-  const y = (sheetHeight - plank.y - plank.height) * zoom;
+  const [dragOffset, setDragOffset] = React.useState<{ dx: number; dy: number } | null>(null);
+
+  const baseX = plank.x * zoom;
+  const baseY = (sheetHeight - plank.y - plank.height) * zoom;
+  const x = dragOffset ? baseX + dragOffset.dx * zoom : baseX;
+  const y = dragOffset ? baseY - dragOffset.dy * zoom : baseY;
   const width = plank.width * zoom;
   const height = plank.height * zoom;
 
@@ -736,28 +1263,85 @@ const PlankElement: React.FC<PlankElementProps> = ({
 
   const hasFeatures = (plank.holes && plank.holes.length > 0) || (plank.l_cuts && plank.l_cuts.length > 0);
 
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (editMode) {
+      if (!isDraggingRef.current && onSelect) onSelect();
+    } else {
+      onHover(plank, e);
+    }
+  };
+
+  const dragRef = React.useRef<{ startX: number; startY: number; startPlankX: number; startPlankY: number } | null>(null);
+  const isDraggingRef = React.useRef(false);
+  const DRAG_THRESHOLD_PX = 5;
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (!editMode || !onMove) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = { startX: e.clientX, startY: e.clientY, startPlankX: plank.x, startPlankY: plank.y };
+    isDraggingRef.current = false;
+    setDragOffset(null);
+    onSelect?.();
+  };
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    const screenDx = e.clientX - dragRef.current.startX;
+    const screenDy = e.clientY - dragRef.current.startY;
+    if (!isDraggingRef.current) {
+      if (Math.abs(screenDx) > DRAG_THRESHOLD_PX || Math.abs(screenDy) > DRAG_THRESHOLD_PX) {
+        isDraggingRef.current = true;
+      } else {
+        return;
+      }
+    }
+    const dx = screenDx / zoom;
+    const dy = -screenDy / zoom;
+    const clampedDx = Math.max(-dragRef.current.startPlankX, Math.min(SHEET_CONSTANTS.SHEET_WIDTH - plank.width - dragRef.current.startPlankX, dx));
+    const clampedDy = Math.max(-dragRef.current.startPlankY, Math.min(SHEET_CONSTANTS.SHEET_HEIGHT - plank.height - dragRef.current.startPlankY, dy));
+    setDragOffset({ dx: clampedDx, dy: clampedDy });
+  };
+  const handlePointerUp = (e: React.PointerEvent) => {
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    if (dragRef.current && onMove && isDraggingRef.current) {
+      const dx = (e.clientX - dragRef.current.startX) / zoom;
+      const dy = -(e.clientY - dragRef.current.startY) / zoom;
+      const newX = Math.max(0, Math.min(SHEET_CONSTANTS.SHEET_WIDTH - plank.width, dragRef.current.startPlankX + dx));
+      const newY = Math.max(0, Math.min(SHEET_CONSTANTS.SHEET_HEIGHT - plank.height, dragRef.current.startPlankY + dy));
+      onMove(newX, newY);
+    }
+    dragRef.current = null;
+    isDraggingRef.current = false;
+    setDragOffset(null);
+  };
+
   return (
     <div
-      className={`absolute border flex flex-col items-center justify-center cursor-pointer transition-all hover:z-30 hover:shadow-xl ${
-        (isSearchMatch && highlightSearch) || isHighlighted ? 'ring-4 z-20' : ''
-      } ${hasFeatures && showHoles ? 'ring-1' : ''}`}
+      className={`absolute border flex flex-col items-center justify-center transition-all hover:z-30 hover:shadow-xl ${
+        editMode ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
+      } ${(isSearchMatch && highlightSearch) || isHighlighted || isSelected ? 'ring-4 z-20' : ''} ${hasFeatures && showHoles ? 'ring-1' : ''}`}
       style={{
         left: x,
         top: y,
         width,
         height,
         backgroundColor: plank.color || '#9E9E9E',
-        borderColor: COLORS.navyDark,
-        borderWidth: 1,
-        ringColor: (isSearchMatch && highlightSearch) || isHighlighted ? COLORS.primary : hasFeatures ? COLORS.primaryLight : 'transparent',
+        borderColor: isSelected ? COLORS.primary : COLORS.navyDark,
+        borderWidth: isSelected ? 3 : 1,
+        ringColor: (isSearchMatch && highlightSearch) || isHighlighted || isSelected ? COLORS.primary : hasFeatures ? COLORS.primaryLight : 'transparent',
       } as React.CSSProperties & { ringColor?: string }}
-      onMouseEnter={(e) => onHover(plank, e)}
+      onMouseEnter={(e) => !editMode && onHover(plank, e)}
       onMouseLeave={() => onHover(null)}
+      onClick={handleClick}
+      onPointerDown={editMode && onMove ? handlePointerDown : undefined}
+      onPointerMove={editMode && onMove ? handlePointerMove : undefined}
+      onPointerUp={editMode && onMove ? handlePointerUp : undefined}
+      onPointerCancel={editMode && onMove ? handlePointerUp : undefined}
     >
       {/* Plank ID */}
       {showIds && width > 25 && height > 20 && (
         <div 
-          className="px-1.5 py-0.5 rounded text-xs font-bold z-10 shadow-sm"
+          className="pointer-events-none px-1.5 py-0.5 rounded text-xs font-bold z-10 shadow-sm"
           style={{ backgroundColor: COLORS.white, color: COLORS.navy }}
         >
           {plank.id}
@@ -767,10 +1351,20 @@ const PlankElement: React.FC<PlankElementProps> = ({
       {/* Dimensions */}
       {showDimensions && width > 50 && height > 35 && (
         <div 
-          className="px-1 rounded text-[10px] mt-0.5 z-10"
+          className="pointer-events-none px-1 rounded text-[10px] mt-0.5 z-10"
           style={{ backgroundColor: 'rgba(255,255,255,0.9)', color: COLORS.textLight }}
         >
           {plank.width.toFixed(0)}×{plank.height.toFixed(0)}
+        </div>
+      )}
+
+      {/* Cut order badge */}
+      {cutOrder != null && (
+        <div
+          className="pointer-events-none absolute top-0 right-0 z-30 min-w-[22px] h-[22px] flex items-center justify-center rounded-bl-lg text-xs font-bold"
+          style={{ backgroundColor: COLORS.navy, color: COLORS.white }}
+        >
+          SC-{cutOrder}
         </div>
       )}
 
@@ -813,32 +1407,84 @@ interface HoleElementProps {
 
 const HoleElement: React.FC<HoleElementProps> = ({ hole, plankHeight, zoom, showLabel }) => {
   const config = getHoleTypeConfig(hole.description || hole.type);
-  
-  // CNC Y-FLIP inside plank: hole.y is from bottom
-  const rawW = hole.isRectangular ? (hole.length || 10) : (hole.diameter || 5);
-  const rawH = hole.isRectangular ? (hole.width || 5) : (hole.diameter || 5);
-  
-  const hX = hole.x * zoom;
-  const hY = (plankHeight - hole.y - rawH) * zoom;
-  const hW = rawW * zoom;
-  const hH = rawH * zoom;
+  const holeDesc = (hole.description || hole.type || '').toLowerCase();
+  const isVB = holeDesc.includes('vb');
 
+  // VB holes: fixed 6px marker at center position (App Script cutlist_editor.html line 1331)
+  if (isVB) {
+    const diameter = hole.diameter || 20;
+    const centerX = (hole.x + diameter / 2) * zoom;
+    const centerY = (plankHeight - hole.y - diameter / 2) * zoom;
+    const markerSize = 6;
+    return (
+      <div
+        className="absolute pointer-events-none z-10 rounded-full"
+        style={{
+          left: centerX - markerSize / 2,
+          top: centerY - markerSize / 2,
+          width: markerSize,
+          height: markerSize,
+          backgroundColor: '#FF0000',
+          border: '2px solid white',
+          boxShadow: '0 0 2px rgba(0,0,0,0.5)',
+        }}
+        title={`VB: X=${hole.x.toFixed(1)}, Y=${hole.y.toFixed(1)}`}
+      />
+    );
+  }
+
+  // Rectangular holes (grooves, slots, profiles)
+  if (hole.isRectangular) {
+    const rawW = hole.length || 10;
+    const rawH = hole.width || 5;
+    const hX = hole.x * zoom;
+    const hY = (plankHeight - hole.y - rawH) * zoom;
+    return (
+      <div
+        className="absolute pointer-events-none z-10 rounded-sm"
+        style={{
+          left: hX,
+          top: hY,
+          width: rawW * zoom,
+          height: rawH * zoom,
+          backgroundColor: config.bgColor,
+          borderWidth: 2,
+          borderStyle: 'solid',
+          borderColor: config.color,
+        }}
+      >
+        {showLabel && rawW * zoom > 15 && (
+          <span
+            className="absolute -top-4 left-0 text-[8px] whitespace-nowrap px-1 rounded"
+            style={{ backgroundColor: config.color, color: 'white' }}
+          >
+            {hole.description || hole.type}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  // Circular holes (screws, hinges, dowels)
+  const diameter = hole.diameter || 5;
+  const hX = hole.x * zoom;
+  const hY = (plankHeight - hole.y - diameter) * zoom;
   return (
     <div
-      className={`absolute pointer-events-none z-10 ${hole.isRectangular ? 'rounded' : 'rounded-full'}`}
+      className="absolute pointer-events-none z-10 rounded-full"
       style={{
         left: hX,
         top: hY,
-        width: hW,
-        height: hH,
+        width: diameter * zoom,
+        height: diameter * zoom,
         backgroundColor: config.bgColor,
-        borderWidth: 2,
-        borderStyle: config.borderStyle as 'solid' | 'dashed',
+        borderWidth: 1,
+        borderStyle: 'solid',
         borderColor: config.color,
       }}
     >
-      {showLabel && hW > 15 && (
-        <span 
+      {showLabel && diameter * zoom > 15 && (
+        <span
           className="absolute -top-4 left-0 text-[8px] whitespace-nowrap px-1 rounded"
           style={{ backgroundColor: config.color, color: 'white' }}
         >
@@ -887,7 +1533,7 @@ const LCutElement: React.FC<LCutElementProps> = ({ lcut, plankWidth, plankHeight
   if (isDegenerate) {
     return (
       <div 
-        className="absolute z-20 rounded p-1 cursor-help"
+        className="absolute z-20 rounded p-1 cursor-help pointer-events-none"
         style={{ 
           left: Math.max(startX, centerX, endX) / 2, 
           top: Math.max(startY, centerY, endY) / 2,

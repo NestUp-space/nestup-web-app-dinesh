@@ -570,16 +570,20 @@ function createSheetLayout(
   };
 }
 
+const MATERIAL_THICKNESS_PALETTE = [
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#FED766', '#2AB7CA',
+  '#F08A5D', '#B22727', '#54A0FF', '#5F27CD', '#FF9F43',
+];
+const materialColorCache: Record<string, string> = {};
+let materialColorIdx = 0;
+
 function getMaterialColor(material: string): string {
-  const materialLower = material.toLowerCase();
-  
-  if (materialLower.includes('18')) return '#D4A574';
-  if (materialLower.includes('12')) return '#C9A066';
-  if (materialLower.includes('6')) return '#A08060';
-  if (materialLower.includes('mdf')) return '#E8DCC8';
-  if (materialLower.includes('hdhmr')) return '#D6C8B8';
-  
-  return '#D4A574';
+  const key = String(material || '').replace(/\(\s*\d+(\.\d+)?\s*mm\s*\)/gi, '').replace(/\s*\([^)]+\)/g, '').trim();
+  if (!materialColorCache[key]) {
+    materialColorCache[key] = MATERIAL_THICKNESS_PALETTE[materialColorIdx % MATERIAL_THICKNESS_PALETTE.length];
+    materialColorIdx++;
+  }
+  return materialColorCache[key];
 }
 
 // ============================================

@@ -37,6 +37,7 @@ import {
   STANDARD_PLANK_FORMULAS 
 } from '@/lib/visualiser/plankFormulaSystem';
 import type { DesignSnapshot } from './historyMiddleware';
+import type { PipelineResult } from '@/lib/visualiser/appscript-port';
 
 // ============================================
 // CUSTOMER DETAILS TYPE
@@ -145,6 +146,7 @@ interface DesignerState {
   plankList: PlankListItem[] | null;
   nestResults: NestResult[] | null;
   materialSummary: MaterialSummary[] | null;
+  pipelineResult: PipelineResult | null;
 
   // Customer Details
   customerDetails: CustomerDetails;
@@ -257,6 +259,7 @@ interface DesignerState {
   setPlankList: (data: PlankListItem[] | null) => void;
   setNestResults: (data: NestResult[] | null) => void;
   setMaterialSummary: (data: MaterialSummary[] | null) => void;
+  setPipelineResult: (result: PipelineResult | null) => void;
   clearGeneratedData: () => void;
 
   // Project
@@ -431,6 +434,7 @@ export const useDesignerStore = create<DesignerState>()(
       plankList: null,
       nestResults: null,
       materialSummary: null,
+      pipelineResult: null,
 
       // Customer Details
       customerDetails: DEFAULT_CUSTOMER_DETAILS,
@@ -1457,6 +1461,10 @@ export const useDesignerStore = create<DesignerState>()(
         set({ materialSummary: data });
       },
 
+      setPipelineResult: (result) => {
+        set({ pipelineResult: result });
+      },
+
       clearGeneratedData: () => {
         set({
           generationProgress: null,
@@ -1465,6 +1473,7 @@ export const useDesignerStore = create<DesignerState>()(
           plankList: null,
           nestResults: null,
           materialSummary: null,
+          pipelineResult: null,
         });
       },
 
@@ -1532,6 +1541,7 @@ export const useDesignerStore = create<DesignerState>()(
           selectedWallId: null,
           selectedBoxId: null,
           selectedPlankId: null,
+          activeWallId: data.walls.length > 0 ? data.walls[0].id : null,
           isDirty: false,
           lastSaved: new Date().toISOString(),
         });
@@ -1543,11 +1553,14 @@ export const useDesignerStore = create<DesignerState>()(
           selectedWallId: null,
           selectedBoxId: null,
           selectedPlankId: null,
+          activeWallId: null,
           generationProgress: null,
+          rawData: null,
           formattedData: null,
           plankList: null,
           nestResults: null,
           materialSummary: null,
+          pipelineResult: null,
           customerDetails: DEFAULT_CUSTOMER_DETAILS,
           projectName: 'Untitled Project',
           projectId: null,
@@ -1570,6 +1583,7 @@ export const useDesignerStore = create<DesignerState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         walls: state.walls,
+        activeWallId: state.activeWallId,
         projectName: state.projectName,
         projectId: state.projectId,
         lastSaved: state.lastSaved,
@@ -1579,6 +1593,13 @@ export const useDesignerStore = create<DesignerState>()(
         showLabels: state.showLabels,
         snapEnabled: state.snapEnabled,
         snapGridSize: state.snapGridSize,
+        pipelineResult: state.pipelineResult,
+        nestResults: state.nestResults,
+        rawData: state.rawData,
+        formattedData: state.formattedData,
+        plankList: state.plankList,
+        materialSummary: state.materialSummary,
+        generationProgress: state.generationProgress,
       }),
     }
   )

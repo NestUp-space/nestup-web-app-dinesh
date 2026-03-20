@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Home, Check, Maximize2, Search, Filter, MapPin } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
-import Navbar from "@/components/layout/Navbar"
 import StickyCTA from "@/components/common/StickyCTA"
 import { QuoteProgress } from "@/components/quote/quote-progress"
 import { floorPlans, type FloorPlan } from "@/data/get-quote/floorPlans"
@@ -40,9 +39,6 @@ export default function FloorPlanSelectionPage() {
 
   return (
     <div className="min-h-screen bg-neutral-light">
-      <div className="h-20 md:h-24 top-0 fixed bg-white z-50">
-        <Navbar />
-      </div>
       <div className="mt-20 md:mt-24 w-full">
         {/* Progress Bar */}
         <QuoteProgress currentStep={2} />

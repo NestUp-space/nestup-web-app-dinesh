@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Home, Download, CheckCircle, User, FileText, Calculator, Palette, Building } from "lucide-react"
 import Link from "next/link"
 import { QuoteProgress } from "@/components/quote/quote-progress"
-import Navbar from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
 import StickyCTA from "@/components/common/StickyCTA"
 import { 
@@ -151,9 +150,6 @@ export default function SummaryPage() {
   if (isSubmitted) {
     return (
       <div className="">
-        <div className="h-20 md:h-24 top-0 fixed bg-white z-50">
-          <Navbar />
-        </div>
         <div className="mt-20 md:mt-24 w-screen">
           <div className="min-h-screen bg-neutral-light">
             <div className="container mx-auto px-4 py-12 md:py-16 max-w-2xl">
@@ -200,9 +196,6 @@ export default function SummaryPage() {
 
   return (
     <div className="">
-      <div className="h-20 md:h-24 top-0 fixed bg-white z-50">
-        <Navbar />
-      </div>
       <div className="mt-20 md:mt-24 w-screen">
         <div className="min-h-screen bg-neutral-light">
           {/* Progress Bar */}

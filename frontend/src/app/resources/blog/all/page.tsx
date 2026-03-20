@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 import { Clock, User, Calendar } from "lucide-react";
-import Navbar from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { useBlogPosts } from "@/hooks/useBlogPosts";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,7 +15,6 @@ export default function AllPosts() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <h1 className="text-5xl font-bold text-orange-500 mb-12 text-center">All Articles</h1>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -45,7 +43,6 @@ export default function AllPosts() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <h1 className="text-5xl font-bold text-orange-500 mb-12 text-center">All Articles</h1>
           <div className="text-center text-red-500">
@@ -61,7 +58,6 @@ export default function AllPosts() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <h1 className="text-5xl font-bold text-orange-500 mb-12 text-center">All Articles</h1>
         

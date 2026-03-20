@@ -13,7 +13,7 @@
  * - Search/filter
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 
 // ============================================
 // TYPES
@@ -344,34 +344,49 @@ export function RawDataTable({
   data: RawDataRow[];
   onClose?: () => void;
 }) {
-  const columns: DataTableColumn[] = [
-    { key: 'entityName', header: 'Entity Name', width: 200 },
-    { key: 'level', header: 'Level', width: 60, align: 'center' },
-    { key: 'material', header: 'Material', width: 120 },
-    { key: 'roomName', header: 'Room_Name', width: 120 },
-    { key: 'unitLocation', header: 'Unit_Location', width: 100 },
-    { key: 'boxModel', header: 'Box_Model', width: 120 },
-    { key: 'boxType', header: 'Box_Type', width: 100 },
-    { key: 'lenX', header: 'LenX', width: 80, align: 'right' },
-    { key: 'lenY', header: 'LenY', width: 80, align: 'right' },
-    { key: 'lenZ', header: 'LenZ', width: 80, align: 'right' },
-    { key: 'x', header: 'X', width: 80, align: 'right' },
-    { key: 'y', header: 'Y', width: 80, align: 'right' },
-    { key: 'z', header: 'Z', width: 80, align: 'right' },
-    { key: 'plankId', header: 'plank_id', width: 80, align: 'center' },
+  const priorityKeys = [
+    'entityName', 'level', 'material', 'roomName', 'unitLocation',
+    'boxModel', 'boxType', 'lenX', 'lenY', 'lenZ', 'x', 'y', 'z', 'plankId',
   ];
+  const priorityHeaders: Record<string, string> = {
+    entityName: 'Entity Name', level: 'Level', material: 'Material',
+    roomName: 'Room_Name', unitLocation: 'Unit_Location', boxModel: 'Box_Model',
+    boxType: 'Box_Type', lenX: 'LenX', lenY: 'LenY', lenZ: 'LenZ',
+    x: 'X', y: 'Y', z: 'Z', plankId: 'plank_id',
+  };
 
-  // Calculate statistics
-  const wallCount = data.filter(r => r.level === 0).length;
-  const boxCount = data.filter(r => r.level === 1).length;
-  const plankCount = data.filter(r => r.level === 2).length;
-  const operationCount = data.filter(r => r.level === 3).length;
+  const allKeys = React.useMemo(() => {
+    const seen = new Set<string>();
+    const ordered: string[] = [];
+    for (const k of priorityKeys) {
+      if (!seen.has(k)) { seen.add(k); ordered.push(k); }
+    }
+    for (const row of data) {
+      for (const k of Object.keys(row as unknown as Record<string, unknown>)) {
+        if (!seen.has(k)) { seen.add(k); ordered.push(k); }
+      }
+    }
+    return ordered;
+  }, [data]);
+
+  const columns: DataTableColumn[] = allKeys.map(k => ({
+    key: k,
+    header: priorityHeaders[k] || k,
+    width: ['entityName', 'material', 'roomName'].includes(k) ? 200 : 100,
+    align: (['level', 'plankId'].includes(k) ? 'center' : undefined) as 'center' | 'right' | 'left' | undefined,
+  }));
+
+  const asRec = data as unknown as Record<string, unknown>[];
+  const wallCount = asRec.filter(r => Number(r.level) === 0).length;
+  const boxCount = asRec.filter(r => Number(r.level) === 1).length;
+  const plankCount = asRec.filter(r => Number(r.level) === 2).length;
+  const operationCount = asRec.filter(r => Number(r.level) === 3).length;
 
   return (
     <DataTableView
       title="Raw Data (Hierarchical)"
       columns={columns}
-      data={data as unknown as Record<string, unknown>[]}
+      data={asRec}
       onClose={onClose}
       summary={[
         { label: 'Walls', value: String(wallCount) },
@@ -389,30 +404,36 @@ export function RawDataTable({
 
 /**
  * Formatted Data Table with Dynamic Operation Columns
- * Shows Level 3 operations (hinges, screws, VB holes, grooves, L-cuts)
- * Matches AppScript Formatted_Plank_Data output
+ * Supports inline editing, column visibility toggles, and search/filter.
  */
 export function FormattedDataTable({
   data,
   onClose,
+  editable = false,
+  onSave,
+  onPlankIdChange,
 }: {
   data: FormattedPlankData[];
   onClose?: () => void;
+  editable?: boolean;
+  onSave?: (updated: FormattedPlankData[]) => void;
+  onPlankIdChange?: (updated: FormattedPlankData[]) => void;
 }) {
-  // Build dynamic operation columns based on max counts in data
+  const [editMode, setEditMode] = useState(editable);
+  const [editedData, setEditedData] = useState<Record<string, unknown>[]>([]);
+  const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+
   const operationColumns = useMemo(() => {
     const maxCounts: Record<string, number> = {
-      hinges: 0,
-      screws: 0,
-      vb_main: 0,
-      vb_double: 0,
-      grooves: 0,
-      slots: 0,
-      profiles: 0,
-      l_cuts: 0,
+      hinges: 0, screws: 0, vb_main: 0, vb_double: 0,
+      grooves: 0, slots: 0, profiles: 0, l_cuts: 0,
     };
-
-    // Find max operation counts across all planks
     data.forEach(plank => {
       if (plank.operations) {
         maxCounts.hinges = Math.max(maxCounts.hinges, plank.operations.hinges?.length || 0);
@@ -425,38 +446,27 @@ export function FormattedDataTable({
         maxCounts.l_cuts = Math.max(maxCounts.l_cuts, plank.operations.l_cuts?.length || 0);
       }
     });
-
     const cols: DataTableColumn[] = [];
-    
-    // Add hinge columns
     for (let i = 1; i <= maxCounts.hinges; i++) {
       cols.push({ key: `hing_${i}_X`, header: `hing_${i}_X`, width: 70, align: 'right' });
       cols.push({ key: `hing_${i}_Y`, header: `hing_${i}_Y`, width: 70, align: 'right' });
       cols.push({ key: `hing_${i}_Z`, header: `hing_${i}_Z`, width: 70, align: 'right' });
     }
-    
-    // Add screw columns
     for (let i = 1; i <= maxCounts.screws; i++) {
       cols.push({ key: `screw_${i}_X`, header: `screw_${i}_X`, width: 70, align: 'right' });
       cols.push({ key: `screw_${i}_Y`, header: `screw_${i}_Y`, width: 70, align: 'right' });
       cols.push({ key: `screw_${i}_Z`, header: `screw_${i}_Z`, width: 70, align: 'right' });
     }
-    
-    // Add VB main columns
     for (let i = 1; i <= maxCounts.vb_main; i++) {
       cols.push({ key: `vb_main_${i}_X`, header: `vb_main_${i}_X`, width: 70, align: 'right' });
       cols.push({ key: `vb_main_${i}_Y`, header: `vb_main_${i}_Y`, width: 70, align: 'right' });
       cols.push({ key: `vb_main_${i}_Z`, header: `vb_main_${i}_Z`, width: 70, align: 'right' });
     }
-    
-    // Add VB double columns
     for (let i = 1; i <= maxCounts.vb_double; i++) {
       cols.push({ key: `vb_double_${i}_X`, header: `vb_double_${i}_X`, width: 70, align: 'right' });
       cols.push({ key: `vb_double_${i}_Y`, header: `vb_double_${i}_Y`, width: 70, align: 'right' });
       cols.push({ key: `vb_double_${i}_Z`, header: `vb_double_${i}_Z`, width: 70, align: 'right' });
     }
-    
-    // Add groove columns (with length and width)
     for (let i = 1; i <= maxCounts.grooves; i++) {
       cols.push({ key: `groove_${i}_X`, header: `groove_${i}_X`, width: 70, align: 'right' });
       cols.push({ key: `groove_${i}_Y`, header: `groove_${i}_Y`, width: 70, align: 'right' });
@@ -464,8 +474,6 @@ export function FormattedDataTable({
       cols.push({ key: `groove_${i}_length`, header: `groove_${i}_length`, width: 80, align: 'right' });
       cols.push({ key: `groove_${i}_width`, header: `groove_${i}_width`, width: 80, align: 'right' });
     }
-    
-    // Add slot columns (with length and width)
     for (let i = 1; i <= maxCounts.slots; i++) {
       cols.push({ key: `slot_${i}_X`, header: `slot_${i}_X`, width: 70, align: 'right' });
       cols.push({ key: `slot_${i}_Y`, header: `slot_${i}_Y`, width: 70, align: 'right' });
@@ -473,8 +481,6 @@ export function FormattedDataTable({
       cols.push({ key: `slot_${i}_length`, header: `slot_${i}_length`, width: 80, align: 'right' });
       cols.push({ key: `slot_${i}_width`, header: `slot_${i}_width`, width: 80, align: 'right' });
     }
-    
-    // Add profile columns (with length and width)
     for (let i = 1; i <= maxCounts.profiles; i++) {
       cols.push({ key: `profile_${i}_X`, header: `profile_${i}_X`, width: 70, align: 'right' });
       cols.push({ key: `profile_${i}_Y`, header: `profile_${i}_Y`, width: 70, align: 'right' });
@@ -482,8 +488,6 @@ export function FormattedDataTable({
       cols.push({ key: `profile_${i}_length`, header: `profile_${i}_length`, width: 80, align: 'right' });
       cols.push({ key: `profile_${i}_width`, header: `profile_${i}_width`, width: 80, align: 'right' });
     }
-    
-    // Add L-cut triplet columns
     for (let i = 1; i <= maxCounts.l_cuts; i++) {
       cols.push({ key: `L_cut_${i}_start_X`, header: `L_cut_${i}_start_X`, width: 90, align: 'right' });
       cols.push({ key: `L_cut_${i}_start_Y`, header: `L_cut_${i}_start_Y`, width: 90, align: 'right' });
@@ -492,101 +496,35 @@ export function FormattedDataTable({
       cols.push({ key: `L_cut_${i}_end_X`, header: `L_cut_${i}_end_X`, width: 90, align: 'right' });
       cols.push({ key: `L_cut_${i}_end_Y`, header: `L_cut_${i}_end_Y`, width: 90, align: 'right' });
     }
-
     return cols;
   }, [data]);
 
-  // Flatten operations into row data
-  const flattenedData = useMemo(() => {
-    return data.map(plank => {
-      const row: Record<string, unknown> = {
-        roomName: plank.roomName,
-        boxType: plank.boxType,
-        boxModel: plank.boxModel,
-        boxOrientation: plank.boxOrientation,
-        boxName: plank.boxName,
-        plankName: plank.plankName,
-        plankId: plank.plankId,
-        plankLength: plank.plankLength,
-        plankWidth: plank.plankWidth,
-        plankThickness: plank.plankThickness,
-        plankMaterial: plank.plankMaterial,
-        ebValue: plank.ebValue,
-      };
+  const flattenPlank = useCallback((plank: FormattedPlankData): Record<string, unknown> => {
+    const row: Record<string, unknown> = {
+      roomName: plank.roomName, boxType: plank.boxType, boxModel: plank.boxModel,
+      boxOrientation: plank.boxOrientation, boxName: plank.boxName,
+      plankName: plank.plankName, plankId: plank.plankId,
+      plankLength: plank.plankLength, plankWidth: plank.plankWidth,
+      plankThickness: plank.plankThickness, plankMaterial: plank.plankMaterial,
+      ebValue: plank.ebValue,
+    };
+    if (plank.operations) {
+      plank.operations.hinges?.forEach((op, i) => { row[`hing_${i+1}_X`] = op.x?.toFixed(1); row[`hing_${i+1}_Y`] = op.y?.toFixed(1); row[`hing_${i+1}_Z`] = op.z?.toFixed(1); });
+      plank.operations.screws?.forEach((op, i) => { row[`screw_${i+1}_X`] = op.x?.toFixed(1); row[`screw_${i+1}_Y`] = op.y?.toFixed(1); row[`screw_${i+1}_Z`] = op.z?.toFixed(1); });
+      plank.operations.vb_main?.forEach((op, i) => { row[`vb_main_${i+1}_X`] = op.x?.toFixed(1); row[`vb_main_${i+1}_Y`] = op.y?.toFixed(1); row[`vb_main_${i+1}_Z`] = op.z?.toFixed(1); });
+      plank.operations.vb_double?.forEach((op, i) => { row[`vb_double_${i+1}_X`] = op.x?.toFixed(1); row[`vb_double_${i+1}_Y`] = op.y?.toFixed(1); row[`vb_double_${i+1}_Z`] = op.z?.toFixed(1); });
+      plank.operations.grooves?.forEach((op, i) => { row[`groove_${i+1}_X`] = op.x?.toFixed(1); row[`groove_${i+1}_Y`] = op.y?.toFixed(1); row[`groove_${i+1}_Z`] = op.z?.toFixed(1); row[`groove_${i+1}_length`] = op.length?.toFixed(1); row[`groove_${i+1}_width`] = op.width?.toFixed(1); });
+      plank.operations.slots?.forEach((op, i) => { row[`slot_${i+1}_X`] = op.x?.toFixed(1); row[`slot_${i+1}_Y`] = op.y?.toFixed(1); row[`slot_${i+1}_Z`] = op.z?.toFixed(1); row[`slot_${i+1}_length`] = op.length?.toFixed(1); row[`slot_${i+1}_width`] = op.width?.toFixed(1); });
+      plank.operations.profiles?.forEach((op, i) => { row[`profile_${i+1}_X`] = op.x?.toFixed(1); row[`profile_${i+1}_Y`] = op.y?.toFixed(1); row[`profile_${i+1}_Z`] = op.z?.toFixed(1); row[`profile_${i+1}_length`] = op.length?.toFixed(1); row[`profile_${i+1}_width`] = op.width?.toFixed(1); });
+      plank.operations.l_cuts?.forEach((lc, i) => { row[`L_cut_${i+1}_start_X`] = lc.start?.x?.toFixed(1); row[`L_cut_${i+1}_start_Y`] = lc.start?.y?.toFixed(1); row[`L_cut_${i+1}_center_X`] = lc.center?.x?.toFixed(1); row[`L_cut_${i+1}_center_Y`] = lc.center?.y?.toFixed(1); row[`L_cut_${i+1}_end_X`] = lc.end?.x?.toFixed(1); row[`L_cut_${i+1}_end_Y`] = lc.end?.y?.toFixed(1); });
+    }
+    return row;
+  }, []);
 
-      // Flatten operations
-      if (plank.operations) {
-        // Hinges
-        plank.operations.hinges?.forEach((op, i) => {
-          row[`hing_${i + 1}_X`] = op.x?.toFixed(1);
-          row[`hing_${i + 1}_Y`] = op.y?.toFixed(1);
-          row[`hing_${i + 1}_Z`] = op.z?.toFixed(1);
-        });
-        
-        // Screws
-        plank.operations.screws?.forEach((op, i) => {
-          row[`screw_${i + 1}_X`] = op.x?.toFixed(1);
-          row[`screw_${i + 1}_Y`] = op.y?.toFixed(1);
-          row[`screw_${i + 1}_Z`] = op.z?.toFixed(1);
-        });
-        
-        // VB Main
-        plank.operations.vb_main?.forEach((op, i) => {
-          row[`vb_main_${i + 1}_X`] = op.x?.toFixed(1);
-          row[`vb_main_${i + 1}_Y`] = op.y?.toFixed(1);
-          row[`vb_main_${i + 1}_Z`] = op.z?.toFixed(1);
-        });
-        
-        // VB Double
-        plank.operations.vb_double?.forEach((op, i) => {
-          row[`vb_double_${i + 1}_X`] = op.x?.toFixed(1);
-          row[`vb_double_${i + 1}_Y`] = op.y?.toFixed(1);
-          row[`vb_double_${i + 1}_Z`] = op.z?.toFixed(1);
-        });
-        
-        // Grooves
-        plank.operations.grooves?.forEach((op, i) => {
-          row[`groove_${i + 1}_X`] = op.x?.toFixed(1);
-          row[`groove_${i + 1}_Y`] = op.y?.toFixed(1);
-          row[`groove_${i + 1}_Z`] = op.z?.toFixed(1);
-          row[`groove_${i + 1}_length`] = op.length?.toFixed(1);
-          row[`groove_${i + 1}_width`] = op.width?.toFixed(1);
-        });
-        
-        // Slots
-        plank.operations.slots?.forEach((op, i) => {
-          row[`slot_${i + 1}_X`] = op.x?.toFixed(1);
-          row[`slot_${i + 1}_Y`] = op.y?.toFixed(1);
-          row[`slot_${i + 1}_Z`] = op.z?.toFixed(1);
-          row[`slot_${i + 1}_length`] = op.length?.toFixed(1);
-          row[`slot_${i + 1}_width`] = op.width?.toFixed(1);
-        });
-        
-        // Profiles
-        plank.operations.profiles?.forEach((op, i) => {
-          row[`profile_${i + 1}_X`] = op.x?.toFixed(1);
-          row[`profile_${i + 1}_Y`] = op.y?.toFixed(1);
-          row[`profile_${i + 1}_Z`] = op.z?.toFixed(1);
-          row[`profile_${i + 1}_length`] = op.length?.toFixed(1);
-          row[`profile_${i + 1}_width`] = op.width?.toFixed(1);
-        });
-        
-        // L-cuts (triplets)
-        plank.operations.l_cuts?.forEach((lc, i) => {
-          row[`L_cut_${i + 1}_start_X`] = lc.start?.x?.toFixed(1);
-          row[`L_cut_${i + 1}_start_Y`] = lc.start?.y?.toFixed(1);
-          row[`L_cut_${i + 1}_center_X`] = lc.center?.x?.toFixed(1);
-          row[`L_cut_${i + 1}_center_Y`] = lc.center?.y?.toFixed(1);
-          row[`L_cut_${i + 1}_end_X`] = lc.end?.x?.toFixed(1);
-          row[`L_cut_${i + 1}_end_Y`] = lc.end?.y?.toFixed(1);
-        });
-      }
+  const flattenedData = useMemo(() => data.map(flattenPlank), [data, flattenPlank]);
 
-      return row;
-    });
-  }, [data]);
+  const workingData = editMode && editedData.length > 0 ? editedData : flattenedData;
 
-  // Base columns
   const baseColumns: DataTableColumn[] = [
     { key: 'roomName', header: 'room_name', width: 100 },
     { key: 'boxType', header: 'box_type', width: 100 },
@@ -602,36 +540,222 @@ export function FormattedDataTable({
     { key: 'ebValue', header: 'EB_Value', width: 80, align: 'right' },
   ];
 
-  // Combine base columns with dynamic operation columns
   const allColumns = [...baseColumns, ...operationColumns];
+  const visibleColumns = allColumns.filter(c => !hiddenColumns.has(c.key));
 
-  // Count operations
+  const filteredData = useMemo(() => {
+    if (!searchQuery.trim()) return workingData;
+    const q = searchQuery.toLowerCase();
+    return workingData.filter(row =>
+      visibleColumns.some(col => {
+        const v = row[col.key];
+        return v != null && String(v).toLowerCase().includes(q);
+      })
+    );
+  }, [workingData, visibleColumns, searchQuery]);
+
+  const sortedData = useMemo(() => {
+    if (!sortColumn) return filteredData;
+    return [...filteredData].sort((a, b) => {
+      const av = a[sortColumn], bv = b[sortColumn];
+      if (av == null && bv == null) return 0;
+      if (av == null) return sortDirection === 'asc' ? 1 : -1;
+      if (bv == null) return sortDirection === 'asc' ? -1 : 1;
+      if (typeof av === 'number' && typeof bv === 'number') return sortDirection === 'asc' ? av - bv : bv - av;
+      return sortDirection === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+    });
+  }, [filteredData, sortColumn, sortDirection]);
+
+  const handleSort = (key: string) => {
+    if (sortColumn === key) setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortColumn(key); setSortDirection('asc'); }
+  };
+
+  const handleEnterEditMode = () => {
+    setEditedData(flattenedData.map(r => ({ ...r })));
+    setEditMode(true);
+  };
+
+  const handleCellClick = (rowIdx: number, colKey: string) => {
+    if (!editMode) return;
+    const realRow = sortedData[rowIdx];
+    const realIdx = workingData.indexOf(realRow);
+    if (realIdx === -1) return;
+    setEditingCell({ row: realIdx, col: colKey });
+    setEditValue(String(realRow[colKey] ?? ''));
+  };
+
+  const handleCellSave = () => {
+    if (!editingCell) return;
+    const { row, col } = editingCell;
+    const updated = [...editedData];
+    const oldPlankId = updated[row]?.plankId;
+    updated[row] = { ...updated[row], [col]: editValue };
+    setEditedData(updated);
+    setEditingCell(null);
+    if (col === 'plankId' && editValue !== oldPlankId && onPlankIdChange) {
+      const rebuilt = rebuildFormattedFromFlat(updated, data);
+      onPlankIdChange(rebuilt);
+    }
+  };
+
+  const handleCellKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleCellSave();
+    if (e.key === 'Escape') setEditingCell(null);
+  };
+
+  const handleSaveAll = () => {
+    if (!onSave) return;
+    const rebuilt = rebuildFormattedFromFlat(editedData, data);
+    onSave(rebuilt);
+    setEditMode(false);
+    setEditedData([]);
+  };
+
+  const handleCancelEdit = () => {
+    setEditMode(false);
+    setEditedData([]);
+    setEditingCell(null);
+  };
+
+  const toggleColumn = (key: string) => {
+    setHiddenColumns(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
   const totalOperations = data.reduce((sum, plank) => {
     if (!plank.operations) return sum;
-    return sum + 
-      (plank.operations.hinges?.length || 0) +
-      (plank.operations.screws?.length || 0) +
-      (plank.operations.vb_main?.length || 0) +
-      (plank.operations.vb_double?.length || 0) +
-      (plank.operations.grooves?.length || 0) +
-      (plank.operations.slots?.length || 0) +
-      (plank.operations.profiles?.length || 0) +
-      (plank.operations.l_cuts?.length || 0);
+    return sum +
+      (plank.operations.hinges?.length || 0) + (plank.operations.screws?.length || 0) +
+      (plank.operations.vb_main?.length || 0) + (plank.operations.vb_double?.length || 0) +
+      (plank.operations.grooves?.length || 0) + (plank.operations.slots?.length || 0) +
+      (plank.operations.profiles?.length || 0) + (plank.operations.l_cuts?.length || 0);
   }, 0);
 
+  const formatCell = (col: DataTableColumn, value: unknown): string => {
+    if (value == null) return '';
+    if (col.format) return col.format(value);
+    if (typeof value === 'number') return Number.isInteger(value) ? String(value) : value.toFixed(2);
+    return String(value);
+  };
+
   return (
-    <DataTableView
-      title="Formatted Data (with Level 3 Operations)"
-      columns={allColumns}
-      data={flattenedData}
-      onClose={onClose}
-      summary={[
-        { label: 'Total Planks', value: String(data.length) },
-        { label: 'Total Operations', value: String(totalOperations) },
-        { label: 'Operation Columns', value: String(operationColumns.length) },
-      ]}
-    />
+    <div className="flex flex-col bg-white rounded-lg shadow-xl overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b flex-wrap gap-2">
+        <div className="flex items-center gap-4">
+          <h2 className="text-lg font-semibold text-gray-900">Formatted Data (with Level 3 Operations)</h2>
+          <span className="text-sm text-gray-500">{sortedData.length} rows{searchQuery && ` (filtered from ${workingData.length})`}</span>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative">
+            <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search..." className="w-40 pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent" />
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          </div>
+          <div className="relative">
+            <button onClick={() => setShowColumnPicker(!showColumnPicker)} className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors">Columns ({visibleColumns.length}/{allColumns.length})</button>
+            {showColumnPicker && (
+              <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-xl border z-50 max-h-80 overflow-auto w-64 p-2">
+                <div className="flex justify-between items-center mb-2 px-1">
+                  <span className="text-xs font-semibold text-gray-500 uppercase">Toggle Columns</span>
+                  <button onClick={() => setHiddenColumns(new Set())} className="text-xs text-blue-600 hover:underline">Show All</button>
+                </div>
+                {allColumns.map(col => (
+                  <label key={col.key} className="flex items-center gap-2 px-1 py-0.5 hover:bg-gray-50 rounded text-sm cursor-pointer">
+                    <input type="checkbox" checked={!hiddenColumns.has(col.key)} onChange={() => toggleColumn(col.key)} className="w-3.5 h-3.5" />
+                    <span className="truncate">{col.header}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+          {!editMode && onSave && (
+            <button onClick={handleEnterEditMode} className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors">Edit</button>
+          )}
+          {editMode && (
+            <>
+              <button onClick={handleSaveAll} className="px-3 py-1.5 text-sm bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors">Save</button>
+              <button onClick={handleCancelEdit} className="px-3 py-1.5 text-sm bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors">Cancel</button>
+            </>
+          )}
+          {onClose && (
+            <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="overflow-auto" style={{ maxHeight: '70vh' }}>
+        <table className="w-full border-collapse min-w-max">
+          <thead className="sticky top-0 z-10">
+            <tr className="bg-gray-100">
+              <th className="px-3 py-2 text-xs font-semibold text-gray-500 text-center border-b border-r border-gray-200 bg-gray-100 w-12">#</th>
+              {visibleColumns.map(col => (
+                <th key={col.key} onClick={() => handleSort(col.key)} className="px-3 py-2 text-xs font-semibold text-gray-700 border-b border-r border-gray-200 bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors whitespace-nowrap" style={{ width: col.width, textAlign: col.align || 'left' }}>
+                  <div className="flex items-center gap-1 justify-between">
+                    <span>{col.header}</span>
+                    {sortColumn === col.key && <svg className={`w-3 h-3 transition-transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>}
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sortedData.length === 0 ? (
+              <tr><td colSpan={visibleColumns.length + 1} className="px-4 py-8 text-center text-gray-500">{searchQuery ? 'No matching records' : 'No data available'}</td></tr>
+            ) : (
+              sortedData.map((row, ri) => {
+                const realIdx = workingData.indexOf(row);
+                return (
+                  <tr key={ri} className={`hover:bg-blue-50 transition-colors border-b border-gray-100 ${editMode ? 'cursor-text' : ''}`}>
+                    <td className="px-3 py-2 text-xs text-gray-400 text-center border-r border-gray-100 bg-gray-50">{ri + 1}</td>
+                    {visibleColumns.map(col => {
+                      const isEditing = editMode && editingCell?.row === realIdx && editingCell?.col === col.key;
+                      return (
+                        <td key={col.key} className={`px-3 py-1.5 text-sm border-r border-gray-100 ${editMode ? 'cursor-text hover:bg-yellow-50' : ''}`} style={{ textAlign: col.align || 'left' }} onClick={() => handleCellClick(ri, col.key)}>
+                          {isEditing ? (
+                            <input type="text" value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={handleCellSave} onKeyDown={handleCellKeyDown} autoFocus className="w-full px-1 py-0.5 text-sm border border-blue-400 rounded focus:ring-1 focus:ring-blue-500 outline-none" />
+                          ) : (
+                            <span className={editMode && col.key === 'plankId' ? 'text-blue-600 font-medium' : 'text-gray-900'}>{formatCell(col, row[col.key])}</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+      <div className="px-4 py-3 bg-gray-50 border-t flex items-center gap-6">
+        <div className="flex items-center gap-2"><span className="text-sm text-gray-500">Total Planks:</span><span className="text-sm font-semibold text-gray-900">{data.length}</span></div>
+        <div className="flex items-center gap-2"><span className="text-sm text-gray-500">Total Operations:</span><span className="text-sm font-semibold text-gray-900">{totalOperations}</span></div>
+        <div className="flex items-center gap-2"><span className="text-sm text-gray-500">Operation Columns:</span><span className="text-sm font-semibold text-gray-900">{operationColumns.length}</span></div>
+        {editMode && <span className="text-xs text-blue-600 ml-auto">Click any cell to edit. Press Enter to save or Escape to cancel.</span>}
+      </div>
+    </div>
   );
+}
+
+function rebuildFormattedFromFlat(flat: Record<string, unknown>[], original: FormattedPlankData[]): FormattedPlankData[] {
+  return flat.map((row, i) => ({
+    ...(original[i] || {} as FormattedPlankData),
+    roomName: String(row.roomName ?? ''),
+    boxType: String(row.boxType ?? ''),
+    boxModel: String(row.boxModel ?? ''),
+    boxOrientation: (String(row.boxOrientation ?? 'N/A') as 'NS' | 'EW' | 'N/A'),
+    boxName: String(row.boxName ?? ''),
+    plankName: String(row.plankName ?? ''),
+    plankId: String(row.plankId ?? ''),
+    plankLength: Number(row.plankLength) || 0,
+    plankWidth: Number(row.plankWidth) || 0,
+    plankThickness: Number(row.plankThickness) || 0,
+    plankMaterial: String(row.plankMaterial ?? ''),
+    ebValue: Number(row.ebValue) || 0,
+  }));
 }
 
 /**

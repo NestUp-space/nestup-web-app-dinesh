@@ -224,23 +224,119 @@ NEXT_PUBLIC_API_URL=https://your-backend.railway.app
 NODE_ENV=production
 ```
 
+## 🌊 DigitalOcean App Platform (single-component)
+
+When the app is deployed as one component (frontend + backend via `start-all.js`), set these on the **nestup-web-app** component so `/api/catalog` works and CORS allows the app origin.
+
+### Required for /api/catalog and CORS
+
+| Variable | Value |
+|----------|--------|
+| `FRONTEND_URL` | Your app URL, e.g. `https://sea-lion-app-p9uw8.ondigitalocean.app` (no trailing slash) |
+| `ENABLE_FRONTEND_PROXY` | `1` or `true` |
+
+### Catalog data (avoid 503 from `/api/catalog`)
+
+Add these so the Next.js API route can load from Google Sheets:
+
+| Variable | Purpose |
+|----------|---------|
+| `GOOGLE_SHEETS_API_KEY` or `NEXT_PUBLIC_GOOGLE_SHEETS_API_KEY` | API key for Google Sheets |
+| `NEXT_PUBLIC_CATALOGUE_SHEET_ID` or `CATALOGUE_SHEET_ID` | Cabinet catalog sheet ID |
+| `NEXT_PUBLIC_MATERIAL_CATALOG_SHEET_ID` or `MATERIAL_CATALOG_SHEET_ID` | Material catalog sheet ID |
+
+### After changing env or code
+
+1. Save env vars in the component settings.
+2. Trigger a **new deployment** so the runtime uses the latest build and env. The startup log should show: `Frontend proxy enabled: / and /api/catalog -> Next.js, other /api -> Express`.
+
+---
+
+## 🌐 Full website deployment (core + visualiser + measurements + vision service)
+
+Use this section when the **frontend + backend are already half-deployed** (e.g. on DigitalOcean at `sea-lion-app-p9uw8.ondigitalocean.app`) and you want the **whole site** live: core pages, visualiser/designer, **Measurements** (including the vision service for wall/object detection).
+
+### What’s in the full site
+
+| Part | Where it lives | How it’s deployed |
+|------|----------------|-------------------|
+| Core site (Home, About, Contact, Login, Get a Quote) | `frontend/` (Next.js) | Same frontend build |
+| Visualiser (designer, generate, reports, installation-guide) | `frontend/src/app/visualiser/` | Same frontend build |
+| Measurements (landing, preset, capture, processing, history) | `frontend/src/app/measurements/` | Same frontend build — **must be in the deployed branch** |
+| Vision service (ArUco + YOLO: windows, doors, switchboards) | `frontend/src/app/aruco-measurement-system/vision-service/` | **Separate** Docker service (see below) |
+
+### Step 1: Ensure the frontend build includes Measurements
+
+If `/measurements` returns “Page not found” on the live URL:
+
+1. The deployed **branch/commit** must contain the `frontend/src/app/measurements/` folder (and its sub-routes).
+2. **Redeploy** the frontend from that branch (e.g. trigger a new deployment on DigitalOcean or Vercel from the repo/branch that has Measurements). No separate “measurements app” deploy — it’s part of the same Next.js app.
+3. After redeploy, the same app URL should serve `/`, `/visualiser`, `/visualiser/designer`, `/measurements`, `/measurements/history`, etc.
+
+### Step 2: Deploy the vision service (for Measurements to work end-to-end)
+
+The Measurements flow (upload photo → get wall dimensions and detected windows/doors/switchboards) calls a **Python FastAPI** service. Deploy it as a **separate** service and point the frontend at it.
+
+**Location in repo:** `frontend/src/app/aruco-measurement-system/vision-service/`
+
+- **main.py** — ArUco detection, scale calibration, wall dimensions, `/measure-wall` API.
+- **feature_detection.py** — YOLO-based detection of windows, doors, switchboards.
+- **models/** — Place **best.pt** (YOLO weights) in:
+  - `models/windows/best.pt`
+  - `models/doors/best.pt`
+  - `models/switchboards/best.pt`  
+  (Copy from training output, e.g. nestup_wallai or `runs/detect/.../weights/best.pt`.) See `vision-service/models/README.md`. There is no “best.py” — the model files are **best.pt**.
+
+**Deploy options:**
+
+- **DigitalOcean App Platform:** Add a second component: type **Container** (or Dockerfile). Build context = `frontend/src/app/aruco-measurement-system/vision-service/`. Ensure the Docker image includes the **best.pt** files (e.g. copy them into the image or use a build step that pulls them). Expose **port 8000**. Note the public URL (e.g. `https://vision-xxxx.ondigitalocean.app`).
+- **Railway / other host:** Build from the vision-service directory using the existing **Dockerfile**, run the container on port 8000, set the public URL.
+
+**Connect the frontend to the vision service:**
+
+In the **frontend** deployment (DigitalOcean component, or Vercel env vars), set:
+
+| Variable | Value |
+|---------|--------|
+| `NEXT_PUBLIC_MEASUREMENT_API_URL` | Public URL of the vision service, e.g. `https://vision-xxxx.ondigitalocean.app` (no trailing slash) |
+
+The Measurements UI (`frontend/src/lib/measurements/measurementApi.ts`) uses this to call `/measure-wall`. Without it, the Measurements **pages** load but photo processing will fail or show “backend not reachable”.
+
+### Step 3: Full deployment checklist
+
+- [ ] Frontend (and backend if separate) deployed from a branch that contains `app/measurements/`.
+- [ ] Live URL serves `/measurements` (no 404).
+- [ ] Vision service deployed (Docker, port 8000) with **best.pt** in `models/windows/`, `models/doors/`, `models/switchboards/`.
+- [ ] `NEXT_PUBLIC_MEASUREMENT_API_URL` set on the frontend to the vision service URL.
+- [ ] (DigitalOcean single-component) `FRONTEND_URL` and `ENABLE_FRONTEND_PROXY=1` set; catalog env vars set if using Google Sheets.
+
+---
+
 ## 🚨 Troubleshooting
 
 ### Common Issues
 
-1. **CORS Errors:**
+1. **GET /api/catalog returns 404 (DigitalOcean single-component):**
+   - The running build may be old. Ensure the branch has the commit that proxies `/api/catalog` to Next.js (log: `Frontend proxy enabled: / and /api/catalog -> Next.js`).
+   - Set `ENABLE_FRONTEND_PROXY=1` and `FRONTEND_URL` to your app URL, then trigger a new deployment.
+
+2. **CORS policy does not allow origin (DigitalOcean):**
+   - Set `FRONTEND_URL` to your app URL (e.g. `https://sea-lion-app-p9uw8.ondigitalocean.app`) so the backend allows that origin when the proxy is enabled.
+   - Redeploy after changing env vars.
+
+3. **CORS Errors (Railway/Vercel):**
    - Ensure `CORS_ORIGIN` matches your frontend domain exactly
    - Include protocol (https://)
 
-2. **Database Connection Issues:**
+4. **Database Connection Issues:**
    - Check `DATABASE_URL` is set correctly
    - Ensure migrations ran successfully
 
-3. **Build Failures:**
+5. **Build Failures:**
    - Check build logs in Railway/Vercel
    - Ensure all dependencies are in `package.json`
 
-4. **API Not Responding:**
+6. **API Not Responding:**
    - Check Railway service is running
    - Verify health check endpoint
 

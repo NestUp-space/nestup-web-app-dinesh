@@ -2,13 +2,36 @@
  * @OnlyCurrentDoc
  *
  * Formatted Data Generator
- * Version: v8.9 (Strict Level 2 Enforcement for Oversize Check)
+ * Version: v8.12 (Level Column Reader + Level 0 HARD STOP)
  *
  * CRITICAL UPDATE:
- * - The 'Oversize Check' now strictly enforces Level 2.
- * - If a row is Level 0, 1, 3, 100, or undefined -> IT IS IGNORED.
- * - Only confirmed Level 2 planks are measured against sheet size.
+ * - Now READS the "Level" column directly from raw data (Column B)
+ * - Level 0 rows are HARD STOPPED:
+ *   1. NEVER appear in Formatted_Plank_Data
+ *   2. NEVER receive plank_id (cleared if exists)
+ *   3. Do NOT affect sequential ID numbering (no gaps)
+ * - Only Level 2 (planks) receive plank_ids
+ * - Fallback to pattern detection if Level column is missing
+ *
+ * SYNC: When plank_id is edited in Formatted_Plank_Data, the raw data sheet's
+ * last column (plank_id) is updated. Match by box_name + plank_name. No new IDs generated.
  */
+
+// =================================================================
+// ===================  SYNC CONFIG (column names as-is)  ============
+// =================================================================
+
+const SYNC_FORMATTED_SHEET = 'Formatted_Plank_Data';
+const SYNC_RAW_SHEET = 'raw data';
+const SYNC_COL_ROOM_NAME = 'room_name';
+const SYNC_COL_BOX_NAME = 'box_name';
+const SYNC_COL_BOX_MODEL = 'box_model';
+const SYNC_COL_PLANK_NAME = 'plank_name';
+const SYNC_COL_PLANK_ID = 'plank_id';
+const SYNC_RAW_ENTITY_NAME = 'Entity Name';
+const SYNC_RAW_LEVEL = 'Level';
+const SYNC_RAW_ROOM = 'Room_Name';
+const SYNC_RAW_BOX_MODEL = 'Box_Model';
 
 // =================================================================
 // ===================      UI & DIALOGS      ===================
@@ -31,9 +54,16 @@ function showEdgeBindingDialog() {
 
   const header = rawValues[0].map(h => String(h).trim());
   const matIdx = findColumnIndexFormatted(header, 'material');
+  const levelIdx = findColumnIndexFormatted(header, 'Level');
 
   const materialSet = new Set();
   for (let i = 1; i < rawValues.length; i++) {
+    // Skip Level 0 rows when collecting materials
+    if (levelIdx !== -1) {
+      const levelVal = getLevelFromColumn(rawValues[i], levelIdx);
+      if (levelVal === 0) continue;
+    }
+    
     const mat = String(rawValues[i][matIdx] || '').trim();
     if (mat) materialSet.add(mat);
   }
@@ -130,8 +160,62 @@ function processSketchUpData(ebSettings) {
 // ===================    VALIDATION & HELPERS    ===================
 // =================================================================
 
+/**
+ * PRIMARY: Read Level directly from the "Level" column in raw data.
+ * Returns the level as a number (0, 1, 2, 3) or null if column doesn't exist/invalid.
+ */
+function getLevelFromColumn(row, levelIdx) {
+  if (levelIdx === -1 || levelIdx === null || levelIdx === undefined) return null;
+  const levelVal = String(row[levelIdx] || '').trim();
+  const levelNum = parseFloat(levelVal);
+  if (isNaN(levelNum)) return null;
+  return levelNum;
+}
+
+/**
+ * FALLBACK: Pattern-based level detection when Level column is missing.
+ * Only used as backup.
+ */
+function detectLevelFallback(obj) {
+  const unitLocation = (obj.unit_location || '').toLowerCase();
+  const entName = (obj.entity_name || '').toLowerCase();
+  
+  // Level 1: Boxes (directional location)
+  if (/north|south|east|west/.test(unitLocation)) return 1;
+  
+  // Level 3: Operations
+  if (/hole|groove|vb|screw|hinge|profile|slot|l_cutting|lcutting|l_cut_start|l_cut_center|l_cut_centre|l_cut_end|lcut_start|lcut_center|lcut_centre|lcut_end|gola_profile_start|gola_profile_center|gola_profile_centre|gola_profile_end|gola_start|gola_center|gola_centre|gola_end|incut_hole|incut_cut|inclined_cut|inplank_hole|internal_cut|internal.?cut/.test(entName)) return 3;
+  
+  // Level 0: Architectural walls (pattern fallback)
+  const isFurnitureWithWall = /wall\s*(mount|mounted|cabinet|unit|shelf|hung|panel|hanging|storage|rack)/i.test(entName);
+  if (!isFurnitureWithWall && /\bwall\b/i.test(entName)) {
+    return 0;
+  }
+  
+  // Default: Level 2 (Planks)
+  return 2;
+}
+
+/**
+ * COMBINED: Get level from column first, fallback to pattern detection.
+ */
+function getRowLevel(row, idx) {
+  // First try reading from Level column
+  const levelFromColumn = getLevelFromColumn(row, idx.Level);
+  if (levelFromColumn !== null) {
+    return levelFromColumn;
+  }
+  
+  // Fallback to pattern detection
+  const rowObj = {
+    entity_name: safeCell(row, idx.entity_name),
+    unit_location: safeCell(row, idx.unit_location)
+  };
+  return detectLevelFallback(rowObj);
+}
+
 function validateOversizedPlanks(sheet) {
-  const SHEET_A = 2400;
+  const SHEET_A = 2421;
   const SHEET_B = 1200;
   const data = sheet.getDataRange().getValues();
   if (data.length < 2) return false;
@@ -143,7 +227,8 @@ function validateOversizedPlanks(sheet) {
     LenZ: findColumnIndexFormatted(header, 'LenZ'),
     entity_name: findColumnIndexFormatted(header, 'entity_name'),
     unit_location: findColumnIndexFormatted(header, 'Unit_location'),
-    material: findColumnIndexFormatted(header, 'material')
+    material: findColumnIndexFormatted(header, 'material'),
+    Level: findColumnIndexFormatted(header, 'Level')
   };
 
   // Helper: Convert column index to Letter
@@ -166,20 +251,23 @@ function validateOversizedPlanks(sheet) {
 
   const oversizedRanges = [];
   let count = 0;
+  let level0SkipCount = 0;
 
   for (let r = 1; r < data.length; r++) {
     const row = data[r];
-    const rowObj = {
-      entity_name: safeCell(row, idx.entity_name),
-      unit_location: safeCell(row, idx.unit_location)
-    };
-
-    // 1. STRICT LEVEL CHECK
-    // If it's Level 0, 1, 3, 100, undefined, null, or 'garbage' -> SKIP.
-    // We ONLY process Level 2.
-    const level = detectLevel(rowObj);
+    
+    // Get level from column or fallback
+    const level = getRowLevel(row, idx);
+    
+    // HARD STOP: Level 0 - skip entirely
+    if (level === 0) {
+      level0SkipCount++;
+      continue;
+    }
+    
+    // Only process Level 2 (planks) for oversized check
     if (level !== 2) {
-        continue; 
+      continue; 
     }
 
     const lx = parseFloatSafe(safeCell(row, idx.LenX));
@@ -187,9 +275,7 @@ function validateOversizedPlanks(sheet) {
     const lz = parseFloatSafe(safeCell(row, idx.LenZ));
     const dims = [lx, ly, lz].sort((a, b) => a - b);
     
-    // 2. Thickness Guard (Safety Net)
-    // Even if it was identified as Level 2, if it's thicker than 50mm,
-    // it's likely a mislabeled Box or assembly. Ignore it.
+    // Thickness Guard
     if (dims[0] > 50) continue;
 
     const middle = dims[1];
@@ -211,7 +297,11 @@ function validateOversizedPlanks(sheet) {
 
   if (count > 0) {
     sheet.getRangeList(oversizedRanges).setBackground('#FFCCCC');
-    SpreadsheetApp.getUi().alert('⚠️ OVERSIZED PLANKS DETECTED!\n\nFound ' + count + ' oversized items.\nStrictly checked Level 2 only.\n(Ignored Levels 0, 1, 3, 100, etc.)');
+    let msg = '⚠️ OVERSIZED PLANKS DETECTED!\n\nFound ' + count + ' oversized items.\nStrictly checked Level 2 only.';
+    if (level0SkipCount > 0) {
+      msg += '\n(Skipped ' + level0SkipCount + ' Level 0 rows)';
+    }
+    SpreadsheetApp.getUi().alert(msg);
     return true;
   }
   return false;
@@ -269,6 +359,64 @@ function findColumnIndexFormatted(headerRow, targetName) {
   return -1;
 }
 
+// ---------- Sync helpers: key = (room_name, box_name, plank_name, box_model, occurrence) ----------
+function getFormattedSyncColumnIndices(headers) {
+  const h = headers.map(function (x) { return String(x || '').trim(); });
+  const room_name = h.indexOf(SYNC_COL_ROOM_NAME);
+  const box_name = h.indexOf(SYNC_COL_BOX_NAME);
+  const box_model = h.indexOf(SYNC_COL_BOX_MODEL);
+  const plank_name = h.indexOf(SYNC_COL_PLANK_NAME);
+  const plank_id = h.indexOf(SYNC_COL_PLANK_ID);
+  if (room_name === -1 || box_name === -1 || plank_name === -1 || plank_id === -1) return null;
+  return { room_name: room_name, box_name: box_name, box_model: box_model, plank_name: plank_name, plank_id: plank_id };
+}
+
+function getRawPlankRowsForSync(rawValues) {
+  if (!rawValues || rawValues.length < 2) return [];
+  const headers = rawValues[0].map(function (h) { return String(h).trim(); });
+  const colEntity = headers.indexOf(SYNC_RAW_ENTITY_NAME);
+  const colLevel = headers.indexOf(SYNC_RAW_LEVEL);
+  const colRoom = headers.indexOf(SYNC_RAW_ROOM);
+  const colBoxModel = headers.indexOf(SYNC_RAW_BOX_MODEL);
+  if (colEntity === -1 || colLevel === -1) return [];
+  const result = [];
+  let currentBox = '';
+  let currentRoom = '';
+  let currentBoxModel = '';
+  for (let i = 1; i < rawValues.length; i++) {
+    const level = rawValues[i][colLevel];
+    const entityName = String(rawValues[i][colEntity] != null ? rawValues[i][colEntity] : '').trim();
+    if (Number(level) === 1) {
+      currentBox = entityName;
+      currentRoom = colRoom >= 0 ? String(rawValues[i][colRoom] != null ? rawValues[i][colRoom] : '').trim() : '';
+      currentBoxModel = colBoxModel >= 0 ? String(rawValues[i][colBoxModel] != null ? rawValues[i][colBoxModel] : '').trim() : '';
+    } else if (Number(level) === 2) {
+      result.push({ sheetRow: i + 1, room: currentRoom, box_name: currentBox, box_model: currentBoxModel, plank_name: entityName });
+    }
+  }
+  return result;
+}
+
+function makeSyncKey(room, boxName, plankName, boxModel, occurrence) {
+  return (room || '') + '\t' + (boxName || '') + '\t' + (plankName || '') + '\t' + (boxModel != null ? boxModel : '') + '\t' + occurrence;
+}
+
+function findRawRowForPlankSync(ss, roomName, boxName, plankName, boxModel, occurrence) {
+  const rawSheet = ss.getSheetByName(SYNC_RAW_SHEET);
+  if (!rawSheet) return null;
+  const rawValues = rawSheet.getDataRange().getValues();
+  const planks = getRawPlankRowsForSync(rawValues);
+  let count = 0;
+  for (let k = 0; k < planks.length; k++) {
+    const p = planks[k];
+    if ((p.room || '') === (roomName || '') && p.box_name === boxName && p.plank_name === plankName && (p.box_model || '') === (boxModel || '')) {
+      count++;
+      if (count === occurrence) return p.sheetRow;
+    }
+  }
+  return null;
+}
+
 // Ensures a column exists in raw sheet; returns 0-based index
 function ensureColumn0(sheet, headerRow, colName) {
   let idx0 = findColumnIndexFormatted(headerRow, colName);
@@ -280,19 +428,12 @@ function ensureColumn0(sheet, headerRow, colName) {
   return idx0;
 }
 
-function detectLevel(obj) {
-  const unitLocation = (obj.unit_location || '').toLowerCase();
-  const entName = (obj.entity_name || '').toLowerCase();
-  if (/north|south|east|west/.test(unitLocation)) return 1;
-  // Include L-cut triplet types (both American "center" and British "centre" spellings) and Gola profile triplet types
-  if (/hole|groove|vb|screw|hinge|profile|slot|l_cutting|lcutting|l_cut_start|l_cut_center|l_cut_centre|l_cut_end|lcut_start|lcut_center|lcut_centre|lcut_end|gola_profile_start|gola_profile_center|gola_profile_centre|gola_profile_end|gola_start|gola_center|gola_centre|gola_end/.test(entName)) return 3;
-  return 2;
-}
-
 function detectOperationType(entName) {
   const nameStr = (entName || '').toLowerCase();
-  if (/vb main|vb_main|vbm|main_vb/.test(nameStr)) return 'vb_main';
-  if (/vb double|vb_double|vbd|double_vb/.test(nameStr)) return 'vb_double';
+  // VB Main variations
+  if (/vb_?main|vbmin|vb min|vbm|main_?vb/.test(nameStr)) return 'vb_main';
+  // VB Double variations
+  if (/vb_?double|vbd|double_?vb/.test(nameStr)) return 'vb_double';
   if (/hinge|hing/.test(nameStr)) return 'hing';
   if (/screw|bolt|pta/.test(nameStr)) return 'screw';
   
@@ -306,34 +447,42 @@ function detectOperationType(entName) {
   if (/slot/.test(nameStr)) return 'slot';
   if (/groove/.test(nameStr)) return 'groove';
   
-  // L-cut triplet subtypes (new architecture)
-  // Support both American (center) and British (centre) spellings
+  // L-cut triplet subtypes
   if (/l_cut_start|lcut_start/.test(nameStr)) return 'l_cut_start';
   if (/l_cut_center|l_cut_centre|lcut_center|lcut_centre/.test(nameStr)) return 'l_cut_center';
   if (/l_cut_end|lcut_end/.test(nameStr)) return 'l_cut_end';
   // Legacy L-cut fallback
   if (/l_cutting|lcutting|l_groove/.test(nameStr)) return 'l_cutting_legacy';
+  // Incut / inplank hole (2-point line or 4-point rectangle, auto-detected from geometry)
+  // Compatible with face, vertical, and horizontal planks via flattenIncutCoordinates(plankType)
+  if (/inplank_hole|inplank_cut|incut_hole|incut_cut|inclined_cut|internal.?cut|internal_cut/.test(nameStr)) return 'incut_hole';
   if (/hole|drilled|bore/.test(nameStr)) return 'hole';
   return 'hole';
 }
 
 function findMaxOperationCounts(rawValues, idx) {
   const plankOpCounter = {};
-  // Track L-cut triplet components per plank
   const plankLCutTripletCounter = {};
-  // Track Gola profile triplet components per plank
   const plankGolaProfileCounter = {};
+  const plankIncutCounter = {};
   let currentBox = null;
   let currentPlank = null;
+  
   for (let r = 1; r < rawValues.length; r++) {
     const row = rawValues[r];
     const rowData = parseRowData(row, idx);
-    const level = detectLevel(rowData);
+    
+    // Get level from column or fallback
+    const level = getRowLevel(row, idx);
+    
+    // HARD STOP: Skip Level 0 entirely
+    if (level === 0) continue;
+    
     if (level === 1) {
       currentBox = { box_name: rowData.entity_name };
       currentPlank = null;
     } else if (level === 2) {
-      currentPlank = { key: makePlankKey(currentBox, rowData.entity_name) };
+      currentPlank = { key: makePlankKey(currentBox, rowData.entity_name, r + 1) };
     } else if (level === 3 && currentPlank) {
       const opType = detectOperationType(rowData.entity_name);
       if (opType !== 'other') {
@@ -357,12 +506,15 @@ function findMaxOperationCounts(rawValues, idx) {
           if (opType === 'gola_profile_start') plankGolaProfileCounter[plankKey].starts++;
           else if (opType === 'gola_profile_center') plankGolaProfileCounter[plankKey].centers++;
           else if (opType === 'gola_profile_end') plankGolaProfileCounter[plankKey].ends++;
+        } else if (opType === 'incut_hole') {
+          plankIncutCounter[plankKey] = (plankIncutCounter[plankKey] || 0) + 1;
         } else {
           plankOpCounter[plankKey][opType] = (plankOpCounter[plankKey][opType] || 0) + 1;
         }
       }
     }
   }
+  
   const maxCounts = {};
   for (const plankKey in plankOpCounter) {
     for (const opType in plankOpCounter[plankKey]) {
@@ -373,7 +525,7 @@ function findMaxOperationCounts(rawValues, idx) {
     }
   }
   
-  // Calculate max L-cut triplets: min(starts, centers, ends) per plank, then max across planks
+  // Calculate max L-cut triplets
   let maxLCutTriplets = 0;
   for (const plankKey in plankLCutTripletCounter) {
     const tripletData = plankLCutTripletCounter[plankKey];
@@ -384,7 +536,7 @@ function findMaxOperationCounts(rawValues, idx) {
   }
   maxCounts.l_cut = maxLCutTriplets;
   
-  // Calculate max Gola profile triplets: min(starts, centers, ends) per plank, then max across planks
+  // Calculate max Gola profile triplets
   let maxGolaProfileTriplets = 0;
   for (const plankKey in plankGolaProfileCounter) {
     const tripletData = plankGolaProfileCounter[plankKey];
@@ -395,6 +547,25 @@ function findMaxOperationCounts(rawValues, idx) {
   }
   maxCounts.gola_profile = maxGolaProfileTriplets;
   
+  // Max incut cuts: auto-detect 2-point pairs vs 4-point rectangles per plank
+  let maxIncutCuts = 0;
+  let hasAnyFourPointCuts = false;
+  for (const plankKey in plankIncutCounter) {
+    const count = plankIncutCounter[plankKey];
+    // If exactly divisible by 4, treat as 4-point rectangular cuts
+    // Otherwise treat as 2-point line cuts
+    let n;
+    if (count >= 4 && count % 4 === 0) {
+      n = count / 4;
+      hasAnyFourPointCuts = true;
+    } else {
+      n = Math.floor(count / 2);
+    }
+    if (n > maxIncutCuts) maxIncutCuts = n;
+  }
+  maxCounts.incut_cut = maxIncutCuts;
+  maxCounts.has_inplank = hasAnyFourPointCuts;
+  
   return maxCounts;
 }
 
@@ -404,6 +575,23 @@ function getPlankType(plankName) {
   if (/door|back|skirting|drawfacia|drawfront|drawback|drawdummy|draw|dummy|tandemback/.test(name)) return 'face';
   if (/top|bottom|shelf|tandembottom/.test(name)) return 'horizontal';
   return 'auto';
+}
+
+function resolvePlankType(rowData, boxOrientation, plankName) {
+  const nameType = getPlankType(plankName);
+  if (nameType !== 'auto') return nameType;
+
+  const { LenX, LenY, LenZ } = rowData || {};
+  if (!(LenX > 0) || !(LenY > 0) || !(LenZ > 0)) return 'horizontal';
+
+  if (boxOrientation === 'EW' || boxOrientation === 'NS') {
+    const dims = [LenX, LenY, LenZ];
+    const minDim = Math.min(...dims);
+    if (minDim === LenZ) return 'horizontal';
+    if (minDim === LenX) return 'vertical';
+    if (minDim === LenY) return 'face';
+  }
+  return 'horizontal';
 }
 
 function calculateTransformedDimensions(rowData, orientation, plankType) {
@@ -421,38 +609,69 @@ function calculateTransformedDimensions(rowData, orientation, plankType) {
 // ===================    TRANSFORM COORDINATES   ==================
 // =================================================================
 
+function flattenLCutCoordinates(rowData, plankType) {
+  const { X: rawX, Y: rawY, Z: rawZ } = rowData;
+  
+  let faceX, faceY;
+  
+  if (plankType === 'horizontal') {
+    faceX = rawY;
+    faceY = rawX;
+  } else if (plankType === 'vertical') {
+    faceX = rawY;
+    faceY = rawZ;
+  } else {
+    faceX = rawX;
+    faceY = rawY;
+  }
+  
+  return { faceX, faceY };
+}
+
+/**
+ * Maps raw (X,Y,Z) to face (faceX, faceY) for incut points.
+ * Same convention as L-cuts/Gola: thickness axis is dropped; face plane used for cutting.
+ * Compatible with all plank types: face (e.g. door), vertical, horizontal.
+ */
+function flattenIncutCoordinates(rowData, plankType) {
+  const { X: rawX, Y: rawY, Z: rawZ } = rowData;
+
+  switch (plankType) {
+    case 'horizontal':
+      return { faceX: rawY, faceY: rawX };   // thickness = Z; face = (Y, X)
+    case 'vertical':
+      return { faceX: rawY, faceY: rawZ };   // thickness = X; face = (Y, Z)
+    case 'face':
+      return { faceX: rawX, faceY: rawZ };   // thickness = Y; face = (X, Z) e.g. door
+    case 'auto':
+    default:
+      return { faceX: rawY, faceY: rawX };  // fallback: same as horizontal
+  }
+}
+
 function transformCoordinates(rowData, currentBox, plankName, plankType, opType, plankThickness, plankOffset, finalPlankWidth) {
   const { X: rawX, Y: rawY, Z: rawZ, LenX, LenY, LenZ } = rowData;
 
   let rawFaceX, rawFaceY, rawFaceDimL, rawFaceDimW;
   let startZ;
 
-  // 1. DETERMINE MAPPING
-  // L-cut and Gola profile boundary points define the plank's notch shape on the 2D face.
-  // The key difference: L-cuts/Gola profiles use actual surface coordinates, not depth.
   const lCutOpTypes = ['l_cut_start', 'l_cut_center', 'l_cut_end'];
   const golaProfileOpTypes = ['gola_profile_start', 'gola_profile_center', 'gola_profile_end'];
   const isLCut = lCutOpTypes.includes(opType) || golaProfileOpTypes.includes(opType);
   
   if (plankType === 'horizontal') {
-    // Horizontal planks: Face is X × Y, thickness along Z
-    // Swap X and Y for face coordinates
     rawFaceX = rawY;
     rawFaceY = rawX;
     rawFaceDimL = LenX;
     rawFaceDimW = LenY;
     startZ = LenZ;
   } else if (plankType === 'vertical') {
-    // Vertical planks: Face is Y (width) × Z (height), thickness along X
-    // Face X = SketchUp Y, Face Y = SketchUp Z (for both L-cuts and features)
     rawFaceX = rawY;
-    rawFaceY = rawZ;  // Always use Z for vertical plank face Y coordinate
+    rawFaceY = rawZ;
     rawFaceDimL = LenZ;
     rawFaceDimW = LenY;
     startZ = LenX;
   } else {
-    // Default (auto): Face is X × Y (for L-cuts) or X × Z (for features)
-    // L-cuts use actual surface Y, features use depth Z
     rawFaceX = rawX;
     rawFaceY = isLCut ? rawY : rawZ;
     rawFaceDimL = LenX;
@@ -460,17 +679,14 @@ function transformCoordinates(rowData, currentBox, plankName, plankType, opType,
     startZ = isLCut ? LenZ : LenY;
   }
 
-  // Normalize offset
   let offset = Number(plankOffset);
   if (isNaN(offset) || offset < 0) offset = 0;
 
-  // 2. APPLY EDGE BINDING OFFSET (GLOBAL)
   if (offset > 0) {
     rawFaceX -= offset;
     rawFaceY -= offset;
   }
 
-  // 3. CALCULATE OUTPUT COORDINATES
   let transformedX, transformedY, finalZ;
   let startX = null, startY = null, startZ_out = null;
 
@@ -550,9 +766,9 @@ function extractHardwareColumns(headers) {
   return hardwareColumns;
 }
 
-function makePlankKey(boxObj, plankName) {
-  const boxPart = boxObj && boxObj.box_name ? boxObj.box_name : '(no_box)';
-  return `${boxPart}||${plankName}`;
+function makePlankKey(boxObj, plankName, rowIndex) {
+  const boxName = boxObj && boxObj.box_name ? boxObj.box_name : '(no_box)';
+  return `${boxName}||${plankName}||row${rowIndex}`;
 }
 
 function safeCell(row, i) { return (i === -1) ? '' : (row[i] || ''); }
@@ -604,12 +820,21 @@ function formatSketchUpData(ebSettings) {
       Z:             findColumnIndexFormatted(header, 'Z'),           
       room_name:     findColumnIndexFormatted(header, 'Room_name'),
       box_type:      findColumnIndexFormatted(header, 'Box_Type'),  
-      box_model:     findColumnIndexFormatted(header, 'Box_Model')  
+      box_model:     findColumnIndexFormatted(header, 'Box_Model'),
+      Level:         findColumnIndexFormatted(header, 'Level')  // Level column
     };
 
     const requiredCols = ['entity_name', 'unit_location', 'material', 'LenX', 'LenY', 'LenZ', 'X', 'Y', 'Z'];
     const missing = requiredCols.filter(col => idx[col] === -1);
     if (missing.length > 0) throw new Error('Missing required columns: ' + missing.join(', ') + '.');
+
+    // Check if Level column exists
+    const hasLevelColumn = idx.Level !== -1;
+    if (!hasLevelColumn) {
+      Logger.log('WARNING: No "Level" column found. Using fallback pattern detection.');
+    } else {
+      Logger.log('Level column found at index ' + idx.Level + '. Using direct column reading.');
+    }
 
     showToast('Pre-scanning for operations...', 'In Progress', 10);
     const maxOpCounts = findMaxOperationCounts(rawValues, idx);
@@ -632,7 +857,6 @@ function formatSketchUpData(ebSettings) {
       'EB_Value'
     ];
     
-    // Standard operation types (excluding L-cut which uses triplet architecture)
     const operationTypes = ['hing', 'screw', 'vb_main', 'vb_double', 'profile', 'slot', 'groove', 'hole'];
     let dynamicOpHeader = [];
     
@@ -648,8 +872,7 @@ function formatSketchUpData(ebSettings) {
       }
     });
     
-    // Add L-cut triplet headers (new architecture)
-    // For each L-cut triplet: start(X,Y), center(X,Y), end(X,Y)
+    // L-cut triplet headers
     const maxLCutCount = maxOpCounts.l_cut || 0;
     for (let i = 1; i <= maxLCutCount; i++) {
       dynamicOpHeader.push(
@@ -659,8 +882,7 @@ function formatSketchUpData(ebSettings) {
       );
     }
     
-    // Add Gola profile triplet headers
-    // For each Gola profile triplet: start(X,Y), center(X,Y), end(X,Y)
+    // Gola profile triplet headers
     const maxGolaProfileCount = maxOpCounts.gola_profile || 0;
     for (let i = 1; i <= maxGolaProfileCount; i++) {
       dynamicOpHeader.push(
@@ -670,7 +892,23 @@ function formatSketchUpData(ebSettings) {
       );
     }
     
-    // Also add legacy l_cutting columns for backward compatibility
+    // Incut headers (point1/point2 always; point3/point4 added when 4-point inplank_holes exist)
+    const maxIncutCount = maxOpCounts.incut_cut || 0;
+    const hasInplankHoles = maxOpCounts.has_inplank || false;
+    for (let i = 1; i <= maxIncutCount; i++) {
+      dynamicOpHeader.push(
+        `Incut_cut_${i}_point1_X`, `Incut_cut_${i}_point1_Y`,
+        `Incut_cut_${i}_point2_X`, `Incut_cut_${i}_point2_Y`
+      );
+      if (hasInplankHoles) {
+        dynamicOpHeader.push(
+          `Incut_cut_${i}_point3_X`, `Incut_cut_${i}_point3_Y`,
+          `Incut_cut_${i}_point4_X`, `Incut_cut_${i}_point4_Y`
+        );
+      }
+    }
+    
+    // Legacy l_cutting columns
     const maxLegacyLCut = maxOpCounts.l_cutting_legacy || 0;
     for (let i = 1; i <= maxLegacyLCut; i++) {
       dynamicOpHeader.push(`l_cutting_${i}_X`, `l_cutting_${i}_Y`, `l_cutting_${i}_Z`);
@@ -691,21 +929,45 @@ function formatSketchUpData(ebSettings) {
     const plankOffsetMap = {};
     let outRowPtr = 2;
     
-    // L-cut triplet collector: stores {starts: [{x,y}], centers: [{x,y}], ends: [{x,y}]} per plank
     const plankLCutCollector = {};
-    
-    // Gola profile triplet collector: stores {starts: [{x,y}], centers: [{x,y}], ends: [{x,y}]} per plank
     const plankGolaProfileCollector = {};
+    const plankIncutCollector = {};
 
-    // --- ID GENERATION STATE ---
-    const rawPlankIdCol = rawSheet.getRange(2, plankIdCol1, rawValues.length - 1, 1).getValues();
-    let lastSequentialId = null; 
+    // Sequential plank_id - ONLY for Level 2
+    let nextPlankId = 1;
+    
+    // Initialize plank_id column for writeback - all empty by default
+    const rawPlankIdCol = [];
+    for (let i = 1; i < rawValues.length; i++) {
+      rawPlankIdCol.push(['']);
+    }
+    
+    // Track Level 0 count
+    let level0Count = 0;
 
     for (let r = 1; r < rawValues.length; r++) {
       const row = rawValues[r];
       const rowData = parseRowData(row, idx);
-      const level = detectLevel(rowData);
+      
+      // ============================================================
+      // GET LEVEL FROM COLUMN (PRIMARY) OR FALLBACK TO PATTERN
+      // ============================================================
+      const level = getRowLevel(row, idx);
 
+      // ============================================================
+      // LEVEL 0: HARD STOP
+      // - NEVER appear in formatted data
+      // - NEVER get plank_id
+      // ============================================================
+      if (level === 0) {
+        level0Count++;
+        Logger.log('HARD STOP Level 0 at row ' + (r + 1) + ': ' + rowData.entity_name);
+        continue;
+      }
+
+      // ============================================================
+      // LEVEL 1: Boxes
+      // ============================================================
       if (level === 1) {
         currentBox = {
           box_name: rowData.entity_name || `Box_${r + 1}`,
@@ -718,13 +980,16 @@ function formatSketchUpData(ebSettings) {
         continue;
       }
 
+      // ============================================================
+      // LEVEL 2: Planks - ONLY these get plank_ids
+      // ============================================================
       if (level === 2) {
         if (!currentBox) continue;
         const plank_name = rowData.entity_name || `Component_${r + 1}`;
-        const plankType = getPlankType(plank_name);
+        const plankType = resolvePlankType(rowData, currentBox.orientation, plank_name);
         const dims = calculateTransformedDimensions(rowData, currentBox.orientation, plankType);
         
-        const plankKey = makePlankKey(currentBox, plank_name);
+        const plankKey = makePlankKey(currentBox, plank_name, r + 1);
         plankThicknessMap[plankKey] = dims.thickness;
         
         const materialRaw = rowData.material || '';
@@ -734,24 +999,12 @@ function formatSketchUpData(ebSettings) {
         
         plankOffsetMap[plankKey] = edgeBinding.offset;
 
-        // ==========================================================
-        // SEQUENTIAL plank_id 
-        // ==========================================================
-        const existingRawIdStr = String(row[plankIdIdx0] || '').trim();
-        const existingRawIdNum = parseInt(existingRawIdStr, 10);
-
-        let currentPlankIdNum;
-        if (lastSequentialId === null) {
-          currentPlankIdNum = (!isNaN(existingRawIdNum) && existingRawIdNum > 0) ? existingRawIdNum : 1;
-        } else {
-          currentPlankIdNum = lastSequentialId + 1;
-        }
-
-        lastSequentialId = currentPlankIdNum;
-        const currentPlankId = String(currentPlankIdNum);
-
-        rawPlankIdCol[r - 1][0] = currentPlankId;
-        // ==========================================================
+        // Sequential plank_id - no gaps
+        const currentPlankId = String(nextPlankId);
+        nextPlankId++;
+        
+        // Write back to raw data
+        rawPlankIdCol[r - 1] = [currentPlankId];
         
         const finalMaterial = materialRaw ? `${materialRaw} (${currentBox.room_name})` : currentBox.room_name;
 
@@ -796,6 +1049,9 @@ function formatSketchUpData(ebSettings) {
         continue;
       }
 
+      // ============================================================
+      // LEVEL 3: Operations
+      // ============================================================
       if (level === 3) {
         if (!currentPlank || !currentBox) continue;
         const opType = detectOperationType(rowData.entity_name);
@@ -806,70 +1062,67 @@ function formatSketchUpData(ebSettings) {
         const plankRowIndex = plankRowMap[plankKey];
         if (!plankRowIndex) continue;
         
-        // Handle L-cut triplet types (new architecture)
+        // Handle L-cut triplet types
         if (opType === 'l_cut_start' || opType === 'l_cut_center' || opType === 'l_cut_end') {
-          // Initialize collector for this plank
           if (!plankLCutCollector[plankKey]) {
-            plankLCutCollector[plankKey] = { starts: [], centers: [], ends: [], rowIndex: plankRowIndex };
+            plankLCutCollector[plankKey] = { 
+              starts: [], centers: [], ends: [], 
+              rowIndex: plankRowIndex,
+              finalWidth: currentPlank.finalWidth,
+              finalLength: currentPlank.finalLength,
+              ebOffset: plankOffset,
+              plankName: currentPlank.name
+            };
           }
           
-          // Transform coordinates using existing EB/mirror logic
-          const { transformedX, transformedY } = transformCoordinates(
-            rowData, currentBox, currentPlank.name, currentPlank.type, opType,
-            plankThicknessMap[plankKey], plankOffset, currentPlank.finalWidth
-          );
+          const { faceX, faceY } = flattenLCutCoordinates(rowData, currentPlank.type);
+          const point = { x: faceX, y: faceY };
           
-          // CLAMP coordinates to plank boundaries - USE CORRECT DIMENSIONS BASED ON PLANK TYPE
-          // For vertical planks: faceX maps to width, faceY maps to length (height)
-          // For horizontal/face planks: faceX maps to length, faceY maps to width
-          let clampedX, clampedY;
-          if (currentPlank.type === 'vertical') {
-            clampedX = Math.max(0, Math.min(transformedX, currentPlank.finalWidth));
-            clampedY = Math.max(0, Math.min(transformedY, currentPlank.finalLength));
-          } else {
-            clampedX = Math.max(0, Math.min(transformedX, currentPlank.finalLength));
-            clampedY = Math.max(0, Math.min(transformedY, currentPlank.finalWidth));
-          }
-          
-          // Store the clamped point
-          const point = { x: clampedX, y: clampedY };
           if (opType === 'l_cut_start') plankLCutCollector[plankKey].starts.push(point);
           else if (opType === 'l_cut_center') plankLCutCollector[plankKey].centers.push(point);
           else if (opType === 'l_cut_end') plankLCutCollector[plankKey].ends.push(point);
           
-          continue; // Skip normal processing, will be written as triplets later
+          continue;
         }
         
-        // Handle Gola profile triplet types (same logic as L-cuts)
+        // Handle Gola profile triplet types
         if (opType === 'gola_profile_start' || opType === 'gola_profile_center' || opType === 'gola_profile_end') {
-          // Initialize collector for this plank
           if (!plankGolaProfileCollector[plankKey]) {
-            plankGolaProfileCollector[plankKey] = { starts: [], centers: [], ends: [], rowIndex: plankRowIndex };
+            plankGolaProfileCollector[plankKey] = { 
+              starts: [], centers: [], ends: [], 
+              rowIndex: plankRowIndex,
+              finalWidth: currentPlank.finalWidth,
+              finalLength: currentPlank.finalLength,
+              ebOffset: plankOffset,
+              plankName: currentPlank.name
+            };
           }
           
-          // Transform coordinates using existing EB/mirror logic (same as L-cuts)
-          const { transformedX, transformedY } = transformCoordinates(
-            rowData, currentBox, currentPlank.name, currentPlank.type, opType,
-            plankThicknessMap[plankKey], plankOffset, currentPlank.finalWidth
-          );
+          const { faceX, faceY } = flattenLCutCoordinates(rowData, currentPlank.type);
+          const point = { x: faceX, y: faceY };
           
-          // CLAMP coordinates to plank boundaries - USE CORRECT DIMENSIONS BASED ON PLANK TYPE
-          let clampedX, clampedY;
-          if (currentPlank.type === 'vertical') {
-            clampedX = Math.max(0, Math.min(transformedX, currentPlank.finalWidth));
-            clampedY = Math.max(0, Math.min(transformedY, currentPlank.finalLength));
-          } else {
-            clampedX = Math.max(0, Math.min(transformedX, currentPlank.finalLength));
-            clampedY = Math.max(0, Math.min(transformedY, currentPlank.finalWidth));
-          }
-          
-          // Store the clamped point
-          const point = { x: clampedX, y: clampedY };
           if (opType === 'gola_profile_start') plankGolaProfileCollector[plankKey].starts.push(point);
           else if (opType === 'gola_profile_center') plankGolaProfileCollector[plankKey].centers.push(point);
           else if (opType === 'gola_profile_end') plankGolaProfileCollector[plankKey].ends.push(point);
           
-          continue; // Skip normal processing, will be written as triplets later
+          continue;
+        }
+        
+        // Handle Incut / Inplank hole (auto-detect 2-point or 4-point from geometry)
+        if (opType === 'incut_hole') {
+          if (!plankIncutCollector[plankKey]) {
+            plankIncutCollector[plankKey] = {
+              points: [],
+              rowIndex: plankRowIndex,
+              finalWidth: currentPlank.finalWidth,
+              finalLength: currentPlank.finalLength,
+              ebOffset: plankOffset,
+              plankName: currentPlank.name
+            };
+          }
+          const { faceX, faceY } = flattenIncutCoordinates(rowData, currentPlank.type);
+          plankIncutCollector[plankKey].points.push({ x: faceX, y: faceY });
+          continue;
         }
         
         // Handle legacy l_cutting_legacy
@@ -892,11 +1145,11 @@ function formatSketchUpData(ebSettings) {
           if (colY) outSheet.getRange(plankRowIndex, colY).setValue(formatCoordinate(transformedY));
           if (colZ) outSheet.getRange(plankRowIndex, colZ).setValue(formatCoordinate(finalZ));
           
-          // Log warning for legacy format
-          Logger.log('Warning: Legacy L-cut detected for plank "' + currentPlank.name + '"; please re-export using triplet format.');
+          Logger.log('Warning: Legacy L-cut detected for plank "' + currentPlank.name + '"');
           continue;
         }
 
+        // Standard operations
         if (!plankOpsCounters[plankKey]) plankOpsCounters[plankKey] = {};
         const opCounter = (plankOpsCounters[plankKey][opType] || 0) + 1;
         plankOpsCounters[plankKey][opType] = opCounter;
@@ -932,19 +1185,17 @@ function formatSketchUpData(ebSettings) {
       }
     }
     
-    // Write L-cut triplets to output sheet
+    // Write L-cut triplets
     for (const plankKey in plankLCutCollector) {
       const collector = plankLCutCollector[plankKey];
-      const { starts, centers, ends, rowIndex } = collector;
+      const { starts, centers, ends, rowIndex, finalWidth, finalLength, ebOffset, plankName } = collector;
       
       const numTriplets = Math.min(starts.length, centers.length, ends.length);
       
-      // Log warning if incomplete triplets
       if (starts.length !== centers.length || centers.length !== ends.length) {
-        Logger.log('Warning: Incomplete L-cut triplets for plank "' + plankKey + '": starts=' + starts.length + ', centers=' + centers.length + ', ends=' + ends.length);
+        Logger.log('Warning: Incomplete L-cut triplets for plank "' + plankKey + '"');
       }
       
-      // Write each complete triplet
       for (let i = 0; i < numTriplets; i++) {
         const tripletIndex = i + 1;
         
@@ -955,28 +1206,55 @@ function formatSketchUpData(ebSettings) {
         const colEndX = outHeaderMap[`L_cut_${tripletIndex}_end_X`];
         const colEndY = outHeaderMap[`L_cut_${tripletIndex}_end_Y`];
         
-        if (colStartX) outSheet.getRange(rowIndex, colStartX).setValue(formatCoordinate(starts[i].x));
-        if (colStartY) outSheet.getRange(rowIndex, colStartY).setValue(formatCoordinate(starts[i].y));
-        if (colCenterX) outSheet.getRange(rowIndex, colCenterX).setValue(formatCoordinate(centers[i].x));
-        if (colCenterY) outSheet.getRange(rowIndex, colCenterY).setValue(formatCoordinate(centers[i].y));
-        if (colEndX) outSheet.getRange(rowIndex, colEndX).setValue(formatCoordinate(ends[i].x));
-        if (colEndY) outSheet.getRange(rowIndex, colEndY).setValue(formatCoordinate(ends[i].y));
+        const pName = String(plankName || '').toLowerCase();
+        const shouldMirror = pName.includes('right') || pName.includes('bottom');
+        let start = { x: starts[i].x, y: starts[i].y };
+        let center = { x: centers[i].x, y: centers[i].y };
+        let end = { x: ends[i].x, y: ends[i].y };
+        
+        // EB overshoot correction
+        if (ebOffset > 0) {
+          const maxX = Math.max(start.x, center.x, end.x);
+          const maxY = Math.max(start.y, center.y, end.y);
+          const overshootX = (typeof finalWidth === 'number' && finalWidth > 0 && maxX > finalWidth)
+            ? maxX - finalWidth : 0;
+          const overshootY = (typeof finalLength === 'number' && finalLength > 0 && maxY > finalLength)
+            ? maxY - finalLength : 0;
+          if (overshootX > 0) {
+            start.x -= overshootX; center.x -= overshootX; end.x -= overshootX;
+          }
+          if (overshootY > 0) {
+            start.y -= overshootY; center.y -= overshootY; end.y -= overshootY;
+          }
+        }
+        
+        if (shouldMirror && typeof finalWidth === 'number') {
+          start.x = finalWidth - start.x;
+          center.x = finalWidth - center.x;
+          end.x = finalWidth - end.x;
+          const tmp = start; start = end; end = tmp;
+        }
+        
+        if (colStartX) outSheet.getRange(rowIndex, colStartX).setValue(formatCoordinate(start.x));
+        if (colStartY) outSheet.getRange(rowIndex, colStartY).setValue(formatCoordinate(start.y));
+        if (colCenterX) outSheet.getRange(rowIndex, colCenterX).setValue(formatCoordinate(center.x));
+        if (colCenterY) outSheet.getRange(rowIndex, colCenterY).setValue(formatCoordinate(center.y));
+        if (colEndX) outSheet.getRange(rowIndex, colEndX).setValue(formatCoordinate(end.x));
+        if (colEndY) outSheet.getRange(rowIndex, colEndY).setValue(formatCoordinate(end.y));
       }
     }
     
-    // Write Gola profile triplets to output sheet
+    // Write Gola profile triplets
     for (const plankKey in plankGolaProfileCollector) {
       const collector = plankGolaProfileCollector[plankKey];
-      const { starts, centers, ends, rowIndex } = collector;
+      const { starts, centers, ends, rowIndex, finalWidth, finalLength, ebOffset, plankName } = collector;
       
       const numTriplets = Math.min(starts.length, centers.length, ends.length);
       
-      // Log warning if incomplete triplets
       if (starts.length !== centers.length || centers.length !== ends.length) {
-        Logger.log('Warning: Incomplete Gola profile triplets for plank "' + plankKey + '": starts=' + starts.length + ', centers=' + centers.length + ', ends=' + ends.length);
+        Logger.log('Warning: Incomplete Gola profile triplets for plank "' + plankKey + '"');
       }
       
-      // Write each complete triplet
       for (let i = 0; i < numTriplets; i++) {
         const tripletIndex = i + 1;
         
@@ -987,22 +1265,256 @@ function formatSketchUpData(ebSettings) {
         const colEndX = outHeaderMap[`Gola_profile_${tripletIndex}_end_X`];
         const colEndY = outHeaderMap[`Gola_profile_${tripletIndex}_end_Y`];
         
-        if (colStartX) outSheet.getRange(rowIndex, colStartX).setValue(formatCoordinate(starts[i].x));
-        if (colStartY) outSheet.getRange(rowIndex, colStartY).setValue(formatCoordinate(starts[i].y));
-        if (colCenterX) outSheet.getRange(rowIndex, colCenterX).setValue(formatCoordinate(centers[i].x));
-        if (colCenterY) outSheet.getRange(rowIndex, colCenterY).setValue(formatCoordinate(centers[i].y));
-        if (colEndX) outSheet.getRange(rowIndex, colEndX).setValue(formatCoordinate(ends[i].x));
-        if (colEndY) outSheet.getRange(rowIndex, colEndY).setValue(formatCoordinate(ends[i].y));
+        const pName = String(plankName || '').toLowerCase();
+        const shouldMirror = pName.includes('right') || pName.includes('bottom');
+        let start = { x: starts[i].x, y: starts[i].y };
+        let center = { x: centers[i].x, y: centers[i].y };
+        let end = { x: ends[i].x, y: ends[i].y };
+        
+        // EB overshoot correction
+        if (ebOffset > 0) {
+          const maxX = Math.max(start.x, center.x, end.x);
+          const maxY = Math.max(start.y, center.y, end.y);
+          const overshootX = (typeof finalWidth === 'number' && finalWidth > 0 && maxX > finalWidth)
+            ? maxX - finalWidth : 0;
+          const overshootY = (typeof finalLength === 'number' && finalLength > 0 && maxY > finalLength)
+            ? maxY - finalLength : 0;
+          if (overshootX > 0) {
+            start.x -= overshootX; center.x -= overshootX; end.x -= overshootX;
+          }
+          if (overshootY > 0) {
+            start.y -= overshootY; center.y -= overshootY; end.y -= overshootY;
+          }
+        }
+        
+        if (shouldMirror && typeof finalWidth === 'number') {
+          start.x = finalWidth - start.x;
+          center.x = finalWidth - center.x;
+          end.x = finalWidth - end.x;
+          const tmp = start; start = end; end = tmp;
+        }
+        
+        if (colStartX) outSheet.getRange(rowIndex, colStartX).setValue(formatCoordinate(start.x));
+        if (colStartY) outSheet.getRange(rowIndex, colStartY).setValue(formatCoordinate(start.y));
+        if (colCenterX) outSheet.getRange(rowIndex, colCenterX).setValue(formatCoordinate(center.x));
+        if (colCenterY) outSheet.getRange(rowIndex, colCenterY).setValue(formatCoordinate(center.y));
+        if (colEndX) outSheet.getRange(rowIndex, colEndX).setValue(formatCoordinate(end.x));
+        if (colEndY) outSheet.getRange(rowIndex, colEndY).setValue(formatCoordinate(end.y));
+      }
+    }
+    
+    // Write Incut cuts (auto-detect: 4 points divisible by 4 → rectangles, otherwise → pairs of 2)
+    for (const plankKey in plankIncutCollector) {
+      const collector = plankIncutCollector[plankKey];
+      const { points, rowIndex, finalWidth, finalLength, ebOffset, plankName } = collector;
+      if (!points || points.length < 2) continue;
+
+      let workingPoints = points.map(p => ({ x: p.x, y: p.y }));
+
+      // Edge-aware EB adjustment: snap edge coordinates to 0 or finalDim,
+      // subtract offset for interior coordinates (-ebX, -ebY).
+      if (ebOffset > 0 && typeof finalWidth === 'number' && finalWidth > 0 && typeof finalLength === 'number' && finalLength > 0) {
+        const rawWidth = finalWidth + 2 * ebOffset;
+        const rawLength = finalLength + 2 * ebOffset;
+        const SNAP_TOL = ebOffset + 1.5;
+
+        workingPoints.forEach(p => {
+          if (p.x <= SNAP_TOL) {
+            p.x = 0;
+          } else if (rawWidth > 0 && p.x >= rawWidth - SNAP_TOL) {
+            p.x = finalWidth;
+          } else {
+            p.x -= ebOffset;
+          }
+
+          if (p.y <= SNAP_TOL) {
+            p.y = 0;
+          } else if (rawLength > 0 && p.y >= rawLength - SNAP_TOL) {
+            p.y = finalLength;
+          } else {
+            p.y -= ebOffset;
+          }
+        });
+      }
+
+      const pName = String(plankName || '').toLowerCase();
+      const shouldMirror = pName.includes('right') || pName.includes('bottom') || pName.includes('door');
+      const isFourPointMode = workingPoints.length >= 4 && workingPoints.length % 4 === 0;
+
+      let cutNum = 0;
+
+      if (isFourPointMode) {
+        // 4-point rectangular cuts - sort into clockwise winding order
+        for (let i = 0; i + 3 < workingPoints.length; i += 4) {
+          const raw = [
+            { x: workingPoints[i].x, y: workingPoints[i].y },
+            { x: workingPoints[i + 1].x, y: workingPoints[i + 1].y },
+            { x: workingPoints[i + 2].x, y: workingPoints[i + 2].y },
+            { x: workingPoints[i + 3].x, y: workingPoints[i + 3].y }
+          ];
+          // Sort into proper rectangle winding: BL → BR → TR → TL (clockwise)
+          const minX = Math.min(...raw.map(p => p.x));
+          const maxX = Math.max(...raw.map(p => p.x));
+          const minY = Math.min(...raw.map(p => p.y));
+          const maxY = Math.max(...raw.map(p => p.y));
+          // pts are already in EB-adjusted space (workingPoints were adjusted above)
+          let pts = [
+            { x: minX, y: minY },
+            { x: maxX, y: minY },
+            { x: maxX, y: maxY },
+            { x: minX, y: maxY }
+          ];
+
+          if (shouldMirror && typeof finalWidth === 'number') {
+            pts = pts.map(p => ({ x: finalWidth - p.x, y: p.y }));
+            pts.reverse();
+          }
+
+          cutNum++;
+          for (let pi = 0; pi < 4; pi++) {
+            const colX = outHeaderMap[`Incut_cut_${cutNum}_point${pi + 1}_X`];
+            const colY = outHeaderMap[`Incut_cut_${cutNum}_point${pi + 1}_Y`];
+            if (colX) outSheet.getRange(rowIndex, colX).setValue(formatCoordinate(pts[pi].x));
+            if (colY) outSheet.getRange(rowIndex, colY).setValue(formatCoordinate(pts[pi].y));
+          }
+        }
+      } else {
+        // 2-point line cuts
+        for (let i = 0; i + 1 < workingPoints.length; i += 2) {
+          let p1 = { x: workingPoints[i].x, y: workingPoints[i].y };
+          let p2 = { x: workingPoints[i + 1].x, y: workingPoints[i + 1].y };
+
+          if (shouldMirror && typeof finalWidth === 'number') {
+            p1.x = finalWidth - p1.x;
+            p2.x = finalWidth - p2.x;
+            const tmp = p1; p1 = p2; p2 = tmp;
+          }
+
+          cutNum++;
+          const colP1X = outHeaderMap[`Incut_cut_${cutNum}_point1_X`];
+          const colP1Y = outHeaderMap[`Incut_cut_${cutNum}_point1_Y`];
+          const colP2X = outHeaderMap[`Incut_cut_${cutNum}_point2_X`];
+          const colP2Y = outHeaderMap[`Incut_cut_${cutNum}_point2_Y`];
+          if (colP1X) outSheet.getRange(rowIndex, colP1X).setValue(formatCoordinate(p1.x));
+          if (colP1Y) outSheet.getRange(rowIndex, colP1Y).setValue(formatCoordinate(p1.y));
+          if (colP2X) outSheet.getRange(rowIndex, colP2X).setValue(formatCoordinate(p2.x));
+          if (colP2Y) outSheet.getRange(rowIndex, colP2Y).setValue(formatCoordinate(p2.y));
+        }
       }
     }
 
+    // Write plank_id column back to raw sheet
     rawSheet.getRange(2, plankIdCol1, rawPlankIdCol.length, 1).setValues(rawPlankIdCol);
 
     formatOutputSheet(outSheet, outHeader.length);
-    showToast('Formatting complete! (Sequential IDs synced)', 'Success', 5);
+    
+    // Success message
+    let successMessage = 'Formatting complete! (Sequential IDs - Level 2 only)';
+    if (level0Count > 0) {
+      successMessage += '\n\n⛔ HARD STOPPED ' + level0Count + ' Level 0 row(s).\nThey have NO plank_id and are NOT in formatted data.';
+    }
+    showToast(successMessage, 'Success', 5);
 
   } catch (e) {
     Logger.log(e);
     showAlert('An error occurred: ' + e.message);
   }
 }
+
+// =================================================================
+// ===================  FORMATTED-TO-RAW PLANK_ID SYNC  ============
+// =================================================================
+// When plank_id is edited in Formatted_Plank_Data, update raw data last column only.
+// Match by box_name + plank_name. No new IDs — sync existing plank_id column value.
+
+function onEdit(e) {
+  if (!e || !e.range) return;
+  const sheet = e.range.getSheet();
+  if (sheet.getName() !== SYNC_FORMATTED_SHEET) return;
+  const ss = e.source;
+  const formattedData = sheet.getDataRange().getValues();
+  if (formattedData.length < 2) return;
+  const headers = formattedData[0].map(function (h) { return String(h).trim(); });
+  const cols = getFormattedSyncColumnIndices(headers);
+  if (!cols) return;
+  const plankIdColSheet = cols.plank_id + 1;
+  if (e.range.getColumn() !== plankIdColSheet) return;
+  const rawSheet = ss.getSheetByName(SYNC_RAW_SHEET);
+  if (!rawSheet) return;
+  const lastCol = rawSheet.getLastColumn();
+  if (lastCol < 1) return;
+  const editedRow1 = e.range.getRow();
+  const numRows = e.range.getNumRows();
+  for (let r = 0; r < numRows; r++) {
+    const sheetRow = editedRow1 + r;
+    const dataIndex = sheetRow - 1;
+    if (dataIndex < 1 || dataIndex >= formattedData.length) continue;
+    const rowData = formattedData[dataIndex];
+    const room_name = String(rowData[cols.room_name] != null ? rowData[cols.room_name] : '').trim();
+    const box_name = String(rowData[cols.box_name] != null ? rowData[cols.box_name] : '').trim();
+    const box_model = cols.box_model >= 0 ? String(rowData[cols.box_model] != null ? rowData[cols.box_model] : '').trim() : '';
+    const plank_name = String(rowData[cols.plank_name] != null ? rowData[cols.plank_name] : '').trim();
+    const plankIdValue = rowData[cols.plank_id];
+    const valueToWrite = (plankIdValue !== null && plankIdValue !== undefined && plankIdValue !== '') ? String(plankIdValue) : '';
+    let occurrence = 0;
+    for (let j = 1; j <= dataIndex; j++) {
+      const rn = String(formattedData[j][cols.room_name] != null ? formattedData[j][cols.room_name] : '').trim();
+      const bn = String(formattedData[j][cols.box_name] != null ? formattedData[j][cols.box_name] : '').trim();
+      const bm = cols.box_model >= 0 ? String(formattedData[j][cols.box_model] != null ? formattedData[j][cols.box_model] : '').trim() : '';
+      const pn = String(formattedData[j][cols.plank_name] != null ? formattedData[j][cols.plank_name] : '').trim();
+      if (rn === room_name && bn === box_name && pn === plank_name && (bm || '') === (box_model || '')) occurrence++;
+    }
+    const rawRow = findRawRowForPlankSync(ss, room_name, box_name, plank_name, box_model, occurrence);
+    if (rawRow != null) rawSheet.getRange(rawRow, lastCol).setValue(valueToWrite);
+  }
+}
+
+function syncAllPlankIds() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const formattedSheet = ss.getSheetByName(SYNC_FORMATTED_SHEET);
+  const rawSheet = ss.getSheetByName(SYNC_RAW_SHEET);
+  if (!formattedSheet) { showAlert('Sheet "' + SYNC_FORMATTED_SHEET + '" not found.'); return; }
+  if (!rawSheet) { showAlert('Sheet "' + SYNC_RAW_SHEET + '" not found.'); return; }
+  const formattedValues = formattedSheet.getDataRange().getValues();
+  if (formattedValues.length < 2) { showAlert('Formatted_Plank_Data has no data rows.'); return; }
+  const rawValues = rawSheet.getDataRange().getValues();
+  const lastCol = rawSheet.getLastColumn();
+  if (lastCol < 1) return;
+  const headers = formattedValues[0].map(function (h) { return String(h).trim(); });
+  const cols = getFormattedSyncColumnIndices(headers);
+  if (!cols) { showAlert('Formatted_Plank_Data missing column: room_name, box_name, plank_name, or plank_id.'); return; }
+  const formattedMap = {};
+  const countTriple = {};
+  for (let i = 1; i < formattedValues.length; i++) {
+    const row = formattedValues[i];
+    const room_name = String(row[cols.room_name] != null ? row[cols.room_name] : '').trim();
+    const box_name = String(row[cols.box_name] != null ? row[cols.box_name] : '').trim();
+    const box_model = cols.box_model >= 0 ? String(row[cols.box_model] != null ? row[cols.box_model] : '').trim() : '';
+    const plank_name = String(row[cols.plank_name] != null ? row[cols.plank_name] : '').trim();
+    const plank_id = row[cols.plank_id];
+    const tripleKey = (room_name || '') + '\t' + (box_name || '') + '\t' + (plank_name || '') + '\t' + (box_model || '');
+    countTriple[tripleKey] = (countTriple[tripleKey] || 0) + 1;
+    const occurrence = countTriple[tripleKey];
+    const key = makeSyncKey(room_name, box_name, plank_name, box_model, occurrence);
+    formattedMap[key] = (plank_id !== null && plank_id !== undefined && plank_id !== '') ? String(plank_id) : '';
+  }
+  const planks = getRawPlankRowsForSync(rawValues);
+  const numRawRows = rawValues.length;
+  const lastColValues = [];
+  for (let i = 1; i < numRawRows; i++) lastColValues.push(rawValues[i][lastCol - 1]);
+  const rawCountTriple = {};
+  for (let p = 0; p < planks.length; p++) {
+    const pl = planks[p];
+    const tripleKey = (pl.room || '') + '\t' + (pl.box_name || '') + '\t' + (pl.plank_name || '') + '\t' + (pl.box_model || '');
+    rawCountTriple[tripleKey] = (rawCountTriple[tripleKey] || 0) + 1;
+    const occurrence = rawCountTriple[tripleKey];
+    const key = makeSyncKey(pl.room, pl.box_name, pl.plank_name, pl.box_model, occurrence);
+    const plankIdValue = formattedMap[key] !== undefined ? formattedMap[key] : '';
+    const dataRowIndex = pl.sheetRow - 2;
+    if (dataRowIndex >= 0 && dataRowIndex < lastColValues.length) lastColValues[dataRowIndex] = plankIdValue;
+  }
+  if (lastColValues.length > 0) {
+    rawSheet.getRange(2, lastCol, lastColValues.length, 1).setValues(lastColValues.map(function (v) { return [v]; }));
+  }
+  showToast('Synced plank_id from Formatted_Plank_Data to raw data (last column).', 'Sync done', 3);
+} 

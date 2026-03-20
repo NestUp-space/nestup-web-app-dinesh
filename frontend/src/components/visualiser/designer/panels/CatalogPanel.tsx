@@ -13,6 +13,7 @@ export const CatalogPanel: React.FC = () => {
     catalogModels,
     catalogBoxesWithPlanks,
     selectedWallId,
+    activeWallId,
     addBoxFromCatalog,
     setPlacingModel,
     placingModelId,
@@ -53,12 +54,14 @@ export const CatalogPanel: React.FC = () => {
   }, [filteredModels]);
 
   const handleAddToWall = (model: CatalogModel) => {
-    if (!selectedWallId) {
-      alert('Please select a wall first to add a box.');
+    // Use activeWallId (tab-selected wall) first, fall back to selectedWallId (3D-clicked wall)
+    const targetWallId = activeWallId || selectedWallId;
+    if (!targetWallId) {
+      alert('Please add a wall first to add a box.');
       return;
     }
 
-    const wall = walls.find((w) => w.id === selectedWallId);
+    const wall = walls.find((w) => w.id === targetWallId);
     if (!wall) return;
 
     // Find the matching catalog box with planks
@@ -101,7 +104,7 @@ export const CatalogPanel: React.FC = () => {
 
     if (catalogBox) {
       // Use addBoxFromCatalog to get the planks from the catalog
-      const boxId = addBoxFromCatalog(selectedWallId, catalogBox.id, position);
+      const boxId = addBoxFromCatalog(targetWallId, catalogBox.id, position);
       
       if (boxId) {
         // Store this box as lastPlaced for next box positioning

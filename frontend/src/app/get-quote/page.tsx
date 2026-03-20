@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Star, Clock, Shield } from "lucide-react"
 import Link from "next/link"
 import { Footer } from "@/components/layout/Footer"
-import Navbar from "@/components/layout/Navbar"
 import { QuoteProgress } from "@/components/quote/quote-progress"
 import FAQ from "@/components/landing-page/Faq"
 
@@ -14,9 +13,6 @@ export default function LandingPage() {
   const containerRef = useRef()
   return (
     <div className="">
-      <div className="h-24 top-0 fixed bg-white z-50">
-         <Navbar />
-      </div>
       <div className="mt-24 w-screen" >
         {/* Progress indicator */}
         <QuoteProgress currentStep={1} />

@@ -8,6 +8,7 @@ import { ApolloWrapper } from '@/components/providers/ApolloWrapper'
 import { AnalyticsProvider } from '@/components/analytics/AnalyticsProvider'
 import { GA_MEASUREMENT_ID } from '@/lib/analytics'
 import Script from 'next/script'
+import { ConditionalNavbar } from '@/components/layout/ConditionalNavbar'
 
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
 const sourceSans = Source_Sans_3({
@@ -119,7 +120,8 @@ export default function RootLayout({
         <ApolloWrapper>
           <UserProvider>
             <AnalyticsProvider>
-              <div >
+              <ConditionalNavbar />
+              <div>
                 {children}
               </div>
             </AnalyticsProvider>

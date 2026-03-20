@@ -8,7 +8,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Home, Check, ChevronDown, ChevronUp, Star, Palette } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
-import Navbar from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
 import StickyCTA from "@/components/common/StickyCTA"
 import { QuoteProgress } from "@/components/quote/quote-progress"
@@ -34,9 +33,6 @@ export default function DesignSelectionPage() {
 
   return (
     <div className="">
-      <div className="h-20 md:h-24 top-0 fixed bg-white z-50">
-        <Navbar />
-      </div>
       <div className="mt-20 md:mt-24 w-screen">
         <div className="min-h-screen bg-neutral-light">
           {/* Progress Bar */}
