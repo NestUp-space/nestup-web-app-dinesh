@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import { Inter, Source_Sans_3, JetBrains_Mono } from "next/font/google"
 import "../styles/globals.css"
 import { UserProvider } from '@/context/UserContext'; 
-import { Analytics } from "@vercel/analytics/react"
 import { GoogleAnalytics } from '@next/third-parties/google'
 import { ApolloWrapper } from '@/components/providers/ApolloWrapper'
 import { AnalyticsProvider } from '@/components/analytics/AnalyticsProvider'
@@ -84,7 +83,7 @@ export default function RootLayout({
         />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#FF8A00" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Nestup" />
         {/* Google Analytics */}
@@ -114,8 +113,6 @@ export default function RootLayout({
         />
       </head>
     <body className={`${inter.variable} ${sourceSans.variable} ${jetbrains.variable}`}>
-        {/* Vercel Analytics */}
-        <Analytics/>
         
         <ApolloWrapper>
           <UserProvider>

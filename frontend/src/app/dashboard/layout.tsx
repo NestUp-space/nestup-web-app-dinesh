@@ -1,7 +1,6 @@
 "use client";
 
 import React from 'react';
-import { Analytics } from '@vercel/analytics/react';
 import Providers from '@/components/dashboard/providers';
 import { DesktopNav } from '@/components/layout/DesktopNav';
 import { MobileNav } from '@/components/layout/MobileNav';

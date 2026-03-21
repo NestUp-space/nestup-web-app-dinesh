@@ -32,41 +32,29 @@ export interface TournamentResult {
 
 export type TournamentProgressCallback = (configIndex: number, totalConfigs: number, configName: string) => void;
 
-const TOURNAMENT_CONFIGS: TournamentConfig[] = [
+/**
+ * BFD runs first (deterministic, <1s). If it achieves >= SKIP_THRESHOLD
+ * utilization with 0 overlaps, the slower metaheuristic configs are skipped.
+ * This eliminates the ~3-minute freeze for typical datasets.
+ */
+const SKIP_THRESHOLD = 70; // percent avg utilization
+
+const BFD_CONFIG: TournamentConfig = {
+  name: 'BFD Baseline',
+  description: 'Best Fit Decreasing (deterministic)',
+  params: { algorithm: 'bfd' },
+};
+
+const METAHEURISTIC_CONFIGS: TournamentConfig[] = [
   {
-    name: 'GA-heavy',
-    description: 'GA 60%, SA 20%, PSO 20%',
-    params: { algorithm: 'ga', gaPopSize: 30, gaGenerations: 40, gaMutationRate: 2 },
+    name: 'GA-light',
+    description: 'Genetic Algorithm (fast)',
+    params: { algorithm: 'ga', gaPopSize: 15, gaGenerations: 20, gaMutationRate: 2 },
   },
   {
-    name: 'SA-heavy',
-    description: 'GA 20%, SA 60%, PSO 20%',
-    params: { algorithm: 'sa', saIterations: 800, saTemp: 100, saCoolingRate: 0.995 },
-  },
-  {
-    name: 'PSO-heavy',
-    description: 'GA 20%, SA 20%, PSO 60%',
-    params: { algorithm: 'pso', psoParticles: 25, psoIterations: 35, psoInertia: 0.7, psoCognitive: 1.5, psoSocial: 1.5 },
-  },
-  {
-    name: 'Balanced',
-    description: 'GA 33%, SA 33%, PSO 34%',
-    params: { algorithm: 'ga', gaPopSize: 20, gaGenerations: 30, gaMutationRate: 2 },
-  },
-  {
-    name: 'GA+SA',
-    description: 'GA 40%, SA 40%, PSO 20%',
-    params: { algorithm: 'sa', saIterations: 500, saTemp: 80, saCoolingRate: 0.995 },
-  },
-  {
-    name: 'SA+PSO',
-    description: 'GA 20%, SA 40%, PSO 40%',
-    params: { algorithm: 'pso', psoParticles: 18, psoIterations: 25, psoInertia: 0.7, psoCognitive: 1.5, psoSocial: 1.5 },
-  },
-  {
-    name: 'BFD Baseline',
-    description: 'Best Fit Decreasing (deterministic)',
-    params: { algorithm: 'bfd' },
+    name: 'SA-light',
+    description: 'Simulated Annealing (fast)',
+    params: { algorithm: 'sa', saIterations: 300, saTemp: 60, saCoolingRate: 0.995 },
   },
 ];
 
@@ -75,8 +63,12 @@ function yieldToUI(): Promise<void> {
 }
 
 /**
- * Run the full nesting tournament asynchronously.
- * Yields to the browser between configs so UI stays responsive.
+ * Run the nesting tournament asynchronously.
+ *
+ * Strategy:
+ *  1. Run BFD first (~1s, deterministic).
+ *  2. If BFD >= SKIP_THRESHOLD utilization and 0 overlaps → return immediately.
+ *  3. Otherwise run 2 lighter metaheuristic configs and pick the best.
  */
 export async function runNestingTournamentAsync(
   formattedHeader: string[],
@@ -85,32 +77,56 @@ export async function runNestingTournamentAsync(
   plankListRows: (string | number)[][],
   onProgress?: TournamentProgressCallback,
 ): Promise<TournamentResult> {
-  const configs = TOURNAMENT_CONFIGS;
   const results: TournamentResult[] = [];
 
-  for (let i = 0; i < configs.length; i++) {
-    const config = configs[i];
-    onProgress?.(i + 1, configs.length, config.name);
+  // Phase 1: BFD (fast, deterministic)
+  onProgress?.(1, 1 + METAHEURISTIC_CONFIGS.length, BFD_CONFIG.name);
+  await yieldToUI();
 
-    // Yield so the browser can paint the progress update
+  const t0 = Date.now();
+  const bfdCutlist = createCutlist(
+    formattedHeader, formattedRows, plankListHeader, plankListRows, BFD_CONFIG.params,
+  );
+  const bfd = scoreCutlistResult(bfdCutlist, BFD_CONFIG.name, BFD_CONFIG.description);
+  results.push(bfd);
+  console.log(
+    `[Tournament] BFD completed in ${Date.now() - t0}ms — ` +
+    `score: ${bfd.score.toFixed(1)}, util: ${bfd.avgUtilization.toFixed(1)}%, ` +
+    `sheets: ${bfd.sheetCount}, overlaps: ${bfd.overlapCount}, unplaced: ${bfd.unplacedCount}`
+  );
+
+  if (bfd.avgUtilization >= SKIP_THRESHOLD && bfd.overlapCount === 0 && bfd.unplacedCount === 0) {
+    console.log(
+      `[Tournament] BFD achieved ${bfd.avgUtilization.toFixed(1)}% utilization ` +
+      `(>= ${SKIP_THRESHOLD}%) with 0 overlaps — skipping metaheuristics.`
+    );
+    return bfd;
+  }
+
+  // Phase 2: lightweight metaheuristics (only if BFD was suboptimal)
+  console.log(`[Tournament] BFD below threshold (${bfd.avgUtilization.toFixed(1)}% < ${SKIP_THRESHOLD}%) — running metaheuristics...`);
+  for (let i = 0; i < METAHEURISTIC_CONFIGS.length; i++) {
+    const config = METAHEURISTIC_CONFIGS[i];
+    onProgress?.(i + 2, 1 + METAHEURISTIC_CONFIGS.length, config.name);
     await yieldToUI();
 
-    const t0 = Date.now();
+    const ct0 = Date.now();
     try {
       const cutlist = createCutlist(
-        formattedHeader,
-        formattedRows,
-        plankListHeader,
-        plankListRows,
-        config.params,
+        formattedHeader, formattedRows, plankListHeader, plankListRows, config.params,
       );
-
       const scored = scoreCutlistResult(cutlist, config.name, config.description);
       results.push(scored);
-      console.log(`[Tournament] ${config.name} completed in ${Date.now() - t0}ms — score: ${scored.score.toFixed(1)}, util: ${scored.avgUtilization.toFixed(1)}%, sheets: ${scored.sheetCount}, overlaps: ${scored.overlapCount}, unplaced: ${scored.unplacedCount}`);
+      console.log(
+        `[Tournament] ${config.name} completed in ${Date.now() - ct0}ms — ` +
+        `score: ${scored.score.toFixed(1)}, util: ${scored.avgUtilization.toFixed(1)}%, ` +
+        `sheets: ${scored.sheetCount}, overlaps: ${scored.overlapCount}, unplaced: ${scored.unplacedCount}`
+      );
     } catch (err) {
-      console.warn(`[Tournament] ${config.name} failed in ${Date.now() - t0}ms:`, err);
+      console.warn(`[Tournament] ${config.name} failed in ${Date.now() - ct0}ms:`, err);
     }
+
+    await yieldToUI();
   }
 
   if (results.length === 0) {
@@ -148,44 +164,33 @@ export function runNestingTournament(
   plankListRows: (string | number)[][],
   onProgress?: TournamentProgressCallback,
 ): TournamentResult {
-  const configs = TOURNAMENT_CONFIGS;
-  const results: TournamentResult[] = [];
+  const bfdCutlist = createCutlist(
+    formattedHeader, formattedRows, plankListHeader, plankListRows, BFD_CONFIG.params,
+  );
+  const bfd = scoreCutlistResult(bfdCutlist, BFD_CONFIG.name, BFD_CONFIG.description);
+  onProgress?.(1, 1, BFD_CONFIG.name);
 
-  for (let i = 0; i < configs.length; i++) {
-    const config = configs[i];
-    onProgress?.(i + 1, configs.length, config.name);
+  if (bfd.avgUtilization >= SKIP_THRESHOLD && bfd.overlapCount === 0 && bfd.unplacedCount === 0) {
+    console.log(`[Tournament-sync] BFD: ${bfd.avgUtilization.toFixed(1)}% — skipping metaheuristics`);
+    return bfd;
+  }
 
+  const results: TournamentResult[] = [bfd];
+  for (let i = 0; i < METAHEURISTIC_CONFIGS.length; i++) {
+    const config = METAHEURISTIC_CONFIGS[i];
+    onProgress?.(i + 2, 1 + METAHEURISTIC_CONFIGS.length, config.name);
     try {
       const cutlist = createCutlist(
-        formattedHeader,
-        formattedRows,
-        plankListHeader,
-        plankListRows,
-        config.params,
+        formattedHeader, formattedRows, plankListHeader, plankListRows, config.params,
       );
-
-      const scored = scoreCutlistResult(cutlist, config.name, config.description);
-      results.push(scored);
-      console.log(`[Tournament-sync] ${config.name}: score=${scored.score.toFixed(1)}, util=${scored.avgUtilization.toFixed(1)}%`);
+      results.push(scoreCutlistResult(cutlist, config.name, config.description));
     } catch {
       // Config failed — skip it
     }
   }
 
-  if (results.length === 0) {
-    throw new Error('All tournament configurations failed');
-  }
-
   results.sort((a, b) => b.score - a.score);
-
-  console.log(`[Tournament-sync] === RESULTS ===`);
-  results.forEach((r, i) => {
-    console.log(
-      `  ${i + 1}. ${r.configName}: score=${r.score.toFixed(1)}, util=${r.avgUtilization.toFixed(1)}%, sheets=${r.sheetCount}, overlaps=${r.overlapCount}`
-    );
-  });
-  console.log(`[Tournament-sync] WINNER: ${results[0].configName}`);
-
+  console.log(`[Tournament-sync] WINNER: ${results[0].configName} — ${results[0].avgUtilization.toFixed(1)}%`);
   return results[0];
 }
 

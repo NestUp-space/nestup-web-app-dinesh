@@ -13,7 +13,7 @@
  * - Search/filter
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 
 // ============================================
 // TYPES
@@ -42,6 +42,8 @@ export interface DataTableProps {
 // COMPONENT
 // ============================================
 
+const PAGE_SIZE = 100;
+
 export function DataTableView({
   title,
   columns,
@@ -55,6 +57,8 @@ export function DataTableView({
   const [searchQuery, setSearchQuery] = useState('');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   // Filter data based on search
   const filteredData = useMemo(() => {
@@ -93,6 +97,22 @@ export function DataTableView({
         : bStr.localeCompare(aStr);
     });
   }, [filteredData, sortColumn, sortDirection]);
+
+  const pagedData = useMemo(() => sortedData.slice(0, visibleCount), [sortedData, visibleCount]);
+  const hasMore = visibleCount < sortedData.length;
+
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [searchQuery, sortColumn, sortDirection]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setVisibleCount(prev => Math.min(prev + PAGE_SIZE, sortedData.length)); },
+      { rootMargin: '200px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, sortedData.length]);
 
   // Handle column header click for sorting
   const handleSort = (columnKey: string) => {
@@ -261,7 +281,7 @@ export function DataTableView({
                 </td>
               </tr>
             ) : (
-              sortedData.map((row, rowIndex) => (
+              pagedData.map((row, rowIndex) => (
                 <tr
                   key={rowIndex}
                   className="hover:bg-blue-50 transition-colors border-b border-gray-100"
@@ -285,6 +305,7 @@ export function DataTableView({
             )}
           </tbody>
         </table>
+        {hasMore && <div ref={sentinelRef} className="py-3 text-center text-xs text-gray-400">Showing {pagedData.length} of {sortedData.length} rows — scroll for more</div>}
       </div>
 
       {/* Summary Footer */}
@@ -428,6 +449,8 @@ export function FormattedDataTable({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const fmtSentinelRef = useRef<HTMLDivElement>(null);
 
   const operationColumns = useMemo(() => {
     const maxCounts: Record<string, number> = {
@@ -573,6 +596,22 @@ export function FormattedDataTable({
     });
   }, [filteredData, sortColumn, sortDirection]);
 
+  const fmtPagedData = useMemo(() => sortedData.slice(0, visibleCount), [sortedData, visibleCount]);
+  const fmtHasMore = visibleCount < sortedData.length;
+
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [searchQuery, sortColumn, sortDirection]);
+
+  useEffect(() => {
+    const el = fmtSentinelRef.current;
+    if (!el || !fmtHasMore) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setVisibleCount(prev => Math.min(prev + PAGE_SIZE, sortedData.length)); },
+      { rootMargin: '200px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [fmtHasMore, sortedData.length]);
+
   const handleSort = (key: string) => {
     if (sortColumn === key) setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortColumn(key); setSortDirection('asc'); }
@@ -655,7 +694,7 @@ export function FormattedDataTable({
       <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b flex-wrap gap-2">
         <div className="flex items-center gap-4">
           <h2 className="text-lg font-semibold text-gray-900">Formatted Data (with Level 3 Operations)</h2>
-          <span className="text-sm text-gray-500">{sortedData.length} rows{searchQuery && ` (filtered from ${workingData.length})`}</span>
+          <span className="text-sm text-gray-500">{sortedData.length} rows{searchQuery && ` (filtered from ${workingData.length})`}{fmtHasMore && ` · showing ${fmtPagedData.length}`}</span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative">
@@ -714,7 +753,7 @@ export function FormattedDataTable({
             {sortedData.length === 0 ? (
               <tr><td colSpan={visibleColumns.length + 1} className="px-4 py-8 text-center text-gray-500">{searchQuery ? 'No matching records' : 'No data available'}</td></tr>
             ) : (
-              sortedData.map((row, ri) => {
+              fmtPagedData.map((row, ri) => {
                 const realIdx = workingData.indexOf(row);
                 return (
                   <tr key={ri} className={`hover:bg-blue-50 transition-colors border-b border-gray-100 ${editMode ? 'cursor-text' : ''}`}>
@@ -737,6 +776,7 @@ export function FormattedDataTable({
             )}
           </tbody>
         </table>
+        {fmtHasMore && <div ref={fmtSentinelRef} className="py-3 text-center text-xs text-gray-400">Showing {fmtPagedData.length} of {sortedData.length} rows — scroll for more</div>}
       </div>
       <div className="px-4 py-3 bg-gray-50 border-t flex items-center gap-6">
         <div className="flex items-center gap-2"><span className="text-sm text-gray-500">Total Planks:</span><span className="text-sm font-semibold text-gray-900">{data.length}</span></div>

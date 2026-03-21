@@ -523,6 +523,8 @@ export default function GeneratePage() {
     }
   };
 
+  const MODAL_PAGE_SIZE = 100;
+
   const EditableSheetModal = ({ title, sections, onClose }: {
     title: string;
     sections: { title: string; headers: string[]; rows: (string | number | boolean)[][] }[];
@@ -534,6 +536,9 @@ export default function GeneratePage() {
         rows: sec.rows.map(r => [...r]),
         checked: sec.rows.map(() => false),
       }))
+    );
+    const [shownCounts, setShownCounts] = React.useState(() =>
+      sections.map(sec => Math.min(MODAL_PAGE_SIZE, sec.rows.length))
     );
 
     const handleCellEdit = (si: number, ri: number, ci: number, value: string) => {
@@ -556,6 +561,14 @@ export default function GeneratePage() {
       });
     };
 
+    const loadMore = (si: number) => {
+      setShownCounts(prev => {
+        const next = [...prev];
+        next[si] = Math.min(next[si] + MODAL_PAGE_SIZE, localSections[si].rows.length);
+        return next;
+      });
+    };
+
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
         <div className="w-full max-w-7xl max-h-[90vh] overflow-auto bg-white rounded-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
@@ -565,7 +578,10 @@ export default function GeneratePage() {
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
-          {localSections.map((sec, si) => (
+          {localSections.map((sec, si) => {
+            const shown = shownCounts[si] ?? sec.rows.length;
+            const hasMore = shown < sec.rows.length;
+            return (
             <div key={si} className="p-4">
               {si > 0 && <h3 className="text-sm font-bold text-gray-700 mb-2">{sec.title}</h3>}
               <div className="overflow-x-auto">
@@ -575,7 +591,7 @@ export default function GeneratePage() {
                     {sec.headers.map((h, hi) => <th key={hi} className="px-3 py-2 border text-left whitespace-nowrap">{h}</th>)}
                   </tr></thead>
                   <tbody>
-                    {sec.rows.map((row, ri) => (
+                    {sec.rows.slice(0, shown).map((row, ri) => (
                       <tr key={ri} className={sec.checked[ri] ? 'bg-green-50' : 'hover:bg-blue-50'}>
                         <td className="px-3 py-2 border text-center">
                           <input type="checkbox" className="w-4 h-4" checked={sec.checked[ri] || false} onChange={() => handleCheck(si, ri)} />
@@ -604,9 +620,15 @@ export default function GeneratePage() {
                     ))}
                   </tbody>
                 </table>
+                {hasMore && (
+                  <button onClick={() => loadMore(si)} className="mt-2 w-full py-2 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors">
+                    Show more ({shown} of {sec.rows.length})
+                  </button>
+                )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
