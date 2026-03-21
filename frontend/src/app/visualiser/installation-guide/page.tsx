@@ -1,11 +1,11 @@
 'use client';
 
 /**
- * Installation Guide Page — exact port of App Script UI + premium enhancements.
+ * Installation Guide Page — view-only 3D installation guide.
  *
  * Layout: Full-screen 3D canvas with floating UI overlays
- * (menu button, print, fit-view, edit-mode pill, step controls, plank info card,
- *  slide-in panel, tooltip, save indicator, loading spinner).
+ * (menu button, print, fit-view, step controls, plank info card,
+ *  slide-in panel, tooltip, loading spinner).
  *
  * Coordinate mapping matches App Script exactly:
  *   Three.js X = Data X
@@ -24,8 +24,6 @@ import {
   enrichMaterialFromPipeline,
   syncPlankIdsToRaw,
   convertDesignerRawDataTo2D,
-  updatePlankPositionInData,
-  updateBoxPositionInData,
 } from '@/lib/visualiser/appscript-port';
 import type { VisualizationData, WallData, BoxData, PlankData } from '@/lib/visualiser/appscript-port';
 import { generateRawData } from '@/lib/visualiser/rawDataGenerator';
@@ -84,8 +82,8 @@ function generateWoodTexture(
   dims: { lenX: number; lenY: number; lenZ: number },
   seed: number,
 ): THREE.CanvasTexture {
-  const w = Math.min(512, Math.max(128, Math.round(canvasW / 4)));
-  const h = Math.min(512, Math.max(128, Math.round(canvasH / 4)));
+  const w = Math.min(1024, Math.max(256, Math.round(canvasW / 2)));
+  const h = Math.min(1024, Math.max(256, Math.round(canvasH / 2)));
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
@@ -133,18 +131,26 @@ function generateWoodTexture(
 
   if (plankId) {
     const lum = luminance(r, g, b);
-    const textColor = lum > 0.5 ? 'rgba(30,30,30,0.82)' : 'rgba(255,255,255,0.88)';
-    ctx.shadowColor = lum > 0.5 ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 2;
+    const textColor = lum > 0.5 ? '#111111' : '#FFFFFF';
+    const strokeColor = lum > 0.5 ? '#FFFFFF' : '#000000';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const idSize = Math.max(10, Math.min(28, w * 0.12));
-    ctx.font = `bold ${idSize}px Arial, sans-serif`;
+
+    const idSize = Math.max(16, Math.min(60, w * 0.18));
+    ctx.font = `900 ${idSize}px Arial, sans-serif`;
+    ctx.lineWidth = Math.max(3, idSize * 0.12);
+    ctx.strokeStyle = strokeColor;
+    ctx.shadowColor = lum > 0.5 ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)';
+    ctx.shadowBlur = 4;
+    ctx.strokeText(plankId, w / 2, h / 2 - idSize * 0.3);
     ctx.fillStyle = textColor;
     ctx.fillText(plankId, w / 2, h / 2 - idSize * 0.3);
-    const dimSize = Math.max(8, idSize * 0.65);
-    ctx.font = `${dimSize}px Arial, sans-serif`;
-    ctx.fillText(`${dims.lenX}x${dims.lenY}x${dims.lenZ}`, w / 2, h / 2 + idSize * 0.5);
+
+    const dimSize = Math.max(11, idSize * 0.55);
+    ctx.font = `bold ${dimSize}px Arial, sans-serif`;
+    ctx.lineWidth = Math.max(2, dimSize * 0.1);
+    ctx.strokeText(`${dims.lenX}x${dims.lenY}x${dims.lenZ}`, w / 2, h / 2 + idSize * 0.55);
+    ctx.fillText(`${dims.lenX}x${dims.lenY}x${dims.lenZ}`, w / 2, h / 2 + idSize * 0.55);
     ctx.shadowBlur = 0;
   }
 
@@ -257,17 +263,50 @@ function PlankMesh({ plank, targetOpacity, isCurrentStep, isSelected, explodeAmo
 }
 
 // ============================================
-// WALL SURFACE — matches App Script exactly
+// WALL SURFACE — vertical backdrop, always behind all boxes
 // ============================================
-function WallSurface({ wall }: { wall: WallData }) {
-  const lenX = wall.dimensions.lenX || 5000;
-  const lenZ = wall.dimensions.lenZ || 3000;
+function WallSurface({ wall, boxes }: { wall: WallData; boxes: BoxData[] }) {
+  const { wallW, wallH, cx, cy, cz } = useMemo(() => {
+    if (boxes.length === 0) {
+      const fw = wall.dimensions.lenX || 5000;
+      const fh = wall.dimensions.lenZ || 3000;
+      return { wallW: fw, wallH: fh, cx: fw / 2, cy: fh / 2, cz: -200 };
+    }
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, maxZ_back = -Infinity;
+    for (const box of boxes) {
+      const bx = box.position.x;
+      const by = box.position.z;
+      const bz_front = -box.position.y;
+      const bw = box.dimensions.lenX || 500;
+      const bh = box.dimensions.lenZ || 500;
+      const bd = box.dimensions.lenY || 500;
+
+      minX = Math.min(minX, bx);
+      maxX = Math.max(maxX, bx + bw);
+      minY = Math.min(minY, by);
+      maxY = Math.max(maxY, by + bh);
+      maxZ_back = Math.max(maxZ_back, Math.abs(bz_front) + bd);
+    }
+
+    const pad = 400;
+    const computedW = (maxX - minX) + pad * 2;
+    const computedH = (maxY - minY) + pad * 2;
+    const wallWidth = Math.max(computedW, wall.dimensions.lenX || 0);
+    const wallHeight = Math.max(computedH, wall.dimensions.lenZ || 0);
+
+    return {
+      wallW: wallWidth,
+      wallH: wallHeight,
+      cx: (minX + maxX) / 2,
+      cy: (minY + maxY) / 2,
+      cz: -(maxZ_back + 200),
+    };
+  }, [wall.dimensions, boxes]);
+
   return (
-    <mesh
-      position={[lenX / 2, -25, lenZ / 2]}
-      receiveShadow
-    >
-      <boxGeometry args={[lenX, 50, lenZ]} />
+    <mesh position={[cx, cy, cz]} receiveShadow>
+      <boxGeometry args={[wallW, wallH, 30]} />
       <meshLambertMaterial color={COLORS.wallColor} transparent opacity={0.8} />
     </mesh>
   );
@@ -351,9 +390,9 @@ function BoxGroup({ box, isActiveBox, currentStep, explodeAmount, selectedPlankI
 }
 
 // ============================================
-// CAMERA ANIMATOR — lerps camera to target
+// CAMERA ANIMATOR — lerps camera to target, then releases control
 // ============================================
-function CameraAnimator({ target, lookAt }: { target: THREE.Vector3 | null; lookAt: THREE.Vector3 | null }) {
+function CameraAnimator({ target, lookAt, onReached }: { target: THREE.Vector3 | null; lookAt: THREE.Vector3 | null; onReached?: () => void }) {
   const { camera } = useThree();
   const controlsRef = useRef<{ target: THREE.Vector3 } | null>(null);
 
@@ -361,11 +400,24 @@ function CameraAnimator({ target, lookAt }: { target: THREE.Vector3 | null; look
   useEffect(() => { controlsRef.current = orbitControls; }, [orbitControls]);
 
   useFrame(() => {
+    let posReached = !target;
+    let lookReached = !lookAt;
+
     if (target) {
       camera.position.lerp(target, 0.06);
+      if (camera.position.distanceTo(target) < 10) {
+        posReached = true;
+      }
     }
     if (lookAt && controlsRef.current) {
       controlsRef.current.target.lerp(lookAt, 0.06);
+      if (controlsRef.current.target.distanceTo(lookAt) < 10) {
+        lookReached = true;
+      }
+    }
+
+    if (posReached && lookReached && (target || lookAt)) {
+      onReached?.();
     }
   });
 
@@ -375,8 +427,6 @@ function CameraAnimator({ target, lookAt }: { target: THREE.Vector3 | null; look
 // ============================================
 // MAIN PAGE
 // ============================================
-type EditMode = 'view' | 'move' | 'rotate' | 'boxMove';
-
 export default function InstallationGuidePage() {
   const walls = useDesignerStore((s) => s.walls);
   const rawData = useDesignerStore((s) => s.rawData);
@@ -388,18 +438,19 @@ export default function InstallationGuidePage() {
   const [previousBoxIdx, setPreviousBoxIdx] = useState(-1);
   const [currentStep, setCurrentStep] = useState(0);
   const [explodeAmount, setExplodeAmount] = useState(0);
-  const [editMode, setEditMode] = useState<EditMode>('view');
   const [panelOpen, setPanelOpen] = useState(false);
   const [selectedPlankId, setSelectedPlankId] = useState<string | null>(null);
   const [hoveredPlank, setHoveredPlank] = useState<PlankData | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [loading, setLoading] = useState(true);
 
   const [cameraTarget, setCameraTarget] = useState<THREE.Vector3 | null>(null);
   const [cameraLookAt, setCameraLookAt] = useState<THREE.Vector3 | null>(null);
 
-  const rawValuesRef = useRef<unknown[][] | null>(null);
+  const handleCameraReached = useCallback(() => {
+    setCameraTarget(null);
+    setCameraLookAt(null);
+  }, []);
 
   // Build visualization data
   const visualizationData = useMemo((): VisualizationData | null => {
@@ -433,7 +484,6 @@ export default function InstallationGuidePage() {
     }
 
     if (rawValues.length < 2) return null;
-    rawValuesRef.current = rawValues;
 
     try {
       let vizData = buildInstallationGuide(rawValues);
@@ -473,34 +523,36 @@ export default function InstallationGuidePage() {
   const totalSteps = sortedPlanks.length;
   const currentPlank = currentStep > 0 ? sortedPlanks[currentStep - 1] ?? null : null;
 
-  // Fit-to-view: camera to fit entire wall
+  // Fit-to-view: camera to fit all boxes from the front
   const fitToView = useCallback(() => {
     if (!selectedWall) return;
-    const lenX = selectedWall.dimensions.lenX || 5000;
-    const lenZ = selectedWall.dimensions.lenZ || 3000;
-    const cx = lenX / 2;
-    const cy = lenZ / 2;
-    const maxDim = Math.max(lenX, lenZ);
+    const boxes = selectedWall.boxes;
+    let cx: number, cy: number, maxDim: number;
+    if (boxes.length > 0) {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const box of boxes) {
+        minX = Math.min(minX, box.position.x);
+        maxX = Math.max(maxX, box.position.x + (box.dimensions.lenX || 500));
+        minY = Math.min(minY, box.position.z);
+        maxY = Math.max(maxY, box.position.z + (box.dimensions.lenZ || 500));
+      }
+      cx = (minX + maxX) / 2;
+      cy = (minY + maxY) / 2;
+      maxDim = Math.max(maxX - minX, maxY - minY);
+    } else {
+      const lenX = selectedWall.dimensions.lenX || 5000;
+      const lenZ = selectedWall.dimensions.lenZ || 3000;
+      cx = lenX / 2;
+      cy = lenZ / 2;
+      maxDim = Math.max(lenX, lenZ);
+    }
     const dist = maxDim * 1.8;
-    setCameraTarget(new THREE.Vector3(cx + dist * 0.5, cy + dist * 0.4, cy + dist * 0.9));
-    setCameraLookAt(new THREE.Vector3(cx, cy, -100));
+    setCameraTarget(new THREE.Vector3(cx + dist * 0.3, cy + dist * 0.3, dist * 1.2));
+    setCameraLookAt(new THREE.Vector3(cx, cy, 0));
   }, [selectedWall]);
 
-  // Fit-to-box: camera to fit a specific box
-  const fitToBox = useCallback((boxIdx: number) => {
-    if (!selectedWall || boxIdx < 0) return;
-    const box = selectedWall.boxes[boxIdx];
-    if (!box) return;
-    const cx = box.position.x + (box.dimensions.lenX || 500) / 2;
-    const cz = box.position.z + (box.dimensions.lenZ || 500) / 2;
-    const [tx, ty, tz] = toThreePos(cx, box.position.y, cz);
-    const maxDim = Math.max(box.dimensions.lenX || 500, box.dimensions.lenY || 500, box.dimensions.lenZ || 500);
-    const dist = maxDim * 2.5;
-    setCameraTarget(new THREE.Vector3(tx + dist * 0.6, ty + dist * 0.4, tz + dist * 0.8 + FORWARD_DISTANCE));
-    setCameraLookAt(new THREE.Vector3(tx, ty, tz + FORWARD_DISTANCE));
-  }, [selectedWall]);
 
-  // Wall selection
+  // Wall selection (no camera animation — user controls orbit freely)
   const handleSelectWall = useCallback((idx: number) => {
     setSelectedWallIdx(idx);
     setSelectedBoxIdx(-1);
@@ -508,35 +560,22 @@ export default function InstallationGuidePage() {
     setCurrentStep(0);
     setExplodeAmount(0);
     setSelectedPlankId(null);
-    setTimeout(() => fitToView(), 50);
-  }, [fitToView]);
+  }, []);
 
-  // Box selection — matches App Script selectBox()
+  // Box selection (no camera animation — user controls orbit freely)
   const handleSelectBox = useCallback((idx: number) => {
     setPreviousBoxIdx(selectedBoxIdx);
     setSelectedBoxIdx(idx);
     setCurrentStep(0);
     setExplodeAmount(0);
     setSelectedPlankId(null);
-    setTimeout(() => fitToBox(idx), 100);
-  }, [selectedBoxIdx, fitToBox]);
+  }, [selectedBoxIdx]);
 
-  // Plank click handler
+  // Plank click handler (view-only)
   const handlePlankClick = useCallback((plank: PlankData, box: BoxData) => {
     if (!selectedWall) return;
     const boxIdx = selectedWall.boxes.findIndex((b) => b.id === box.id);
 
-    if (editMode === 'boxMove') {
-      if (boxIdx >= 0) handleSelectBox(boxIdx);
-      return;
-    }
-
-    if (editMode === 'move' || editMode === 'rotate') {
-      setSelectedPlankId(plank.id);
-      return;
-    }
-
-    // View mode
     if (boxIdx >= 0 && boxIdx !== selectedBoxIdx) {
       handleSelectBox(boxIdx);
     }
@@ -544,7 +583,7 @@ export default function InstallationGuidePage() {
     if (stepIdx >= 0) {
       setCurrentStep(stepIdx + 1);
     }
-  }, [editMode, selectedWall, selectedBoxIdx, handleSelectBox, sortedPlanks]);
+  }, [selectedWall, selectedBoxIdx, handleSelectBox, sortedPlanks]);
 
   // Step controls
   const changeStep = useCallback((delta: number) => {
@@ -558,35 +597,6 @@ export default function InstallationGuidePage() {
     return () => window.removeEventListener('mousemove', handler);
   }, []);
 
-  // Edit save handlers
-  const handleEditSave = useCallback((plankRowIndex: number, newX: number, newY: number, newZ: number) => {
-    if (!rawValuesRef.current) return;
-    setSaveStatus('saving');
-    try {
-      updatePlankPositionInData(rawValuesRef.current, plankRowIndex, newX, newY, newZ);
-      setSaveStatus('saved');
-    } catch {
-      setSaveStatus('error');
-    }
-    setTimeout(() => setSaveStatus('idle'), 1500);
-  }, []);
-
-  const handleBoxSave = useCallback((plankUpdates: { rowIndex: number; newX: number; newY: number; newZ: number }[]) => {
-    if (!rawValuesRef.current) return;
-    setSaveStatus('saving');
-    try {
-      updateBoxPositionInData(rawValuesRef.current, plankUpdates);
-      setSaveStatus('saved');
-    } catch {
-      setSaveStatus('error');
-    }
-    setTimeout(() => setSaveStatus('idle'), 1500);
-  }, []);
-
-  const handleSetEditMode = useCallback((mode: EditMode) => {
-    setEditMode(mode);
-    setSelectedPlankId(null);
-  }, []);
 
   // ============================================
   // NO DATA STATE
@@ -644,7 +654,7 @@ export default function InstallationGuidePage() {
             <directionalLight position={[2000, 3000, 2000]} intensity={0.6} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-far={30000} shadow-camera-left={-5000} shadow-camera-right={5000} shadow-camera-top={5000} shadow-camera-bottom={-5000} />
             <directionalLight position={[-1000, 1000, -1000]} intensity={0.3} />
 
-            {selectedWall && <WallSurface wall={selectedWall} />}
+            {selectedWall && <WallSurface wall={selectedWall} boxes={selectedWall.boxes} />}
 
             {selectedWall?.boxes.map((box, idx) => (
               <BoxGroup
@@ -670,7 +680,7 @@ export default function InstallationGuidePage() {
             />
             <Environment preset="studio" />
 
-            <CameraAnimator target={cameraTarget} lookAt={cameraLookAt} />
+            <CameraAnimator target={cameraTarget} lookAt={cameraLookAt} onReached={handleCameraReached} />
           </Suspense>
         </Canvas>
       </div>
@@ -726,63 +736,6 @@ export default function InstallationGuidePage() {
         &#8857;
       </button>
 
-      {/* ======== EDIT MODE BUTTONS (top-center) ======== */}
-      <div className="absolute top-5 left-1/2 -translate-x-1/2 z-[100] flex gap-1 bg-white rounded-full p-1.5 shadow-lg print:hidden">
-        {([
-          { id: 'view' as EditMode, icon: '\uD83D\uDC41\uFE0F', label: 'View' },
-          { id: 'move' as EditMode, icon: '\u271D', label: 'Move' },
-          { id: 'rotate' as EditMode, icon: '\u21BB', label: 'Rotate' },
-          { id: 'boxMove' as EditMode, icon: '\uD83D\uDCE6', label: 'Box' },
-        ]).map((m) => (
-          <button
-            key={m.id}
-            onClick={() => handleSetEditMode(m.id)}
-            className="w-11 h-11 rounded-full border-2 border-transparent flex items-center justify-center text-lg transition-all cursor-pointer"
-            style={{
-              background: editMode === m.id
-                ? (m.id === 'boxMove' ? COLORS.boxSelect : COLORS.primary)
-                : COLORS.bgLight,
-              color: editMode === m.id ? COLORS.white : COLORS.textDark,
-              borderColor: editMode === m.id
-                ? (m.id === 'boxMove' ? COLORS.boxSelect : COLORS.primary)
-                : 'transparent',
-            }}
-            title={m.label}
-          >
-            {m.icon}
-          </button>
-        ))}
-      </div>
-
-      {/* ======== SAVE INDICATOR ======== */}
-      {saveStatus !== 'idle' && (
-        <div
-          className="absolute top-20 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 px-4 py-2 rounded-full text-white text-sm font-semibold shadow-lg print:hidden"
-          style={{
-            background: saveStatus === 'saving' ? COLORS.primary : saveStatus === 'saved' ? COLORS.green : COLORS.red,
-          }}
-        >
-          <span className={saveStatus === 'saving' ? 'animate-pulse' : ''}>
-            {saveStatus === 'saving' ? '\uD83D\uDCBE' : saveStatus === 'saved' ? '\u2713' : '\u2715'}
-          </span>
-          <span>
-            {saveStatus === 'saving' ? (editMode === 'boxMove' ? 'Saving box...' : 'Saving...') : saveStatus === 'saved' ? (editMode === 'boxMove' ? 'Box saved!' : 'Saved!') : 'Error!'}
-          </span>
-        </div>
-      )}
-
-      {/* ======== TRANSFORM HINT ======== */}
-      {editMode !== 'view' && (
-        <div
-          className="absolute bottom-40 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 rounded-lg text-white text-xs print:hidden"
-          style={{ background: editMode === 'boxMove' ? COLORS.boxSelect : 'rgba(0,0,0,0.7)' }}
-        >
-          {editMode === 'move' && 'Click a plank to move it'}
-          {editMode === 'rotate' && 'Click a plank to rotate it'}
-          {editMode === 'boxMove' && '\uD83D\uDCE6 Click a box to select and move it (all planks will move)'}
-        </div>
-      )}
-
       {/* ======== CURRENT PLANK INFO (bottom-left) ======== */}
       {selectedBoxIdx >= 0 && currentStep > 0 && currentPlank && (
         <div
@@ -834,7 +787,7 @@ export default function InstallationGuidePage() {
 
       {/* ======== OVERLAY (when panel is open) ======== */}
       <div
-        className={`absolute inset-0 z-[150] transition-all duration-300 ${panelOpen ? 'bg-black/30 visible' : 'invisible opacity-0'}`}
+        className={`absolute inset-0 z-[150] transition-all duration-300 ${panelOpen ? 'bg-black/30 visible pointer-events-auto' : 'invisible opacity-0 pointer-events-none'}`}
         onClick={() => setPanelOpen(false)}
       />
 

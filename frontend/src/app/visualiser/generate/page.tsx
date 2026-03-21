@@ -59,11 +59,12 @@ const GENERATION_STEPS: Omit<GenerationStep, 'status'>[] = [
 
 export default function GeneratePage() {
   const router = useRouter();
-  const summary = useDesignSummary();
+  const designSummary = useDesignSummary();
 
   const {
     walls,
     projectName,
+    dataSource,
     generationProgress,
     setGenerationProgress,
     updateGenerationStep,
@@ -84,6 +85,24 @@ export default function GeneratePage() {
   const customerDetails = useDesignerStore((state) => state.customerDetails);
   const setCustomerDetails = useDesignerStore((state) => state.setCustomerDetails);
 
+  const summary = useMemo(() => {
+    if (dataSource === 'import' && pipelineResult) {
+      const totalPlanks = pipelineResult.plankList?.rows?.length ?? 0;
+      const boxSet = new Set<string>();
+      if (pipelineResult.formattedData?.rows) {
+        const boxCol = pipelineResult.formattedData.header.indexOf('box_model');
+        if (boxCol >= 0) {
+          pipelineResult.formattedData.rows.forEach((r) => {
+            const v = String(r[boxCol] ?? '').trim();
+            if (v) boxSet.add(v);
+          });
+        }
+      }
+      return { totalWalls: 0, totalBoxes: boxSet.size || 1, totalPlanks };
+    }
+    return designSummary;
+  }, [dataSource, pipelineResult, designSummary]);
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [completedFiles, setCompletedFiles] = useState<string[]>([]);
   const [gcodeResults, setGcodeResults] = useState<GCodeResult[] | null>(null);
@@ -100,23 +119,33 @@ export default function GeneratePage() {
   // Collect unique materials from all planks for EB dialog
   const uniqueMaterials = useMemo(() => {
     const materials = new Set<string>();
-    walls.forEach((wall) => {
-      wall.boxes.forEach((box) => {
-        box.planks.forEach((plank) => {
-          if (plank.material) {
-            materials.add(plank.material);
+    if (dataSource === 'import' && pipelineResult?.formattedData?.rows) {
+      const matCol = pipelineResult.formattedData.header.indexOf('plank_material');
+      if (matCol >= 0) {
+        pipelineResult.formattedData.rows.forEach((r) => {
+          const v = String(r[matCol] ?? '').trim();
+          if (v) materials.add(v);
+        });
+      }
+    } else {
+      walls.forEach((wall) => {
+        wall.boxes.forEach((box) => {
+          box.planks.forEach((plank) => {
+            if (plank.material) {
+              materials.add(plank.material);
+            }
+          });
+          if (box.planks.length === 0) {
+            materials.add('Plywood 18mm');
           }
         });
-        // Also add default material if no planks
-        if (box.planks.length === 0) {
-          materials.add('Plywood 18mm');
-        }
       });
-    });
+    }
     return Array.from(materials).sort();
-  }, [walls]);
+  }, [walls, dataSource, pipelineResult]);
 
   // ====== LEVEL 3 DIAGNOSTICS ======
+  // NOTE: When dataSource is 'import', diagnostics come from formattedData (already handled below via the else-if branch).
   const level3Diagnostics = useMemo(() => {
     let planksWithOperations = 0;
     let planksWithoutOperations = 0;
@@ -178,13 +207,13 @@ export default function GeneratePage() {
     };
   }, [walls, formattedData]);
 
-  // Redirect if no design and no pipeline result (e.g. from Import Raw Data)
+  // Redirect if no design and no pipeline result
   const hasPipelineResult = !!pipelineResult;
   useEffect(() => {
     if (summary.totalPlanks === 0 && summary.totalBoxes === 0 && !hasPipelineResult) {
-      router.push('/visualiser/designer');
+      router.push(dataSource === 'import' ? '/visualiser/import-raw-data' : '/visualiser/designer');
     }
-  }, [summary, router, hasPipelineResult]);
+  }, [summary, router, hasPipelineResult, dataSource]);
 
   // Initialize progress on mount
   useEffect(() => {
@@ -251,19 +280,23 @@ export default function GeneratePage() {
 
     try {
       // Step 1: Raw data (from walls or already set by Import Raw Data)
-      let rawDataRows: RawDataRow[] = [];
+      let rawValues: unknown[][] = [];
       if (walls.length > 0) {
         markStep('raw-data', 'processing');
-        rawDataRows = generateRawData(walls);
+        const rawDataRows = generateRawData(walls);
         setRawData(rawDataRows as unknown as Record<string, unknown>[]);
         await new Promise((r) => setTimeout(r, 150));
         markStep('raw-data', 'complete');
+        rawValues = convertDesignerRawDataTo2D(rawDataRows as Parameters<typeof convertDesignerRawDataTo2D>[0]);
+      } else if (rawData && Array.isArray(rawData) && rawData.length > 0) {
+        markStep('raw-data', 'complete');
+        const storeRaw = rawData as Record<string, unknown>[];
+        const headers = Object.keys(storeRaw[0]);
+        rawValues = [headers, ...storeRaw.map((r) => headers.map((h) => r[h]))];
       } else {
-        // Import flow: raw data may already be in store or from pipelineResult
         markStep('raw-data', 'complete');
       }
 
-      const rawValues = convertDesignerRawDataTo2D(rawDataRows as Parameters<typeof convertDesignerRawDataTo2D>[0]);
       if (rawValues.length < 2) {
         throw new Error('No raw data to process. Add design in designer or import raw data.');
       }
@@ -348,6 +381,7 @@ export default function GeneratePage() {
     }
   }, [
     walls,
+    rawData,
     customerDetails,
     selectedAlgorithm,
     setGenerationProgress,
@@ -753,7 +787,7 @@ export default function GeneratePage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
-                href="/visualiser/designer"
+                href={dataSource === 'import' ? '/visualiser/import-raw-data' : '/visualiser/designer'}
                 className="text-gray-500 hover:text-orange-500 transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1185,7 +1219,7 @@ export default function GeneratePage() {
               </div>
             </Link>
             <Link
-              href="/visualiser/designer"
+              href={dataSource === 'import' ? '/visualiser/import-raw-data' : '/visualiser/designer'}
               className="p-4 bg-white rounded-lg border border-gray-200 hover:border-gray-400 hover:shadow-md transition-all group"
             >
               <div className="flex items-center gap-3">
@@ -1195,8 +1229,8 @@ export default function GeneratePage() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-medium text-blue-900">Back to Designer</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">Continue editing</p>
+                  <h3 className="font-medium text-blue-900">{dataSource === 'import' ? 'Back to Import' : 'Back to Designer'}</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">{dataSource === 'import' ? 'Import another file' : 'Continue editing'}</p>
                 </div>
               </div>
             </Link>

@@ -137,6 +137,7 @@ export interface ChecklistItem {
 export interface PlankOperations {
   screws?: HoleOperation[];
   hinges?: HoleOperation[];
+  holes?: HoleOperation[];
   vb_main?: HoleOperation[];
   vb_double?: HoleOperation[];
   slots?: GrooveOperation[];

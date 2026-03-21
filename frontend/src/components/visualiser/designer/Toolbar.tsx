@@ -110,11 +110,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  const setDataSource = useDesignerStore((s) => s.setDataSource);
+
   const handleGenerateFiles = () => {
     if (summary.totalPlanks === 0) {
       alert('Please add some boxes to your design first.');
       return;
     }
+    setDataSource('designer');
     router.push('/visualiser/generate');
   };
 

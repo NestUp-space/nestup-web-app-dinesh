@@ -33,6 +33,7 @@ function parseOperationsFromRow(
 
   const hinges: HoleOperation[] = [];
   const screws: HoleOperation[] = [];
+  const holes: HoleOperation[] = [];
   const vbMain: HoleOperation[] = [];
   const vbDouble: HoleOperation[] = [];
   const grooves: GrooveOperation[] = [];
@@ -74,6 +75,15 @@ function parseOperationsFromRow(
     const vz = header.indexOf(`vb_double_${i}_Z`);
     const x = num(vx), y = num(vy), z = num(vz);
     if (!isNaN(x) && !isNaN(y)) vbDouble.push({ x, y, z: isNaN(z) ? 0 : z });
+  }
+
+  for (let i = 1; i <= 50; i++) {
+    const hx = header.indexOf(`hole_${i}_X`);
+    if (hx === -1) break;
+    const hy = header.indexOf(`hole_${i}_Y`);
+    const hz = header.indexOf(`hole_${i}_Z`);
+    const x = num(hx), y = num(hy), z = num(hz);
+    if (!isNaN(x) && !isNaN(y)) holes.push({ x, y, z: isNaN(z) ? 0 : z });
   }
 
   for (let i = 1; i <= 50; i++) {
@@ -126,6 +136,7 @@ function parseOperationsFromRow(
 
   if (hinges.length) ops.hinges = hinges;
   if (screws.length) ops.screws = screws;
+  if (holes.length) ops.holes = holes;
   if (vbMain.length) ops.vb_main = vbMain;
   if (vbDouble.length) ops.vb_double = vbDouble;
   if (grooves.length) ops.grooves = grooves;

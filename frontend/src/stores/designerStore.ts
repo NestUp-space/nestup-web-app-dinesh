@@ -140,6 +140,7 @@ interface DesignerState {
   moveToolRuntime: MoveToolRuntimeState | null;
 
   // File Generation
+  dataSource: 'import' | 'designer' | null;
   generationProgress: GenerationProgress | null;
   rawData: Record<string, unknown>[] | null;
   formattedData: FormattedPlankData[] | null;
@@ -252,6 +253,8 @@ interface DesignerState {
   setMoveToolRuntime: (runtime: MoveToolRuntimeState | null) => void;
 
   // File Generation
+  setDataSource: (source: 'import' | 'designer' | null) => void;
+  clearWalls: () => void;
   setGenerationProgress: (progress: GenerationProgress | null) => void;
   updateGenerationStep: (stepId: string, updates: Partial<GenerationStep>) => void;
   setRawData: (data: Record<string, unknown>[] | null) => void;
@@ -428,6 +431,7 @@ export const useDesignerStore = create<DesignerState>()(
       selectedMeasureGuideId: null,
       moveToolRuntime: null,
 
+      dataSource: null,
       generationProgress: null,
       rawData: null,
       formattedData: null,
@@ -1423,6 +1427,14 @@ export const useDesignerStore = create<DesignerState>()(
       // FILE GENERATION
       // ============================================
 
+      setDataSource: (source) => {
+        set({ dataSource: source });
+      },
+
+      clearWalls: () => {
+        set({ walls: [], selectedWallId: null, selectedBoxId: null, selectedPlankId: null, activeWallId: null });
+      },
+
       setGenerationProgress: (progress) => {
         set({ generationProgress: progress });
       },
@@ -1467,6 +1479,7 @@ export const useDesignerStore = create<DesignerState>()(
 
       clearGeneratedData: () => {
         set({
+          dataSource: null,
           generationProgress: null,
           rawData: null,
           formattedData: null,

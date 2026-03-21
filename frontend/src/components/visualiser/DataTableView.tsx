@@ -431,13 +431,14 @@ export function FormattedDataTable({
 
   const operationColumns = useMemo(() => {
     const maxCounts: Record<string, number> = {
-      hinges: 0, screws: 0, vb_main: 0, vb_double: 0,
+      hinges: 0, screws: 0, holes: 0, vb_main: 0, vb_double: 0,
       grooves: 0, slots: 0, profiles: 0, l_cuts: 0,
     };
     data.forEach(plank => {
       if (plank.operations) {
         maxCounts.hinges = Math.max(maxCounts.hinges, plank.operations.hinges?.length || 0);
         maxCounts.screws = Math.max(maxCounts.screws, plank.operations.screws?.length || 0);
+        maxCounts.holes = Math.max(maxCounts.holes, plank.operations.holes?.length || 0);
         maxCounts.vb_main = Math.max(maxCounts.vb_main, plank.operations.vb_main?.length || 0);
         maxCounts.vb_double = Math.max(maxCounts.vb_double, plank.operations.vb_double?.length || 0);
         maxCounts.grooves = Math.max(maxCounts.grooves, plank.operations.grooves?.length || 0);
@@ -466,6 +467,11 @@ export function FormattedDataTable({
       cols.push({ key: `vb_double_${i}_X`, header: `vb_double_${i}_X`, width: 70, align: 'right' });
       cols.push({ key: `vb_double_${i}_Y`, header: `vb_double_${i}_Y`, width: 70, align: 'right' });
       cols.push({ key: `vb_double_${i}_Z`, header: `vb_double_${i}_Z`, width: 70, align: 'right' });
+    }
+    for (let i = 1; i <= maxCounts.holes; i++) {
+      cols.push({ key: `hole_${i}_X`, header: `hole_${i}_X`, width: 70, align: 'right' });
+      cols.push({ key: `hole_${i}_Y`, header: `hole_${i}_Y`, width: 70, align: 'right' });
+      cols.push({ key: `hole_${i}_Z`, header: `hole_${i}_Z`, width: 70, align: 'right' });
     }
     for (let i = 1; i <= maxCounts.grooves; i++) {
       cols.push({ key: `groove_${i}_X`, header: `groove_${i}_X`, width: 70, align: 'right' });
@@ -511,6 +517,7 @@ export function FormattedDataTable({
     if (plank.operations) {
       plank.operations.hinges?.forEach((op, i) => { row[`hing_${i+1}_X`] = op.x?.toFixed(1); row[`hing_${i+1}_Y`] = op.y?.toFixed(1); row[`hing_${i+1}_Z`] = op.z?.toFixed(1); });
       plank.operations.screws?.forEach((op, i) => { row[`screw_${i+1}_X`] = op.x?.toFixed(1); row[`screw_${i+1}_Y`] = op.y?.toFixed(1); row[`screw_${i+1}_Z`] = op.z?.toFixed(1); });
+      plank.operations.holes?.forEach((op, i) => { row[`hole_${i+1}_X`] = op.x?.toFixed(1); row[`hole_${i+1}_Y`] = op.y?.toFixed(1); row[`hole_${i+1}_Z`] = op.z?.toFixed(1); });
       plank.operations.vb_main?.forEach((op, i) => { row[`vb_main_${i+1}_X`] = op.x?.toFixed(1); row[`vb_main_${i+1}_Y`] = op.y?.toFixed(1); row[`vb_main_${i+1}_Z`] = op.z?.toFixed(1); });
       plank.operations.vb_double?.forEach((op, i) => { row[`vb_double_${i+1}_X`] = op.x?.toFixed(1); row[`vb_double_${i+1}_Y`] = op.y?.toFixed(1); row[`vb_double_${i+1}_Z`] = op.z?.toFixed(1); });
       plank.operations.grooves?.forEach((op, i) => { row[`groove_${i+1}_X`] = op.x?.toFixed(1); row[`groove_${i+1}_Y`] = op.y?.toFixed(1); row[`groove_${i+1}_Z`] = op.z?.toFixed(1); row[`groove_${i+1}_length`] = op.length?.toFixed(1); row[`groove_${i+1}_width`] = op.width?.toFixed(1); });
@@ -630,6 +637,7 @@ export function FormattedDataTable({
     if (!plank.operations) return sum;
     return sum +
       (plank.operations.hinges?.length || 0) + (plank.operations.screws?.length || 0) +
+      (plank.operations.holes?.length || 0) +
       (plank.operations.vb_main?.length || 0) + (plank.operations.vb_double?.length || 0) +
       (plank.operations.grooves?.length || 0) + (plank.operations.slots?.length || 0) +
       (plank.operations.profiles?.length || 0) + (plank.operations.l_cuts?.length || 0);
