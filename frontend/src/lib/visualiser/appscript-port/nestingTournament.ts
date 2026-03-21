@@ -34,39 +34,39 @@ export type TournamentProgressCallback = (configIndex: number, totalConfigs: num
 
 const TOURNAMENT_CONFIGS: TournamentConfig[] = [
   {
-    name: 'BFD Baseline',
-    description: 'Best Fit Decreasing (deterministic)',
-    params: { algorithm: 'bfd' },
-  },
-  {
     name: 'GA-heavy',
     description: 'GA 60%, SA 20%, PSO 20%',
-    params: { algorithm: 'ga', gaPopSize: 10, gaGenerations: 15, gaMutationRate: 2 },
+    params: { algorithm: 'ga', gaPopSize: 30, gaGenerations: 40, gaMutationRate: 2 },
   },
   {
     name: 'SA-heavy',
     description: 'GA 20%, SA 60%, PSO 20%',
-    params: { algorithm: 'sa', saIterations: 200, saTemp: 100, saCoolingRate: 0.99 },
+    params: { algorithm: 'sa', saIterations: 800, saTemp: 100, saCoolingRate: 0.995 },
   },
   {
     name: 'PSO-heavy',
     description: 'GA 20%, SA 20%, PSO 60%',
-    params: { algorithm: 'pso', psoParticles: 10, psoIterations: 15, psoInertia: 0.7, psoCognitive: 1.5, psoSocial: 1.5 },
+    params: { algorithm: 'pso', psoParticles: 25, psoIterations: 35, psoInertia: 0.7, psoCognitive: 1.5, psoSocial: 1.5 },
   },
   {
     name: 'Balanced',
     description: 'GA 33%, SA 33%, PSO 34%',
-    params: { algorithm: 'ga', gaPopSize: 8, gaGenerations: 12, gaMutationRate: 2 },
+    params: { algorithm: 'ga', gaPopSize: 20, gaGenerations: 30, gaMutationRate: 2 },
   },
   {
     name: 'GA+SA',
     description: 'GA 40%, SA 40%, PSO 20%',
-    params: { algorithm: 'sa', saIterations: 150, saTemp: 80, saCoolingRate: 0.99 },
+    params: { algorithm: 'sa', saIterations: 500, saTemp: 80, saCoolingRate: 0.995 },
   },
   {
     name: 'SA+PSO',
     description: 'GA 20%, SA 40%, PSO 40%',
-    params: { algorithm: 'pso', psoParticles: 8, psoIterations: 12, psoInertia: 0.7, psoCognitive: 1.5, psoSocial: 1.5 },
+    params: { algorithm: 'pso', psoParticles: 18, psoIterations: 25, psoInertia: 0.7, psoCognitive: 1.5, psoSocial: 1.5 },
+  },
+  {
+    name: 'BFD Baseline',
+    description: 'Best Fit Decreasing (deterministic)',
+    params: { algorithm: 'bfd' },
   },
 ];
 
@@ -107,7 +107,7 @@ export async function runNestingTournamentAsync(
 
       const scored = scoreCutlistResult(cutlist, config.name, config.description);
       results.push(scored);
-      console.log(`[Tournament] ${config.name} completed in ${Date.now() - t0}ms — score: ${scored.score.toFixed(1)}, util: ${scored.avgUtilization.toFixed(1)}%`);
+      console.log(`[Tournament] ${config.name} completed in ${Date.now() - t0}ms — score: ${scored.score.toFixed(1)}, util: ${scored.avgUtilization.toFixed(1)}%, sheets: ${scored.sheetCount}, overlaps: ${scored.overlapCount}, unplaced: ${scored.unplacedCount}`);
     } catch (err) {
       console.warn(`[Tournament] ${config.name} failed in ${Date.now() - t0}ms:`, err);
     }
@@ -118,7 +118,23 @@ export async function runNestingTournamentAsync(
   }
 
   results.sort((a, b) => b.score - a.score);
-  return results[0];
+
+  console.log(`\n[Tournament] === RESULTS (${results.length} configs completed) ===`);
+  results.forEach((r, i) => {
+    console.log(
+      `  ${i + 1}. ${r.configName} (${r.configDescription}): ` +
+      `score=${r.score.toFixed(1)}, util=${r.avgUtilization.toFixed(1)}%, ` +
+      `sheets=${r.sheetCount}, overlaps=${r.overlapCount}, unplaced=${r.unplacedCount}`
+    );
+  });
+  const winner = results[0];
+  console.log(
+    `[Tournament] === WINNER: ${winner.configName} ===\n` +
+    `  Score: ${winner.score.toFixed(1)} | Avg Utilization: ${winner.avgUtilization.toFixed(1)}% | ` +
+    `Sheets: ${winner.sheetCount} | Overlaps: ${winner.overlapCount} | Unplaced: ${winner.unplacedCount}\n`
+  );
+
+  return winner;
 }
 
 /**
@@ -150,6 +166,7 @@ export function runNestingTournament(
 
       const scored = scoreCutlistResult(cutlist, config.name, config.description);
       results.push(scored);
+      console.log(`[Tournament-sync] ${config.name}: score=${scored.score.toFixed(1)}, util=${scored.avgUtilization.toFixed(1)}%`);
     } catch {
       // Config failed — skip it
     }
@@ -160,6 +177,15 @@ export function runNestingTournament(
   }
 
   results.sort((a, b) => b.score - a.score);
+
+  console.log(`[Tournament-sync] === RESULTS ===`);
+  results.forEach((r, i) => {
+    console.log(
+      `  ${i + 1}. ${r.configName}: score=${r.score.toFixed(1)}, util=${r.avgUtilization.toFixed(1)}%, sheets=${r.sheetCount}, overlaps=${r.overlapCount}`
+    );
+  });
+  console.log(`[Tournament-sync] WINNER: ${results[0].configName}`);
+
   return results[0];
 }
 
@@ -204,7 +230,7 @@ function scoreCutlistResult(
 
   const score = avgUtilization
     - (totalOverlaps * 10000)
-    - (sheetCount * 100)
+    - (sheetCount * 5)
     - (unplacedCount * 50000);
 
   return {

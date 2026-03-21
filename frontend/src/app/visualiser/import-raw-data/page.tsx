@@ -126,6 +126,8 @@ export default function ImportRawDataPage() {
   const setRawData = useDesignerStore((s) => s.setRawData);
   const setCustomerDetails = useDesignerStore((s) => s.setCustomerDetails);
   const setGenerationProgress = useDesignerStore((s) => s.setGenerationProgress);
+  const setDataSource = useDesignerStore((s) => s.setDataSource);
+  const clearWalls = useDesignerStore((s) => s.clearWalls);
 
   const [rawValues, setRawValues] = useState<unknown[][] | null>(null);
   const [fileName, setFileName] = useState<string>('');
@@ -239,6 +241,8 @@ export default function ImportRawDataPage() {
         customerDetails: customerDetailsForPipeline,
         nestingParams: { algorithm: selectedAlgorithm },
       });
+      clearWalls();
+      setDataSource('import');
       setPipelineResult(result);
       setFormattedData(pipelineFormattedToStore(result.formattedData));
       setPlankList(pipelinePlankListToStore(result.plankList));

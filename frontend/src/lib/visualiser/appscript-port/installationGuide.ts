@@ -378,30 +378,43 @@ function determineHingeSide(entityName: string): string {
 }
 
 const MATERIAL_COLOR_MAP: Record<string, string> = {
-  '2632 SF Inner': '#C8A67A',
-  'BB EHGP 701': '#F5F0E6',
-  '7070': '#B8AFA0',
-  'EHGP 701': '#EDE8DA',
-  'Color (Kitchen)': '#D4B896',
-  'MDF': '#D2B48C',
-  'HDF': '#C4A882',
-  'Plywood': '#D9C4A0',
-  'Particle Board': '#C9B99A',
-  'BWP': '#BFA980',
-  'BWR': '#C5B090',
-  'Marine Ply': '#A89070',
-  'White': '#F5F0E6',
-  'Ivory': '#FFFFF0',
-  'Teak': '#9E7B52',
-  'Walnut': '#6B4226',
-  'Oak': '#C8A96E',
-  'Maple': '#E8D4A2',
-  'Cherry': '#9B4722',
-  'Mahogany': '#6E3B30',
-  'Pine': '#E0C89A',
-  'Wenge': '#4A3728',
-  'Ash': '#CFC0A8',
+  '2632 SF Inner': '#E07020',
+  'BB EHGP 701': '#2196F3',
+  '7070': '#8BC34A',
+  'EHGP 701': '#00BCD4',
+  'Color (Kitchen)': '#FF5722',
+  'MDF': '#9C27B0',
+  'HDF': '#3F51B5',
+  'Plywood': '#FF9800',
+  'Particle Board': '#009688',
+  'BWP': '#F44336',
+  'BWR': '#4CAF50',
+  'Marine Ply': '#03A9F4',
+  'White': '#E0E0E0',
+  'Ivory': '#FFF8E1',
+  'Teak': '#8D6E63',
+  'Walnut': '#5D4037',
+  'Oak': '#FFB74D',
+  'Maple': '#FFF176',
+  'Cherry': '#C62828',
+  'Mahogany': '#6D4C41',
+  'Pine': '#AED581',
+  'Wenge': '#37474F',
+  'Ash': '#B0BEC5',
 };
+
+const FALLBACK_COLORS = [
+  '#E91E63', '#673AB7', '#2196F3', '#00BCD4', '#4CAF50', '#CDDC39',
+  '#FF9800', '#795548', '#607D8B', '#F44336', '#9C27B0', '#3F51B5',
+];
+
+function hashString(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
 
 function getMaterialColor(material: string): string {
   const m = (material || '').trim();
@@ -410,7 +423,7 @@ function getMaterialColor(material: string): string {
   for (const [key, color] of Object.entries(MATERIAL_COLOR_MAP)) {
     if (lower.includes(key.toLowerCase())) return color;
   }
-  return '#C9B99A';
+  return FALLBACK_COLORS[hashString(m) % FALLBACK_COLORS.length];
 }
 
 export { MATERIAL_COLOR_MAP };
