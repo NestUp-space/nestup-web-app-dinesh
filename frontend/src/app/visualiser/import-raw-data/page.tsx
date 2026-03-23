@@ -14,6 +14,11 @@ import {
   pipelineNestToStore,
   pipelineMaterialSummaryToStore,
 } from '@/lib/visualiser/appscript-port';
+import {
+  isVisualiserBackendAvailable,
+  postVisualiserGenerate,
+  postVisualiserImport,
+} from '@/lib/visualiser/visualiserApi';
 import * as XLSX from 'xlsx';
 
 const REQUIRED_HEADERS = [
@@ -152,34 +157,56 @@ export default function ImportRawDataPage() {
     return Array.from(set).sort();
   }, [rawValues, header]);
 
-  const handleFile = useCallback(
-    (file: File) => {
-      setValidationError(null);
-      setRawValues(null);
-      setFileName(file.name);
-      const ext = file.name.split('.').pop()?.toLowerCase();
+  const handleFile = useCallback((file: File) => {
+    setValidationError(null);
+    setRawValues(null);
+    setFileName(file.name);
+    const ext = file.name.split('.').pop()?.toLowerCase();
+
+    const applyParsed = (data: unknown[][], serverErrors?: string[]) => {
+      if (!data.length) {
+        setValidationError('File is empty');
+        return;
+      }
+      setRawValues(data);
+      if (data.length > 1) {
+        const v = validateHeaders((data[0] as string[]).map(normalizeHeader));
+        if (!v.ok) setValidationError('Missing columns: ' + v.missing.join(', '));
+      }
+      if (serverErrors?.length) {
+        setValidationError(serverErrors.join(' '));
+      }
+    };
+
+    void (async () => {
+      if (isVisualiserBackendAvailable()) {
+        try {
+          const parsed = await postVisualiserImport(file);
+          applyParsed(parsed.rawValues as unknown[][], parsed.validationErrors);
+          return;
+        } catch (e) {
+          console.warn('[Import] Server parse failed, using client parser', e);
+        }
+      }
+
       const reader = new FileReader();
       reader.onload = () => {
         try {
           const result = reader.result;
           let data: unknown[][];
           if (ext === 'csv' || file.type === 'text/csv') {
-            data = parseCSV(typeof result === 'string' ? result : new TextDecoder().decode(result as ArrayBuffer));
+            data = parseCSV(
+              typeof result === 'string'
+                ? result
+                : new TextDecoder().decode(result as ArrayBuffer)
+            );
           } else if (ext === 'xlsx' || ext === 'xls') {
             data = parseExcelFile(result as ArrayBuffer);
           } else {
             setValidationError('Unsupported format. Use .csv, .xlsx, or .xls');
             return;
           }
-          if (!data.length) {
-            setValidationError('File is empty');
-            return;
-          }
-          setRawValues(data);
-          if (data.length > 1) {
-            const v = validateHeaders((data[0] as string[]).map(normalizeHeader));
-            if (!v.ok) setValidationError('Missing columns: ' + v.missing.join(', '));
-          }
+          applyParsed(data);
         } catch (e) {
           setValidationError(e instanceof Error ? e.message : 'Parse error');
         }
@@ -189,9 +216,8 @@ export default function ImportRawDataPage() {
       } else {
         reader.readAsArrayBuffer(file);
       }
-    },
-    []
-  );
+    })();
+  }, []);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -235,12 +261,19 @@ export default function ImportRawDataPage() {
       'transport amount': String(details.transportAmount),
     };
     try {
-      const result = await runPipelineAsync({
-        rawValues,
-        ebSettings,
-        customerDetails: customerDetailsForPipeline,
-        nestingParams: { algorithm: selectedAlgorithm },
-      });
+      const result = isVisualiserBackendAvailable()
+        ? await postVisualiserGenerate({
+            rawValues,
+            ebSettings,
+            customerDetails: details,
+            nestingParams: { algorithm: selectedAlgorithm },
+          })
+        : await runPipelineAsync({
+            rawValues,
+            ebSettings,
+            customerDetails: customerDetailsForPipeline,
+            nestingParams: { algorithm: selectedAlgorithm },
+          });
       clearWalls();
       setDataSource('import');
       setPipelineResult(result);

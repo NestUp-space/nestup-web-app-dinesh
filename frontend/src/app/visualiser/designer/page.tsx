@@ -9,12 +9,16 @@ import { CatalogPanel } from '@/components/visualiser/designer/panels/CatalogPan
 import { LaminatePanel } from '@/components/visualiser/designer/panels/LaminatePanel';
 import { WallTabs } from '@/components/visualiser/designer/WallTabs';
 import { useDesignerStore } from '@/stores/designerStore';
-import { 
-  loadCatalogFromSampleData, 
+import {
+  loadCatalogFromSampleData,
   refreshCatalogFromGoogleSheets,
-  isGoogleSheetsConfigured 
+  isGoogleSheetsConfigured,
 } from '@/lib/visualiser/catalogParser';
 import { REFRESH_INTERVAL_MS } from '@/lib/visualiser/googleSheetsService';
+import {
+  fetchVisualiserCatalog,
+  isVisualiserBackendAvailable,
+} from '@/lib/visualiser/visualiserApi';
 import { useDesignerShortcuts } from '@/hooks/useDesignerShortcuts';
 import {
   readAndClearArUcoPayload,
@@ -73,8 +77,24 @@ export default function DesignerPage() {
         setIsRefreshingCatalog(true);
       }
       
-      // Load from Google Sheets (if configured) or CSV files
-      const catalogData = await loadCatalogFromSampleData();
+      let catalogData: Awaited<ReturnType<typeof loadCatalogFromSampleData>>;
+      if (isVisualiserBackendAvailable()) {
+        try {
+          const apiData = await fetchVisualiserCatalog(isRefresh);
+          catalogData = {
+            models: apiData.models,
+            catalogBoxesWithPlanks: apiData.catalogBoxesWithPlanks ?? [],
+            plywoodOptions: apiData.plywoodOptions,
+            laminateOptions: apiData.laminateOptions,
+            source: 'google-sheets',
+          };
+        } catch (e) {
+          console.warn('[Designer] Backend catalog failed, falling back to Next / Sheets:', e);
+          catalogData = await loadCatalogFromSampleData();
+        }
+      } else {
+        catalogData = await loadCatalogFromSampleData();
+      }
       
       if (catalogData.models.length > 0 || catalogData.laminateOptions.length > 0) {
         setCatalogModels(catalogData.models);
@@ -159,17 +179,31 @@ export default function DesignerPage() {
   // Auto-refresh from Google Sheets every 5 minutes
   useEffect(() => {
     // Only set up refresh if Google Sheets is configured
-    if (!isGoogleSheetsConfigured()) {
-      console.log('[Designer] Google Sheets not configured, skipping auto-refresh');
+    if (!isGoogleSheetsConfigured() && !isVisualiserBackendAvailable()) {
+      console.log('[Designer] No Sheets config and no API token, skipping auto-refresh');
       return;
     }
-    
+
     console.log(`[Designer] Setting up auto-refresh every ${REFRESH_INTERVAL_MS / 1000 / 60} minutes`);
-    
+
     const refreshTimer = setInterval(async () => {
-      console.log('[Designer] Auto-refreshing catalog from Google Sheets...');
+      console.log('[Designer] Auto-refreshing catalog...');
+      if (isVisualiserBackendAvailable()) {
+        try {
+          const apiData = await fetchVisualiserCatalog(true);
+          setCatalogModels(apiData.models);
+          setCatalogBoxesWithPlanks(apiData.catalogBoxesWithPlanks ?? []);
+          setPlywoodLibrary(apiData.plywoodOptions);
+          setLaminateLibrary(apiData.laminateOptions);
+          setLastCatalogRefresh(new Date().toISOString());
+          setCatalogSource(apiData.source);
+          console.log(`[Designer] Auto-refresh (API) complete: ${apiData.models.length} models`);
+          return;
+        } catch (e) {
+          console.warn('[Designer] API catalog refresh failed, trying legacy path:', e);
+        }
+      }
       const newData = await refreshCatalogFromGoogleSheets();
-      
       if (newData) {
         setCatalogModels(newData.models);
         setCatalogBoxesWithPlanks(newData.catalogBoxesWithPlanks);

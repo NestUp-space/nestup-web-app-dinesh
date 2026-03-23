@@ -102,6 +102,26 @@ export class ApiClient {
     return result.data;
   }
 
+  /** Multipart POST (no JSON Content-Type — browser sets boundary). */
+  async postFormData<T = any>(endpoint: string, formData: FormData, options?: ApiClientOptions): Promise<T> {
+    const apiPrefix = endpoint.startsWith('/api') ? '' : '/api';
+    const url = `${API_BASE_URL}${apiPrefix}${endpoint}`;
+    const headers = new Headers({ ...(options?.headers || {}) });
+    if (options?.withAuth !== false) {
+      const token = this.getAuthToken();
+      if (token) {
+        headers.append('Authorization', `Bearer ${token}`);
+      }
+    }
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    const result = await this.handleResponse<T>(response);
+    return result.data;
+  }
+
   async post<T = any, D = any>(endpoint: string, data?: D, options?: ApiClientOptions): Promise<T> {
     // Check if endpoint already starts with /api to avoid double /api
     const apiPrefix = endpoint.startsWith('/api') ? '' : '/api';

@@ -31,6 +31,10 @@ import {
 } from '@/lib/visualiser/appscript-port';
 import type { GCodeResult } from '@/lib/visualiser/appscript-port';
 import { generateRawData, RawDataRow } from '@/lib/visualiser/rawDataGenerator';
+import {
+  isVisualiserBackendAvailable,
+  postVisualiserGenerate,
+} from '@/lib/visualiser/visualiserApi';
 
 // Import table views
 import {
@@ -324,29 +328,54 @@ export default function GeneratePage() {
         'complete': 'output-qa',
       };
 
-      const result = await runPipelineAsync(
-        {
+      let result: Awaited<ReturnType<typeof runPipelineAsync>>;
+
+      if (isVisualiserBackendAvailable()) {
+        [
+          'formatted-data',
+          'plank-list',
+          'cutlist',
+          'material-summary',
+          'pressing-list',
+          'material-estimate',
+          'input-qa',
+          'output-qa',
+        ].forEach((id) => {
+          markStep(id, 'processing');
+        });
+        result = await postVisualiserGenerate({
           rawValues,
           ebSettings: eb,
-          customerDetails: customerDetailsForPipeline,
+          customerDetails,
           nestingParams: { algorithm: selectedAlgorithm },
-        },
-        (step, message) => {
-          const stepId = progressSteps[step];
-          if (stepId) {
-            updateGenerationStep(stepId, { status: 'processing' });
-            const prog = useDesignerStore.getState().generationProgress;
-            if (prog) setGenerationProgress({ ...prog, currentStepId: stepId });
-          }
-          if (step === 'cutlist' && message) {
-            const prog = useDesignerStore.getState().generationProgress;
-            if (prog) {
-              const updated = prog.steps.map(s => s.id === 'cutlist' ? { ...s, name: message } : s);
-              setGenerationProgress({ ...prog, steps: updated });
+        });
+      } else {
+        result = await runPipelineAsync(
+          {
+            rawValues,
+            ebSettings: eb,
+            customerDetails: customerDetailsForPipeline,
+            nestingParams: { algorithm: selectedAlgorithm },
+          },
+          (step, message) => {
+            const stepId = progressSteps[step];
+            if (stepId) {
+              updateGenerationStep(stepId, { status: 'processing' });
+              const prog = useDesignerStore.getState().generationProgress;
+              if (prog) setGenerationProgress({ ...prog, currentStepId: stepId });
+            }
+            if (step === 'cutlist' && message) {
+              const prog = useDesignerStore.getState().generationProgress;
+              if (prog) {
+                const updated = prog.steps.map((s) =>
+                  s.id === 'cutlist' ? { ...s, name: message } : s
+                );
+                setGenerationProgress({ ...prog, steps: updated });
+              }
             }
           }
-        }
-      );
+        );
+      }
 
       setPipelineResult(result);
       setFormattedData(pipelineFormattedToStore(result.formattedData));

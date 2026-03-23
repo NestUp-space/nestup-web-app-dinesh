@@ -16,6 +16,7 @@ import catalogueRouter from "./catalogue/routes/model.routes"; // Model manageme
 import materialRouter from "@/routes/material.routes"; // Material router
 import siteVisitBoxRouter from "@/routes/siteVisitBox.routes"; // SiteVisitBox router
 import lidarRouter from "./lidar/routes/lidar.routes"; // LiDAR router
+import visualiserRouter from "./visualiser/routes/visualiser.routes"; // Visualiser router
 import errorHandler from "@/common/middleware/errorHandler";
 import rateLimiter from "@/common/middleware/rateLimiter";
 import requestLogger from "@/common/middleware/requestLogger";
@@ -119,6 +120,7 @@ app.use("/api/v1/catalogue", catalogueRouter);
 app.use("/api/materials", materialRouter); // Material routes, specific path
 app.use("/api/site-visit-boxes", siteVisitBoxRouter); // SiteVisitBox routes, specific path
 app.use("/api/lidar", lidarRouter); // LiDAR routes for session management
+app.use("/api/visualiser", visualiserRouter); // Visualiser routes for design generation
 
 
 // Swagger UI at /api-docs (keeps root free for future frontend or redirect)

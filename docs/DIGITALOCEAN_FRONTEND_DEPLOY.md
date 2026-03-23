@@ -22,6 +22,27 @@ Use **one** Web Service component with the repo root (the folder that contains `
 
 After deploy, the **same URL** serves the web app at `/` and API at `/api`, Swagger at `/api-docs`.
 
+### Wall measurements (`/measurements`) + vision service
+
+The **Measurements** flow (`frontend/src/app/measurements/`) is part of the same Next.js build as the rest of the site. No extra component is required for the pages themselves—ensure your deploy branch includes `frontend/src/app/measurements/`.
+
+Photo processing calls a **separate Python FastAPI** service under `frontend/src/app/aruco-measurement-system/vision-service/` (`/measure-wall`, `/health`). Deploy it as a **second** App Platform component (Dockerfile in that directory, HTTP port **8000**). A ready-to-edit spec lives at [`.do/vision-service.app.yaml`](../.do/vision-service.app.yaml); see [`.do/README.md`](../.do/README.md) for `doctl` usage.
+
+On this **web** component, set the vision service’s public origin so the browser can call it (value is baked in at **Next.js build time**—redeploy after changing it):
+
+| Key | Value |
+|-----|--------|
+| `NEXT_PUBLIC_MEASUREMENT_API_URL` | Vision service URL, e.g. `https://vision-xxxxx.ondigitalocean.app` (no trailing slash) |
+
+Optional:
+
+| Key | Purpose |
+|-----|--------|
+| `NEXT_PUBLIC_SHOW_WALL_MEASURE` | Set to `true` to show wall-measurement entry points on the Visualiser when your app reads this flag. |
+| `NEXT_PUBLIC_ARUCO_APP_URL` | Only if the measurement UI is hosted on a different origin than the Visualiser. |
+
+YOLO weights (`models/*/best.pt`) for windows/doors/switchboards are optional for ArUco wall sizing but required for those detections; see `frontend/src/app/aruco-measurement-system/vision-service/models/README.md`.
+
 ---
 
 ## Alternative: two components (backend + frontend)

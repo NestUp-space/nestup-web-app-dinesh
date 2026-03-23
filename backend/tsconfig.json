@@ -34,6 +34,9 @@
     "**/*.test.ts",
     "**/*.spec.ts",
     "**/__tests__/**/*",
-    "src/test/**/*"
+    "src/test/**/*",
+    "src/visualiser/pipeline/appscript-port/exportUtils.ts",
+    "src/visualiser/pipeline/appscript-port/gcode.ts",
+    "src/visualiser/pipeline/appscript-port/index.ts"
   ]
 }
