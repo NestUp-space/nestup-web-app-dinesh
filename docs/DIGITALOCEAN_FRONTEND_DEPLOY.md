@@ -20,6 +20,20 @@ Use **one** Web Service component with the repo root (the folder that contains `
 | `FRONTEND_URL` | Your app's public URL, e.g. `https://nestupapp-xxxxx.ondigitalocean.app` |
 | `JWT_SECRET` | Long random string for JWT signing |
 
+**Visualiser** (`/api/visualiser/*` on the backend): logged-in flows call the Express API for catalog, import, and generation. Set a **server-side** Sheets key so `GET /api/visualiser/catalog` works (the key is not exposed to the browser):
+
+| Key | Value |
+|-----|--------|
+| `GOOGLE_SHEETS_API_KEY` | Same Google Sheets API key as below (preferred for server catalog). Falls back to `NEXT_PUBLIC_GOOGLE_SHEETS_API_KEY` if unset. |
+
+Optional client-side catalog fallbacks (already common on deploy):
+
+| Key | Value |
+|-----|--------|
+| `NEXT_PUBLIC_GOOGLE_SHEETS_API_KEY` | Sheets API key (used by the browser / Next `/api/catalog` fallback). |
+| `NEXT_PUBLIC_CATALOGUE_SHEET_ID` | Central catalogue spreadsheet ID. |
+| `NEXT_PUBLIC_MATERIAL_CATALOG_SHEET_ID` | Material catalog spreadsheet ID. |
+
 After deploy, the **same URL** serves the web app at `/` and API at `/api`, Swagger at `/api-docs`.
 
 ### Wall measurements (`/measurements`) + vision service

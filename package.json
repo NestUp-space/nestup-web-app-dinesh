@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node scripts/start-all.js",
     "start:backend-only": "cd backend && npm start",
-    "build": "cd backend && npm install && npx prisma generate && npm run build && cd ../frontend && npm install && NEXT_PUBLIC_API_URL= npm run build",
+    "build": "cd backend && npm install && npx prisma generate && npm run build && cd ../frontend && npm install && cross-env NEXT_PUBLIC_API_URL= npm run build",
     "railway:build": "cd backend && npm run railway:build",
     "railway:start": "cd backend && npm run railway:start",
     "dev": "cd backend && npm run dev",
@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.15.17",
+    "cross-env": "^7.0.3",
     "react-devtools": "^6.1.2"
   }
 }
